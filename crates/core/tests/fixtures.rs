@@ -3,10 +3,16 @@
 //! Chaque cas a une fonction `fn` ; celles que le cœur ne sait pas encore faire sont listées dans `PENDING` : le test échoue
 //! si un cas utilise une fonction qui n'est ni implémentée ni déclarée en attente, pour qu'aucun cas ne soit ignoré en silence.
 
+use chrono::{NaiveDateTime, Utc};
 use scriibe_core::dictionary::{self, Correction, UserDictionary};
+use scriibe_core::history::{self, retention_calc, Calendar, DayTotal, Dictation};
+use scriibe_core::hotkey::{HotkeyMonitor, Key};
 use scriibe_core::lang::LinguaGuesser;
+use scriibe_core::media_pause::{self, AudioProcess, Decision};
+use scriibe_core::microphone::{self, MicLevel, Microphone};
 use scriibe_core::modes::RewriteMode;
 use scriibe_core::settings::AppSettings;
+use scriibe_core::settings::Hotkey;
 use scriibe_core::spoken_signs::{self, ListBullet};
 use scriibe_core::translation::TranslationLanguage;
 use scriibe_core::{cleaner, text, typography};
@@ -15,49 +21,30 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Instant;
 
-/// Fonctions pas encore portées, avec l'étape où elles arrivent.
-const PENDING: &[&str] = &[
-    "cleaner_accepts",
-    "cleaner_strip",
-    "accepts_translation",
-    "skips_cleanup",
-    "decode_settings",
-    "settings_derived",
-    "settings_roundtrip",
-    "decode_history",
-    "decode_history_entry",
-    "decode_dictionary",
-    "decode_day_totals",
-    "history_roundtrip",
-    "hotkey_sequence",
-    "command_held",
-    "media_decision",
-    "media_new_players",
-    "mic_level",
-    "mic_resolve",
-    "mic_label",
-    "is_whisper_model",
-    "distinct_models",
-    "same_model",
-    "llama_base_name",
-    "llama_arguments",
-    "llama_detect_models",
-    "llama_assistant",
-    "llama_status",
-    "whisper_should_release",
-    "cleanup_engine_display",
-    "retention_cutoff",
-    "retention_cutoff_equals",
-    "history_scenario",
-    "prompt_fingerprint",
-    "overlay_origin_x",
-    "folded_cards_toggle",
-    "folded_cards_contains",
-    "dictation_zone_clears",
-    "invariant",
-    "schtroumpf_apply",
-    "schtroumpf_verb_form",
-];
+/// Suites que ce banc d'essai ne rejoue pas : testées ailleurs ou pas encore.
+fn category(suite: &str) -> Option<&'static str> {
+    match suite {
+        "local_engines" => Some("moteurs"),
+        "ui_logic" => Some("interface"),
+        "playful_schtroumpf" => Some("reporté"),
+        _ => None,
+    }
+}
+
+/// Les cas dont l'énoncé est un scénario ou une propriété : un test écrit à la main doit les citer par leur identifiant.
+const MANUAL: &[&str] = &["invariant", "history_scenario"];
+
+fn manual_tests_source() -> String {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let mut all = String::new();
+    for entry in std::fs::read_dir(dir).unwrap().filter_map(Result::ok) {
+        let path = entry.path();
+        if path.file_name().is_some_and(|n| n != "fixtures.rs") && path.extension().is_some_and(|e| e == "rs") {
+            all.push_str(&std::fs::read_to_string(path).unwrap());
+        }
+    }
+    all
+}
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
@@ -247,8 +234,156 @@ fn run_special(case: &Value) -> Option<Result<(), String>> {
             }
         }
         "prompt_fingerprint" => text_is(cleaner::built_in_prompts_fingerprint()),
+        "hotkey_sequence" => hotkey_sequence(args, expected, case.get("comparison").and_then(Value::as_str)),
+        "command_held" => flag(hotkey_of(args).command_held(&keys_of(&args["held"]))),
+        "media_decision" => media_decision(args, expected),
+        "media_new_players" => {
+            let known: std::collections::HashSet<i64> = args["known"].as_array()?.iter().filter_map(Value::as_i64).collect();
+            let got =
+                media_pause::new_players(&processes(&args["processes"]), args["own_pid"].as_i64()?, &known, &media_pause::IGNORED_MACOS);
+            if serde_json::to_value(&got).unwrap() == *expected {
+                Ok(())
+            } else {
+                Err(format!("obtenu {got:?}, attendu {expected}"))
+            }
+        }
+        "mic_level" => {
+            let got = format!("{:?}", MicLevel::assess(args["rms"].as_f64()? as f32)).to_lowercase();
+            text_is(got)
+        }
+        "mic_resolve" => {
+            let list: Vec<Microphone> = args["available"].as_array()?.iter().map(microphone).collect();
+            let r = microphone::resolve(args["uid"].as_str()?, &list);
+            let view = serde_json::json!({ "microphone": r.microphone.map(|m| serde_json::json!({"uid": m.uid})), "missing": r.missing });
+            check_fields(&view, expected)
+        }
+        "mic_label" => {
+            let label = microphone(&args["microphone"]).label();
+            match case.get("comparison").and_then(Value::as_str) {
+                Some("contains") if label.contains(expected.as_str()?) => Ok(()),
+                None if Some(label.as_str()) == expected.as_str() => Ok(()),
+                _ => Err(format!("libellé {label:?}, attendu {expected}")),
+            }
+        }
+        "decode_history" => match history::lossy_list(args["json"].as_str()?, Dictation::from_value) {
+            Ok(list) => check_fields(&serde_json::to_value(&list).unwrap(), expected),
+            Err(e) => Err(e.to_string()),
+        },
+        "decode_history_entry" => {
+            let value: Value = serde_json::from_str(args["json"].as_str()?).unwrap();
+            let entry = Dictation::from_value(&value);
+            let view = serde_json::json!({ "decoded": entry.is_some(), "timing": entry.and_then(|e| e.timing).map(|t| t.total) });
+            check_fields(&view, expected)
+        }
+        "decode_dictionary" => match UserDictionary::from_json(args["json"].as_str()?) {
+            Ok(d) => check_fields(&serde_json::json!({ "corrections": d.corrections }), expected),
+            Err(e) => Err(e.to_string()),
+        },
+        "decode_day_totals" => match history::lossy_list(args["json"].as_str()?, DayTotal::from_value) {
+            Ok(list) => check_fields(&serde_json::to_value(&list).unwrap(), expected),
+            Err(e) => Err(e.to_string()),
+        },
+        "history_roundtrip" => {
+            let mut entry = args["entry"].clone();
+            entry["date"] = "2026-01-01T00:00:00Z".into();
+            let dictation = Dictation::from_value(&entry)?;
+            let back = Dictation::from_value(&serde_json::to_value(&dictation).unwrap())?;
+            check_fields(&serde_json::to_value(&back).unwrap(), expected)
+        }
+        "retention_cutoff" | "retention_cutoff_equals" => retention(name, args, expected),
         _ => return None,
     })
+}
+
+fn hotkey_of(args: &Value) -> Hotkey {
+    match args["hotkey"].as_str() {
+        Some("right_command") => Hotkey::RightCommand,
+        Some("left_option") => Hotkey::LeftOption,
+        Some("fn") => Hotkey::Fn,
+        _ => Hotkey::RightOption,
+    }
+}
+
+fn keys_of(v: &Value) -> Vec<Key> {
+    v.as_array().map(|a| a.iter().filter_map(|k| k.as_str().and_then(Key::from_name)).collect()).unwrap_or_default()
+}
+
+fn hotkey_sequence(args: &Value, expected: &Value, comparison: Option<&str>) -> Result<(), String> {
+    let mut monitor = HotkeyMonitor::new(hotkey_of(args));
+    let mut log = String::new();
+    let typed_after = args.get("typed_after_step").and_then(Value::as_u64);
+    for (i, step) in args["steps"].as_array().ok_or("étapes")?.iter().enumerate() {
+        let key = step["key"].as_str().and_then(Key::from_name).ok_or("touche inconnue")?;
+        log.extend(monitor.handle(key, &keys_of(&step["held"])).into_iter().map(|e| e.letter()));
+        if typed_after == Some(i as u64) {
+            log.extend(monitor.handle_key_down().into_iter().map(|e| e.letter()));
+        }
+    }
+    let want = expected.as_str().ok_or("attendu")?;
+    let ok = if comparison == Some("prefix") { log.starts_with(want) } else { log == want };
+    if ok {
+        Ok(())
+    } else {
+        Err(format!("journal {log:?}, attendu {want:?}"))
+    }
+}
+
+fn processes(v: &Value) -> Vec<AudioProcess> {
+    v.as_array()
+        .map(|a| {
+            a.iter()
+                .map(|p| AudioProcess {
+                    pid: p["pid"].as_i64().unwrap_or(0),
+                    bundle: p["bundle"].as_str().unwrap_or("").into(),
+                    output: p["output"].as_bool().unwrap_or(false),
+                    input: p["input"].as_bool().unwrap_or(false),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn media_decision(args: &Value, expected: &Value) -> Result<(), String> {
+    let got = media_pause::decision(&processes(&args["processes"]), args["own_pid"].as_i64().ok_or("pid")?, &media_pause::IGNORED_MACOS);
+    let want = match expected {
+        Value::String(s) if s == "nothing_playing" => Decision::NothingPlaying,
+        Value::String(s) if s == "in_call" => Decision::InCall,
+        v => Decision::Play(v["play"].as_array().ok_or("play")?.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()),
+    };
+    if got == want {
+        Ok(())
+    } else {
+        Err(format!("obtenu {got:?}, attendu {want:?}"))
+    }
+}
+
+fn microphone(v: &Value) -> Microphone {
+    Microphone {
+        id: v["id"].as_i64().unwrap_or(0),
+        uid: v["uid"].as_str().unwrap_or("").into(),
+        name: v["name"].as_str().unwrap_or("").into(),
+        bluetooth: v["bluetooth"].as_bool().unwrap_or(false),
+    }
+}
+
+fn local_time(text: &str) -> chrono::DateTime<Utc> {
+    NaiveDateTime::parse_from_str(&text[..19], "%Y-%m-%dT%H:%M:%S").unwrap().and_utc()
+}
+
+fn retention(name: &str, args: &Value, expected: &Value) -> Result<(), String> {
+    let cal = Calendar::new(Utc);
+    let now = local_time(args["now"].as_str().ok_or("now")?);
+    let cutoff = retention_calc::cutoff(&cal, args["keep_days"].as_i64().ok_or("jours")?, now);
+    if name == "retention_cutoff" {
+        let got = format!("{} (heure locale)", cutoff.format("%Y-%m-%dT%H:%M:%S"));
+        return if Some(got.as_str()) == expected.as_str() { Ok(()) } else { Err(format!("obtenu {got}, attendu {expected}")) };
+    }
+    let other = retention_calc::cutoff(&cal, args["equals_keep_days"].as_i64().ok_or("jours")?, now);
+    if (cutoff == other) == expected.as_bool().unwrap_or(true) {
+        Ok(())
+    } else {
+        Err("coupures différentes".into())
+    }
 }
 
 fn guesser() -> &'static LinguaGuesser {
@@ -265,9 +400,6 @@ fn run_case(case: &Value) -> Result<Option<()>, String> {
         Value::Array(a) => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
         _ => return Err("fn illisible".into()),
     };
-    if fns.iter().any(|f| PENDING.contains(&f.as_str())) {
-        return Ok(None);
-    }
     let args = &case["args"];
     let start = input_text(args);
     let compute = || -> Result<Out, String> {
@@ -334,6 +466,7 @@ fn reference_cases() {
     let mut files: Vec<_> = std::fs::read_dir(fixtures_dir()).expect("dossier fixtures").filter_map(Result::ok).map(|e| e.path()).collect();
     files.retain(|p| p.extension().is_some_and(|e| e == "json"));
     files.sort();
+    let manual_source = manual_tests_source().replace('_', "-");
     let mut failures = Vec::new();
     let mut summary: BTreeMap<String, (usize, usize)> = BTreeMap::new();
     for path in files {
@@ -342,6 +475,19 @@ fn reference_cases() {
         for case in doc["cases"].as_array().unwrap() {
             let id = case["id"].as_str().unwrap();
             let entry = summary.entry(suite.clone()).or_default();
+            if category(&suite).is_some() {
+                entry.1 += 1;
+                continue;
+            }
+            let manual = case["fn"].as_str().is_some_and(|f| MANUAL.contains(&f));
+            if manual {
+                if manual_source.contains(&id.replace('_', "-")) {
+                    entry.0 += 1;
+                } else {
+                    failures.push(format!("{id} ({}) : aucun test écrit à la main ne cite ce cas", case["name"].as_str().unwrap_or("")));
+                }
+                continue;
+            }
             match run_case(case) {
                 Ok(Some(())) => entry.0 += 1,
                 Ok(None) => entry.1 += 1,
@@ -349,9 +495,9 @@ fn reference_cases() {
             }
         }
     }
-    println!("\n{:<26} {:>7} {:>9}", "suite", "passent", "en attente");
-    for (suite, (ok, pending)) in &summary {
-        println!("{suite:<26} {ok:>7} {pending:>9}");
+    println!("\n{:<26} {:>7}  ailleurs", "suite", "passent");
+    for (suite, (ok, elsewhere)) in &summary {
+        println!("{suite:<26} {ok:>7}  {elsewhere:>3} {}", category(suite).unwrap_or(""));
     }
     assert!(failures.is_empty(), "{} cas en échec :\n{}", failures.len(), failures.join("\n"));
 }

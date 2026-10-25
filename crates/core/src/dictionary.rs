@@ -4,20 +4,39 @@
 use crate::re::{cached, matches_with_group};
 use crate::spoken_signs::{self, ListBullet};
 use crate::text::word_count;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
 pub struct Correction {
     pub heard: String,
     pub written: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
 pub struct UserDictionary {
-    #[serde(default)]
     pub words: Vec<String>,
-    #[serde(default)]
     pub corrections: Vec<Correction>,
+}
+
+impl UserDictionary {
+    /// Lecture tolérante : une correction incomplète est ignorée, un champ illisible vaut vide. Échoue si ce n'est pas un objet JSON.
+    pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
+        let value: serde_json::Value = serde_json::from_str(json)?;
+        let o = value.as_object().ok_or_else(|| serde::de::Error::custom("le dictionnaire n'est pas un objet JSON"))?;
+        let words = o.get("words").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
+        let corrections = o
+            .get("corrections")
+            .and_then(serde_json::Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(|c| {
+                        Some(Correction { heard: c.get("heard")?.as_str()?.to_string(), written: c.get("written")?.as_str()?.to_string() })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(Self { words, corrections })
+    }
 }
 
 /// Le texte corrigé et le nombre de corrections du dictionnaire appliquées.

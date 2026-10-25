@@ -2,6 +2,13 @@
 
 Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. À reprendre à l'étape indiquée de la [feuille de route](../ROADMAP.md).
 
+## Cas présents mais pas encore rejoués par `cargo test`
+
+| Fichier | Cas | Raison |
+|---|---|---|
+| `ui_logic.json` | 14 | Logique d'interface (position de l'indicateur, cartes repliables, zone du banc, vumètre) : sera rejouée par les tests de l'interface web (étape 6). |
+| `playful_schtroumpf.json` | 9 | Mode Amusant reporté (dépend de l'analyseur grammatical d'Apple). |
+
 ## À reprendre avec l'interface complète (étape 6)
 
 | Lignes de `Checks.swift` | Sujet | Pourquoi pas maintenant |

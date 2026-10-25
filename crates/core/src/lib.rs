@@ -5,7 +5,11 @@
 
 pub mod cleaner;
 pub mod dictionary;
+pub mod history;
+pub mod hotkey;
 pub mod lang;
+pub mod media_pause;
+pub mod microphone;
 pub mod modes;
 mod prompt_text;
 pub mod retention;

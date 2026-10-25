@@ -24,6 +24,14 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - Textes de l'interface et documentation en français ; identifiants du code en anglais.
 - Les sessions de travail se font dans le cloud : tout ce qui compte doit être poussé sur GitHub avant la fin de la session.
 
+## Tests
+
+- `cargo test --workspace` rejoue les cas de `fixtures/` (`crates/core/tests/fixtures.rs`, `crates/engines/tests/fixtures.rs`) plus les tests écrits à la main.
+- Un cas `invariant` ou `history_scenario` n'a pas de paire entrée → sortie : un test écrit à la main doit **citer son identifiant** (`prompts_005_…` pour `prompts-005`). Le banc d'essai échoue si un cas n'est cité nulle part.
+- Un cas de `fixtures/` ne se modifie jamais pour faire passer un test : on corrige le code, ou on note l'écart dans `docs/ECARTS.md`.
+- `python3 tools/verifier_fixtures.py` (structure) et `python3 tools/verifier_litteraux.py <Checks.swift> fixtures` (textes) vérifient les fixtures.
+- Les prompts sont extraits de `Services.swift` (`crates/core/src/prompt_text.rs`), jamais retapés ; `built_in_prompts_fingerprint()` doit valoir `4ed86f0c1c154918`.
+
 ## Dépôt
 
 - `scarou/scriibe` (privé pour l'instant), branche `main`, licence MIT.

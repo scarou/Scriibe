@@ -64,7 +64,7 @@ La confiance dans le portage vient de là. Les cas de `Checks.swift` (typographi
 
 Le format complet, la liste des fonctions et les outils de vérification sont décrits dans [`fixtures/README.md`](../fixtures/README.md) ; ce qui reste à reprendre est dans [`fixtures/A_FAIRE.md`](../fixtures/A_FAIRE.md).
 
-Le cœur Rust doit les passer **à l'identique** (365 cas dans 16 fichiers). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
+Le cœur Rust doit les passer **à l'identique** (365 cas dans 16 fichiers : 342 sont rejoués par `cargo test`, 14 attendent l'interface, 9 le mode Amusant). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
 
 ## 4. Interface
 
@@ -87,5 +87,9 @@ Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affic
 | Version Mac actuelle | gardée inchangée, version de référence | 2026-10-25 |
 | Dépôt | séparé de Scribe, privé puis public, licence MIT | 2026-10-25 |
 | Ordre des systèmes | Windows → macOS → Linux X11 → Linux Wayland (bêta) | 2026-10-25 |
+| Expressions régulières | `fancy-regex` (assertions arrière et groupes atomiques, que le moteur `regex` n'a pas) ; pas d'assertion arrière de longueur variable : on l'écrit en plusieurs assertions de longueur fixe | 2026-10-25 |
+| Reconnaissance de la langue (garde-fou de la traduction) | trait `LanguageGuesser` ; implémentation `lingua` (français + 5 langues), fonction `language-detection` du cœur, activée par défaut (≈ 25 Mo de modèles) | 2026-10-25 |
+| Calendrier | passé à chaque appel (`Calendar<Tz>`) : le cœur ne lit pas l'horloge du système | 2026-10-25 |
+| Intégration continue | GitHub Actions sur Linux, Windows et macOS à chaque envoi | 2026-10-25 |
 
 À trancher : la touche par défaut par système ; la gestion de Wayland ; la langue de l'interface au-delà du français ; le cadre de l'interface web (Svelte ou React).
