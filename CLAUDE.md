@@ -34,6 +34,14 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - Les fausses listes de fichiers des tests se construisent avec `Path::join` : sous Windows, `"/a/b"` et `"/a".join("b")` ne sont pas égaux.
 - Les prompts sont extraits de `Services.swift` (`crates/core/src/prompt_text.rs`), jamais retapés ; `built_in_prompts_fingerprint()` doit valoir `4ed86f0c1c154918`.
 
+## Clôture de session
+
+- Fichiers à lire à la reprise : `CLAUDE.md`, `REPRISE.md` (état et prompt de la session suivante), `CHANGELOG.md` (dernière section), `ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/ECARTS.md`, `fixtures/A_FAIRE.md`.
+- Clôturer : mettre à jour `CHANGELOG.md` (une section par session), `REPRISE.md`, `ROADMAP.md`, `README.md` (état), `docs/ECARTS.md` et `fixtures/A_FAIRE.md` ; `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace` ; pousser, puis `tools/attendre_ci.sh` (la CI doit être verte sur les trois systèmes) ; renommer la session « Snn - jj/mm/aaaa - Titre ».
+- Ne jamais annoncer un chiffre (cas qui passent, tests) avant de l'avoir mesuré.
+- Depuis une session cloud : `gh run view --log-failed` et la recherche GitHub sont refusés ; les échecs de CI se lisent en annotation (`tools/attendre_ci.sh`). Un dépôt vide se clone sans erreur mais `git rev-parse HEAD` échoue : c'est normal.
+- Côté Mac de Christophe (hors dépôt, à créer au retour) : fichier de mémoire du projet, groupe « Scriibe » de la barre latérale, carnet d'idées du vault (`…/IA-OS/1 - Projets/scriibe/carnet-idees-scriibe.md`).
+
 ## Dépôt
 
 - `scarou/scriibe` (privé pour l'instant), branche `main`, licence MIT.

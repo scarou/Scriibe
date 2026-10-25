@@ -4,7 +4,7 @@ Dictée vocale pour Windows, macOS et Linux. Maintenir une touche, parler, relâ
 
 Scriibe est la suite multiplateforme de [Scribe](https://github.com/scarou/scribe) (macOS, Swift), qui reste la **version de référence** du comportement. Le but est la même expérience sur les trois systèmes, avec un code unique (Rust + Tauri).
 
-> **État : démarrage.** Rien n'est encore utilisable. Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) pour le plan et [ROADMAP.md](ROADMAP.md) pour les étapes.
+> **État : le cœur et les moteurs sont écrits et testés (étapes 1 à 4), mais rien n'est encore utilisable** : il manque la touche globale, le micro, le collage et l'interface (étape 5). Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) pour le plan, [ROADMAP.md](ROADMAP.md) pour les étapes et [CHANGELOG.md](CHANGELOG.md) pour l'historique.
 
 ## Principes
 
