@@ -22,7 +22,9 @@ scriibe/
 ├─ crates/
 │  ├─ core/        logique de texte pure : aucune dépendance système, aucun réseau
 │  ├─ engines/     whisper-server, llama-server, clients Deepgram / OpenRouter / LM Studio / Ollama
-│  └─ platform/    interface par système + une implémentation par système
+│  ├─ platform/    interface par système + une implémentation par système (+ faux pour les tests)
+│  ├─ pipeline/    le chef d'orchestre : touche → micro → transcription → mise au propre → collage → historique
+│  └─ cli/         `scriibe` : exécutable en ligne de commande avec icône de notification (jalon de l'étape 5)
 ├─ src-tauri/      application Tauri : assemble core + engines + platform, expose les commandes à l'interface
 ├─ ui/             interface web (TypeScript) : Réglages, Dictionnaire, Modes, Historique, Tableau de bord, Aide
 ├─ fixtures/       cas de référence JSON tirés de Scribe
@@ -37,9 +39,13 @@ Signes dictés et listes, remplacements du dictionnaire, tolérance aux variante
 
 Gère les processus `whisper-server` et `llama-server` (`EngineServer` : démarrage partagé entre les appels, attente de « prêt », arrêt, libération au repos, reprise sans assistant MTP si l'option est refusée) et les clients (`Deepgram`, `Transcriber`, `Cleaner` pour OpenRouter, LM Studio, Ollama et llama.cpp : requêtes, préchauffage, repli en Simple, garde-fous). Même principe que Scribe : les moteurs de modèles restent des processus séparés. Cela donne le même code sur les trois systèmes, les binaires CUDA, Vulkan et Metal déjà disponibles, et le déchargement de la mémoire.
 
+### `crates/pipeline`
+
+Port de `DictationController.swift` : appui → préchauffage (Whisper, modèle de mise au propre) → enregistrement → relâchement → transcription → filtre des phrases inventées → corrections (dictionnaire, signes dictés, listes) → traduction ou mise au propre (ou repli sur le texte brut) → typographie → collage → historique ; autre touche = annulation ; Maj ajoutée = traduction. Il ne connaît le système que par les traits de `platform` et les moteurs par `engines`. `Controller::handle_key` reçoit les événements du clavier, `tick` est appelé à intervalle régulier (alerte de micro muet, préchauffage différé de la traduction).
+
 ### `crates/platform`
 
-Une interface (trait) par fonction dépendant du système, et une implémentation par système, choisie à la compilation :
+Une interface (trait) par fonction dépendant du système, et une implémentation par système, choisie à la compilation (`platform::system()`). Les systèmes pas encore pris en charge ont des implémentations « pas encore pris en charge » qui compilent partout ; `platform::testing` fournit des faux (micro, collage, indicateur…) pour tester le chef d'orchestre. Le traitement du son (mélange des canaux, passage à 16 kHz, niveau, WAV), la traduction des codes de touche de Windows et le stockage (dossier de données, réglages relus quand le fichier change, historique, journal) sont communs et testés sur les trois systèmes. Le code Windows (`windows/`) est vérifié à la compilation par la CI et à la main sur un PC (`docs/ESSAI_WINDOWS.md`).
 
 | Fonction | Windows | macOS | Linux |
 |---|---|---|---|
@@ -92,6 +98,9 @@ Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affic
 | Calendrier | passé à chaque appel (`Calendar<Tz>`) : le cœur ne lit pas l'horloge du système | 2026-10-25 |
 | Intégration continue | GitHub Actions sur Linux, Windows et macOS à chaque envoi | 2026-10-25 |
 | Réseau et processus des moteurs | appels **bloquants** (`ureq`, pas de moteur asynchrone) sur des fils de travail ; HTTP, processus, horloge, journal et clés derrière des traits (`Http`, `Spawner`, `Clock`, `Log`, `Secrets`) pour tout tester avec un monde simulé (`FakeWorld`) | 2026-10-25 |
+| Touche de dictée sous Windows et Linux | Ctrl droit, Maj en plus pour traduire (AZERTY : AltGr est Ctrl gauche + Alt droite pour Windows, jamais confondu avec Ctrl droit) | 2026-10-25 |
+| Premier jalon de l'étape 5 | exécutable en ligne de commande avec icône de notification, avant la fenêtre Tauri | 2026-10-25 |
+| Tâches de fond du chef d'orchestre | trait `Executor` (fils en réel, exécution immédiate ou manuelle dans les tests) | 2026-10-25 |
 | Retrouver un serveur resté d'une session précédente | `sysinfo` (lignes de commande des processus), à la place de `pkill`, qui n'existe pas sous Windows | 2026-10-25 |
 
-À trancher : la touche par défaut par système ; la gestion de Wayland ; la langue de l'interface au-delà du français ; le cadre de l'interface web (Svelte ou React).
+À trancher : la gestion de Wayland ; la langue de l'interface au-delà du français ; le cadre de l'interface web (Svelte ou React).

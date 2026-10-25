@@ -71,9 +71,12 @@ pub fn binary_candidates() -> Vec<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             list.push(dir.join(binary_name()));
+            list.push(dir.join("whisper").join(binary_name()));
         }
     }
+    // Un dossier par moteur : whisper.cpp et llama.cpp livrent des DLL `ggml*.dll` de même nom mais de versions différentes.
     if let Some(dir) = crate::engines_folder() {
+        list.push(dir.join("whisper").join(binary_name()));
         list.push(dir.join(binary_name()));
     }
     list

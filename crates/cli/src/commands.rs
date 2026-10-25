@@ -207,7 +207,10 @@ pub fn check() -> Result<(), String> {
     println!("Modèles        : {} (dépose ici les fichiers ggml-*.bin et *.gguf)", models.display());
     println!("Journal        : {}", log.path().display());
     if let Some(engines) = scriibe_engines::engines_folder() {
-        println!("Moteurs        : {} (dépose ici whisper-server.exe, llama-server.exe et leurs DLL)", engines.display());
+        println!(
+            "Moteurs        : {} (sous-dossiers whisper\\ et llama\\ : le programme et ses DLL ; script : tools/windows/installer-moteurs.ps1)",
+            engines.display()
+        );
     }
     println!("{}\n", describe_engines(&settings));
 

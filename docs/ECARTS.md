@@ -13,12 +13,22 @@ Tout écart de comportement entre Scriibe et la version de référence (Scribe, 
 | 2026-10-25 | En-tête `X-Title` envoyé à OpenRouter | « Scriibe » au lieu de « Scribe » | Nom de l'appli | `openrouter_needs_a_key_and_sends_it` |
 | 2026-10-25 | Palmarès des applis (`top_apps`) | À égalité de mots, ordre alphabétique | Scribe laisse l'ordre au hasard du dictionnaire | — |
 | 2026-10-25 | Libellé de l'indicateur de micro Bluetooth | Inchangé (« — Bluetooth, déconseillé ») | — | `microphone-010` |
+| 2026-10-25 | Touche de dictée et de traduction (Windows, Linux) | **Ctrl droit** dicte, **Maj** (gauche ou droite) ajoutée traduit, au lieu de ⌥ droite et ⌘. AltGr (Ctrl gauche + Alt droite pour Windows) ne déclenche rien. Une touche venue d'un fichier de réglages de Mac (Option droite…) est remplacée par celle du système. `Alt`, la touche Windows ou une lettre tapée pendant l'appui annulent (raccourci) | Option droite n'existe pas sous Windows ; l'AltGr de l'AZERTY est vu comme Ctrl+Alt | `hotkey-*` (même machine à états) ; tests écrits à la main `hotkey::tests`, `keys::tests` |
+| 2026-10-25 | Collage (Windows) | Ctrl+V par `SendInput` (code de touche virtuel : marche en AZERTY). Le presse-papiers remis est **le texte seulement** (une image ou des fichiers copiés avant la dictée sont perdus ; si le contenu d'origine n'était pas du texte, le texte dicté reste dans le presse-papiers). La dictée est exclue de l'historique du presse-papiers de Windows (Win+V) et du presse-papiers cloud | Pas de `NSPasteboard` ; les formats d'exclusion de Windows remplacent les types « transient » du Mac | — |
+| 2026-10-25 | Pause des médias (Windows) | Pas encore portée : le réglage `pauseMedia` est lu mais sans effet | Demande les sessions audio WASAPI (code COM à essayer sur une vraie machine) | `media_pause-*` (partie pure du cœur déjà portée) |
+| 2026-10-25 | Sons de début et de fin | `MessageBeep` (deux sons système), sans tenir compte du nom ni du volume des réglages | Les sons « Tink » et « Pop » sont ceux du Mac | — |
+| 2026-10-25 | Indicateur | Icône de la zone de notification (couleur : repos, écoute, traitement, collé, message ; infobulle) à la place de la pastille ; pas de vumètre | MVP en ligne de commande ; la fenêtre d'indicateur viendra avec l'interface (étape 6) | `ui_logic.json` (attend l'interface) |
+| 2026-10-25 | Ouverture du micro | Pas de phase « Ouverture du micro Bluetooth… » (`starting` de Scribe) : le micro s'ouvre dans l'appui, et un micro est reconnu comme Bluetooth d'après son nom (« bluetooth », « hands-free », « airpods ») | WASAPI n'expose pas le type de transport sans API supplémentaire | — |
+| 2026-10-25 | Rééchantillonnage | Moyenne des échantillons d'entrée sur la durée de chaque échantillon de sortie (16 kHz), à la place d'`AVAudioConverter` | Pas d'équivalent portable ; mesuré par test (durée et niveau conservés) | tests `audio::tests` |
+| 2026-10-25 | Clés d'API | Gestionnaire d'identifiants de Windows (« Scriibe/deepgram », « Scriibe/openrouter ») puis variables d'environnement `DEEPGRAM_API_KEY` / `OPENROUTER_API_KEY` ; aucun fichier `.env` n'est lu | Pas de trousseau du Mac ; ne jamais lire de `.env` | — |
+| 2026-10-25 | Premiers réglages | Whisper et llama.cpp sur cet ordinateur (Scribe : Deepgram et OpenRouter) | Doit marcher sans compte ni clé | `storage::tests` |
+| 2026-10-25 | Emplacement des moteurs (Windows) | `%LOCALAPPDATA%\Scriibe\engines\whisper\` et `...\llama\` | whisper.cpp et llama.cpp livrent des DLL `ggml*.dll` de même nom et de versions différentes | — |
+| 2026-10-25 | Banc de dictée, test de frappe | Non portés | Étape 6 (interface) | `fixtures/A_FAIRE.md` |
 
 Différences de détail connues, sans effet mesuré : Swift compte des *grapheme clusters* (`Character`) là où Rust compte des *points de code* (`char`) pour les longueurs et les tests « est une lettre » ; les accents décomposés (NFD) peuvent donc changer une longueur de 1 ou 2.
 
 ## Choix à faire (pas encore des écarts)
 
-- Touche de dictée par défaut sous Windows et Linux : Option droite est AltGr sur un clavier AZERTY.
-- Touche de traduction : ⌘ n'existe pas sous Windows/Linux (Ctrl ? Maj ?).
+- Linux : Ctrl droit et Maj sont proposés comme sous Windows ; à confirmer sur une vraie machine (X11 ; Wayland restreint les touches globales).
 - Mode Amusant (schtroumpf) : reporté, dépend de l'analyse grammaticale d'Apple.
-- Identifiants de la pause des médias : ceux de macOS ne valent pas ailleurs (règles gardées, identifiants à remplacer).
+- Identifiants de la pause des médias : ceux de macOS ne valent pas ailleurs (règles gardées, identifiants à remplacer) ; à reprendre avec le portage des sessions audio de Windows.
