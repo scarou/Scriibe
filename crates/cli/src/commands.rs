@@ -1,0 +1,286 @@
+use crate::app::{self, build, describe_engines, detect_whisper_models, models_folder, Choices};
+use scriibe_core::microphone::MicLevel;
+use scriibe_core::settings::{CleanupEngine, TranscriptionEngine};
+use scriibe_engines::fs::RealFs;
+use scriibe_engines::llama;
+use scriibe_engines::runtime::{KeyKind, Log};
+use scriibe_engines::server::Launcher;
+use scriibe_platform::indicator::ConsoleIndicator;
+use scriibe_platform::paste::{PasteOutcome, Paster};
+use scriibe_platform::storage::{FileLog, HistorySink};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+
+fn setup(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
+    let config = app::open_config();
+    if config.create_settings_if_missing().map_err(|e| format!("impossible d'écrire {} ({e})", config.settings_path().display()))? {
+        eprintln!("Premier lancement : réglages créés dans {}", config.settings_path().display());
+    }
+    let log = Arc::new(FileLog::new(config.folder(), echo_log));
+    Ok((config, log))
+}
+
+/// `essai` ne colle rien : le texte est affiché.
+struct ConsolePaster;
+
+impl Paster for ConsolePaster {
+    fn paste(&self, text: &str, _: bool) -> PasteOutcome {
+        println!("\n--- texte qui serait collé ---\n{text}\n------------------------------");
+        PasteOutcome::Pasted
+    }
+}
+
+/// `essai` ne garde rien dans l'historique.
+struct NoHistory;
+
+impl HistorySink for NoHistory {
+    fn record(&self, _: scriibe_core::history::Dictation) {}
+}
+
+pub fn run() -> Result<(), String> {
+    let (config, log) = setup(true)?;
+    let platform = scriibe_platform::system();
+    let settings = config.settings();
+    eprintln!("Scriibe — {}", describe_engines(&settings));
+    eprintln!("Données : {}", config.folder().display());
+    run_loop(config, log, platform)
+}
+
+#[cfg(windows)]
+fn run_loop(
+    config: Arc<scriibe_platform::storage::FileConfig>,
+    log: Arc<FileLog>,
+    platform: scriibe_platform::Platform,
+) -> Result<(), String> {
+    use scriibe_platform::indicator::Indicator;
+    use scriibe_platform::windows::tray::TrayHost;
+    let tip = "Scriibe — maintiens Ctrl droit pour dicter (+ Maj : traduire)";
+    let (host, indicator) = TrayHost::create(tip, config.folder().to_path_buf(), log.path().to_path_buf())?;
+    let indicator: Arc<dyn Indicator> = Arc::new(indicator);
+    let app = build(config, log, platform, Choices { paster: None, history: None, indicator });
+    let (sink, events) = std::sync::mpsc::channel();
+    let _keys = app.platform.keys.start(sink)?;
+    let controller = app.controller.clone();
+    let (whisper, llama) = (app.whisper.clone(), app.llama.clone());
+    std::thread::Builder::new()
+        .name("scriibe-evenements".into())
+        .spawn(move || {
+            event_loop(controller, events, move || {
+                whisper.server.release_if_idle();
+                llama.release_if_idle();
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification pour quitter.");
+    host.run();
+    app.whisper.server.stop();
+    app.llama.stop();
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn run_loop(
+    config: Arc<scriibe_platform::storage::FileConfig>,
+    log: Arc<FileLog>,
+    platform: scriibe_platform::Platform,
+) -> Result<(), String> {
+    let app = build(config, log, platform, Choices { paster: None, history: None, indicator: Arc::new(ConsoleIndicator) });
+    let (sink, events) = std::sync::mpsc::channel();
+    let _keys = app.platform.keys.start(sink)?;
+    event_loop(app.controller.clone(), events, || {});
+    Ok(())
+}
+
+/// Les événements du clavier, une à deux fois par seconde de quoi surveiller le micro, et toutes les 30 s de quoi libérer les moteurs.
+fn event_loop(
+    controller: scriibe_pipeline::Controller,
+    events: std::sync::mpsc::Receiver<scriibe_platform::keys::KeyEvent>,
+    mut release_idle: impl FnMut(),
+) {
+    let mut last_release = std::time::Instant::now();
+    loop {
+        match events.recv_timeout(Duration::from_millis(100)) {
+            Ok(event) => controller.handle_key(event),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return,
+        }
+        controller.tick();
+        if last_release.elapsed() >= Duration::from_secs(30) {
+            last_release = std::time::Instant::now();
+            release_idle();
+        }
+    }
+}
+
+pub fn microphone(seconds: f64) -> Result<(), String> {
+    let platform = scriibe_platform::system();
+    let microphones = platform.recorder.microphones();
+    if microphones.is_empty() {
+        println!("Aucun micro détecté par le système.");
+    }
+    for m in &microphones {
+        println!("  micro : {}", m.label());
+    }
+    let info = platform.recorder.start("")?;
+    println!("Enregistrement de {seconds:.0} s sur : {} — parle maintenant…", info.description);
+    std::thread::sleep(Duration::from_secs_f64(seconds.max(0.5)));
+    let recording = platform.recorder.stop();
+    let verdict = match MicLevel::assess(recording.level) {
+        MicLevel::Silent => "muet : rien n'est capté (mauvais micro choisi ? micro coupé ? autorisation Windows ?)",
+        MicLevel::Weak => "faible : rapproche-toi du micro ou monte le volume d'entrée",
+        MicLevel::Ok => "correct",
+    };
+    println!("Durée {:.1} s — niveau {:.3} ({verdict})", recording.duration, recording.level);
+    let path = scriibe_platform::storage::data_folder().join("essai-micro.wav");
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    std::fs::write(&path, &recording.wav).map_err(|e| format!("impossible d'écrire {} ({e})", path.display()))?;
+    println!("Prise gardée dans {} (réécoute-la, ou lance : scriibe essai)", path.display());
+    Ok(())
+}
+
+pub fn trial(args: &[String]) -> Result<(), String> {
+    let translate = args.iter().any(|a| a == "--traduire");
+    let file: PathBuf = args
+        .iter()
+        .find(|a| !a.starts_with("--"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| scriibe_platform::storage::data_folder().join("essai-micro.wav"));
+    let bytes = std::fs::read(&file).map_err(|e| format!("impossible de lire {} ({e})", file.display()))?;
+    let recording = scriibe_platform::audio::read_wav(&bytes)?;
+    println!("Fichier {} — {:.1} s, niveau {:.3}", file.display(), recording.duration, recording.level);
+    let (config, log) = setup(true)?;
+    let app = build(
+        config,
+        log,
+        scriibe_platform::system(),
+        Choices { paster: Some(Arc::new(ConsolePaster)), history: Some(Arc::new(NoHistory)), indicator: Arc::new(ConsoleIndicator) },
+    );
+    let settings = app.config.settings();
+    println!("{}", describe_engines(&settings));
+    // La première dictée charge les modèles : les temps suivants sont ceux d'un usage normal. On passe donc deux fois.
+    for pass in 1..=2 {
+        println!("\n=== passage {pass}{} ===", if pass == 1 { " (chargement des modèles compris)" } else { " (modèles chargés)" });
+        app.controller.process_recording(recording.clone(), translate, "fichier");
+    }
+    app.whisper.server.stop();
+    app.llama.stop();
+    println!("\nLe détail des temps est dans {}", app.log.path().display());
+    Ok(())
+}
+
+pub fn key(kind: Option<&str>) -> Result<(), String> {
+    let kind = match kind {
+        Some("deepgram") => KeyKind::Deepgram,
+        Some("openrouter") => KeyKind::OpenRouter,
+        _ => return Err("usage : scriibe cle deepgram|openrouter (puis colle la clé et valide)".into()),
+    };
+    #[cfg(windows)]
+    {
+        eprintln!("Colle la clé puis valide (elle s'affiche pendant la saisie, efface la fenêtre ensuite) :");
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).map_err(|e| e.to_string())?;
+        scriibe_platform::windows::set_credential(kind, &line)?;
+        eprintln!("Clé enregistrée dans le Gestionnaire d'identifiants (Scriibe/{}).", scriibe_platform::secrets::account_name(kind));
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = kind;
+        Err(format!("pas encore pris en charge ici : définis la variable d'environnement {}", scriibe_platform::secrets::env_name(kind)))
+    }
+}
+
+pub fn check() -> Result<(), String> {
+    let (config, log) = setup(false)?;
+    let platform = scriibe_platform::system();
+    let settings = config.settings();
+    let fs = RealFs;
+    let folder = config.folder().to_path_buf();
+    let models = models_folder(&folder);
+    let mark = |ok: bool| if ok { "✔" } else { "✘" };
+
+    println!("Données        : {}", folder.display());
+    println!("Réglages       : {}", config.settings_path().display());
+    println!("Modèles        : {} (dépose ici les fichiers ggml-*.bin et *.gguf)", models.display());
+    println!("Journal        : {}", log.path().display());
+    if let Some(engines) = scriibe_engines::engines_folder() {
+        println!("Moteurs        : {} (dépose ici whisper-server.exe, llama-server.exe et leurs DLL)", engines.display());
+    }
+    println!("{}\n", describe_engines(&settings));
+
+    let path_var = std::env::var_os("PATH");
+    let whisper_launcher =
+        scriibe_engines::whisper::WhisperLauncher::new(Arc::new(RealFs), scriibe_engines::whisper::PORT, path_var.as_deref());
+    let llama_launcher = llama::LlamaLauncher::new(Arc::new(RealFs), llama::PORT, None, path_var.as_deref());
+
+    let wants_whisper = settings.transcription_engine == TranscriptionEngine::Whisper;
+    let whisper_binary = whisper_launcher.binary();
+    println!(
+        "{} whisper-server : {}",
+        mark(whisper_binary.is_some()),
+        whisper_binary.map_or_else(|| format!("introuvable — {}", scriibe_engines::whisper::install_hint()), |p| p.display().to_string())
+    );
+    let whisper_models = if settings.whisper_model_path.is_empty() {
+        detect_whisper_models(&fs, &models)
+    } else {
+        vec![settings.whisper_model_path.clone()]
+    };
+    println!(
+        "{} modèle Whisper : {}",
+        mark(!whisper_models.is_empty()),
+        whisper_models.first().cloned().unwrap_or_else(|| "aucun (ggml-small.bin, ggml-large-v3-turbo.bin…)".into())
+    );
+
+    let wants_llama = settings.cleanup_engine == CleanupEngine::LlamaCpp;
+    let llama_binary = llama_launcher.binary();
+    println!(
+        "{} llama-server   : {}",
+        mark(llama_binary.is_some()),
+        llama_binary.map_or_else(|| format!("introuvable — {}", llama::install_hint()), |p| p.display().to_string())
+    );
+    let llama_models = if settings.llama_cpp_model.is_empty() {
+        llama::detect_models(&fs, std::slice::from_ref(&models), Some(&models))
+    } else {
+        vec![settings.llama_cpp_model.clone()]
+    };
+    println!("{} modèle GGUF    : {}", mark(!llama_models.is_empty()), llama_models.first().cloned().unwrap_or_else(|| "aucun".into()));
+    if let Some(first) = llama_models.first() {
+        println!(
+            "    assistant MTP : {}",
+            llama::assistant(&fs, first).unwrap_or_else(|| "aucun (le modèle tourne sans décodage spéculatif)".into())
+        );
+    }
+
+    for (kind, name) in [(KeyKind::Deepgram, "Deepgram"), (KeyKind::OpenRouter, "OpenRouter")] {
+        let present = platform.secrets.get(kind).is_some();
+        println!(
+            "{} clé {name} : {}",
+            mark(present),
+            if present { "présente" } else { "absente (inutile si tout tourne sur cet ordinateur)" }
+        );
+    }
+
+    let microphones = platform.recorder.microphones();
+    println!("{} micros : {}", mark(!microphones.is_empty()), microphones.iter().map(|m| m.label()).collect::<Vec<_>>().join(" | "));
+
+    let mut missing = Vec::new();
+    if wants_whisper && (whisper_launcher.binary().is_none() || whisper_models.is_empty()) {
+        missing.push("Whisper (programme ou modèle)");
+    }
+    if wants_llama && (llama_launcher.binary().is_none() || llama_models.is_empty()) {
+        missing.push("llama.cpp (programme ou modèle)");
+    }
+    if missing.is_empty() {
+        println!("\nTout ce que les réglages demandent est là.");
+    } else {
+        println!(
+            "\nIl manque : {}. Les réglages sont dans le fichier ci-dessus (transcriptionEngine, cleanupEngine…).",
+            missing.join(", ")
+        );
+    }
+    log.write("verifier: exécuté");
+    Ok(())
+}

@@ -1,0 +1,46 @@
+//! `scriibe` : la dictée en ligne de commande, avec une icône dans la zone de notification (Windows).
+//!
+//! Sous-commandes (sans argument : `lancer`) :
+//! - `verifier` : ce qui est installé, trouvé, manquant (moteurs, modèles, micro, clés) ;
+//! - `micro [secondes]` : enregistre le micro et dit si le niveau convient ;
+//! - `essai [fichier.wav] [--traduire]` : transcrit un fichier (ou la dernière prise du micro) avec la vraie chaîne, sans toucher au clavier ;
+//! - `cle deepgram|openrouter` : enregistre une clé d'API dans le Gestionnaire d'identifiants (lue sur l'entrée standard) ;
+//! - `lancer` : la dictée, touche maintenue (Ctrl droit sous Windows), icône dans la zone de notification.
+
+mod app;
+mod commands;
+
+use std::process::ExitCode;
+
+const HELP: &str = "Scriibe — dictée vocale\n\n\
+Usage : scriibe [commande]\n\n\
+  lancer                     la dictée : maintiens Ctrl droit, parle, relâche (par défaut)\n\
+  verifier                   ce qui est installé, trouvé ou manquant\n\
+  micro [secondes]           enregistre le micro (3 s par défaut) et mesure le niveau\n\
+  essai [fichier.wav] [--traduire]\n\
+                             transcrit un fichier WAV (ou la dernière prise) avec la vraie chaîne, sans coller\n\
+  cle deepgram|openrouter    enregistre une clé d'API (lue sur l'entrée standard, jamais affichée ensuite)\n\
+  aide                       ce message\n";
+
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let result = match args.first().map(String::as_str) {
+        None | Some("lancer") => commands::run(),
+        Some("verifier") => commands::check(),
+        Some("micro") => commands::microphone(args.get(1).and_then(|s| s.parse().ok()).unwrap_or(3.0)),
+        Some("essai") => commands::trial(&args[1..]),
+        Some("cle") => commands::key(args.get(1).map(String::as_str)),
+        Some("aide" | "--aide" | "-h" | "--help" | "help") => {
+            print!("{HELP}");
+            Ok(())
+        }
+        Some(other) => Err(format!("commande inconnue : « {other} »\n\n{HELP}")),
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
+        }
+    }
+}

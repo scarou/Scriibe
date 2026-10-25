@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
-/// Touche à maintenir pour dicter. Les valeurs sont celles de Scribe (macOS) ; d'autres s'ajouteront pour Windows et Linux.
+/// Touche à maintenir pour dicter. Les valeurs sont celles de Scribe (macOS), plus Ctrl droit pour Windows et Linux.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Hotkey {
     #[default]
@@ -24,6 +24,9 @@ pub enum Hotkey {
     RightCommand,
     #[serde(rename = "fn")]
     Fn,
+    /// Ctrl droit (Windows et Linux).
+    #[serde(rename = "rightControl")]
+    RightControl,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

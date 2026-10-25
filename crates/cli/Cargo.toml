@@ -1,0 +1,19 @@
+[package]
+name = "scriibe-cli"
+description = "Scriibe en ligne de commande, avec une icône dans la zone de notification : premier jalon pour essayer la chaîne de dictée (étape 5)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "scriibe"
+path = "src/main.rs"
+
+[dependencies]
+scriibe-core = { path = "../core" }
+scriibe-engines = { path = "../engines" }
+scriibe-platform = { path = "../platform" }
+scriibe-pipeline = { path = "../pipeline" }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }

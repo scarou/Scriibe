@@ -1,0 +1,32 @@
+[package]
+name = "scriibe-platform"
+description = "Ce que Scriibe demande au système : touche globale, micro, collage, presse-papiers, clés, icône, dossier de données."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scriibe-core = { path = "../core", default-features = false }
+scriibe-engines = { path = "../engines" }
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+serde_json = "1"
+
+[target.'cfg(windows)'.dependencies]
+# Micro (WASAPI).
+cpal = "0.15"
+# Icône dans la zone de notification.
+tray-icon = "0.19"
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security_Credentials",
+    "Win32_System_DataExchange",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_Ole",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+] }
