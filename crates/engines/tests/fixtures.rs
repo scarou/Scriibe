@@ -116,8 +116,10 @@ fn run(case: &Value) -> Result<(), String> {
         "llama_assistant" => {
             let fs = FakeFs::relative(args["files"].as_array().ok_or("files")?);
             for (model, wanted) in want.as_object().ok_or("map")? {
-                let got = llama::assistant(&fs, &Path::new("/fake").join(model).to_string_lossy());
-                let wanted = wanted.as_str().map(|w| Path::new("/fake").join(w).to_string_lossy().into_owned());
+                // Sous Windows, les chemins mélangent « / » et « \\ » : on compare avec un seul séparateur.
+                let normal = |p: String| p.replace('\\', "/");
+                let got = llama::assistant(&fs, &Path::new("/fake").join(model).to_string_lossy()).map(normal);
+                let wanted = wanted.as_str().map(|w| normal(Path::new("/fake").join(w).to_string_lossy().into_owned()));
                 expect(got, wanted).map_err(|e| format!("{model} : {e}"))?;
             }
             Ok(())

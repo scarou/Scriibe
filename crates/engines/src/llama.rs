@@ -1,11 +1,14 @@
 //! Mise au propre sur cet ordinateur sans autre appli : l'appli lance `llama-server` (llama.cpp) avec le modèle GGUF choisi et son
 //! assistant MTP (décodage spéculatif), comme pour `whisper-server`. Port de la partie pure de `LlamaServer.swift` (Scribe).
 
-use crate::fs::FileSystem;
+use crate::fs::{find_binary, FileSystem};
+use crate::http::ServiceError;
+use crate::server::{EngineServer, Launcher, ServerConfig};
 use crate::{file_name, APP_NAME};
 use fancy_regex::Regex;
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
+use std::sync::{mpsc, Arc, LazyLock};
+use std::time::Duration;
 
 /// Port de l'appli. Les essais en ligne de commande prennent le suivant, pour ne pas arrêter le serveur d'une appli restée ouverte.
 pub const PORT: u16 = 8179;
@@ -143,4 +146,134 @@ pub fn status(fs: &dyn FileSystem, binary: Option<&str>, models: &[String], chos
         "{replaced}llama.cpp lancé par {APP_NAME} · {} modèle{plural} · {assist} · le premier appel charge le modèle (quelques secondes)",
         models.len()
     )
+}
+
+/// Sans dictée depuis ce temps, le serveur s'arrête et rend ses ≈ 5 Go ; la touche de dictée le relance (préchauffage).
+pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
+
+fn binary_name() -> &'static str {
+    if cfg!(windows) {
+        "llama-server.exe"
+    } else {
+        "llama-server"
+    }
+}
+
+/// Emplacements habituels de `llama-server`.
+pub fn binary_candidates() -> Vec<PathBuf> {
+    let mut list: Vec<PathBuf> =
+        ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].iter().map(|d| Path::new(d).join(binary_name())).collect();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            list.push(dir.join(binary_name()));
+        }
+    }
+    if let Some(dir) = crate::engines_folder() {
+        list.push(dir.join(binary_name()));
+    }
+    list
+}
+
+/// La commande qui installe `llama-server` sur ce système.
+pub fn install_hint() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "brew install llama.cpp"
+    } else if cfg!(windows) {
+        "winget install llama.cpp"
+    } else {
+        "installe llama.cpp (llama-server) avec ton gestionnaire de paquets"
+    }
+}
+
+/// Le modèle llama.cpp choisi ; à défaut (aucun choix, ou fichier déplacé ou supprimé) le premier repéré.
+pub fn resolved_model(fs: &dyn FileSystem, chosen: &str, detected: &[String]) -> String {
+    if !chosen.is_empty() && fs.exists(Path::new(chosen)) {
+        return chosen.to_string();
+    }
+    detected.first().cloned().unwrap_or_else(|| chosen.to_string())
+}
+
+pub struct LlamaLauncher {
+    config: ServerConfig,
+    fs: Arc<dyn FileSystem>,
+    binary: Option<PathBuf>,
+}
+
+impl LlamaLauncher {
+    /// `log_file` : où garder la sortie d'erreur du serveur (`llama-server.log` dans le dossier de données).
+    pub fn new(fs: Arc<dyn FileSystem>, port: u16, log_file: Option<PathBuf>, path_var: Option<&std::ffi::OsStr>) -> Self {
+        let binary = find_binary(fs.as_ref(), "llama-server", &binary_candidates(), path_var);
+        Self {
+            config: ServerConfig {
+                name: "llama.cpp",
+                port,
+                ping_path: "/health",
+                ping_needs_ok: true,
+                // Jusqu'à 2 min : le premier chargement prépare la carte graphique.
+                max_polls: 480,
+                poll: Duration::from_millis(250),
+                orphan_needles: vec!["llama-server".into(), "-m ".into(), format!("--port {port} ")],
+                log_file,
+            },
+            fs,
+            binary,
+        }
+    }
+}
+
+impl Launcher for LlamaLauncher {
+    fn config(&self) -> &ServerConfig {
+        &self.config
+    }
+
+    fn binary(&self) -> Option<PathBuf> {
+        self.binary.clone()
+    }
+
+    fn model_exists(&self, model: &str) -> bool {
+        self.fs.exists(Path::new(model))
+    }
+
+    fn args(&self, model: &str, use_assistant: bool) -> (Vec<String>, bool) {
+        let assistant = if use_assistant { assistant(self.fs.as_ref(), model) } else { None };
+        (arguments(model, assistant.as_deref(), self.config.port), assistant.is_some())
+    }
+
+    fn describe(&self, assistant: bool) -> String {
+        if assistant { ", avec assistant MTP" } else { ", sans assistant MTP" }.to_string()
+    }
+
+    fn missing_binary(&self) -> String {
+        format!("llama-server introuvable ({})", install_hint())
+    }
+
+    fn missing_model(&self) -> String {
+        "Modèle llama.cpp introuvable — voir Réglages".into()
+    }
+
+    fn start_failed(&self) -> String {
+        "llama.cpp n'a pas pu démarrer (modèle illisible ? voir llama-server.log)".into()
+    }
+}
+
+/// Crée le serveur llama.cpp : arrêté après 30 min sans dictée.
+pub fn new_server(launcher: LlamaLauncher, rt: crate::server::Runtime) -> EngineServer<LlamaLauncher> {
+    let server = EngineServer::new(launcher, rt);
+    server.set_idle_limit(Some(IDLE_LIMIT));
+    server
+}
+
+/// Démarre le serveur, mais n'attend pas plus de `within` : une dictée n'attend pas plus longtemps un serveur qui ne démarre pas
+/// (le texte brut est alors collé). Le démarrage continue en arrière-plan.
+pub fn ensure_running_within(server: &Arc<EngineServer<LlamaLauncher>>, model: &str, within: Duration) -> Result<(), ServiceError> {
+    let (sender, receiver) = mpsc::channel();
+    let worker = server.clone();
+    let model = model.to_string();
+    std::thread::spawn(move || {
+        let _ = sender.send(worker.ensure_running(&model));
+    });
+    match receiver.recv_timeout(within) {
+        Ok(result) => result,
+        Err(_) => Err(ServiceError::new("llama.cpp met trop de temps à démarrer")),
+    }
 }

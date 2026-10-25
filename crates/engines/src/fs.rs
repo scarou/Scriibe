@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-pub trait FileSystem {
+pub trait FileSystem: Send + Sync {
     /// Le fichier (ou dossier) existe.
     fn exists(&self, path: &Path) -> bool;
     /// Noms des fichiers directement dans ce dossier.
@@ -44,4 +44,13 @@ impl FileSystem for RealFs {
         visit(root, &mut out);
         out
     }
+}
+
+/// Cherche un programme : d'abord aux emplacements habituels, puis dans les dossiers du `PATH` (avec `.exe` sous Windows).
+pub fn find_binary(fs: &dyn FileSystem, name: &str, candidates: &[PathBuf], path_var: Option<&std::ffi::OsStr>) -> Option<PathBuf> {
+    if let Some(found) = candidates.iter().find(|c| fs.exists(c)) {
+        return Some(found.clone());
+    }
+    let file = if cfg!(windows) { format!("{name}.exe") } else { name.to_string() };
+    path_var.and_then(|p| std::env::split_paths(p).map(|dir| dir.join(&file)).find(|f| fs.exists(f)))
 }

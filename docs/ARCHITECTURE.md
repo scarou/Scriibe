@@ -35,7 +35,7 @@ Signes dictés et listes, remplacements du dictionnaire, tolérance aux variante
 
 ### `crates/engines`
 
-Gère les processus `whisper-server` et `llama-server` (lancement, port, préchauffage, déchargement au repos, reprise sans assistant MTP si l'option est refusée) et les clients HTTP. Même principe que Scribe : les moteurs de modèles restent des processus séparés. Cela donne le même code sur les trois systèmes, les binaires CUDA, Vulkan et Metal déjà disponibles, et le déchargement de la mémoire.
+Gère les processus `whisper-server` et `llama-server` (`EngineServer` : démarrage partagé entre les appels, attente de « prêt », arrêt, libération au repos, reprise sans assistant MTP si l'option est refusée) et les clients (`Deepgram`, `Transcriber`, `Cleaner` pour OpenRouter, LM Studio, Ollama et llama.cpp : requêtes, préchauffage, repli en Simple, garde-fous). Même principe que Scribe : les moteurs de modèles restent des processus séparés. Cela donne le même code sur les trois systèmes, les binaires CUDA, Vulkan et Metal déjà disponibles, et le déchargement de la mémoire.
 
 ### `crates/platform`
 
@@ -91,5 +91,7 @@ Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affic
 | Reconnaissance de la langue (garde-fou de la traduction) | trait `LanguageGuesser` ; implémentation `lingua` (français + 5 langues), fonction `language-detection` du cœur, activée par défaut (≈ 25 Mo de modèles) | 2026-10-25 |
 | Calendrier | passé à chaque appel (`Calendar<Tz>`) : le cœur ne lit pas l'horloge du système | 2026-10-25 |
 | Intégration continue | GitHub Actions sur Linux, Windows et macOS à chaque envoi | 2026-10-25 |
+| Réseau et processus des moteurs | appels **bloquants** (`ureq`, pas de moteur asynchrone) sur des fils de travail ; HTTP, processus, horloge, journal et clés derrière des traits (`Http`, `Spawner`, `Clock`, `Log`, `Secrets`) pour tout tester avec un monde simulé (`FakeWorld`) | 2026-10-25 |
+| Retrouver un serveur resté d'une session précédente | `sysinfo` (lignes de commande des processus), à la place de `pkill`, qui n'existe pas sous Windows | 2026-10-25 |
 
 À trancher : la touche par défaut par système ; la gestion de Wayland ; la langue de l'interface au-delà du français ; le cadre de l'interface web (Svelte ou React).

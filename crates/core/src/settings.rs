@@ -35,6 +35,17 @@ pub enum DictationLanguage {
     Multi,
 }
 
+impl DictationLanguage {
+    /// Valeur écrite dans les réglages et envoyée aux services (« fr », « en », « multi »).
+    pub fn raw(self) -> &'static str {
+        match self {
+            Self::Fr => "fr",
+            Self::En => "en",
+            Self::Multi => "multi",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TranscriptionEngine {
