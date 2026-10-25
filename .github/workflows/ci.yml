@@ -30,7 +30,17 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
       - name: Tests
-        run: cargo test --workspace
+        shell: bash
+        run: |
+          set +e
+          cargo test --workspace 2>&1 | tee test.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            # Le détail des échecs est aussi publié en annotation (lisible sans télécharger les journaux).
+            msg=$(grep -E -A40 "cas en échec|panicked|^---- |error(\[|:)" test.log | head -60 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Échec des tests::$msg"
+          fi
+          exit $code
 
   fixtures:
     name: structure des cas de référence
