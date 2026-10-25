@@ -1,0 +1,1358 @@
+{
+  "schema": 1,
+  "suite": "spoken_signs",
+  "description": "Signes dictés, listes dictées, « à la ligne » et dictionnaire (TextFixer.apply, SpokenSigns.apply).",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "fn `apply_dictionary` = TextFixer.apply : args.dictionary {words, corrections[{heard, written}]}, args.bullet (dash|dot|star, défaut dash), args.lists (défaut true) ; expected = texte (expected_corrections = nombre de corrections si présent).",
+    "fn `spoken_signs_apply` = SpokenSigns.apply(to:bullet:).",
+    "`fn` peut être une liste : les fonctions s'appliquent l'une après l'autre au texte (les args vont à la première).",
+    "`property: idempotent` : appliquer deux fois donne le même texte qu'une fois (pas d'expected).",
+    "`text_pattern` remplace `text` quand le texte est construit : prefix + (separator × repeat avec middle entre les répétitions) + suffix ; voir les cas de performance."
+  ],
+  "cases": [
+    {
+      "id": "spoken_signs-001",
+      "name": "corrections et orthographe du dictionnaire",
+      "line": 99,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "une ski pour claude code dans ma to do",
+        "dictionary": {
+          "words": [
+            "Claude Code",
+            "to-do"
+          ],
+          "corrections": [
+            {
+              "heard": "ski",
+              "written": "skill"
+            }
+          ]
+        }
+      },
+      "expected": "une skill pour Claude Code dans ma to-do",
+      "expected_corrections": 1
+    },
+    {
+      "id": "spoken_signs-002",
+      "name": "parenthèses dictées",
+      "line": 105,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ouvrez la parenthèse, texte important, fermez la parenthèse.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "(texte important)."
+    },
+    {
+      "id": "spoken_signs-003",
+      "name": "parenthèses au milieu d'une phrase",
+      "line": 107,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Le rendez-vous ouvre la parenthèse jeudi ferme parenthèse est confirmé.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Le rendez-vous (jeudi) est confirmé."
+    },
+    {
+      "id": "spoken_signs-004",
+      "name": "guillemets dictés",
+      "line": 110,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il a dit ouvrez les guillemets, bonjour, fermez les guillemets.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il a dit « bonjour »."
+    },
+    {
+      "id": "spoken_signs-005",
+      "name": "point à la ligne",
+      "line": 112,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Bonjour. Point à la ligne. je voulais te dire",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Bonjour.\nJe voulais te dire"
+    },
+    {
+      "id": "spoken_signs-006",
+      "name": "intacte : Il est temps de fermer la parenthèse des vacances.",
+      "line": 114,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il est temps de fermer la parenthèse des vacances.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il est temps de fermer la parenthèse des vacances."
+    },
+    {
+      "id": "spoken_signs-007",
+      "name": "intacte : On va ouvrir une parenthèse sur ce sujet.",
+      "line": 114,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "On va ouvrir une parenthèse sur ce sujet.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "On va ouvrir une parenthèse sur ce sujet."
+    },
+    {
+      "id": "spoken_signs-008",
+      "name": "intacte : Je voulais dire, j'ouvre une parenthèse, que c'est fini, je ferme la parenthèse.",
+      "line": 114,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Je voulais dire, j'ouvre une parenthèse, que c'est fini, je ferme la parenthèse.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Je voulais dire, j'ouvre une parenthèse, que c'est fini, je ferme la parenthèse."
+    },
+    {
+      "id": "spoken_signs-009",
+      "name": "intacte : J'ai ajouté un nouveau paragraphe au contrat.",
+      "line": 114,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "J'ai ajouté un nouveau paragraphe au contrat.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "J'ai ajouté un nouveau paragraphe au contrat."
+    },
+    {
+      "id": "spoken_signs-010",
+      "name": "intacte : Il faut passer à la ligne ici.",
+      "line": 114,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il faut passer à la ligne ici.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il faut passer à la ligne ici."
+    },
+    {
+      "id": "spoken_signs-011",
+      "name": "point à la ligne après une question",
+      "line": 119,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Tu viens ? Point à la ligne. Merci",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Tu viens ?\nMerci"
+    },
+    {
+      "id": "spoken_signs-012",
+      "name": "points de suspension gardent le « ? »",
+      "line": 121,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Je ne sais pas, points de suspension ? Bref",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Je ne sais pas… ? Bref"
+    },
+    {
+      "id": "spoken_signs-013",
+      "name": "symbole ordinaire garde ses espaces",
+      "line": 125,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ça fait 10 pour cent",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "pour cent",
+              "written": "%"
+            },
+            {
+              "heard": "deux points",
+              "written": ":"
+            }
+          ]
+        }
+      },
+      "expected": "Ça fait 10 %"
+    },
+    {
+      "id": "spoken_signs-014",
+      "name": "« 2 points » marqués intacts",
+      "line": 126,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "J'ai marqué 2 points ce soir.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "pour cent",
+              "written": "%"
+            },
+            {
+              "heard": "deux points",
+              "written": ":"
+            }
+          ]
+        }
+      },
+      "expected": "J'ai marqué 2 points ce soir."
+    },
+    {
+      "id": "spoken_signs-015",
+      "name": "correction en signes, apostrophe courbe, puis typographie",
+      "line": 129,
+      "fn": [
+        "apply_dictionary",
+        "french_typography"
+      ],
+      "args": {
+        "text": "C'est génial, trois points d’exclamation.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "trois points d'exclamation",
+              "written": "!!!"
+            }
+          ]
+        }
+      },
+      "expected": "C'est génial !!!"
+    },
+    {
+      "id": "spoken_signs-016",
+      "name": "« 3 points d'exclamation » seul, en chiffre",
+      "line": 132,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "3 points d'exclamation.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "trois points d'exclamation",
+              "written": "!!!"
+            }
+          ]
+        }
+      },
+      "expected": "!!!"
+    },
+    {
+      "id": "spoken_signs-017",
+      "name": "« ! » ajouté par Whisper absorbé, puis typographie",
+      "line": 133,
+      "fn": [
+        "apply_dictionary",
+        "french_typography"
+      ],
+      "args": {
+        "text": "Ça urge trois points d'exclamation !",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "trois points d'exclamation",
+              "written": "!!!"
+            }
+          ]
+        }
+      },
+      "expected": "Ça urge !!!"
+    },
+    {
+      "id": "spoken_signs-018",
+      "name": "la phrase suivante garde son espace",
+      "line": 135,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Génial, trois points d'exclamation. Ensuite on part.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "trois points d'exclamation",
+              "written": "!!!"
+            }
+          ]
+        }
+      },
+      "expected": "Génial!!! Ensuite on part."
+    },
+    {
+      "id": "spoken_signs-019",
+      "name": "« point la ligne » sans « à », virgule de Whisper après la parenthèse absorbée",
+      "line": 338,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Le colis, ouvre la parenthèse, le gros, fermez la parenthèse, est arrivé, point la ligne. Merci encore."
+      },
+      "expected": "Le colis (le gros) est arrivé.\nMerci encore."
+    },
+    {
+      "id": "spoken_signs-020",
+      "name": "intacte : Le coureur passe la ligne d'arrivée en tête.",
+      "line": 341,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Le coureur passe la ligne d'arrivée en tête."
+      },
+      "expected": "Le coureur passe la ligne d'arrivée en tête."
+    },
+    {
+      "id": "spoken_signs-021",
+      "name": "intacte : Je ne savais pas à quel point la ligne était saturée.",
+      "line": 341,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Je ne savais pas à quel point la ligne était saturée."
+      },
+      "expected": "Je ne savais pas à quel point la ligne était saturée."
+    },
+    {
+      "id": "spoken_signs-022",
+      "name": "virgule gardée devant « puis », « mais »",
+      "line": 343,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Il a dit ouvrez les guillemets bonjour fermez les guillemets, puis il est parti."
+      },
+      "expected": "Il a dit « bonjour », puis il est parti."
+    },
+    {
+      "id": "spoken_signs-023",
+      "name": "intacte : Le point de la ligne trois est faux.",
+      "line": 348,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Le point de la ligne trois est faux."
+      },
+      "expected": "Le point de la ligne trois est faux."
+    },
+    {
+      "id": "spoken_signs-024",
+      "name": "liste : « tiret » après « retour à la ligne »",
+      "line": 352,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Les courses, retour à la ligne, tiret du lait, retour à la ligne, Tiret, du pain, retour à la ligne, tiret des œufs."
+      },
+      "expected": "Les courses\n- du lait\n- du pain\n- des œufs."
+    },
+    {
+      "id": "spoken_signs-025",
+      "name": "liste : « puce », caractère rond",
+      "line": 354,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Ma liste, retour à la ligne, Puce, acheter du pain, retour à la ligne, puce appeler Marie.",
+        "bullet": "dot"
+      },
+      "expected": "Ma liste\n• acheter du pain\n• appeler Marie."
+    },
+    {
+      "id": "spoken_signs-026",
+      "name": "liste : « puce », caractère étoile",
+      "line": 356,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Ma liste, retour à la ligne, puce, pain.",
+        "bullet": "star"
+      },
+      "expected": "Ma liste\n* pain."
+    },
+    {
+      "id": "spoken_signs-027",
+      "name": "liste : « point 1 » en chiffres ou en lettres",
+      "line": 357,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Les étapes, retour à la ligne, point 1, ouvrir le dossier, retour à la ligne, point deux, lancer la commande, retour à la ligne, point 3. Vérifier le résultat."
+      },
+      "expected": "Les étapes\n1. ouvrir le dossier\n2. lancer la commande\n3. Vérifier le résultat."
+    },
+    {
+      "id": "spoken_signs-028",
+      "name": "liste : « numéro suivant » continue la numérotation",
+      "line": 360,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point 1, a, retour à la ligne, numéro suivant, b, retour à la ligne, numéro suivant, c."
+      },
+      "expected": "1. a\n2. b\n3. c."
+    },
+    {
+      "id": "spoken_signs-029",
+      "name": "liste : « numéro suivant » après une puce = 1",
+      "line": 361,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Ma liste, retour à la ligne, puce, a, retour à la ligne, numéro suivant, b."
+      },
+      "expected": "Ma liste\n- a\n1. b."
+    },
+    {
+      "id": "spoken_signs-030",
+      "name": "liste : au début du texte, « tiret »",
+      "line": 362,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Tiret du lait."
+      },
+      "expected": "- du lait."
+    },
+    {
+      "id": "spoken_signs-031",
+      "name": "liste : au début du texte, « puce », majuscule gardée",
+      "line": 363,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Puce, Acheter du pain."
+      },
+      "expected": "- Acheter du pain."
+    },
+    {
+      "id": "spoken_signs-032",
+      "name": "intacte : Il a mis un tiret entre les deux mots.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Il a mis un tiret entre les deux mots."
+      },
+      "expected": "Il a mis un tiret entre les deux mots."
+    },
+    {
+      "id": "spoken_signs-033",
+      "name": "intacte : Elle a dit tiret du lait, puis elle est partie.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Elle a dit tiret du lait, puis elle est partie."
+      },
+      "expected": "Elle a dit tiret du lait, puis elle est partie."
+    },
+    {
+      "id": "spoken_signs-034",
+      "name": "intacte : La puce électronique est cassée.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "La puce électronique est cassée."
+      },
+      "expected": "La puce électronique est cassée."
+    },
+    {
+      "id": "spoken_signs-035",
+      "name": "intacte : Tiret.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Tiret."
+      },
+      "expected": "Tiret."
+    },
+    {
+      "id": "spoken_signs-036",
+      "name": "intacte : Un tiret, ça se voit.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Un tiret, ça se voit."
+      },
+      "expected": "Un tiret, ça se voit."
+    },
+    {
+      "id": "spoken_signs-037",
+      "name": "intacte : Le point 3 du contrat est faux.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Le point 3 du contrat est faux."
+      },
+      "expected": "Le point 3 du contrat est faux."
+    },
+    {
+      "id": "spoken_signs-038",
+      "name": "intacte : Point un peu plus loin, c'est bon.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point un peu plus loin, c'est bon."
+      },
+      "expected": "Point un peu plus loin, c'est bon."
+    },
+    {
+      "id": "spoken_signs-039",
+      "name": "intacte : Point 1,5 million d'euros.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point 1,5 million d'euros."
+      },
+      "expected": "Point 1,5 million d'euros."
+    },
+    {
+      "id": "spoken_signs-040",
+      "name": "intacte : Le numéro suivant est le bon.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Le numéro suivant est le bon."
+      },
+      "expected": "Le numéro suivant est le bon."
+    },
+    {
+      "id": "spoken_signs-041",
+      "name": "intacte : Numéro suivant.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Numéro suivant."
+      },
+      "expected": "Numéro suivant."
+    },
+    {
+      "id": "spoken_signs-042",
+      "name": "intacte : Puce-électronique à vendre.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Puce-électronique à vendre."
+      },
+      "expected": "Puce-électronique à vendre."
+    },
+    {
+      "id": "spoken_signs-043",
+      "name": "intacte : Il est arrivé. Tiret du lait.",
+      "line": 364,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Il est arrivé. Tiret du lait."
+      },
+      "expected": "Il est arrivé. Tiret du lait."
+    },
+    {
+      "id": "spoken_signs-044",
+      "name": "liste branchée dans le dictionnaire (puce ronde)",
+      "line": 370,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les courses, retour à la ligne, tiret du lait, retour à la ligne, tiret du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        },
+        "bullet": "dot"
+      },
+      "expected": "Les courses\n• du lait\n• du pain."
+    },
+    {
+      "id": "spoken_signs-045",
+      "name": "liste après le modèle (lignes déjà coupées)",
+      "line": 372,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les courses\nTiret du lait\nTiret du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Les courses\n- du lait\n- du pain."
+    },
+    {
+      "id": "spoken_signs-046",
+      "name": "liste dictée jugée propre : le modèle est sauté",
+      "line": 374,
+      "fn": [
+        "spoken_signs_apply",
+        "looks_clean"
+      ],
+      "args": {
+        "text": "Les courses, retour à la ligne, tiret du lait, retour à la ligne, tiret du pain."
+      },
+      "expected": true
+    },
+    {
+      "id": "spoken_signs-047",
+      "name": "liste : « tirer », « tirez » mal entendus après un saut de ligne seulement",
+      "line": 376,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Les courses, retour à la ligne, Tirer du lait, retour à la ligne, Tirer du pain, retour à la ligne, Tirez des avocats."
+      },
+      "expected": "Les courses\n- du lait\n- du pain\n- des avocats."
+    },
+    {
+      "id": "spoken_signs-048",
+      "name": "intacte : Tirez la porte.",
+      "line": 378,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Tirez la porte."
+      },
+      "expected": "Tirez la porte."
+    },
+    {
+      "id": "spoken_signs-049",
+      "name": "intacte : Tirer sur la corde est dangereux.",
+      "line": 378,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Tirer sur la corde est dangereux."
+      },
+      "expected": "Tirer sur la corde est dangereux."
+    },
+    {
+      "id": "spoken_signs-050",
+      "name": "intacte : Il faut tirer du lait, ensuite tirer du pain.",
+      "line": 378,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Il faut tirer du lait, ensuite tirer du pain."
+      },
+      "expected": "Il faut tirer du lait, ensuite tirer du pain."
+    },
+    {
+      "id": "spoken_signs-051",
+      "name": "liste : appliquée deux fois, même texte",
+      "line": 379,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Les courses, retour à la ligne, tiret du lait, retour à la ligne, tiret du pain."
+      },
+      "expected": null,
+      "property": "idempotent"
+    },
+    {
+      "id": "spoken_signs-052",
+      "name": "liste : appliquée deux fois, même texte",
+      "line": 379,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point 1, a, retour à la ligne, numéro suivant, b, nouveau paragraphe, numéro suivant, c."
+      },
+      "expected": null,
+      "property": "idempotent"
+    },
+    {
+      "id": "spoken_signs-053",
+      "name": "liste : appliquée deux fois, même texte",
+      "line": 379,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Ma liste, retour à la ligne, puce – acheter du pain."
+      },
+      "expected": null,
+      "property": "idempotent"
+    },
+    {
+      "id": "spoken_signs-054",
+      "name": "liste : tirets longs et espaces insécables absorbés",
+      "line": 382,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Tiret – du lait\nPoint 3 : le pain"
+      },
+      "expected": "- du lait\n3. le pain"
+    },
+    {
+      "id": "spoken_signs-055",
+      "name": "intacte : Puces électroniques en rupture.",
+      "line": 383,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Puces électroniques en rupture."
+      },
+      "expected": "Puces électroniques en rupture."
+    },
+    {
+      "id": "spoken_signs-056",
+      "name": "intacte : Point 1 000 euros.",
+      "line": 383,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point 1 000 euros."
+      },
+      "expected": "Point 1 000 euros."
+    },
+    {
+      "id": "spoken_signs-057",
+      "name": "intacte : Point 123 est faux.",
+      "line": 383,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point 123 est faux."
+      },
+      "expected": "Point 123 est faux."
+    },
+    {
+      "id": "spoken_signs-058",
+      "name": "liste : une ligne vide ne coupe pas la numérotation",
+      "line": 385,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Point 1, a, retour à la ligne, numéro suivant, b, nouveau paragraphe, numéro suivant, c."
+      },
+      "expected": "1. a\n2. b\n\n3. c."
+    },
+    {
+      "id": "spoken_signs-059",
+      "name": "liste : pas de liste en anglais (lists=false)",
+      "line": 387,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Point 2 is the main one.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        },
+        "lists": false
+      },
+      "expected": "Point 2 is the main one."
+    },
+    {
+      "id": "spoken_signs-060",
+      "name": "liste : après une correction qui crée le saut de ligne",
+      "line": 389,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les courses, à la ligne, tiret du lait, à la ligne, tiret du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "à la ligne",
+              "written": "\n"
+            }
+          ]
+        }
+      },
+      "expected": "Les courses\n- du lait\n- du pain."
+    },
+    {
+      "id": "spoken_signs-061",
+      "name": "« à la ligne » seul : entre virgules (liste de courses)",
+      "line": 393,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les courses, à la ligne, du lait, à la ligne, du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Les courses\nDu lait\nDu pain."
+    },
+    {
+      "id": "spoken_signs-062",
+      "name": "« à la ligne » seul : entre points",
+      "line": 394,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Bonjour Marie. A la ligne. Je voulais te dire que c'est décalé.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Bonjour Marie.\nJe voulais te dire que c'est décalé."
+    },
+    {
+      "id": "spoken_signs-063",
+      "name": "« à la ligne » seul : en début de dictée",
+      "line": 395,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "À la ligne, merci.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "\nMerci."
+    },
+    {
+      "id": "spoken_signs-064",
+      "name": "« à la ligne » seul : entre « Merci beaucoup » et « cordialement »",
+      "line": 396,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Merci beaucoup, à la ligne, cordialement.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Merci beaucoup\nCordialement."
+    },
+    {
+      "id": "spoken_signs-065",
+      "name": "« à la ligne » seul : Whisper a déjà coupé la ligne, une seule coupure",
+      "line": 398,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste.\nÀ la ligne.\nTirez du lait.\nÀ la ligne.\nTirez du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Ma liste.\n- du lait.\n- du pain."
+    },
+    {
+      "id": "spoken_signs-066",
+      "name": "intacte : Il faut aller à la ligne 5 du contrat.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il faut aller à la ligne 5 du contrat.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il faut aller à la ligne 5 du contrat."
+    },
+    {
+      "id": "spoken_signs-067",
+      "name": "intacte : Le coureur est arrivé à la ligne d'arrivée.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Le coureur est arrivé à la ligne d'arrivée.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Le coureur est arrivé à la ligne d'arrivée."
+    },
+    {
+      "id": "spoken_signs-068",
+      "name": "intacte : Mets-toi à la ligne avec les autres.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Mets-toi à la ligne avec les autres.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Mets-toi à la ligne avec les autres."
+    },
+    {
+      "id": "spoken_signs-069",
+      "name": "intacte : Je te le dis à la ligne suivante.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Je te le dis à la ligne suivante.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Je te le dis à la ligne suivante."
+    },
+    {
+      "id": "spoken_signs-070",
+      "name": "intacte : Il faut passer à la ligne ici.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il faut passer à la ligne ici.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il faut passer à la ligne ici."
+    },
+    {
+      "id": "spoken_signs-071",
+      "name": "intacte : Tu viens à la ligne, ou pas ?",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Tu viens à la ligne, ou pas ?",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Tu viens à la ligne, ou pas ?"
+    },
+    {
+      "id": "spoken_signs-072",
+      "name": "intacte : À la ligne d'arrivée, tout le monde attend.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "À la ligne d'arrivée, tout le monde attend.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "À la ligne d'arrivée, tout le monde attend."
+    },
+    {
+      "id": "spoken_signs-073",
+      "name": "intacte : À la ligne 12, il manque une virgule.",
+      "line": 399,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "À la ligne 12, il manque une virgule.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "À la ligne 12, il manque une virgule."
+    },
+    {
+      "id": "spoken_signs-074",
+      "name": "« à la ligne » seul : deux de suite = deux coupures (virgules)",
+      "line": 405,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Du lait, à la ligne, à la ligne, du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Du lait\n\nDu pain."
+    },
+    {
+      "id": "spoken_signs-075",
+      "name": "« à la ligne » seul : deux de suite = deux coupures (points)",
+      "line": 406,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Merci. À la ligne. À la ligne. Cordialement.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Merci.\n\nCordialement."
+    },
+    {
+      "id": "spoken_signs-076",
+      "name": "« à la ligne » seul : deux de suite, appliqué deux fois",
+      "line": 407,
+      "fn": [
+        "spoken_signs_apply",
+        "spoken_signs_apply"
+      ],
+      "args": {
+        "text": "Merci. À la ligne. À la ligne. Cordialement."
+      },
+      "expected": "Merci.\n\nCordialement."
+    },
+    {
+      "id": "spoken_signs-077",
+      "name": "« à la ligne » seul : paragraphe déjà coupé par Whisper",
+      "line": 409,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste.\n\nÀ la ligne.\n\nTirez du lait.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Ma liste.\n- du lait."
+    },
+    {
+      "id": "spoken_signs-078",
+      "name": "« à la ligne » seul : points de suspension derrière (…)",
+      "line": 410,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Bonjour. À la ligne… du lait",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Bonjour.\nDu lait"
+    },
+    {
+      "id": "spoken_signs-079",
+      "name": "« à la ligne » seul : points de suspension derrière (...)",
+      "line": 411,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Bonjour, à la ligne...du lait",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Bonjour\nDu lait"
+    },
+    {
+      "id": "spoken_signs-080",
+      "name": "liste dictée avec pauses : une seule coupure par « à la ligne », virgules de Whisper retirées",
+      "line": 414,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste :\n\n À la ligne,\n\n tirer du lait,\n\n à la ligne,\n\n tirer du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        },
+        "bullet": "dot"
+      },
+      "expected": "Ma liste :\n• du lait\n• du pain."
+    },
+    {
+      "id": "spoken_signs-081",
+      "name": "liste dictée avec pauses (points)",
+      "line": 415,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste.\n À la ligne.\n Tirée du lait.\n À la ligne.\n Tirée du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Ma liste.\n- du lait.\n- du pain."
+    },
+    {
+      "id": "spoken_signs-082",
+      "name": "liste dictée avec pauses (« retour à la ligne »)",
+      "line": 416,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les courses,\n\n retour à la ligne,\n\n tiret du lait,\n retour à la ligne,\n tiret du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Les courses\n- du lait\n- du pain."
+    },
+    {
+      "id": "spoken_signs-083",
+      "name": "« tirée » reste du texte en début de phrase",
+      "line": 418,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Tirée du lait, c'est dommage.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Tirée du lait, c'est dommage."
+    },
+    {
+      "id": "spoken_signs-084",
+      "name": "« tirée » mal entendu pour « tiret » après un saut de ligne",
+      "line": 419,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste, retour à la ligne, tirée du lait.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Ma liste\n- du lait."
+    },
+    {
+      "id": "spoken_signs-085",
+      "name": "« à la ligne » sans ponctuation devant un début de liste (puce)",
+      "line": 422,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste à la ligne tirée du lait à la ligne tirée du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        },
+        "bullet": "dot"
+      },
+      "expected": "Ma liste\n• du lait\n• du pain."
+    },
+    {
+      "id": "spoken_signs-086",
+      "name": "« à la ligne » sans ponctuation devant un début de liste (tiret)",
+      "line": 423,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les courses à la ligne tiret du lait à la ligne tiret du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Les courses\n- du lait\n- du pain."
+    },
+    {
+      "id": "spoken_signs-087",
+      "name": "« à la ligne » sans ponctuation devant un début de liste (numérotée)",
+      "line": 424,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les étapes à la ligne point 1 ouvrir à la ligne numéro suivant fermer.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Les étapes\n1. ouvrir\n2. fermer."
+    },
+    {
+      "id": "spoken_signs-088",
+      "name": "« à la ligne » sans ponctuation, hors liste : reste du texte",
+      "line": 425,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Merci beaucoup à la ligne cordialement.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Merci beaucoup à la ligne cordialement."
+    },
+    {
+      "id": "spoken_signs-089",
+      "name": "« aller à la ligne 5 » reste du texte",
+      "line": 426,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il faut aller à la ligne 5 du contrat.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il faut aller à la ligne 5 du contrat."
+    },
+    {
+      "id": "spoken_signs-090",
+      "name": "intacte : Il y a la ligne tirée au cordeau.",
+      "line": 428,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Il y a la ligne tirée au cordeau.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Il y a la ligne tirée au cordeau."
+    },
+    {
+      "id": "spoken_signs-091",
+      "name": "intacte : Elle a la ligne puce de son abonnement.",
+      "line": 428,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Elle a la ligne puce de son abonnement.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Elle a la ligne puce de son abonnement."
+    },
+    {
+      "id": "spoken_signs-092",
+      "name": "intacte : La procédure à la ligne point un peu plus loin.",
+      "line": 428,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "La procédure à la ligne point un peu plus loin.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "La procédure à la ligne point un peu plus loin."
+    },
+    {
+      "id": "spoken_signs-093",
+      "name": "intacte : Le dossier à la ligne point 1,5 million est ouvert.",
+      "line": 428,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Le dossier à la ligne point 1,5 million est ouvert.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Le dossier à la ligne point 1,5 million est ouvert."
+    },
+    {
+      "id": "spoken_signs-094",
+      "name": "intacte : Le total à la ligne point 1 000 euros est faux.",
+      "line": 428,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Le total à la ligne point 1 000 euros est faux.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Le total à la ligne point 1 000 euros est faux."
+    },
+    {
+      "id": "spoken_signs-095",
+      "name": "« à la ligne point un, … point deux » = liste numérotée",
+      "line": 431,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Les étapes à la ligne point un, ouvrir à la ligne point deux, fermer.",
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": "Les étapes\n1. ouvrir\n2. fermer."
+    },
+    {
+      "id": "spoken_signs-096",
+      "name": "longue suite d'espaces et de sauts de ligne : traitée en moins d'une seconde (avant « retour à la ligne »)",
+      "line": 434,
+      "fn": "apply_dictionary",
+      "args": {
+        "text_pattern": {
+          "prefix": "Bonjour",
+          "separator": " \n",
+          "repeat": 300,
+          "middle": "retour à la ligne",
+          "suffix": "x"
+        },
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": null,
+      "property": "max_duration_ms:1000"
+    },
+    {
+      "id": "spoken_signs-097",
+      "name": "longue suite d'espaces et de sauts de ligne : traitée en moins d'une seconde (avant « puis encore »)",
+      "line": 435,
+      "fn": "apply_dictionary",
+      "args": {
+        "text_pattern": {
+          "prefix": "Bonjour",
+          "separator": " \n",
+          "repeat": 300,
+          "middle": "puis encore",
+          "suffix": "x"
+        },
+        "dictionary": {
+          "words": [],
+          "corrections": []
+        }
+      },
+      "expected": null,
+      "property": "max_duration_ms:1000"
+    },
+    {
+      "id": "spoken_signs-098",
+      "name": "correction « à la ligne » → « retour à la ligne » : le signe est converti (fin de phrase)",
+      "line": 439,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Merci beaucoup à la ligne cordialement.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "à la ligne",
+              "written": "retour à la ligne"
+            }
+          ]
+        }
+      },
+      "expected": "Merci beaucoup\nCordialement."
+    },
+    {
+      "id": "spoken_signs-099",
+      "name": "correction « à la ligne » → « retour à la ligne » : le signe est converti (liste)",
+      "line": 440,
+      "fn": "apply_dictionary",
+      "args": {
+        "text": "Ma liste à la ligne tirée du lait à la ligne tirée du pain.",
+        "dictionary": {
+          "words": [],
+          "corrections": [
+            {
+              "heard": "à la ligne",
+              "written": "retour à la ligne"
+            }
+          ]
+        },
+        "bullet": "dot"
+      },
+      "expected": "Ma liste\n• du lait\n• du pain."
+    },
+    {
+      "id": "spoken_signs-100",
+      "name": "« à la ligne » seul : appliqué deux fois, même texte",
+      "line": 442,
+      "fn": "spoken_signs_apply",
+      "args": {
+        "text": "Les courses, à la ligne, du lait."
+      },
+      "expected": null,
+      "property": "idempotent"
+    }
+  ]
+}

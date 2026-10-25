@@ -1,0 +1,264 @@
+{
+  "schema": 1,
+  "suite": "translation_guard",
+  "description": "Garde-fou de la traduction à la volée (Cleaner.acceptsTranslation) : true = traduction gardée. Langues : en, es, de, it, pt.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "cases": [
+    {
+      "id": "translation_guard-001",
+      "name": "question traduite gardée",
+      "line": 286,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "euh est-ce que tu peux m'expliquer comment marche la photosynthèse ?",
+        "output": "Can you explain to me how photosynthesis works?",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-002",
+      "name": "question espagnole (¿ ?) gardée",
+      "line": 288,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "quelle heure est-il à Tokyo en ce moment ?",
+        "output": "¿Qué hora es en Tokio ahora?",
+        "language": "es"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-003",
+      "name": "réponse à la question écartée",
+      "line": 290,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "Quelle est la capitale de l'Australie ?",
+        "output": "The capital of Australia is Canberra.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-004",
+      "name": "demande exécutée (poème) écartée",
+      "line": 292,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "peux-tu m'écrire un poème sur la mer",
+        "output": "The sea is wide and deep and blue,\nIt sings a song both old and new,\nThe waves roll in and out again,\nBeneath the sun and through the rain.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-005",
+      "name": "demande exécutée (mail court) écartée",
+      "line": 294,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "écris-moi un mail pour dire à Marc que la réunion est vendredi",
+        "output": "Hi Marc,\n\nJust a quick note: the meeting is on Friday.\n\nBest regards",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-006",
+      "name": "mail sur une ligne écarté",
+      "line": 296,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "écris un mot à Julie pour la remercier du dîner",
+        "output": "Dear Julie, thank you so much for dinner!",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-007",
+      "name": "« salut » dicté → « Hi » gardé",
+      "line": 298,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "salut Paul je serai en retard de dix minutes",
+        "output": "Hi Paul, I'll be ten minutes late.",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-008",
+      "name": "réponse « Sure, … » écartée",
+      "line": 300,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "rappelle-moi d'appeler le docteur Martin lundi",
+        "output": "Sure, I'll remind you on Monday.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-009",
+      "name": "réponse « Here is … » écartée",
+      "line": 302,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "résume ce texte en deux lignes",
+        "output": "Here is a summary in two lines.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-010",
+      "name": "« oui » dicté → « Yes » gardé",
+      "line": 305,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "oui je serai là demain à 9 h",
+        "output": "Yes, I'll be there tomorrow at 9.",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-011",
+      "name": "« si si » dicté → « Sì » gardé",
+      "line": 306,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "si si je viens demain",
+        "output": "Sì, vengo domani.",
+        "language": "it"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-012",
+      "name": "« pas de souci » dicté → « Sure » gardé",
+      "line": 307,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "pas de souci je m'en occupe",
+        "output": "Sure, I'll take care of it.",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-013",
+      "name": "« naturellement » dicté → « Natürlich » gardé",
+      "line": 308,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "naturellement je viendrai",
+        "output": "Natürlich komme ich.",
+        "language": "de"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-014",
+      "name": "« ici » dicté → « Here » gardé",
+      "line": 309,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "ici il fait beau depuis ce matin",
+        "output": "Here the weather has been nice since this morning.",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-015",
+      "name": "resté en français écarté",
+      "line": 311,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "salut Paul je serai en retard de dix minutes demain matin",
+        "output": "Salut Paul, je serai en retard de dix minutes demain matin.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-016",
+      "name": "recopie courte écartée",
+      "line": 313,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "merci beaucoup Paul",
+        "output": "Merci beaucoup Paul.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-017",
+      "name": "français reformulé écarté",
+      "line": 314,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "bon ben je voulais te dire que le rendez-vous est décalé à jeudi",
+        "output": "Je souhaitais t'informer que notre rencontre est reportée à jeudi.",
+        "language": "en"
+      },
+      "expected": false
+    },
+    {
+      "id": "translation_guard-018",
+      "name": "noms propres français dans une vraie traduction gardés (Société Générale)",
+      "line": 317,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "envoie la facture à la Société Générale",
+        "output": "Send the invoice to Société Générale.",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-019",
+      "name": "noms propres français dans une vraie traduction gardés (Café de la Gare)",
+      "line": 318,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "retrouve Jean-Pierre Dupont au Café de la Gare",
+        "output": "Meet Jean-Pierre Dupont at Café de la Gare.",
+        "language": "en"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-020",
+      "name": "guillemets « » → „ “ gardés",
+      "line": 319,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "j'ai mis le fichier dans le dossier « Archives 2026 » sur le NAS",
+        "output": "Ich habe die Datei im Ordner „Archive 2026“ auf dem NAS abgelegt.",
+        "language": "de"
+      },
+      "expected": true
+    },
+    {
+      "id": "translation_guard-021",
+      "name": "retour à la ligne perdu écarté",
+      "line": 321,
+      "fn": "accepts_translation",
+      "args": {
+        "input": "la réunion (celle de mardi) est annulée\nà plus",
+        "output": "Das Treffen (das von Dienstag) ist abgesagt. Bis dann.",
+        "language": "de"
+      },
+      "expected": false
+    }
+  ]
+}

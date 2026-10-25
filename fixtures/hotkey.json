@@ -1,0 +1,262 @@
+{
+  "schema": 1,
+  "suite": "hotkey",
+  "description": "Machine à états de la touche de dictée (HotkeyMonitor.handle / handleKeyDown) et détection de ⌘.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "Les étapes sont abstraites : {key, held} = la touche qui change et l'ensemble des modificateurs tenus APRÈS l'événement. Sur Mac : ⌥ droite = code 61 / masque 0x40, ⌘ gauche = 55 / 0x08, ⌘ droite = 54 / 0x10.",
+    "Journal : P = appui sur la touche de dictée, R = relâchement, C = ⌘ ajoutée (peut se répéter), X = autre touche tapée pendant l'appui.",
+    "`typed_after_step` : une touche ordinaire est tapée juste après l'étape d'indice donné (0 = première).",
+    "Ces cas valent pour tout système : sous Windows, la touche de dictée et la touche de traduction diffèrent (AltGr), mais la machine à états est la même."
+  ],
+  "cases": [
+    {
+      "id": "hotkey-001",
+      "name": "dictée simple, sans traduction",
+      "line": 280,
+      "fn": "hotkey_sequence",
+      "args": {
+        "hotkey": "right_option",
+        "steps": [
+          {
+            "key": "right_option",
+            "held": [
+              "right_option"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": []
+          }
+        ]
+      },
+      "expected": "PR"
+    },
+    {
+      "id": "hotkey-002",
+      "name": "⌘ ajoutée pendant l'appui",
+      "line": 281,
+      "fn": "hotkey_sequence",
+      "args": {
+        "hotkey": "right_option",
+        "steps": [
+          {
+            "key": "right_option",
+            "held": [
+              "right_option"
+            ]
+          },
+          {
+            "key": "left_command",
+            "held": [
+              "left_command",
+              "right_option"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": [
+              "left_command"
+            ]
+          },
+          {
+            "key": "left_command",
+            "held": []
+          }
+        ]
+      },
+      "expected": "PCR",
+      "comparison": "prefix"
+    },
+    {
+      "id": "hotkey-003",
+      "name": "⌘ tenue avant l'appui",
+      "line": 282,
+      "fn": "hotkey_sequence",
+      "args": {
+        "hotkey": "right_option",
+        "steps": [
+          {
+            "key": "left_command",
+            "held": [
+              "left_command"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": [
+              "left_command",
+              "right_option"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": [
+              "left_command"
+            ]
+          }
+        ]
+      },
+      "expected": "PCR"
+    },
+    {
+      "id": "hotkey-004",
+      "name": "⌘ relâchée avant la touche de dictée",
+      "line": 283,
+      "fn": "hotkey_sequence",
+      "args": {
+        "hotkey": "right_option",
+        "steps": [
+          {
+            "key": "right_option",
+            "held": [
+              "right_option"
+            ]
+          },
+          {
+            "key": "left_command",
+            "held": [
+              "left_command",
+              "right_option"
+            ]
+          },
+          {
+            "key": "left_command",
+            "held": [
+              "right_option"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": []
+          }
+        ]
+      },
+      "expected": "PCR"
+    },
+    {
+      "id": "hotkey-005",
+      "name": "⌘ seule, sans dictée",
+      "line": 284,
+      "fn": "hotkey_sequence",
+      "args": {
+        "hotkey": "right_option",
+        "steps": [
+          {
+            "key": "left_command",
+            "held": [
+              "left_command"
+            ]
+          },
+          {
+            "key": "left_command",
+            "held": []
+          }
+        ]
+      },
+      "expected": ""
+    },
+    {
+      "id": "hotkey-006",
+      "name": "⌘⌥ + lettre = raccourci",
+      "line": 285,
+      "fn": "hotkey_sequence",
+      "args": {
+        "hotkey": "right_option",
+        "steps": [
+          {
+            "key": "left_command",
+            "held": [
+              "left_command"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": [
+              "left_command",
+              "right_option"
+            ]
+          },
+          {
+            "key": "right_option",
+            "held": [
+              "left_command"
+            ]
+          }
+        ],
+        "typed_after_step": 1
+      },
+      "expected": "PCXR"
+    },
+    {
+      "id": "hotkey-007",
+      "name": "⌘ gauche avec ⌥ droite",
+      "line": 262,
+      "fn": "command_held",
+      "args": {
+        "hotkey": "right_option",
+        "held": [
+          "left_command"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "id": "hotkey-008",
+      "name": "⌘ droite avec ⌥ droite",
+      "line": 262,
+      "fn": "command_held",
+      "args": {
+        "hotkey": "right_option",
+        "held": [
+          "right_command"
+        ]
+      },
+      "expected": true
+    },
+    {
+      "id": "hotkey-009",
+      "name": "⌥ droite seule : pas de ⌘",
+      "line": 263,
+      "fn": "command_held",
+      "args": {
+        "hotkey": "right_option",
+        "held": [
+          "right_option"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "id": "hotkey-010",
+      "name": "dictée sur ⌘ droite : ⌘ droite seule ne traduit pas",
+      "line": 264,
+      "fn": "command_held",
+      "args": {
+        "hotkey": "right_command",
+        "held": [
+          "right_command"
+        ]
+      },
+      "expected": false
+    },
+    {
+      "id": "hotkey-011",
+      "name": "dictée sur ⌘ droite : ⌘ gauche en plus traduit",
+      "line": 265,
+      "fn": "command_held",
+      "args": {
+        "hotkey": "right_command",
+        "held": [
+          "left_command",
+          "right_command"
+        ]
+      },
+      "expected": true
+    }
+  ]
+}

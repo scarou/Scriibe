@@ -58,10 +58,13 @@ Le cœur ne connaît pas cette couche : il reçoit du texte et rend du texte.
 La confiance dans le portage vient de là. Les cas de `Checks.swift` (typographie, filtre Whisper, garde-fous, signes dictés, touches, fichiers) sont extraits en JSON :
 
 ```json
-{ "suite": "typographie", "cas": [ { "nom": "heure", "entree": "rendez-vous à 19h", "attendu": "rendez-vous à 19 h" } ] }
+{ "id": "typography-007", "name": "heure « 19h » → « 19 h »", "line": 34, "fn": "french_typography",
+  "args": { "text": "Je serai là vers 19h, on dîne." }, "expected": "Je serai là vers 19\u00a0h, on dîne." }
 ```
 
-Le cœur Rust doit les passer **à l'identique**. Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
+Le format complet, la liste des fonctions et les outils de vérification sont décrits dans [`fixtures/README.md`](../fixtures/README.md) ; ce qui reste à reprendre est dans [`fixtures/A_FAIRE.md`](../fixtures/A_FAIRE.md).
+
+Le cœur Rust doit les passer **à l'identique** (365 cas dans 16 fichiers). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
 
 ## 4. Interface
 

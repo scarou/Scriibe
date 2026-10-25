@@ -1,0 +1,299 @@
+{
+  "schema": 1,
+  "suite": "media_pause",
+  "description": "Pause des médias : qui compte comme « média qui joue » (MediaPause.decision, MediaPause.newPlayers).",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "Process = {pid, bundle, output, input}. Décision : nothing_playing | in_call | play[identifiants].",
+    "Règles génériques : on ignore le processus de l'appli elle-même et les démons système de la liste `ignored` ; un processus qui sort du son ET capte le micro = appel ; identifiant vide = « pid N ».",
+    "Les identifiants (com.apple.*, Chrome…) sont ceux de macOS : sous Windows et Linux, remplacer par les noms d'exécutables / sessions audio, en gardant les règles.",
+    "Liste `ignored` de Scribe : com.apple.audiomxd, com.apple.controlcenter, com.apple.CoreSpeech, com.apple.assistantd, com.apple.accessibility.heard, com.apple.universalaccessd, com.apple.mediaremoted."
+  ],
+  "cases": [
+    {
+      "id": "media_pause-001",
+      "name": "rien ne joue : processus silencieux",
+      "line": 449,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 354,
+            "bundle": "com.apple.mediaremoted",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 655,
+            "bundle": "com.apple.controlcenter",
+            "output": false,
+            "input": false
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": "nothing_playing"
+    },
+    {
+      "id": "media_pause-002",
+      "name": "seul Scribe joue",
+      "line": 450,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 354,
+            "bundle": "com.apple.mediaremoted",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 655,
+            "bundle": "com.apple.controlcenter",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 62617,
+            "bundle": "com.christophecampain.scribe",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 62617
+      },
+      "expected": "nothing_playing"
+    },
+    {
+      "id": "media_pause-003",
+      "name": "seuls des démons système jouent",
+      "line": 451,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 354,
+            "bundle": "com.apple.mediaremoted",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 655,
+            "bundle": "com.apple.controlcenter",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 655,
+            "bundle": "com.apple.controlcenter",
+            "output": true,
+            "input": false
+          },
+          {
+            "pid": 606,
+            "bundle": "com.apple.audiomxd",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": "nothing_playing"
+    },
+    {
+      "id": "media_pause-004",
+      "name": "aucun processus",
+      "line": 452,
+      "fn": "media_decision",
+      "args": {
+        "processes": [],
+        "own_pid": 1
+      },
+      "expected": "nothing_playing"
+    },
+    {
+      "id": "media_pause-005",
+      "name": "YouTube dans Chrome → pause",
+      "line": 454,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 354,
+            "bundle": "com.apple.mediaremoted",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 655,
+            "bundle": "com.apple.controlcenter",
+            "output": false,
+            "input": false
+          },
+          {
+            "pid": 62848,
+            "bundle": "com.google.Chrome.helper",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": {
+        "play": [
+          "com.google.Chrome.helper"
+        ]
+      }
+    },
+    {
+      "id": "media_pause-006",
+      "name": "Safari (WebKit GPU) → pause",
+      "line": 455,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 949,
+            "bundle": "com.apple.WebKit.GPU",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": {
+        "play": [
+          "com.apple.WebKit.GPU"
+        ]
+      }
+    },
+    {
+      "id": "media_pause-007",
+      "name": "identifiant vide → « pid N »",
+      "line": 456,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 10,
+            "bundle": "",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": {
+        "play": [
+          "pid 10"
+        ]
+      }
+    },
+    {
+      "id": "media_pause-008",
+      "name": "appel (son et micro dans le même processus) → pas de pause",
+      "line": 458,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 20,
+            "bundle": "net.whatsapp.WhatsApp",
+            "output": true,
+            "input": true
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": "in_call"
+    },
+    {
+      "id": "media_pause-009",
+      "name": "un micro ailleurs n'empêche pas la pause",
+      "line": 459,
+      "fn": "media_decision",
+      "args": {
+        "processes": [
+          {
+            "pid": 62848,
+            "bundle": "com.google.Chrome.helper",
+            "output": true,
+            "input": false
+          },
+          {
+            "pid": 30,
+            "bundle": "com.logi.cp-dev-mgr",
+            "output": false,
+            "input": true
+          }
+        ],
+        "own_pid": 1
+      },
+      "expected": {
+        "play": [
+          "com.google.Chrome.helper"
+        ]
+      }
+    },
+    {
+      "id": "media_pause-010",
+      "name": "un processus nouveau compte, pas ceux qui jouaient déjà ni Scribe",
+      "line": 461,
+      "fn": "media_new_players",
+      "args": {
+        "processes": [
+          {
+            "pid": 5,
+            "bundle": "com.google.Chrome.helper",
+            "output": true,
+            "input": false
+          },
+          {
+            "pid": 6,
+            "bundle": "com.apple.Music",
+            "output": true,
+            "input": false
+          },
+          {
+            "pid": 7,
+            "bundle": "com.christophecampain.scribe",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 7,
+        "known": [
+          5
+        ]
+      },
+      "expected": [
+        "com.apple.Music"
+      ]
+    },
+    {
+      "id": "media_pause-011",
+      "name": "aucun nouveau processus",
+      "line": 463,
+      "fn": "media_new_players",
+      "args": {
+        "processes": [
+          {
+            "pid": 5,
+            "bundle": "com.google.Chrome.helper",
+            "output": true,
+            "input": false
+          }
+        ],
+        "own_pid": 7,
+        "known": [
+          5
+        ]
+      },
+      "expected": []
+    }
+  ]
+}

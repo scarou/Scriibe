@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "suite": "typography",
+  "description": "Typographie française appliquée avant le collage (TextFixer.frenchTypography).",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "cases": [
+    {
+      "id": "typography-001",
+      "name": "espace avant ?",
+      "line": 28,
+      "fn": "french_typography",
+      "args": {
+        "text": "Ça va?"
+      },
+      "expected": "Ça va ?"
+    },
+    {
+      "id": "typography-002",
+      "name": "espace avant ! en fin",
+      "line": 29,
+      "fn": "french_typography",
+      "args": {
+        "text": "Super!"
+      },
+      "expected": "Super !"
+    },
+    {
+      "id": "typography-003",
+      "name": "lien ?id intact",
+      "line": 30,
+      "fn": "french_typography",
+      "args": {
+        "text": "exemple.fr/page?id=3"
+      },
+      "expected": "exemple.fr/page?id=3"
+    },
+    {
+      "id": "typography-004",
+      "name": "smiley ;) intact",
+      "line": 31,
+      "fn": "french_typography",
+      "args": {
+        "text": "ok;)"
+      },
+      "expected": "ok;)"
+    },
+    {
+      "id": "typography-005",
+      "name": "heure 10:30 intacte",
+      "line": 32,
+      "fn": "french_typography",
+      "args": {
+        "text": "à 10:30 demain"
+      },
+      "expected": "à 10:30 demain"
+    },
+    {
+      "id": "typography-006",
+      "name": "deux-points devant espace",
+      "line": 33,
+      "fn": "french_typography",
+      "args": {
+        "text": "Note: rien"
+      },
+      "expected": "Note : rien"
+    },
+    {
+      "id": "typography-007",
+      "name": "heure « 19h » → « 19 h »",
+      "line": 34,
+      "fn": "french_typography",
+      "args": {
+        "text": "Je serai là vers 19h, on dîne."
+      },
+      "expected": "Je serai là vers 19 h, on dîne."
+    },
+    {
+      "id": "typography-008",
+      "name": "heure « 9h05 » et « 19 h30 » avec minutes",
+      "line": 35,
+      "fn": "french_typography",
+      "args": {
+        "text": "De 9h05 à 19 h30."
+      },
+      "expected": "De 9 h 05 à 19 h 30."
+    },
+    {
+      "id": "typography-009",
+      "name": "heure déjà espacée gardée",
+      "line": 36,
+      "fn": "french_typography",
+      "args": {
+        "text": "À 11 h."
+      },
+      "expected": "À 11 h."
+    },
+    {
+      "id": "typography-010",
+      "name": "heure « 7H30 » majuscule → « 7 h 30 »",
+      "line": 37,
+      "fn": "french_typography",
+      "args": {
+        "text": "Rendez-vous à 7H30."
+      },
+      "expected": "Rendez-vous à 7 h 30."
+    },
+    {
+      "id": "typography-011",
+      "name": "fichiers, options et mots-dièse intacts",
+      "line": 38,
+      "fn": "french_typography",
+      "args": {
+        "text": "rapport_19h.pdf cache_1h t=1h #24h UTC+2h"
+      },
+      "expected": "rapport_19h.pdf cache_1h t=1h #24h UTC+2h"
+    },
+    {
+      "id": "typography-012",
+      "name": "« 2 hommes », « 100h » et « 25h » intacts, « 24h/24 » → « 24 h/24 »",
+      "line": 40,
+      "fn": "french_typography",
+      "args": {
+        "text": "2 hommes, 100h, 24h/24, 25h"
+      },
+      "expected": "2 hommes, 100h, 24 h/24, 25h"
+    }
+  ]
+}

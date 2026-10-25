@@ -1,0 +1,224 @@
+{
+  "schema": 1,
+  "suite": "prompts",
+  "description": "Invariants des prompts de mise au propre, de traduction et de préchauffage. Ce ne sont pas des paires entrée → sortie : chaque cas est un énoncé à vérifier par un test écrit à la main.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "fn `invariant` : args.statement (texte) ; expected = true. Les fonctions Swift concernées : Cleaner.messages, Cleaner.systemPrompt, Cleaner.translationMessages, Cleaner.translationPrompt, Cleaner.warmUpMessages.",
+    "L'empreinte `prompt_fingerprint` doit rester celle de Scribe 1.12.0 tant qu'on ne change pas volontairement un prompt : le cœur Rust doit produire exactement les mêmes messages.",
+    "Pour obtenir les messages complets (consigne, exemples) comme oracle, il faudra les exporter depuis le Swift sur un Mac (voir docs/ECARTS.md, « à faire » en fin d'étape 2)."
+  ],
+  "cases": [
+    {
+      "id": "prompts-001",
+      "name": "empreinte des prompts des 8 modes livrés",
+      "line": 7,
+      "fn": "prompt_fingerprint",
+      "args": {
+        "algorithm": "FNV-1a 64 bits (offset 0xcbf29ce484222325, premier 0x100000001b3) sur les octets UTF-8 de la concaténation, pour chaque mode dans l'ordre literal, simple, formal, wellness, tech, letter, sales, playful, puis pour chaque message de Cleaner.messages(text: \"dictée témoin\", vocabulary: [\"Claude Code\"], mode), de la chaîne « role|content\\n »",
+        "text": "dictée témoin",
+        "vocabulary": [
+          "Claude Code"
+        ],
+        "mode_order": [
+          "literal",
+          "simple",
+          "formal",
+          "wellness",
+          "tech",
+          "letter",
+          "sales",
+          "playful"
+        ],
+        "output_format": "hexadécimal minuscule sans zéros de tête"
+      },
+      "expected": "4ed86f0c1c154918",
+      "comparison": "exact",
+      "note": "Ligne 181 : « texte envoyé identique à la 1.12.0 (empreinte) »."
+    },
+    {
+      "id": "prompts-002",
+      "name": "Dictée encadrée en dernier message : messages.count == 2 + exemples×2,…",
+      "line": 88,
+      "fn": "invariant",
+      "args": {
+        "statement": "Dictée encadrée en dernier message : messages.count == 2 + exemples×2, et le dernier message commence par « <dictée>\\ntu peux me résumer ça\\n</dictée> »."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-003",
+      "name": "Prompt identique d'une dictée à l'autre jusqu'à la dictée (mode Simple…",
+      "line": 95,
+      "fn": "invariant",
+      "args": {
+        "statement": "Prompt identique d'une dictée à l'autre jusqu'à la dictée (mode Simple, et traduction) : tous les messages sauf le dernier sont égaux (mémoire du serveur)."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-004",
+      "name": "Mode de style (soutenu) : count == 2 + styleExamples×2 ; la consigne c…",
+      "line": 139,
+      "fn": "invariant",
+      "args": {
+        "statement": "Mode de style (soutenu) : count == 2 + styleExamples×2 ; la consigne contient la phrase de style du mode et « « tu » reste « tu » » ; elle ne contient pas « Supprime seulement »."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-005",
+      "name": "Mode Courrier : la consigne contient « « je » » et « vouvoie le destin…",
+      "line": 144,
+      "fn": "invariant",
+      "args": {
+        "statement": "Mode Courrier : la consigne contient « « je » » et « vouvoie le destinataire » mais pas « « tu » reste « tu » »."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-006",
+      "name": "Les 8 modes livrés non modifiés envoient le même texte qu'avant (consi…",
+      "line": 182,
+      "fn": "invariant",
+      "args": {
+        "statement": "Les 8 modes livrés non modifiés envoient le même texte qu'avant (consigne et exemples) ; Simple contient « Ne reformule pas au-delà du nécessaire » et pas « Consigne en plus »."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-007",
+      "name": "Phrase de style modifiée : la consigne contient « - Style : <phrase> »…",
+      "line": 190,
+      "fn": "invariant",
+      "args": {
+        "statement": "Phrase de style modifiée : la consigne contient « - Style : <phrase> » ; « Rétablir » (phrase vide ou blanche) ramène la phrase d'origine ; le libellé du mode devient « Pro · Sophrologie et bien-être (consigne modifiée) »."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-008",
+      "name": "Mode personnel « fidèle » : consigne contient « - Consigne en plus : ……",
+      "line": 199,
+      "fn": "invariant",
+      "args": {
+        "statement": "Mode personnel « fidèle » : consigne contient « - Consigne en plus : … » et « Supprime seulement » ; messages = exemples de Simple puis les siens ; les exemples incomplets (dictée ou attendu vide) sont écartés."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-009",
+      "name": "Mode personnel qui reformule : la consigne contient « - Style : … » ; …",
+      "line": 208,
+      "fn": "invariant",
+      "args": {
+        "statement": "Mode personnel qui reformule : la consigne contient « - Style : … » ; ses seuls exemples, sinon ceux du mode Soutenu ; garde-fou souple ; l'option « sauter » est sans effet."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-010",
+      "name": "Choix du mode : un identifiant inconnu est ignoré ; un mode livré choi…",
+      "line": 216,
+      "fn": "invariant",
+      "args": {
+        "statement": "Choix du mode : un identifiant inconnu est ignoré ; un mode livré choisi remplace le mode personnel."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-011",
+      "name": "Consigne tapée : une ligne finie par un point (« Écris comme un SMS\\n …",
+      "line": 224,
+      "fn": "invariant",
+      "args": {
+        "statement": "Consigne tapée : une ligne finie par un point (« Écris comme un SMS\\n  court » → « Écris comme un SMS court. » ; « Bises ! » inchangé ; vide → nil, donc celle d'origine)."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-012",
+      "name": "Mode fidèle avec consigne : jamais sauté ; Simple et Amusant tels quel…",
+      "line": 232,
+      "fn": "invariant",
+      "args": {
+        "statement": "Mode fidèle avec consigne : jamais sauté ; Simple et Amusant tels quels : sautables."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-013",
+      "name": "Copie du mode Courrier (mode personnel qui reformule et vouvoie, même …",
+      "line": 238,
+      "fn": "invariant",
+      "args": {
+        "statement": "Copie du mode Courrier (mode personnel qui reformule et vouvoie, même phrase de style) : mêmes messages que le mode Courrier."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-014",
+      "name": "Traduction : messages = 2 + 2×exemples ; le dernier contient « <dictée…",
+      "line": 329,
+      "fn": "invariant",
+      "args": {
+        "statement": "Traduction : messages = 2 + 2×exemples ; le dernier contient « <dictée>\\nbonjour à tous\\n</dictée> » ; la consigne contient « en portugais du Brésil » (langue pt) et le dictionnaire (« Claude Code »)."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-015",
+      "name": "Chaque langue de traduction a autant d'exemples traduits que d'exemple…",
+      "line": 323,
+      "fn": "invariant",
+      "args": {
+        "statement": "Chaque langue de traduction a autant d'exemples traduits que d'exemples français ; ils sont acceptés par le garde-fou de traduction."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-016",
+      "name": "Exemples de traduction alignés : l'exemple n° 2 contient « non pardon …",
+      "line": 345,
+      "fn": "invariant",
+      "args": {
+        "statement": "Exemples de traduction alignés : l'exemple n° 2 contient « non pardon vendredi » en français et « Friday » en anglais ; le n° 5 contient « train » en français et « Zug » en allemand."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-017",
+      "name": "Aucun nom d'appli dans les consignes (ni « application ») : rien de va…",
+      "line": 529,
+      "fn": "invariant",
+      "args": {
+        "statement": "Aucun nom d'appli dans les consignes (ni « application ») : rien de variable avant la dictée."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-018",
+      "name": "Préchauffage : pour tous les modes (livrés sauf Littéral et Amusant, p…",
+      "line": 945,
+      "fn": "invariant",
+      "args": {
+        "statement": "Préchauffage : pour tous les modes (livrés sauf Littéral et Amusant, plus un mode personnel), avec ou sans dictionnaire, les messages de préchauffage ont le même nombre de messages et sont identiques à une vraie dictée sauf le dernier."
+      },
+      "expected": true
+    },
+    {
+      "id": "prompts-019",
+      "name": "Préchauffage : la consigne contient le dictionnaire (« Deepgram ») ; A…",
+      "line": 946,
+      "fn": "invariant",
+      "args": {
+        "statement": "Préchauffage : la consigne contient le dictionnaire (« Deepgram ») ; Amusant = Simple pour le préchauffage ; en traduction, tout sauf le dernier message est identique à une vraie traduction."
+      },
+      "expected": true
+    }
+  ]
+}

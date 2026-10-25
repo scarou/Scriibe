@@ -1,0 +1,572 @@
+{
+  "schema": 1,
+  "suite": "local_engines",
+  "description": "Sélecteur de modèle Whisper, nom des modèles GGUF, options de llama-server, libération de Whisper au repos, états annoncés.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "Les chemins sont ceux des tests Scribe (style Mac) : sous Windows, seule la partie nom de fichier compte."
+  ],
+  "cases": [
+    {
+      "id": "local_engines-001",
+      "name": "vrai modèle Whisper : /a/ggml-large-v3-turbo.bin",
+      "line": 466,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-large-v3-turbo.bin"
+      },
+      "expected": true
+    },
+    {
+      "id": "local_engines-002",
+      "name": "vrai modèle Whisper : /a/ggml-large-v3-turbo-q8_0.bin",
+      "line": 466,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-large-v3-turbo-q8_0.bin"
+      },
+      "expected": true
+    },
+    {
+      "id": "local_engines-003",
+      "name": "vrai modèle Whisper : /a/ggml-medium.bin",
+      "line": 466,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-medium.bin"
+      },
+      "expected": true
+    },
+    {
+      "id": "local_engines-004",
+      "name": "vrai modèle Whisper : /a/ggml-large-v3-turbo-q5_0.bin",
+      "line": 466,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-large-v3-turbo-q5_0.bin"
+      },
+      "expected": true
+    },
+    {
+      "id": "local_engines-005",
+      "name": "pas un modèle Whisper : /a/ggml-parakeet-tdt-0.6b-v3-q8_0.bin",
+      "line": 467,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-parakeet-tdt-0.6b-v3-q8_0.bin"
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-006",
+      "name": "pas un modèle Whisper : /a/ggml-silero-v5.1.2.bin",
+      "line": 467,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-silero-v5.1.2.bin"
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-007",
+      "name": "pas un modèle Whisper : /a/for-tests-ggml-tiny.bin",
+      "line": 467,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/for-tests-ggml-tiny.bin"
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-008",
+      "name": "pas un modèle Whisper : /a/ggml-vad.bin",
+      "line": 467,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-vad.bin"
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-009",
+      "name": "pas un modèle Whisper : /a/large-v3-turbo.bin",
+      "line": 467,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/large-v3-turbo.bin"
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-010",
+      "name": "pas un modèle Whisper : /a/ggml-large-v3-turbo.bin.part",
+      "line": 467,
+      "fn": "is_whisper_model",
+      "args": {
+        "path": "/a/ggml-large-v3-turbo.bin.part"
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-011",
+      "name": "une seule copie par modèle (même nom, même taille), la première gardée ; même nom et autre taille = autre modèle",
+      "line": 472,
+      "fn": "distinct_models",
+      "args": {
+        "paths": [
+          "/Scribe/models/ggml-large-v3-turbo-q8_0.bin",
+          "/veille/ggml-large-v3-turbo-q8_0.bin",
+          "/veille/ggml-large-v3-turbo.bin",
+          "/yt/ggml-large-v3-turbo.bin",
+          "/x/ggml-large-v3-turbo.bin"
+        ],
+        "sizes": {
+          "/Scribe/models/ggml-large-v3-turbo-q8_0.bin": 874,
+          "/veille/ggml-large-v3-turbo-q8_0.bin": 874,
+          "/veille/ggml-large-v3-turbo.bin": 1624,
+          "/yt/ggml-large-v3-turbo.bin": 1624,
+          "/x/ggml-large-v3-turbo.bin": 900
+        }
+      },
+      "expected": [
+        "/Scribe/models/ggml-large-v3-turbo-q8_0.bin",
+        "/veille/ggml-large-v3-turbo.bin",
+        "/x/ggml-large-v3-turbo.bin"
+      ]
+    },
+    {
+      "id": "local_engines-012",
+      "name": "tailles inconnues : un seul chemin pour deux copies du même nom",
+      "line": 475,
+      "fn": "distinct_models",
+      "args": {
+        "paths": [
+          "/a/ggml-x.bin",
+          "/b/ggml-x.bin"
+        ],
+        "sizes": {}
+      },
+      "expected": [
+        "/a/ggml-x.bin"
+      ]
+    },
+    {
+      "id": "local_engines-013",
+      "name": "même modèle : même nom, même taille",
+      "line": 477,
+      "fn": "same_model",
+      "args": {
+        "a": "/a/ggml-x.bin",
+        "b": "/b/ggml-x.bin",
+        "sizes": {
+          "/a/ggml-x.bin": 5,
+          "/b/ggml-x.bin": 5
+        }
+      },
+      "expected": true
+    },
+    {
+      "id": "local_engines-014",
+      "name": "pas le même modèle : même nom, autre taille",
+      "line": 478,
+      "fn": "same_model",
+      "args": {
+        "a": "/a/ggml-x.bin",
+        "b": "/b/ggml-x.bin",
+        "sizes": {
+          "/a/ggml-x.bin": 5,
+          "/b/ggml-x.bin": 6
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-015",
+      "name": "pas le même modèle : autre nom",
+      "line": 479,
+      "fn": "same_model",
+      "args": {
+        "a": "/a/ggml-x.bin",
+        "b": "/a/ggml-y.bin",
+        "sizes": {
+          "/a/ggml-x.bin": 5,
+          "/a/ggml-y.bin": 5
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-016",
+      "name": "nom sans quantification (gemma)",
+      "line": 854,
+      "fn": "llama_base_name",
+      "args": {
+        "file": "gemma-4-E4B-it-Q4_0.gguf"
+      },
+      "expected": "gemma-4-E4B-it"
+    },
+    {
+      "id": "local_engines-017",
+      "name": "nom sans quantification (Mistral Q4_K_M)",
+      "line": 855,
+      "fn": "llama_base_name",
+      "args": {
+        "file": "Mistral-Small-3.2-24B-Instruct-2506-Q4_K_M.gguf"
+      },
+      "expected": "Mistral-Small-3.2-24B-Instruct-2506"
+    },
+    {
+      "id": "local_engines-018",
+      "name": "nom sans quantification (assistant MTP)",
+      "line": 856,
+      "fn": "llama_base_name",
+      "args": {
+        "file": "mtp-gemma-4-E4B-it-Q8_0.gguf"
+      },
+      "expected": "mtp-gemma-4-E4B-it"
+    },
+    {
+      "id": "local_engines-019",
+      "name": "sans quantification : inchangé",
+      "line": 856,
+      "fn": "llama_base_name",
+      "args": {
+        "file": "model.gguf"
+      },
+      "expected": "model"
+    },
+    {
+      "id": "local_engines-020",
+      "name": "chiffres collés au nom gardés",
+      "line": 857,
+      "fn": "llama_base_name",
+      "args": {
+        "file": "foo-bar2.gguf"
+      },
+      "expected": "foo-bar2"
+    },
+    {
+      "id": "local_engines-021",
+      "name": "quantification BF16 retirée",
+      "line": 857,
+      "fn": "llama_base_name",
+      "args": {
+        "file": "Llama-3-8B-BF16.gguf"
+      },
+      "expected": "Llama-3-8B"
+    },
+    {
+      "id": "local_engines-022",
+      "name": "options de llama-server avec assistant MTP",
+      "line": 896,
+      "fn": "llama_arguments",
+      "args": {
+        "model": "/m/x.gguf",
+        "assistant": "/m/mtp-x.gguf",
+        "port": 8179
+      },
+      "expected": {
+        "starts_with": [
+          "-m",
+          "/m/x.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8179"
+        ],
+        "contains": [
+          "-np 2",
+          "-kvu",
+          "8192",
+          "--spec-type draft-mtp --spec-draft-model /m/mtp-x.gguf --spec-draft-n-max 5"
+        ]
+      },
+      "comparison": "starts_with_and_contains"
+    },
+    {
+      "id": "local_engines-023",
+      "name": "options de llama-server sans assistant MTP",
+      "line": 897,
+      "fn": "llama_arguments",
+      "args": {
+        "model": "/m/x.gguf",
+        "assistant": null,
+        "port": 8179
+      },
+      "expected": {
+        "starts_with": [
+          "-m",
+          "/m/x.gguf",
+          "--host",
+          "127.0.0.1",
+          "--port",
+          "8179"
+        ],
+        "contains": [
+          "-np 2",
+          "-kvu",
+          "8192"
+        ],
+        "not_contains": [
+          "--spec-type",
+          "--spec-draft-model"
+        ]
+      },
+      "comparison": "starts_with_and_contains"
+    },
+    {
+      "id": "local_engines-024",
+      "name": "pas avant la durée choisie",
+      "line": 736,
+      "fn": "whisper_should_release",
+      "args": {
+        "idle_seconds": 540,
+        "limit_minutes": 10,
+        "busy": false
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-025",
+      "name": "après la durée choisie",
+      "line": 737,
+      "fn": "whisper_should_release",
+      "args": {
+        "idle_seconds": 601,
+        "limit_minutes": 10,
+        "busy": false
+      },
+      "expected": true
+    },
+    {
+      "id": "local_engines-026",
+      "name": "jamais pendant une transcription",
+      "line": 738,
+      "fn": "whisper_should_release",
+      "args": {
+        "idle_seconds": 3600,
+        "limit_minutes": 10,
+        "busy": true
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-027",
+      "name": "jamais avec « Jamais » (0)",
+      "line": 739,
+      "fn": "whisper_should_release",
+      "args": {
+        "idle_seconds": 100000,
+        "limit_minutes": 0,
+        "busy": false
+      },
+      "expected": false
+    },
+    {
+      "id": "local_engines-028",
+      "name": "scénario : seuls les vrais GGUF sont repérés (ni assistant, ni vision, ni embedding), gemma-4-e4b d'abord",
+      "line": 869,
+      "fn": "llama_detect_models",
+      "args": {
+        "files": [
+          "ggml-org/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_0.gguf",
+          "ggml-org/gemma-4-E4B-it-GGUF/mtp-gemma-4-E4B-it-Q8_0.gguf",
+          "ggml-org/gemma-4-E4B-it-GGUF/mmproj-gemma-4-E4B-BF16.gguf",
+          "ggml-org/gemma-4-E4B-it-GGUF/Qwen3-Embedding-0.6B-Q8_0.gguf",
+          "ggml-org/gemma-4-E4B-it-GGUF/notes.txt",
+          "autre/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+          "autre/mtp-gemma-4-E4B-it-Q8_0.gguf"
+        ]
+      },
+      "expected": {
+        "count": 2,
+        "first_file_name": "gemma-4-E4B-it-Q4_0.gguf",
+        "none_starts_with": "mtp-"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "local_engines-029",
+      "name": "scénario : à score égal, ordre alphabétique",
+      "line": 880,
+      "fn": "llama_detect_models",
+      "args": {
+        "files": [
+          "egalite/zeta-Q4_0.gguf",
+          "egalite/alpha-Q4_0.gguf"
+        ]
+      },
+      "expected": {
+        "file_names": [
+          "alpha-Q4_0.gguf",
+          "zeta-Q4_0.gguf"
+        ]
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "local_engines-030",
+      "name": "assistant MTP trouvé à côté du modèle, et de lui seul",
+      "line": 874,
+      "fn": "llama_assistant",
+      "args": {
+        "files": [
+          "ggml-org/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_0.gguf",
+          "ggml-org/gemma-4-E4B-it-GGUF/mtp-gemma-4-E4B-it-Q8_0.gguf",
+          "autre/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+          "autre/mtp-gemma-4-E4B-it-Q8_0.gguf"
+        ]
+      },
+      "expected": {
+        "ggml-org/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_0.gguf": "ggml-org/gemma-4-E4B-it-GGUF/mtp-gemma-4-E4B-it-Q8_0.gguf",
+        "autre/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf": null
+      },
+      "comparison": "map"
+    },
+    {
+      "id": "local_engines-031",
+      "name": "état : binaire absent → conseille l'installation",
+      "line": 970,
+      "fn": "llama_status",
+      "args": {
+        "binary": null,
+        "models": [
+          "/m/x.gguf"
+        ],
+        "chosen": "/m/x.gguf"
+      },
+      "expected": [
+        "brew install llama.cpp"
+      ],
+      "comparison": "contains_all"
+    },
+    {
+      "id": "local_engines-032",
+      "name": "état : aucun fichier .gguf",
+      "line": 971,
+      "fn": "llama_status",
+      "args": {
+        "binary": "/b",
+        "models": [],
+        "chosen": ""
+      },
+      "expected": [
+        "Aucun fichier .gguf"
+      ],
+      "comparison": "contains_all"
+    },
+    {
+      "id": "local_engines-033",
+      "name": "état : fichier choisi introuvable",
+      "line": 972,
+      "fn": "llama_status",
+      "args": {
+        "binary": "/b",
+        "models": [],
+        "chosen": "/m/x.gguf"
+      },
+      "expected": [
+        "Fichier introuvable"
+      ],
+      "comparison": "contains_all"
+    },
+    {
+      "id": "local_engines-034",
+      "name": "état : modèle choisi disparu, un autre est utilisé",
+      "line": 887,
+      "fn": "llama_status",
+      "args": {
+        "binary": "/b",
+        "models": [
+          "/g/gemma-4-E4B-it-Q4_0.gguf"
+        ],
+        "chosen": "/disparu/ailleurs.gguf"
+      },
+      "expected": [
+        "Fichier introuvable : ailleurs.gguf — gemma-4-E4B-it-Q4_0.gguf est utilisé à la place"
+      ],
+      "comparison": "contains_all"
+    },
+    {
+      "id": "local_engines-035",
+      "name": "état : avec son assistant MTP",
+      "line": 888,
+      "fn": "llama_status",
+      "args": {
+        "binary": "/b",
+        "models": [
+          "/g/gemma-4-E4B-it-Q4_0.gguf"
+        ],
+        "chosen": "/g/gemma-4-E4B-it-Q4_0.gguf",
+        "assistant_exists": true
+      },
+      "expected": [
+        "avec son assistant MTP"
+      ],
+      "comparison": "contains_all"
+    },
+    {
+      "id": "local_engines-036",
+      "name": "état : sans assistant MTP",
+      "line": 894,
+      "fn": "llama_status",
+      "args": {
+        "binary": "/b",
+        "models": [
+          "/o/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf"
+        ],
+        "chosen": "/o/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+        "assistant_exists": false
+      },
+      "expected": [
+        "sans assistant MTP"
+      ],
+      "comparison": "contains_all"
+    },
+    {
+      "id": "local_engines-037",
+      "name": "llama.cpp : moteur local, nom du fichier affiché à la place du chemin",
+      "line": 841,
+      "fn": "cleanup_engine_display",
+      "args": {
+        "engine": "llamaCpp",
+        "model": "/a/b/gemma-4-E4B-it-Q4_0.gguf"
+      },
+      "expected": {
+        "isLocal": true,
+        "name": "llama.cpp",
+        "displayModel": "gemma-4-E4B-it-Q4_0.gguf",
+        "port": 8179
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "local_engines-038",
+      "name": "LM Studio : le modèle s'affiche tel quel",
+      "line": 844,
+      "fn": "cleanup_engine_display",
+      "args": {
+        "engine": "lmStudio",
+        "model": "google/gemma-4-e4b"
+      },
+      "expected": {
+        "displayModel": "google/gemma-4-e4b"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "local_engines-039",
+      "name": "options exigées de llama-server (vérifiées contre `llama-server --help` quand il est installé)",
+      "line": 963,
+      "fn": "invariant",
+      "args": {
+        "statement": "La sortie de `llama-server --help` contient chacune de ces options : --spec-type, draft-mtp, --spec-draft-model, --spec-draft-n-max, --kv-unified, --flash-attn, --parallel, --jinja, --gpu-layers, --ctx-size. Une mise à jour de llama.cpp peut en retirer ou renommer une."
+      },
+      "expected": true
+    }
+  ]
+}

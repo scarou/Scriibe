@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "suite": "playful_schtroumpf",
+  "description": "Mode Amusant : moteur schtroumpf (Schtroumpf.apply). REPORTÉ : dépend de l'analyse grammaticale d'Apple (NLTagger) ; hors périmètre du premier jalon.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "`status: deferred`. `comparison` : equals (défaut) | starts_with | ends_with | contains | occurrences."
+  ],
+  "cases": [
+    {
+      "id": "playful_schtroumpf-001",
+      "name": "verbe et nom, terminaisons",
+      "line": 152,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "La réunion de ce matin était longue, mais on a bien avancé."
+      },
+      "expected": "La schtroumpf de ce matin était longue, mais on a bien schtroumpfé.",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-002",
+      "name": "pluriel selon le déterminant, élision défaite",
+      "line": 154,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "Tu peux m'envoyer le devis avant vendredi ?"
+      },
+      "expected": "Tu peux me schtroumpfer le schtroumpf avant vendredi ?",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-003",
+      "name": "verbe conjugué, pas d'infinitif",
+      "line": 156,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "Je prépare le dîner avec mon frère ce soir."
+      },
+      "expected": "Je schtroumpfe le schtroumpf",
+      "comparison": "starts_with",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-004",
+      "name": "auxiliaire jamais remplacé",
+      "line": 158,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "Je me suis levé tôt pour finir le dossier."
+      },
+      "expected": "me suis",
+      "comparison": "contains",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-005",
+      "name": "futur des verbes en -ir",
+      "line": 159,
+      "fn": "schtroumpf_verb_form",
+      "args": {
+        "word": "finirez",
+        "lemma": "finir"
+      },
+      "expected": "schtroumpferez",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-006",
+      "name": "futur des verbes en -re",
+      "line": 160,
+      "fn": "schtroumpf_verb_form",
+      "args": {
+        "word": "prendrons",
+        "lemma": "prendre"
+      },
+      "expected": "schtroumpferons",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-007",
+      "name": "phrase courte, un seul mot remplacé",
+      "line": 161,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "Appeler le plombier."
+      },
+      "expected": {
+        "substring": "schtroumpf",
+        "count": 1
+      },
+      "comparison": "occurrences",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-008",
+      "name": "expression du dictionnaire protégée en entier, « code » seul libre",
+      "line": 162,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "Relis le code demain avec Claude Code.",
+        "kept": [
+          "Claude Code"
+        ]
+      },
+      "expected": "avec Claude Code.",
+      "comparison": "ends_with",
+      "status": "deferred"
+    },
+    {
+      "id": "playful_schtroumpf-009",
+      "name": "noms propres, dates, chiffres, mots composés et dictionnaire intacts",
+      "line": 164,
+      "fn": "schtroumpf_apply",
+      "args": {
+        "text": "Le rendez-vous avec Paul est le 17 octobre pour Claude Code.",
+        "kept": [
+          "Claude Code"
+        ]
+      },
+      "expected": "rendez-vous avec Paul est le 17 octobre pour Claude Code",
+      "comparison": "contains",
+      "status": "deferred"
+    }
+  ]
+}

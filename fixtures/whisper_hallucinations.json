@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "suite": "whisper_hallucinations",
+  "description": "Filtre des phrases inventées par Whisper (TextFixer.knownHallucination). expected = la phrase est rejetée.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "cases": [
+    {
+      "id": "whisper_hallucinations-001",
+      "name": "www.sign.org rejeté",
+      "line": 44,
+      "fn": "known_hallucination",
+      "args": {
+        "text": "www.sign.org"
+      },
+      "expected": true
+    },
+    {
+      "id": "whisper_hallucinations-002",
+      "name": "Amara court rejeté",
+      "line": 45,
+      "fn": "known_hallucination",
+      "args": {
+        "text": "Sous-titres réalisés par la communauté d'Amara.org"
+      },
+      "expected": true
+    },
+    {
+      "id": "whisper_hallucinations-003",
+      "name": "vraie phrase « sous-titres par » gardée",
+      "line": 46,
+      "fn": "known_hallucination",
+      "args": {
+        "text": "Active les sous-titres par défaut dans VLC"
+      },
+      "expected": false
+    },
+    {
+      "id": "whisper_hallucinations-004",
+      "name": "vraie phrase « abonnez-vous » gardée",
+      "line": 48,
+      "fn": "known_hallucination",
+      "args": {
+        "text": "Abonnez-vous à la lettre d'info du club"
+      },
+      "expected": false
+    },
+    {
+      "id": "whisper_hallucinations-005",
+      "name": "« Merci » seul gardé",
+      "line": 50,
+      "fn": "known_hallucination",
+      "args": {
+        "text": "Merci."
+      },
+      "expected": false
+    }
+  ]
+}

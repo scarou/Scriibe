@@ -1,0 +1,525 @@
+{
+  "schema": 1,
+  "suite": "settings",
+  "description": "Lecture tolérante des réglages (AppSettings décodé depuis du JSON) et valeurs dérivées.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "fn `decode_settings` : args.json = texte JSON lu ; expected = valeurs des champs nommés (noms des propriétés Swift ; énumérations par leur valeur brute, `null` = absent).",
+    "fn `settings_derived` : args.settings = champs JSON à poser sur des réglages par défaut ; expected = propriétés calculées.",
+    "Valeurs par défaut de Scribe : language=fr, transcriptionEngine=deepgram, cleanupEngine=openRouter, rewriteMode=simple, cleanupEnabled=true, pauseMedia=false, listBullet=dash, skipWhenClean=false, whisperIdleMinutes=10, keepDictationText=true, historyKeepDays=null, captureStyle=pill, capturePosition=center, captureColor=scribe, captureOpacity=1, translationLanguage=en, microphoneUID=\"\".",
+    "Le serveur de l'ancien format : `startSound` booléen → startSoundName ; \"Aucun\" = pas de son."
+  ],
+  "cases": [
+    {
+      "id": "settings-001",
+      "name": "mode absent → Simple",
+      "line": 173,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"cleanupEnabled\":true}"
+      },
+      "expected": {
+        "rewriteMode": "simple"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-002",
+      "name": "mode inconnu → Simple",
+      "line": 174,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"rewriteMode\":\"inconnu\"}"
+      },
+      "expected": {
+        "rewriteMode": "simple"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-003",
+      "name": "langue de traduction absente → anglais",
+      "line": 332,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"cleanupEnabled\":true}"
+      },
+      "expected": {
+        "translationLanguage": "en"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-004",
+      "name": "langue de traduction inconnue → anglais",
+      "line": 333,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"translationLanguage\":\"xx\"}"
+      },
+      "expected": {
+        "translationLanguage": "en"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-005",
+      "name": "pause des médias : absente → désactivée",
+      "line": 480,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{}"
+      },
+      "expected": {
+        "pauseMedia": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-006",
+      "name": "pause des médias : activée gardée",
+      "line": 481,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"pauseMedia\":true}"
+      },
+      "expected": {
+        "pauseMedia": true
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-007",
+      "name": "pause des médias : valeur illisible → désactivée",
+      "line": 482,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"pauseMedia\":\"zzz\"}"
+      },
+      "expected": {
+        "pauseMedia": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-008",
+      "name": "puce : absente → tiret",
+      "line": 485,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{}"
+      },
+      "expected": {
+        "listBullet": "dash"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-009",
+      "name": "puce : valeur illisible → tiret",
+      "line": 486,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"listBullet\":\"zzz\"}"
+      },
+      "expected": {
+        "listBullet": "dash"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-010",
+      "name": "puce : étoile gardée",
+      "line": 487,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"listBullet\":\"star\"}"
+      },
+      "expected": {
+        "listBullet": "star"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-011",
+      "name": "sauter si propre : absent → désactivé",
+      "line": 525,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"cleanupEnabled\":true}"
+      },
+      "expected": {
+        "skipWhenClean": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-012",
+      "name": "sauter si propre : valeur illisible → désactivé",
+      "line": 526,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"skipWhenClean\":\"oui\"}"
+      },
+      "expected": {
+        "skipWhenClean": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-013",
+      "name": "indicateur absent → pastille turquoise au centre, opaque",
+      "line": 589,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"cleanupEnabled\":true}"
+      },
+      "expected": {
+        "captureStyle": "pill",
+        "capturePosition": "center",
+        "captureColor": "scribe",
+        "captureOpacity": 1
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-014",
+      "name": "indicateur inconnu → défauts, opacité bornée à 30 %",
+      "line": 592,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"captureStyle\":\"inconnu\",\"capturePosition\":\"haut\",\"captureColor\":\"vert\",\"captureOpacity\":0.05}"
+      },
+      "expected": {
+        "captureStyle": "pill",
+        "capturePosition": "center",
+        "captureColor": "scribe",
+        "captureOpacity": 0.3
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-015",
+      "name": "indicateur : opacité bornée à 100 %",
+      "line": 596,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"captureOpacity\":5}"
+      },
+      "expected": {
+        "captureOpacity": 1
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-016",
+      "name": "anciens réglages de sons convertis",
+      "line": 644,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"startSound\":false,\"endSound\":true,\"cleanupModel\":\"x/y\"}"
+      },
+      "expected": {
+        "startSoundName": "Aucun",
+        "endSoundName": "Pop",
+        "cleanupModel": "x/y"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-017",
+      "name": "Whisper libéré au repos : 0 gardé (jamais)",
+      "line": 729,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"whisperIdleMinutes\":0}"
+      },
+      "expected": {
+        "whisperIdleMinutes": 0
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-018",
+      "name": "Whisper libéré au repos : négatif → 0",
+      "line": 730,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"whisperIdleMinutes\":-5}"
+      },
+      "expected": {
+        "whisperIdleMinutes": 0
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-019",
+      "name": "Whisper libéré au repos : trop grand → 60",
+      "line": 731,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"whisperIdleMinutes\":99999}"
+      },
+      "expected": {
+        "whisperIdleMinutes": 60
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-020",
+      "name": "Whisper libéré au repos : durée non proposée (14) → 10",
+      "line": 732,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"whisperIdleMinutes\":14}"
+      },
+      "expected": {
+        "whisperIdleMinutes": 10
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-021",
+      "name": "Whisper libéré au repos : absent → 10",
+      "line": 733,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{}"
+      },
+      "expected": {
+        "whisperIdleMinutes": 10
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-022",
+      "name": "historique : durée 0 → minimum (2 jours)",
+      "line": 746,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"historyKeepDays\":0}"
+      },
+      "expected": {
+        "historyKeepDays": 2
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-023",
+      "name": "llama.cpp : modèle vide dans les anciens réglages",
+      "line": 852,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{}"
+      },
+      "expected": {
+        "llamaCppModel": ""
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-024",
+      "name": "micro : anciens réglages sans micro choisi = celui du Mac",
+      "line": 983,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"hotkey\":\"rightOption\"}"
+      },
+      "expected": {
+        "microphoneUID": ""
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-025",
+      "name": "modes personnels : mode disparu → mode livré, mode illisible écarté",
+      "line": 219,
+      "fn": "decode_settings",
+      "args": {
+        "json": "{\"rewriteMode\":\"formal\",\"customModeID\":\"6F9619FF-8B86-D011-B42D-00CF4FC964FF\",\"customModes\":[{\"name\":\"x\"},3]}"
+      },
+      "expected": {
+        "customModeID": null,
+        "rewriteMode": "formal",
+        "customModes.count": 1,
+        "customModes[0].style": "",
+        "customModes[0].rewrites": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-026",
+      "name": "Littéral : aucun modèle appelé",
+      "line": 166,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {
+          "rewriteMode": "literal"
+        }
+      },
+      "expected": {
+        "usesCleanupModel": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-027",
+      "name": "par défaut : un modèle est appelé",
+      "line": 168,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {}
+      },
+      "expected": {
+        "usesCleanupModel": true,
+        "skipApplies": false,
+        "listsOn": true
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-028",
+      "name": "historique : tout garder par défaut",
+      "line": 745,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {}
+      },
+      "expected": {
+        "historyKeepDays": null,
+        "keepDictationText": true
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-029",
+      "name": "listes dictées : pas en anglais",
+      "line": 388,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {
+          "language": "en"
+        }
+      },
+      "expected": {
+        "listsOn": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-030",
+      "name": "option « sauter » : Soutenu avec Whisper → non applicable",
+      "line": 566,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {
+          "rewriteMode": "formal",
+          "transcriptionEngine": "whisper"
+        }
+      },
+      "expected": {
+        "skipApplies": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-031",
+      "name": "option « sauter » : Simple avec Whisper → applicable",
+      "line": 569,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {
+          "rewriteMode": "simple",
+          "transcriptionEngine": "whisper"
+        }
+      },
+      "expected": {
+        "skipApplies": true
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-032",
+      "name": "sans moteur de mise au propre : littéral, ni modèle, ni mode, tout local",
+      "line": 903,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {
+          "transcriptionEngine": "whisper",
+          "cleanupEnabled": true,
+          "rewriteMode": "formal",
+          "cleanupEngine": "none",
+          "activeCleanupModel": "x"
+        }
+      },
+      "expected": {
+        "usesCleanupModel": false,
+        "rewritingOn": false,
+        "hasCleanupEngine": false,
+        "cleanupEnabled": true,
+        "activeCleanupModel": "",
+        "everythingLocal": true
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-033",
+      "name": "retour à un moteur : mode et reformulation retrouvés",
+      "line": 916,
+      "fn": "settings_derived",
+      "args": {
+        "settings": {
+          "transcriptionEngine": "whisper",
+          "cleanupEnabled": true,
+          "rewriteMode": "formal",
+          "cleanupEngine": "lmStudio"
+        }
+      },
+      "expected": {
+        "usesCleanupModel": true,
+        "rewritingOn": true,
+        "rewriteMode": "formal"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "settings-034",
+      "name": "modes personnels gardés (aller-retour) ; exemple incomplet conservé mais écarté à l'envoi",
+      "line": 218,
+      "fn": "settings_roundtrip",
+      "args": {
+        "settings": {
+          "rewriteMode": "simple",
+          "customModes": [
+            {
+              "name": "Chiffres",
+              "style": "Écris les nombres en chiffres.",
+              "rewrites": false,
+              "examples": [
+                {
+                  "dictation": "on se voit à dix heures",
+                  "expected": "On se voit à 10 h."
+                },
+                {
+                  "dictation": "",
+                  "expected": "vide"
+                }
+              ]
+            }
+          ],
+          "chosen": "customModes[0]"
+        }
+      },
+      "expected": {
+        "activeCustomMode.examples.count": 2,
+        "rewriteMode": "simple",
+        "activeCustomMode.rewrites": false
+      },
+      "comparison": "fields"
+    }
+  ]
+}

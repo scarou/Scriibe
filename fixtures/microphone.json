@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "suite": "microphone",
+  "description": "Niveau du micro (MicLevel.assess : repères de vraies dictées) et choix du micro (Microphones.resolve).",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "Seuils : silencieux sous 0,004 ; faible sous 0,012 ; sinon correct."
+  ],
+  "cases": [
+    {
+      "id": "microphone-001",
+      "name": "micro muet bloqué",
+      "line": 626,
+      "fn": "mic_level",
+      "args": {
+        "rms": 0.0009
+      },
+      "expected": "silent"
+    },
+    {
+      "id": "microphone-002",
+      "name": "micro faible signalé",
+      "line": 627,
+      "fn": "mic_level",
+      "args": {
+        "rms": 0.008
+      },
+      "expected": "weak"
+    },
+    {
+      "id": "microphone-003",
+      "name": "borne basse (0,004) = faible",
+      "line": 628,
+      "fn": "mic_level",
+      "args": {
+        "rms": 0.004
+      },
+      "expected": "weak"
+    },
+    {
+      "id": "microphone-004",
+      "name": "borne haute (0,012) = correct",
+      "line": 628,
+      "fn": "mic_level",
+      "args": {
+        "rms": 0.012
+      },
+      "expected": "ok"
+    },
+    {
+      "id": "microphone-005",
+      "name": "voix la plus faible mesurée normale",
+      "line": 629,
+      "fn": "mic_level",
+      "args": {
+        "rms": 0.019
+      },
+      "expected": "ok"
+    },
+    {
+      "id": "microphone-006",
+      "name": "voix normale",
+      "line": 629,
+      "fn": "mic_level",
+      "args": {
+        "rms": 0.037
+      },
+      "expected": "ok"
+    },
+    {
+      "id": "microphone-007",
+      "name": "vide = celui du système",
+      "line": 977,
+      "fn": "mic_resolve",
+      "args": {
+        "uid": "",
+        "available": [
+          {
+            "id": 41,
+            "uid": "usb-cravate",
+            "name": "USBAudio1.0",
+            "bluetooth": false
+          },
+          {
+            "id": 42,
+            "uid": "bt-casque",
+            "name": "Casque",
+            "bluetooth": true
+          }
+        ]
+      },
+      "expected": {
+        "microphone": null,
+        "missing": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "microphone-008",
+      "name": "le micro choisi est pris",
+      "line": 979,
+      "fn": "mic_resolve",
+      "args": {
+        "uid": "usb-cravate",
+        "available": [
+          {
+            "id": 41,
+            "uid": "usb-cravate",
+            "name": "USBAudio1.0",
+            "bluetooth": false
+          },
+          {
+            "id": 42,
+            "uid": "bt-casque",
+            "name": "Casque",
+            "bluetooth": true
+          }
+        ]
+      },
+      "expected": {
+        "microphone.uid": "usb-cravate"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "microphone-009",
+      "name": "débranché : repli sur celui du système, signalé",
+      "line": 980,
+      "fn": "mic_resolve",
+      "args": {
+        "uid": "autre",
+        "available": [
+          {
+            "id": 41,
+            "uid": "usb-cravate",
+            "name": "USBAudio1.0",
+            "bluetooth": false
+          },
+          {
+            "id": 42,
+            "uid": "bt-casque",
+            "name": "Casque",
+            "bluetooth": true
+          }
+        ]
+      },
+      "expected": {
+        "microphone": null,
+        "missing": true
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "microphone-010",
+      "name": "un micro Bluetooth est déconseillé dans son libellé",
+      "line": 982,
+      "fn": "mic_label",
+      "args": {
+        "microphone": {
+          "id": 42,
+          "uid": "bt-casque",
+          "name": "Casque",
+          "bluetooth": true
+        }
+      },
+      "expected": "Bluetooth, déconseillé",
+      "comparison": "contains",
+      "note": "Seule la présence de « Bluetooth, déconseillé » est vérifiée par Scribe."
+    },
+    {
+      "id": "microphone-011",
+      "name": "un micro filaire a pour libellé son nom",
+      "line": 982,
+      "fn": "mic_label",
+      "args": {
+        "microphone": {
+          "id": 41,
+          "uid": "usb-cravate",
+          "name": "USBAudio1.0",
+          "bluetooth": false
+        }
+      },
+      "expected": "USBAudio1.0"
+    }
+  ]
+}

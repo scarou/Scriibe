@@ -1,0 +1,444 @@
+{
+  "schema": 1,
+  "suite": "already_clean",
+  "description": "Option « sauter si déjà propre » : TextFixer.looksClean (expected = true si le texte est jugé propre) et TextFixer.skipsCleanup.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "cases": [
+    {
+      "id": "already_clean-001",
+      "name": "phrase ponctuée de Whisper : J'ai fini le rapport hier soir, il reste les annexes.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-002",
+      "name": "phrase ponctuée de Whisper : Est-ce que tu peux me rappeler demain ?",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Est-ce que tu peux me rappeler demain ?"
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-003",
+      "name": "phrase ponctuée de Whisper : Nous nous verrons lundi.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Nous nous verrons lundi."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-004",
+      "name": "phrase ponctuée de Whisper : Tu vois le problème ?",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Tu vois le problème ?"
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-005",
+      "name": "phrase ponctuée de Whisper : Je veux dire à Marc que c'est prêt.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je veux dire à Marc que c'est prêt."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-006",
+      "name": "phrase ponctuée de Whisper : Oui oui, c'est très très bien.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Oui oui, c'est très très bien."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-007",
+      "name": "phrase ponctuée de Whisper : Il est là. Là, il dort.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Il est là. Là, il dort."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-008",
+      "name": "phrase ponctuée de Whisper : Le 10 le 11 mai, je suis absent.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Le 10 le 11 mai, je suis absent."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-009",
+      "name": "phrase ponctuée de Whisper : « Bonjour », dit-il.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "« Bonjour », dit-il."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-010",
+      "name": "phrase ponctuée de Whisper : Je ne sais pas… peut-être demain.",
+      "line": 493,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je ne sais pas… peut-être demain."
+      },
+      "expected": true
+    },
+    {
+      "id": "already_clean-011",
+      "name": "pas propre (hésitation) : Euh, je serai là demain.",
+      "line": 497,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Euh, je serai là demain."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-012",
+      "name": "pas propre (hésitation) : Hmm, je viens demain.",
+      "line": 497,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Hmm, je viens demain."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-013",
+      "name": "pas propre (hésitation) : Je viens, euuh, demain.",
+      "line": 497,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je viens, euuh, demain."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-014",
+      "name": "pas propre (reprise) : Rendez-vous à 10 h, non pardon, à 11 h.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Rendez-vous à 10 h, non pardon, à 11 h."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-015",
+      "name": "pas propre (reprise) : Rendez-vous lundi, enfin mardi.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Rendez-vous lundi, enfin mardi."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-016",
+      "name": "pas propre (reprise) : Le train part à 10 h, non, à 11 h.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Le train part à 10 h, non, à 11 h."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-017",
+      "name": "pas propre (reprise) : On se voit jeudi, pardon, vendredi.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "On se voit jeudi, pardon, vendredi."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-018",
+      "name": "pas propre (reprise) : On se voit jeudi, ou plutôt vendredi.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "On se voit jeudi, ou plutôt vendredi."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-019",
+      "name": "pas propre (reprise) : Bon ben, on verra demain.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Bon ben, on verra demain."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-020",
+      "name": "pas propre (reprise) : Il faut, je veux dire, tout revoir.",
+      "line": 499,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Il faut, je veux dire, tout revoir."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-021",
+      "name": "pas propre (répétition) : Je je pense que oui.",
+      "line": 502,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je je pense que oui."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-022",
+      "name": "pas propre (répétition) : Je pense, je pense que oui.",
+      "line": 502,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je pense, je pense que oui."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-023",
+      "name": "pas propre (découpage, question sans « ? », sans ponctuation) : Je suis arrivé. hier soir tard.",
+      "line": 505,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je suis arrivé. hier soir tard."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-024",
+      "name": "pas propre (découpage, question sans « ? », sans ponctuation) : Est-ce que tu viens demain.",
+      "line": 505,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Est-ce que tu viens demain."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-025",
+      "name": "pas propre (découpage, question sans « ? », sans ponctuation) : je serai là demain",
+      "line": 505,
+      "fn": "looks_clean",
+      "args": {
+        "text": "je serai là demain"
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-026",
+      "name": "pas propre (découpage, question sans « ? », sans ponctuation) : Je serai là demain",
+      "line": 505,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Je serai là demain"
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-027",
+      "name": "pas propre : trop long (61 × « Mot » + « fin. »)",
+      "line": 506,
+      "fn": "looks_clean",
+      "args": {
+        "text_pattern": {
+          "prefix": "",
+          "separator": "Mot ",
+          "repeat": 61,
+          "middle": "",
+          "suffix": "fin."
+        }
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-028",
+      "name": "reprise d'une traite jugée à reprendre",
+      "line": 565,
+      "fn": "looks_clean",
+      "args": {
+        "text": "On part lundi enfin mardi selon la météo."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-029",
+      "name": "question à plat jugée à reprendre",
+      "line": 565,
+      "fn": "looks_clean",
+      "args": {
+        "text": "Pourquoi le serveur ne répond plus depuis ce matin."
+      },
+      "expected": false
+    },
+    {
+      "id": "already_clean-030",
+      "name": "sauter : Simple avec Whisper",
+      "line": 517,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "simple"
+        },
+        "translating": false
+      },
+      "expected": true,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-031",
+      "name": "sauter : Amusant avec Whisper",
+      "line": 518,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "playful"
+        },
+        "translating": false
+      },
+      "expected": true,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-032",
+      "name": "pas de saut : Soutenu",
+      "line": 519,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "formal"
+        },
+        "translating": false
+      },
+      "expected": false,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-033",
+      "name": "pas de saut : Deepgram",
+      "line": 520,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "deepgram",
+          "rewriteMode": "simple"
+        },
+        "translating": false
+      },
+      "expected": false,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-034",
+      "name": "pas de saut : en traduction",
+      "line": 522,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "simple"
+        },
+        "translating": true
+      },
+      "expected": false,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-035",
+      "name": "pas de saut : reformulation coupée (cleanupEnabled=false)",
+      "line": 522,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "simple",
+          "cleanupEnabled": false
+        },
+        "translating": false
+      },
+      "expected": false,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-036",
+      "name": "pas de saut : option désactivée",
+      "line": 523,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "J'ai fini le rapport hier soir, il reste les annexes.",
+        "settings": {
+          "skipWhenClean": false,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "simple"
+        },
+        "translating": false
+      },
+      "expected": false,
+      "text_defined_at": 511
+    },
+    {
+      "id": "already_clean-037",
+      "name": "pas de saut : sous quatre mots",
+      "line": 524,
+      "fn": "skips_cleanup",
+      "args": {
+        "text": "Merci beaucoup.",
+        "settings": {
+          "skipWhenClean": true,
+          "transcriptionEngine": "whisper",
+          "rewriteMode": "simple"
+        },
+        "translating": false
+      },
+      "expected": false
+    }
+  ]
+}

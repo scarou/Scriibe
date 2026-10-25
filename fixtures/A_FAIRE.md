@@ -1,0 +1,25 @@
+# Cas de référence pas encore repris
+
+Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. À reprendre à l'étape indiquée de la [feuille de route](../ROADMAP.md).
+
+## À reprendre avec l'interface complète (étape 6)
+
+| Lignes de `Checks.swift` | Sujet | Pourquoi pas maintenant |
+|---|---|---|
+| 542–563, 573–586, 997–1125 | **Banc de dictée** : `ReadingBench`, contrôles par phrase (`BenchCheck`), archive des passages, comparaison, différences mot à mot, réglages d'un passage | fonctionnalité d'interface ; dépend des 17 phrases du banc et de l'archive sur disque |
+| 786–839 | **Test de frappe** (`TypingTest`) : vitesse nette, seuils (90 %, 12 s–10 min, 200 mots/min), moyenne | fonctionnalité d'interface ; les valeurs sont dans le test, à extraire avec le port de `TypingTest.swift` |
+| 247–252 | **Phrases types** de `--cleantest` (12 phrases, contrôles associés) | à reprendre avec le port de `CleanTest.swift` |
+| 242–246 | Réglages du banc selon les modes personnels | dépend du banc |
+| 604, 608–625 | Vumètre et aperçu de l'indicateur (minuteries) | dépend de l'interface de l'indicateur |
+| 748–788, 825–839 | Zone du banc et zone de frappe (`NSTextView`) | propre à AppKit |
+
+## Impossibles sans le Swift sur un Mac
+
+| Sujet | À faire |
+|---|---|
+| **Messages complets des prompts** (consigne, exemples, dictionnaire) pour les 8 modes, la traduction et le préchauffage | Un oracle texte exact demande d'exécuter `Cleaner.messages(...)` ; seul l'empreinte (`prompts.json`) est connue aujourd'hui. Au retour sur le Mac : exporter les messages dans un fichier JSON **sans modifier le dépôt Scribe** (branche locale jetable, jamais fusionnée), puis les ajouter à `fixtures/prompts.json`. |
+| Mesures avec un modèle (`--cleantest`, `--selftest`) | Pas des tests automatiques : des mesures, à refaire sur chaque plateforme. |
+
+## Sans objet pour le cœur
+
+Sélecteur de fichiers, `llama-server --help` (cas `invariant` : à vérifier à l'exécution), cartes et rubriques de l'interface (reprises dans `ui_logic.json` quand elles ont une logique testable).

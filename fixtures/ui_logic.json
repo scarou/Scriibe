@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "suite": "ui_logic",
+  "description": "Petites logiques d'interface testables sans écran (positions, cartes repliables, règles de vidage de la zone du banc).",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "cases": [
+    {
+      "id": "ui_logic-001",
+      "name": "position de l'indicateur à gauche",
+      "line": 605,
+      "fn": "overlay_origin_x",
+      "args": {
+        "position": "left",
+        "screen": {
+          "x": 100,
+          "width": 1000
+        },
+        "width": 440
+      },
+      "expected": 112
+    },
+    {
+      "id": "ui_logic-002",
+      "name": "position de l'indicateur au centre",
+      "line": 606,
+      "fn": "overlay_origin_x",
+      "args": {
+        "position": "center",
+        "screen": {
+          "x": 100,
+          "width": 1000
+        },
+        "width": 440
+      },
+      "expected": 380
+    },
+    {
+      "id": "ui_logic-003",
+      "name": "position de l'indicateur à droite",
+      "line": 607,
+      "fn": "overlay_origin_x",
+      "args": {
+        "position": "right",
+        "screen": {
+          "x": 100,
+          "width": 1000
+        },
+        "width": 440
+      },
+      "expected": 648,
+      "note": "Marge de 12 à gauche et à droite : 100 + 12, 100 + (1000 − 440) / 2, 100 + 1000 − 440 − 12."
+    },
+    {
+      "id": "ui_logic-004",
+      "name": "cartes repliables : plier une carte dans une liste vide",
+      "line": 986,
+      "fn": "folded_cards_toggle",
+      "args": {
+        "id": "cles",
+        "list": ""
+      },
+      "expected": "cles"
+    },
+    {
+      "id": "ui_logic-005",
+      "name": "cartes repliables : plier une seconde carte garde la première",
+      "line": 987,
+      "fn": "folded_cards_toggle",
+      "args": {
+        "id": "moteur",
+        "list": "cles"
+      },
+      "expected": "cles,moteur",
+      "comparison": "same_set"
+    },
+    {
+      "id": "ui_logic-006",
+      "name": "cartes repliables : déplier retire seulement celle-là",
+      "line": 988,
+      "fn": "folded_cards_toggle",
+      "args": {
+        "id": "cles",
+        "list": "cles,moteur"
+      },
+      "expected": "moteur"
+    },
+    {
+      "id": "ui_logic-007",
+      "name": "cartes repliables : « cle » n'est pas « cles » (identifiant entier)",
+      "line": 989,
+      "fn": "folded_cards_contains",
+      "args": {
+        "id": "cle",
+        "list": "cles"
+      },
+      "expected": false
+    },
+    {
+      "id": "ui_logic-008",
+      "name": "zone du banc vidée au début d'une dictée du banc",
+      "line": 991,
+      "fn": "dictation_zone_clears",
+      "args": {
+        "recording": true,
+        "phrase_shown": true,
+        "app_active": true
+      },
+      "expected": true
+    },
+    {
+      "id": "ui_logic-009",
+      "name": "zone du banc : pas de phrase affichée → pas vidée",
+      "line": 992,
+      "fn": "dictation_zone_clears",
+      "args": {
+        "recording": true,
+        "phrase_shown": false,
+        "app_active": true
+      },
+      "expected": false
+    },
+    {
+      "id": "ui_logic-010",
+      "name": "zone du banc : appli inactive → pas vidée",
+      "line": 993,
+      "fn": "dictation_zone_clears",
+      "args": {
+        "recording": true,
+        "phrase_shown": true,
+        "app_active": false
+      },
+      "expected": false
+    },
+    {
+      "id": "ui_logic-011",
+      "name": "zone du banc : pas d'enregistrement → pas vidée",
+      "line": 994,
+      "fn": "dictation_zone_clears",
+      "args": {
+        "recording": false,
+        "phrase_shown": true,
+        "app_active": true
+      },
+      "expected": false
+    },
+    {
+      "id": "ui_logic-012",
+      "name": "vumètre : historique vide hors écoute, borné à sa longueur, le plus récent à droite",
+      "line": 614,
+      "fn": "invariant",
+      "args": {
+        "statement": "Hors écoute le vumètre n'a aucun historique ; pendant l'écoute, après 100 niveaux de 0,00 à 0,99, l'historique a exactement OverlayModel.historyLength valeurs et la dernière vaut 0,99."
+      },
+      "expected": true
+    },
+    {
+      "id": "ui_logic-013",
+      "name": "Réglages : cinq rubriques à titres et résumés distincts, rubrique ouverte par défaut = Dictée",
+      "line": 253,
+      "fn": "invariant",
+      "args": {
+        "statement": "Les Réglages ont 5 rubriques (Dictée, Moteurs, Apparence, Modes, Mesures et essais), chacune avec un titre et un résumé non vides et distincts ; la rubrique ouverte par défaut est Dictée."
+      },
+      "expected": true
+    },
+    {
+      "id": "ui_logic-014",
+      "name": "Aide : huit sections, dernière page de la barre latérale, section ouverte par défaut « Premiers pas »",
+      "line": 257,
+      "fn": "invariant",
+      "args": {
+        "statement": "L'Aide a 8 sections aux titres distincts ; la page Aide est la dernière de la barre latérale ; la section ouverte par défaut est « Premiers pas »."
+      },
+      "expected": true
+    }
+  ]
+}

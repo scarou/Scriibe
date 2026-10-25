@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "suite": "data_files",
+  "description": "Lecture tolérante des fichiers de données (historique, dictionnaire, totaux par jour) : les entrées cassées sont ignorées, les champs absents valent zéro ou vide.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "Dates au format ISO 8601."
+  ],
+  "cases": [
+    {
+      "id": "data_files-001",
+      "name": "historique ancien lu, entrée cassée ignorée",
+      "line": 634,
+      "fn": "decode_history",
+      "args": {
+        "json": "[{\"date\":\"2026-10-16T20:00:00Z\",\"finalText\":\"Bonjour à tous\"},{\"date\":\"pas une date\"}]"
+      },
+      "expected": {
+        "count": 1,
+        "[0].words": 3,
+        "[0].translation": null
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "data_files-002",
+      "name": "temps illisibles ignorés, la dictée est gardée",
+      "line": 584,
+      "fn": "decode_history_entry",
+      "args": {
+        "json": "{\"date\":\"2026-10-16T20:00:00Z\",\"finalText\":\"a\",\"timing\":{\"total\":\"vite\"}}"
+      },
+      "expected": {
+        "decoded": true,
+        "timing": null
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "data_files-003",
+      "name": "dictionnaire lu, correction incomplète ignorée",
+      "line": 648,
+      "fn": "decode_dictionary",
+      "args": {
+        "json": "{\"words\":[\"a\"],\"corrections\":[{\"heard\":\"b\",\"written\":\"c\"},{\"heard\":\"d\"}]}"
+      },
+      "expected": {
+        "corrections.count": 1
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "data_files-004",
+      "name": "totaux par jour : un champ absent vaut zéro, une entrée sans jour est ignorée",
+      "line": 706,
+      "fn": "decode_day_totals",
+      "args": {
+        "json": "[{\"day\":\"2026-10-01T00:00:00Z\",\"words\":12},{\"words\":1}]"
+      },
+      "expected": {
+        "count": 1,
+        "[0].words": 12,
+        "[0].dictations": 0
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "data_files-005",
+      "name": "dictée traduite gardée dans l'historique (aller-retour JSON)",
+      "line": 638,
+      "fn": "history_roundtrip",
+      "args": {
+        "entry": {
+          "appName": "Mail",
+          "rawText": "bonjour",
+          "finalText": "Hello",
+          "words": 1,
+          "duration": 1,
+          "corrections": 0,
+          "translation": "en"
+        }
+      },
+      "expected": {
+        "translation": "en"
+      },
+      "comparison": "fields"
+    }
+  ]
+}

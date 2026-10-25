@@ -1,0 +1,248 @@
+{
+  "schema": 1,
+  "suite": "history_retention",
+  "description": "Durée de conservation et confidentialité de l'historique (HistoryRetention, Store) : le texte part, les totaux par jour restent.",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "Scénario : 10 jours (0 = aujourd'hui) × 2 dictées par jour, à midi ; la 2e dictée est 90 min avant la 1re. Dictée k=0 : appli « Mail », 20 mots ; k=1 : appli « Notes », 30 mots ; durée = mots / 130 × 60 s ; 1 correction ; rawText « brut {jour} », finalText « texte {jour} {k} ».",
+    "Les dates sont relatives à « aujourd'hui » : un test doit fixer l'horloge ou calculer à partir de la date courante, pour ne pas dépendre de l'heure du lancement."
+  ],
+  "cases": [
+    {
+      "id": "history_retention-001",
+      "name": "durée de conservation : 7 jours = aujourd'hui et les 6 précédents",
+      "line": 655,
+      "fn": "retention_cutoff",
+      "args": {
+        "keep_days": 7,
+        "now": "2026-10-22T15:00:00 (heure locale)"
+      },
+      "expected": "2026-10-16T00:00:00 (heure locale)"
+    },
+    {
+      "id": "history_retention-002",
+      "name": "durée de conservation : 0 jour → minimum (2 jours)",
+      "line": 657,
+      "fn": "retention_cutoff_equals",
+      "args": {
+        "keep_days": 0,
+        "equals_keep_days": 2,
+        "now": "2026-10-22T15:00:00 (heure locale)"
+      },
+      "expected": true
+    },
+    {
+      "id": "history_retention-003",
+      "name": "purge à 3 jours : l'aperçu annonce ce qui est supprimé, le reste est gardé",
+      "line": 676,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "preview keepText=true keepDays=3",
+          "purge keepDays=3"
+        ]
+      },
+      "expected": {
+        "preview.purged": 14,
+        "preview.erased": 0,
+        "purged": 14,
+        "history.count": 6
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-004",
+      "name": "purge : les chiffres du tableau de bord ne bougent pas",
+      "line": 678,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "measure totalWords dictationCount averageWPM timeSaved streak topApps correctionsThisWeek words(today-8)",
+          "purge keepDays=3",
+          "measure same"
+        ]
+      },
+      "expected": {
+        "unchanged": [
+          "totalWords",
+          "dictationCount",
+          "averageWPM",
+          "timeSaved (écart < 0,001)",
+          "streak",
+          "topApps (noms)",
+          "correctionsThisWeek",
+          "words(today-8)"
+        ],
+        "words(today-8)": 50
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-005",
+      "name": "purge : les totaux par jour n'ont aucun texte et s'additionnent",
+      "line": 683,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "purge keepDays=3"
+        ]
+      },
+      "expected": {
+        "archive.count": 7,
+        "archive.sum(dictations)": 14,
+        "each archive day apps": {
+          "Mail": 20,
+          "Notes": 30
+        },
+        "merged(archive, archive)[0].words": 100
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-006",
+      "name": "purge : un second passage ne supprime plus rien",
+      "line": 687,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "purge keepDays=3",
+          "purge keepDays=3"
+        ]
+      },
+      "expected": {
+        "second purged": 0
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-007",
+      "name": "texte non gardé (keepDictationText=false) : la fiche chiffrée reste, le texte non",
+      "line": 688,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "keepDictationText=false",
+          "add Dictation(Mail, rawText 'secret brut', finalText 'secret', words 1, duration 1, corrections 0)"
+        ]
+      },
+      "expected": {
+        "history[0].finalText": "",
+        "history[0].rawText": "",
+        "history[0].words": 1,
+        "lastDictationText": "secret",
+        "history[0].hasText": false
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-008",
+      "name": "effacer les textes existants : aperçu juste, mots gardés, plus aucun texte",
+      "line": 693,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "(après les étapes précédentes, historique de 6 + 1 entrées)",
+          "keepDictationText=true",
+          "preview keepText=false keepDays=nil",
+          "apply keepText=false keepDays=2"
+        ]
+      },
+      "expected": {
+        "preview.erased": 6,
+        "all history hasText": false,
+        "totalWords unchanged": true,
+        "settings.historyKeepDays": 2,
+        "settings.keepDictationText": false,
+        "lastDictationText": null
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-009",
+      "name": "tout effacer vide aussi les totaux par jour",
+      "line": 740,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "clearHistory"
+        ]
+      },
+      "expected": {
+        "history.isEmpty": true,
+        "archive.isEmpty": true,
+        "totalWords": 0
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-010",
+      "name": "temps gagné d'un jour purgé : écart faible avec le calcul dictée par dictée",
+      "line": 711,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "history = [Dictation(3 mots, 10 s), Dictation(60 mots, 10 s)] (aujourd'hui)",
+          "A.timeSaved (dictée par dictée)",
+          "B = archive = totals(of: history) ; B.timeSaved"
+        ]
+      },
+      "expected": {
+        "A.timeSaved > B.timeSaved": true,
+        "(A - B) < 0.1 × A": true,
+        "note": "80 s contre 74,5 s dans le test de Scribe"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-011",
+      "name": "dictée supprimée : plus copiable depuis le menu",
+      "line": 722,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "add Dictation(1 mot)",
+          "delete(history[0])"
+        ]
+      },
+      "expected": {
+        "lastDictationText": null
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-012",
+      "name": "la durée de conservation s'applique seule, une fois par jour",
+      "line": 700,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "(après « effacer les textes existants », keepDays=2)"
+        ]
+      },
+      "expected": {
+        "all history date >= cutoff(keepDays=2)": true,
+        "retentionDay": "défini (non nul)"
+      },
+      "comparison": "fields"
+    },
+    {
+      "id": "history_retention-013",
+      "name": "la durée de conservation ne repasse pas deux fois le même jour",
+      "line": 703,
+      "fn": "history_scenario",
+      "args": {
+        "steps": [
+          "add Dictation(date: aujourd'hui − 30 jours, 5 mots)"
+        ]
+      },
+      "expected": {
+        "history contains une dictée de 5 mots": true
+      },
+      "comparison": "fields"
+    }
+  ]
+}
