@@ -1,6 +1,7 @@
 //! Petites fonctions de texte partagées : comptage de mots, filtre des phrases inventées par Whisper.
 
 use crate::re::{is_match, regex};
+use std::collections::HashSet;
 
 /// Nombre de mots, séparés par des blancs.
 pub fn word_count(text: &str) -> usize {
@@ -101,4 +102,69 @@ pub fn looks_clean(text: &str) -> bool {
         }
     }
     true
+}
+
+const FILLERS: [&str; 6] = ["euh", "heu", "hum", "bah", "ben", "bon"];
+
+/// Nombres en lettres et heures : le modèle a le droit de les écrire en chiffres (« quinze heures trente » → « 15 h 30 »).
+const NUMBER_WORDS: [&str; 31] = [
+    "une",
+    "deux",
+    "trois",
+    "quatre",
+    "cinq",
+    "six",
+    "sept",
+    "huit",
+    "neuf",
+    "dix",
+    "onze",
+    "douze",
+    "treize",
+    "quatorze",
+    "quinze",
+    "seize",
+    "vingt",
+    "vingts",
+    "trente",
+    "quarante",
+    "cinquante",
+    "soixante",
+    "cent",
+    "cents",
+    "mille",
+    "million",
+    "millions",
+    "milliard",
+    "milliards",
+    "heure",
+    "heures",
+];
+
+fn significant_words(text: &str) -> HashSet<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() >= 3 && !w.chars().next().is_some_and(char::is_numeric))
+        .filter(|w| !FILLERS.contains(w) && !NUMBER_WORDS.contains(w))
+        .map(str::to_string)
+        .collect()
+}
+
+/// Mots en commun entre la dictée et la sortie du modèle, pour repérer une réponse à la place d'une réécriture.
+/// `kept` : part des mots de la dictée retrouvés dans la sortie ; `own` : part des mots de la sortie déjà présents dans la dictée.
+/// On ne compte que les mots d'au moins trois lettres, hors hésitations et nombres (en chiffres ou en lettres).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Overlap {
+    pub kept: f64,
+    pub own: f64,
+}
+
+pub fn overlap(input: &str, output: &str) -> Overlap {
+    let a = significant_words(input);
+    let b = significant_words(output);
+    if a.is_empty() || b.is_empty() {
+        return Overlap { kept: if a.is_empty() { 1.0 } else { 0.0 }, own: if b.is_empty() { 1.0 } else { 0.0 } };
+    }
+    let common = a.intersection(&b).count() as f64;
+    Overlap { kept: common / a.len() as f64, own: common / b.len() as f64 }
 }

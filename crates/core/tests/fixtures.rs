@@ -4,8 +4,12 @@
 //! si un cas utilise une fonction qui n'est ni implémentée ni déclarée en attente, pour qu'aucun cas ne soit ignoré en silence.
 
 use scriibe_core::dictionary::{self, Correction, UserDictionary};
+use scriibe_core::lang::LinguaGuesser;
+use scriibe_core::modes::RewriteMode;
+use scriibe_core::settings::AppSettings;
 use scriibe_core::spoken_signs::{self, ListBullet};
-use scriibe_core::{text, typography};
+use scriibe_core::translation::TranslationLanguage;
+use scriibe_core::{cleaner, text, typography};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -132,7 +136,130 @@ fn run_step(name: &str, args: &Value, input: &str) -> Option<Out> {
     })
 }
 
+/// Navigue dans une valeur JSON : `a.b`, `a[0].b`, et `.count` pour la taille d'un tableau. Un champ absent vaut `null`.
+fn field(value: &Value, path: &str) -> Value {
+    let mut current = value.clone();
+    for part in path.split('.') {
+        let (name, index) = match part.split_once('[') {
+            Some((n, rest)) => (n, rest.trim_end_matches(']').parse::<usize>().ok()),
+            None => (part, None),
+        };
+        if name == "count" && current.is_array() {
+            return Value::from(current.as_array().map_or(0, Vec::len));
+        }
+        if !name.is_empty() {
+            current = current.get(name).cloned().unwrap_or(Value::Null);
+        }
+        if let Some(i) = index {
+            current = current.get(i).cloned().unwrap_or(Value::Null);
+        }
+    }
+    current
+}
+
+fn same_json(got: &Value, want: &Value) -> bool {
+    match (got.as_f64(), want.as_f64()) {
+        (Some(a), Some(b)) => (a - b).abs() < 1e-9,
+        _ => got == want,
+    }
+}
+
+fn settings_from(args: &Value) -> AppSettings {
+    AppSettings::from_value(args).unwrap_or_default()
+}
+
+/// Propriétés calculées des réglages, nommées comme dans Scribe.
+fn settings_view(settings: &AppSettings) -> Value {
+    let mut view = serde_json::to_value(settings).unwrap();
+    let o = view.as_object_mut().unwrap();
+    o.insert("usesCleanupModel".into(), settings.uses_cleanup_model().into());
+    o.insert("skipApplies".into(), settings.skip_applies().into());
+    o.insert("listsOn".into(), settings.lists_on().into());
+    o.insert("rewritingOn".into(), settings.rewriting_on().into());
+    o.insert("hasCleanupEngine".into(), settings.has_cleanup_engine().into());
+    o.insert("activeCleanupModel".into(), settings.active_cleanup_model().into());
+    o.insert("everythingLocal".into(), settings.everything_local().into());
+    o.insert("activeCustomMode".into(), serde_json::to_value(settings.active_custom_mode()).unwrap());
+    view
+}
+
+fn check_fields(view: &Value, expected: &Value) -> Result<(), String> {
+    for (path, want) in expected.as_object().ok_or("attendu : un dictionnaire")? {
+        let got = field(view, path);
+        if !same_json(&got, want) {
+            return Err(format!("{path} : obtenu {got}, attendu {want}"));
+        }
+    }
+    Ok(())
+}
+
+fn language_arg(args: &Value) -> TranslationLanguage {
+    serde_json::from_value(args["language"].clone()).unwrap_or_default()
+}
+
+/// Les cas qui ne sont pas « du texte entrant, du texte sortant ». `None` : ce n'est pas un cas de cette sorte.
+fn run_special(case: &Value) -> Option<Result<(), String>> {
+    let name = case["fn"].as_str()?;
+    let args = &case["args"];
+    let expected = &case["expected"];
+    let flag = |got: bool| -> Result<(), String> {
+        if Some(got) == expected.as_bool() {
+            Ok(())
+        } else {
+            Err(format!("obtenu {got}, attendu {expected}"))
+        }
+    };
+    let text_is = |got: String| -> Result<(), String> {
+        if Some(got.as_str()) == expected.as_str() {
+            Ok(())
+        } else {
+            Err(format!("obtenu {got:?}, attendu {expected}"))
+        }
+    };
+    Some(match name {
+        "cleaner_accepts" => {
+            let mode = args["mode"].as_str().and_then(RewriteMode::from_raw).unwrap_or(RewriteMode::Simple);
+            flag(cleaner::accepts_for_mode(args["input"].as_str()?, args["output"].as_str()?, mode))
+        }
+        "cleaner_strip" => text_is(cleaner::strip(args["text"].as_str()?)),
+        "accepts_translation" => {
+            flag(cleaner::accepts_translation(args["input"].as_str()?, args["output"].as_str()?, language_arg(args), guesser()))
+        }
+        "skips_cleanup" => {
+            let settings = settings_from(&args["settings"]);
+            flag(cleaner::skips_cleanup(args["text"].as_str()?, &settings, args["translating"].as_bool()?))
+        }
+        "decode_settings" => match AppSettings::from_json(args["json"].as_str()?) {
+            Ok(settings) => check_fields(&settings_view(&settings), expected),
+            Err(e) => Err(format!("réglages illisibles : {e}")),
+        },
+        "settings_derived" => check_fields(&settings_view(&settings_from(&args["settings"])), expected),
+        "settings_roundtrip" => {
+            let mut settings = settings_from(&args["settings"]);
+            if args["settings"]["chosen"] == "customModes[0]" {
+                let id = settings.custom_modes.first()?.id.clone();
+                settings.set_mode_choice(&id);
+            }
+            let json = serde_json::to_string(&settings).unwrap();
+            match AppSettings::from_json(&json) {
+                Ok(back) => check_fields(&settings_view(&back), expected),
+                Err(e) => Err(format!("relecture impossible : {e}")),
+            }
+        }
+        "prompt_fingerprint" => text_is(cleaner::built_in_prompts_fingerprint()),
+        _ => return None,
+    })
+}
+
+fn guesser() -> &'static LinguaGuesser {
+    static G: std::sync::OnceLock<LinguaGuesser> = std::sync::OnceLock::new();
+    G.get_or_init(LinguaGuesser::default)
+}
+
 fn run_case(case: &Value) -> Result<Option<()>, String> {
+    if let Some(done) = run_special(case) {
+        return done.map(Some);
+    }
     let fns: Vec<String> = match &case["fn"] {
         Value::String(s) => vec![s.clone()],
         Value::Array(a) => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
