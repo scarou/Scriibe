@@ -13,7 +13,7 @@ Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. �
 
 | Lignes de `Checks.swift` | Sujet | Pourquoi pas maintenant |
 |---|---|---|
-| 542–563, 573–586, 997–1125 | **Banc de dictée** : `ReadingBench`, contrôles par phrase (`BenchCheck`), archive des passages, comparaison, différences mot à mot, réglages d'un passage | fonctionnalité d'interface ; dépend des 17 phrases du banc et de l'archive sur disque |
+| 542–563, 573–586, 1000–1125 (sauf contrôles) | **Banc de dictée** : déroulement (`ReadingBench` : phrase suivante, « Passer », « Relire »), rapport avec temps à la française, archive des passages, comparaison, différences mot à mot, réglages d'un passage | fonctionnalité d'interface ; **déjà repris en S02** : les 17 phrases et les contrôles `BenchCheck` (`bench_checks.json`, utilisés par la page d'essais) |
 | 786–839 | **Test de frappe** (`TypingTest`) : vitesse nette, seuils (90 %, 12 s–10 min, 200 mots/min), moyenne | fonctionnalité d'interface ; les valeurs sont dans le test, à extraire avec le port de `TypingTest.swift` |
 | 247–252 | **Phrases types** de `--cleantest` (12 phrases, contrôles associés) | à reprendre avec le port de `CleanTest.swift` |
 | 242–246 | Réglages du banc selon les modes personnels | dépend du banc |

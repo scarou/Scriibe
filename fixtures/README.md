@@ -21,6 +21,7 @@ Cas de test tirés des vérifications automatiques de **Scribe** (`Sources/Scrib
 | `history_retention.json` | conservation de l'historique (scénarios) | 13 |
 | `prompts.json` | empreinte des prompts et invariants (énoncés) | 19 |
 | `ui_logic.json` | petites logiques d'interface | 18 |
+| `bench_checks.json` | contrôles du banc de dictée (`BenchCheck`, 17 phrases de `ReadingBench`) | 34 |
 | `playful_schtroumpf.json` | mode Amusant — **reporté** (`status: deferred`) | 9 |
 
 Ce qui n'est pas encore repris est listé dans [`A_FAIRE.md`](A_FAIRE.md).
@@ -73,6 +74,7 @@ Chaque fichier : `{ schema: 1, suite, description, source, notes?, cases: [...] 
 | `prompt_fingerprint` | empreinte FNV-1a des prompts des 8 modes (voir le cas) |
 | `overlay_origin_x` / `folded_cards_toggle` / `folded_cards_contains` / `dictation_zone_clears` | logiques d'interface |
 | `invariant` | énoncé à vérifier par un test écrit à la main (`expected: true`) |
+| `bench_contains` / `bench_checks_pass` | `BenchCheck.contains` ; contrôles d'une phrase du banc (`phrase` : indice dans `crates/core/data/bench_phrases.json`, extrait de `ReadingBench.swift` par `tools/extraire_banc.py`) |
 | `schtroumpf_apply` / `schtroumpf_verb_form` | moteur schtroumpf (reporté) |
 
 Les cas `history_scenario` et `invariant` ne sont pas de simples entrées → sorties : ils décrivent un scénario ou un énoncé que le test Rust doit traduire en code.

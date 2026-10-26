@@ -70,9 +70,11 @@ La confiance dans le portage vient de là. Les cas de `Checks.swift` (typographi
 
 Le format complet, la liste des fonctions et les outils de vérification sont décrits dans [`fixtures/README.md`](../fixtures/README.md) ; ce qui reste à reprendre est dans [`fixtures/A_FAIRE.md`](../fixtures/A_FAIRE.md).
 
-Le cœur Rust doit les passer **à l'identique** (365 cas dans 16 fichiers : 342 sont rejoués par `cargo test`, 14 attendent l'interface, 9 le mode Amusant). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
+Le cœur Rust doit les passer **à l'identique** (399 cas dans 17 fichiers : 376 sont rejoués par `cargo test`, 14 attendent l'interface, 9 le mode Amusant). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
 
 ## 4. Interface
+
+**Jalon actuel (étape 5)** : `crates/cli` sert une **page d'essais** web locale (serveur `tiny_http` sur 127.0.0.1, port libre, adresse à jeton secret) : état de l'installation, téléchargements confirmés, banc de dictée (les 17 phrases de Scribe), rapport. Elle prépare l'interface complète ci-dessous et sert de banc d'essai sur les vraies machines ; ses essais passent par le chef d'orchestre avec des adaptateurs qui détournent le collage et l'historique (`web/sinks.rs`).
 
 Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affiche et envoie des commandes. Parité visée avec Scribe : onglets de Réglages, Dictionnaire, Modes personnalisables, Historique, Tableau de bord, Aide, bancs d'essai. L'indicateur de dictée est une fenêtre à part, transparente, sans focus.
 
@@ -98,6 +100,7 @@ Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affic
 | Calendrier | passé à chaque appel (`Calendar<Tz>`) : le cœur ne lit pas l'horloge du système | 2026-10-25 |
 | Intégration continue | GitHub Actions sur Linux, Windows et macOS à chaque envoi | 2026-10-25 |
 | Réseau et processus des moteurs | appels **bloquants** (`ureq`, pas de moteur asynchrone) sur des fils de travail ; HTTP, processus, horloge, journal et clés derrière des traits (`Http`, `Spawner`, `Clock`, `Log`, `Secrets`) pour tout tester avec un monde simulé (`FakeWorld`) | 2026-10-25 |
+| Moteurs optionnels (idée) | Kyutai STT (`stt-1b-en_fr`, en continu) pour Mac (MLX) et PC NVIDIA, Whisper gardé pour les machines sans carte graphique ; serveur WebSocket à part | 2026-10-26 |
 | Touche de dictée sous Windows et Linux | Ctrl droit, Maj en plus pour traduire (AZERTY : AltGr est Ctrl gauche + Alt droite pour Windows, jamais confondu avec Ctrl droit) | 2026-10-25 |
 | Premier jalon de l'étape 5 | exécutable en ligne de commande avec icône de notification, avant la fenêtre Tauri | 2026-10-25 |
 | Tâches de fond du chef d'orchestre | trait `Executor` (fils en réel, exécution immédiate ou manuelle dans les tests) | 2026-10-25 |
