@@ -167,6 +167,28 @@ impl Capture {
     }
 }
 
+/// Le profil d'une prise : pour voir, sans l'écouter, un début étouffé (pilote qui s'adapte), une saturation ou un silence.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Profile {
+    /// Plus grande valeur absolue (0 à 1).
+    pub peak: f32,
+    /// Part des échantillons à ≥ 99 % de l'échelle (écrêtage : le son est déformé).
+    pub clipped: f32,
+    /// RMS de chaque quart de seconde, du début à la fin.
+    pub levels: Vec<f32>,
+}
+
+/// Profil d'un fichier WAV 16 bits mono 16 kHz tel que produit par [`wav`].
+pub fn profile(wav: &[u8]) -> Profile {
+    let samples: Vec<f32> =
+        wav.get(44..).unwrap_or(&[]).chunks_exact(2).map(|b| f32::from(i16::from_le_bytes([b[0], b[1]])) / 32768.0).collect();
+    let peak = samples.iter().fold(0.0_f32, |m, s| m.max(s.abs()));
+    let clipped = if samples.is_empty() { 0.0 } else { samples.iter().filter(|s| s.abs() >= 0.99).count() as f32 / samples.len() as f32 };
+    let window = (SAMPLE_RATE / 4) as usize;
+    let levels = samples.chunks(window).map(|w| (w.iter().map(|s| s * s).sum::<f32>() / w.len() as f32).sqrt()).collect();
+    Profile { peak, clipped, levels }
+}
+
 /// Fichier WAV mono 16 kHz 16 bits.
 pub fn wav(pcm: &[i16]) -> Vec<u8> {
     let data_len = (pcm.len() * 2) as u32;
@@ -359,6 +381,18 @@ mod tests {
         let mut capture = Capture::new(8_000);
         capture.push(&vec![0.1; 8_000], 1);
         assert!((capture.duration() - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn the_profile_shows_a_muffled_start_and_clipping() {
+        // 0,5 s presque muettes, puis 0,5 s fortes et écrêtées.
+        let mut pcm = vec![300i16; 8_000];
+        pcm.extend(vec![i16::MAX; 8_000]);
+        let p = profile(&wav(&pcm));
+        assert_eq!(p.levels.len(), 4);
+        assert!(p.levels[0] < 0.02 && p.levels[3] > 0.9, "{:?}", p.levels);
+        assert!((p.clipped - 0.5).abs() < 0.01 && p.peak > 0.99);
+        assert_eq!(profile(&wav(&[])).levels.len(), 0);
     }
 
     #[test]

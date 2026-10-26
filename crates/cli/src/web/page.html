@@ -40,6 +40,9 @@
   .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; }
   select { font: inherit; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); max-width: 100%; }
   audio { width: 100%; margin-top: 6px; }
+  .profile { display: flex; align-items: flex-end; gap: 2px; height: 46px; margin: 6px 0; }
+  .profile > i { flex: 1 1 0; min-width: 2px; background: var(--accent); border-radius: 2px 2px 0 0; }
+  .profile > i.hot { background: var(--bad); }
 </style>
 </head>
 <body>
@@ -210,6 +213,13 @@ $('record').onclick = async () => {
   }
 };
 
+function profileBars(p) {
+  if (!p || !p.levels.length) return '';
+  const bars = p.levels.map((l) => `<i class="${l > 0.5 ? 'hot' : ''}" style="height:${Math.max(2, Math.min(100, Math.sqrt(l) * 110))}%" title="${fmt(l)}"></i>`).join('');
+  const sat = p.clipped > 0.005 ? ` — <span class="bad">saturation : ${fmt(p.clipped * 100)} % des échantillons</span>` : '';
+  return `<div class="muted">Profil du son (un trait = ¼ de seconde) — pic ${fmt(p.peak)}${sat}</div><div class="profile">${bars}</div>`;
+}
+
 function showResult(rec, out) {
   const box = $('result'); box.hidden = false;
   const levelNote = rec.verdict === 'correct' ? '<span class="ok">niveau correct</span>' : `<span class="${rec.verdict === 'muet' ? 'bad' : 'warn'}">micro ${rec.verdict}</span>`;
@@ -218,7 +228,7 @@ function showResult(rec, out) {
   const t = out.timing;
   const checks = (out.checks || []).map((c) => `<div class="${c.passed ? 'ok' : 'bad'}">${c.passed ? '✔' : '✘'} ${esc(c.label)}</div>`).join('');
   box.innerHTML =
-    `<div class="muted">${fmt(rec.duration)} s — ${levelNote} (${fmt(rec.level)})${gain}</div>` +
+    `<div class="muted">${fmt(rec.duration)} s — ${levelNote} (${fmt(rec.level)})${gain}</div>` + profileBars(out.profile) +
     (out.ok
       ? `<div><b>Whisper a entendu :</b> ${esc(out.raw)}</div><div><b>Serait collé :</b> ${esc(out.text)}</div>`
       : `<div class="bad"><b>Rien n’a été collé.</b></div>`) +
@@ -251,6 +261,7 @@ async function buildReport() {
   for (const x of results) {
     const t = x.out.timing, failed = (x.out.checks || []).filter((c) => !c.passed);
     r += `Phrase ${x.index + 1} (${x.category})${x.translated ? ' [traduction]' : ''} : ${fmt(x.rec.duration)} s, micro ${x.rec.verdict} (${fmt(x.rec.level)})${x.rec.gain > 1.05 ? ' gain ×' + fmt(x.rec.gain) : ''}\n`;
+    if (x.out.profile) r += `  profil   : pic ${fmt(x.out.profile.peak)}, saturation ${fmt(x.out.profile.clipped * 100)} %, niveaux/¼ s : ${x.out.profile.levels.slice(0, 16).map((l) => fmt(l)).join(' ')}\n`;
     r += `  lue      : ${x.text}\n  entendu  : ${x.out.raw ?? '—'}\n  collé    : ${x.out.text ?? '—'}\n`;
     if (t) r += `  temps    : transcription ${fmt(t.transcription)} s, mise au propre ${fmt(t.cleanup)} s (${t.outcome}), total ${fmt(t.total)} s\n`;
     if (x.out.messages.length) r += `  messages : ${x.out.messages.join(' / ')}\n`;

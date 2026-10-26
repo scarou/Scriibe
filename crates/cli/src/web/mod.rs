@@ -190,6 +190,11 @@ fn log_tail(ctx: &Context, count: usize) -> Vec<String> {
     lines[lines.len().saturating_sub(count)..].iter().map(|l| (*l).to_string()).collect()
 }
 
+fn profile_json(recording: &Recording) -> Value {
+    let p = scriibe_platform::audio::profile(&recording.wav);
+    json!({"peak": p.peak, "clipped": p.clipped, "levels": p.levels})
+}
+
 fn verdict(level: f32) -> &'static str {
     match MicLevel::assess(level) {
         MicLevel::Silent => "muet",
@@ -259,7 +264,8 @@ fn record_start(ctx: &Context) -> Result<String, String> {
 fn record_stop(ctx: &Context) -> Value {
     *lock(&ctx.recording_since) = None;
     let recording = ctx.app.platform.recorder.stop();
-    let summary = json!({"ok": true, "duration": recording.duration, "level": recording.level, "verdict": verdict(recording.level), "gain": recording.gain});
+    let summary = json!({"ok": true, "duration": recording.duration, "level": recording.level, "verdict": verdict(recording.level), "gain": recording.gain,
+        "profile": profile_json(&recording)});
     *lock(&ctx.last) = Some(recording);
     summary
 }
@@ -293,6 +299,7 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
         "level": recording.level,
         "gain": recording.gain,
         "verdict": verdict(recording.level),
+        "profile": profile_json(&recording),
     }))
 }
 
