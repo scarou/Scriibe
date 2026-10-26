@@ -214,10 +214,45 @@ impl Controller {
         self.warm_up(&settings);
     }
 
+    /// Au lancement du programme : charge les modèles locaux et lit les prompts (mise au propre, puis traduction) sans attendre une
+    /// dictée. Sur un processeur sans carte graphique, lire un prompt prend ≈ 30 s : la première dictée les trouve déjà lus.
+    /// Les deux prompts se lisent l'un après l'autre (en parallèle, ils se ralentiraient mutuellement).
+    pub fn preload(&self) {
+        let deps = &self.inner.deps;
+        let settings = deps.config.settings();
+        self.warm_up_transcription(&settings);
+        let words = deps.config.dictionary().words;
+        let cleaner = Arc::clone(&deps.cleaner);
+        let log = Arc::clone(&deps.log);
+        let clock = Arc::clone(&deps.clock);
+        deps.executor.spawn(
+            "prechargement",
+            Box::new(move || {
+                let started = clock.now();
+                cleaner.warm_up(&settings, false, &words, None);
+                if settings.has_cleanup_engine() {
+                    cleaner.warm_up(&settings, true, &words, Some(settings.translation_language));
+                }
+                log.write(&format!(
+                    "préchargement: mise au propre et traduction prêtes en {:.1} s",
+                    clock.now().saturating_sub(started).as_secs_f64()
+                ));
+            }),
+        );
+    }
+
     /// Pendant que la personne parle : démarre Whisper si besoin, charge le modèle local ou ouvre les connexions cloud.
     fn warm_up(&self, settings: &AppSettings) {
         let deps = &self.inner.deps;
         let words = deps.config.dictionary().words;
+        self.warm_up_transcription(settings);
+        let cleaner = Arc::clone(&deps.cleaner);
+        let for_cleanup = settings.clone();
+        deps.executor.spawn("prechauffage-nettoyage", Box::new(move || cleaner.warm_up(&for_cleanup, false, &words, None)));
+    }
+
+    fn warm_up_transcription(&self, settings: &AppSettings) {
+        let deps = &self.inner.deps;
         let transcriber = Arc::clone(&deps.transcriber);
         let log = Arc::clone(&deps.log);
         let for_transcription = settings.clone();
@@ -238,9 +273,6 @@ impl Controller {
                 }
             }),
         );
-        let cleaner = Arc::clone(&deps.cleaner);
-        let for_cleanup = settings.clone();
-        deps.executor.spawn("prechauffage-nettoyage", Box::new(move || cleaner.warm_up(&for_cleanup, false, &words, None)));
     }
 
     /// Maj ajoutée pendant l'écoute : l'indicateur annonce la langue, et le prompt de la traduction (autre consigne, autres exemples

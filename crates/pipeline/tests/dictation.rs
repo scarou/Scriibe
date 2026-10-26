@@ -489,6 +489,19 @@ fn warm_up_starts_while_the_person_is_still_speaking() {
 }
 
 #[test]
+fn preload_reads_both_prompts_at_launch_without_any_key() {
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..local_settings() };
+    let r = rig_with(settings, "x", "x", true);
+    r.controller.preload();
+    r.executor.run_all("");
+    assert_eq!(r.warm_up_requests().len(), 2, "mise au propre puis traduction");
+    assert!(!r.warm_up_requests()[0]["messages"].to_string().contains("anglais"));
+    assert!(r.warm_up_requests()[1]["messages"].to_string().contains("anglais"));
+    assert!(r.world.spawns().iter().any(|s| s.args.iter().any(|a| a.contains("ggml-large-v3-turbo"))), "Whisper est lancé");
+    assert!(r.recorder.starts().is_empty(), "aucun micro ouvert");
+}
+
+#[test]
 fn whisper_is_started_at_the_press_and_reused_for_the_transcription() {
     let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..local_settings() };
     let r = rig_with(settings, "x", "Bonjour tout le monde, on commence.", false);

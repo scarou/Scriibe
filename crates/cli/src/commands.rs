@@ -98,6 +98,7 @@ pub fn run() -> Result<(), String> {
     if !std::env::args().any(|a| a == "--sans-navigateur") {
         scriibe_platform::open::open(&url);
     }
+    app.controller.preload();
     eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : page d'essais, quitter).");
 
     #[cfg(windows)]
