@@ -24,7 +24,7 @@ Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et 
 
 ## Pause des médias (à essayer)
 
-Dans les réglages de Scriibe, « pauseMedia » est lu dans `settings.json` (vrai par défaut). Lancer une vidéo (YouTube) ou de la musique, puis dicter avec Ctrl droit : le son doit s'arrêter une fraction de seconde après l'appui, et reprendre au relâchement. Le journal de la page note chaque étape (« médias: pause demandée … », « relance demandée »). Cas à vérifier : pas de pause si rien ne joue (la vidéo ne doit **pas** démarrer), pas de pause pendant un appel, un appui très bref ne fait pas clignoter la vidéo.
+Cocher **« Mettre en pause la musique ou la vidéo pendant la dictée »** dans la section 1 de la page (coupé par défaut, comme dans Scribe). Lancer une vidéo (YouTube) ou de la musique, puis dicter avec Ctrl droit : le son doit s'arrêter une fraction de seconde après l'appui, et reprendre au relâchement. Le journal de la page note chaque étape (« médias: pause demandée … », « relance demandée »). Cas à vérifier : pas de pause si rien ne joue (la vidéo ne doit **pas** démarrer), pas de pause pendant un appel, un appui très bref ne fait pas clignoter la vidéo.
 
 ## Ce qu'on relève
 

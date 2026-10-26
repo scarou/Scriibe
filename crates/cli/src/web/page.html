@@ -76,6 +76,7 @@
       <label>Modèle Whisper : <select id="whisper-model"></select></label>
       <label>Modèle GGUF : <select id="llama-model"></select></label>
     </div>
+    <div class="row"><label><input type="checkbox" id="pause-media"> Mettre en pause la musique ou la vidéo pendant la dictée</label></div>
     <div class="muted" id="paths"></div>
   </section>
 
@@ -141,6 +142,7 @@ async function loadStatus() {
     row('Micro', s.microphones.length > 0, s.microphones.join(' | ') || 'aucun micro détecté') +
     row('Touche globale', !s.keys_error, s.keys_error || 'Ctrl droit (Maj : traduire)');
   $('cleanup').value = s.cleanup === 'llamaCpp' ? 'llamaCpp' : 'none';
+  $('pause-media').checked = !!s.pause_media;
   const fill = (el, list, chosen) => {
     el.innerHTML = '<option value="">(automatique : le meilleur trouvé)</option>' + list.map((p) => `<option value="${esc(p)}">${esc(base(p))}</option>`).join('');
     el.value = list.includes(chosen) ? chosen : '';
@@ -150,9 +152,9 @@ async function loadStatus() {
   $('paths').innerHTML = `Réglages : ${esc(s.paths.settings)}<br>Modèles : ${esc(s.paths.models)}<br>Journal : ${esc(s.paths.log)}`;
 }
 
-for (const id of ['cleanup', 'whisper-model', 'llama-model']) {
+for (const id of ['cleanup', 'whisper-model', 'llama-model', 'pause-media']) {
   $(id).addEventListener('change', async () => {
-    await api('settings', { cleanup: $('cleanup').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value });
+    await api('settings', { cleanup: $('cleanup').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, pause_media: $('pause-media').checked });
     loadStatus();
   });
 }

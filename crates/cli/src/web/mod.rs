@@ -252,6 +252,7 @@ fn status(ctx: &Context) -> Value {
         "transcription": format!("{:?}", settings.transcription_engine),
         "cleanup": match settings.cleanup_engine { CleanupEngine::None => "none", CleanupEngine::LlamaCpp => "llamaCpp", _ => "other" },
         "cleanup_label": settings.cleanup_engine.label(),
+        "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
         "llama": {"binary": llama_binary.map(|p| p.display().to_string()), "models": llama_models, "chosen": settings.llama_cpp_model},
         "keys": {"deepgram": key(scriibe_engines::runtime::KeyKind::Deepgram), "openrouter": key(scriibe_engines::runtime::KeyKind::OpenRouter)},
@@ -267,6 +268,9 @@ fn save_settings(ctx: &Context, input: &Value) -> Result<(), String> {
             "llamaCpp" => CleanupEngine::LlamaCpp,
             other => return Err(format!("moteur inconnu : {other}")),
         };
+    }
+    if let Some(pause) = input["pause_media"].as_bool() {
+        settings.pause_media = pause;
     }
     if let Some(path) = input["whisper_model"].as_str() {
         settings.whisper_model_path = path.to_string();
