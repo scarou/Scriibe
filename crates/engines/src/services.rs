@@ -152,6 +152,48 @@ pub struct Cleaner {
     /// Les fichiers GGUF repérés (le meilleur d'abord).
     pub llama_models: Arc<dyn Fn() -> Vec<String> + Send + Sync>,
     pub fs: Arc<dyn crate::fs::FileSystem>,
+    /// Préchauffages en cours : la dictée les attend (voir `WarmUps`).
+    pub warm_ups: WarmUps,
+}
+
+/// Compte les préchauffages en cours. Sur un processeur lent, lire le prompt prend ≈ 30 s : une dictée envoyée pendant ce temps
+/// le relirait elle-même en même temps (trois lectures pour deux, et l'appel dépasse son délai). Elle attend donc la fin des
+/// préchauffages, puis trouve le prompt déjà lu. Sur une machine rapide, le préchauffage est déjà fini : aucune attente.
+#[derive(Default)]
+pub struct WarmUps {
+    running: std::sync::Mutex<usize>,
+    done: std::sync::Condvar,
+}
+
+/// Plus longtemps que le délai du préchauffage (60 s) : on n'attend jamais indéfiniment.
+const WARM_UP_WAIT: Duration = Duration::from_secs(65);
+
+impl WarmUps {
+    fn begin(&self) -> WarmUpGuard<'_> {
+        *self.running.lock().unwrap_or_else(|e| e.into_inner()) += 1;
+        WarmUpGuard(self)
+    }
+
+    /// Rend le temps passé à attendre (zéro s'il n'y avait rien en cours).
+    fn wait(&self) -> Duration {
+        let started = std::time::Instant::now();
+        let guard = self.running.lock().unwrap_or_else(|e| e.into_inner());
+        if *guard > 0 {
+            let _ = self.done.wait_timeout_while(guard, WARM_UP_WAIT, |running| *running > 0);
+            return started.elapsed();
+        }
+        Duration::ZERO
+    }
+}
+
+struct WarmUpGuard<'a>(&'a WarmUps);
+
+impl Drop for WarmUpGuard<'_> {
+    fn drop(&mut self) {
+        let mut running = self.0.running.lock().unwrap_or_else(|e| e.into_inner());
+        *running -= 1;
+        self.0.done.notify_all();
+    }
 }
 
 impl Cleaner {
@@ -243,6 +285,10 @@ impl Cleaner {
         let ep = self.endpoint(settings)?;
         if settings.active_cleanup_model().is_empty() && settings.cleanup_engine != CleanupEngine::LlamaCpp {
             return Err(ServiceError::new(format!("Choisis un modèle {} dans Réglages", ep.service)));
+        }
+        let waited = self.warm_ups.wait();
+        if waited >= Duration::from_secs(1) {
+            self.log.write(&format!("mise au propre: attente du préchauffage {:.1} s", waited.as_secs_f64()));
         }
         self.prepare(settings, Some(Duration::from_secs(15)))?;
         let mut body = json!({
@@ -339,6 +385,7 @@ impl Cleaner {
         }
         let Ok(ep) = self.endpoint(settings) else { return };
         if ep.local {
+            let _running = self.warm_ups.begin();
             if let Err(e) = self.prepare(settings, None) {
                 self.log.write(&format!("préchauffage: {} pas prêt ({e})", ep.service));
                 return;
@@ -381,5 +428,29 @@ impl Cleaner {
             .unwrap_or_default();
         ids.sort();
         Ok(ids)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn a_dictation_waits_for_the_warm_up_in_progress_and_not_otherwise() {
+        let warm_ups = Arc::new(WarmUps::default());
+        assert_eq!(warm_ups.wait(), Duration::ZERO, "rien en cours : aucune attente");
+        let background = Arc::clone(&warm_ups);
+        let (started, ready) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let _running = background.begin();
+            started.send(()).unwrap();
+            std::thread::sleep(Duration::from_millis(150));
+        });
+        ready.recv().unwrap();
+        let waited = warm_ups.wait();
+        worker.join().unwrap();
+        assert!(waited >= Duration::from_millis(100), "attend la fin du préchauffage ({waited:?})");
+        assert_eq!(warm_ups.wait(), Duration::ZERO, "fini : plus d'attente");
     }
 }

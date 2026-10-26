@@ -65,6 +65,7 @@ fn cleaner(world: &Arc<FakeWorld>, keys: Keys) -> Cleaner {
         llama: Some(Arc::new(llama::new_server(launcher, world.runtime()))),
         llama_models: Arc::new(move || vec![model.to_string()]),
         fs,
+        warm_ups: Default::default(),
     }
 }
 

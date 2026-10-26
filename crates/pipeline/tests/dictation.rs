@@ -185,6 +185,7 @@ fn rig_full(
         llama: None,
         llama_models: Arc::new(Vec::new),
         fs,
+        warm_ups: Default::default(),
     });
     let recorder = Arc::new(FakeRecorder::default());
     let paster = Arc::new(FakePaster::default());

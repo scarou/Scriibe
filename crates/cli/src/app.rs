@@ -87,6 +87,7 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
         llama: Some(llama.clone()),
         llama_models,
         fs,
+        warm_ups: Default::default(),
     });
 
     let settings_source = config.clone();
