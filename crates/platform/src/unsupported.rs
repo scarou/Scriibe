@@ -34,7 +34,7 @@ impl Recorder for NoRecorder {
     }
 
     fn stop(&self) -> Recording {
-        Recording { wav: crate::audio::wav(&[]), duration: 0.0, level: 0.0 }
+        Recording { wav: crate::audio::wav(&[]), duration: 0.0, level: 0.0, gain: 1.0 }
     }
 
     fn loudest_so_far(&self) -> f32 {

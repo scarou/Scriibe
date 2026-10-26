@@ -173,7 +173,7 @@ impl Recorder for CpalRecorder {
         }
         match lock(&self.shared.capture).take() {
             Some(capture) => capture.finish(),
-            None => Recording { wav: crate::audio::wav(&[]), duration: 0.0, level: 0.0 },
+            None => Recording { wav: crate::audio::wav(&[]), duration: 0.0, level: 0.0, gain: 1.0 },
         }
     }
 

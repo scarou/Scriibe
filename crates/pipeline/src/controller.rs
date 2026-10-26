@@ -307,7 +307,15 @@ impl Controller {
         deps.executor.spawn(
             "dictee",
             Box::new(move || {
-                let job = Job { wav: recording.wav, duration: recording.duration, level: recording.level, released_at, target, input };
+                let job = Job {
+                    wav: recording.wav,
+                    duration: recording.duration,
+                    level: recording.level,
+                    gain: recording.gain,
+                    released_at,
+                    target,
+                    input,
+                };
                 this.process(&job, &settings, translating.then_some(settings.translation_language));
                 lock(&this.inner.state).busy = false;
             }),
@@ -323,6 +331,7 @@ impl Controller {
             wav: recording.wav,
             duration: recording.duration,
             level: recording.level,
+            gain: recording.gain,
             released_at: deps.clock.now(),
             target: deps.apps.current(),
             input: input.to_string(),
@@ -486,6 +495,8 @@ struct Job {
     wav: Vec<u8>,
     duration: f64,
     level: f32,
+    /// Amplification appliquée au son (micro faible).
+    gain: f32,
     released_at: Duration,
     target: AppInfo,
     input: String,
@@ -524,11 +535,12 @@ fn log_line(
         .map(|l| format!(", traduction {}{}", l.name(), translation_failure.map(|f| format!(" {f}")).unwrap_or_default()))
         .unwrap_or_default();
     format!(
-        "dictée: parole {:.1} s (niveau {:.3}) | transcription {transcription} ({engine}) | mise au propre {cleanup} ({} {model}, mode {mode}{translation}) | total après relâche {total}{} | micro : {}",
+        "dictée: parole {:.1} s (niveau {:.3}) | transcription {transcription} ({engine}) | mise au propre {cleanup} ({} {model}, mode {mode}{translation}) | total après relâche {total}{}{} | micro : {}",
         job.duration,
         job.level,
         settings.cleanup_engine.name(),
         if weak { " | micro faible" } else { "" },
+        if job.gain > 1.05 { format!(" | gain ×{:.1}", job.gain) } else { String::new() },
         job.input
     )
 }

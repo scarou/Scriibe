@@ -46,7 +46,7 @@ impl FakeRecorder {
         let samples = vec![0i16; (duration * 16_000.0) as usize];
         Self {
             state: Mutex::new(RecorderState {
-                next: Recording { wav: wav(&samples), duration, level },
+                next: Recording { wav: wav(&samples), duration, level, gain: 1.0 },
                 fail: None,
                 started: Vec::new(),
                 stops: 0,
@@ -59,7 +59,7 @@ impl FakeRecorder {
 
     pub fn set_recording(&self, duration: f64, level: f32) {
         let mut s = lock(&self.state);
-        s.next = Recording { wav: wav(&vec![0i16; (duration * 16_000.0) as usize]), duration, level };
+        s.next = Recording { wav: wav(&vec![0i16; (duration * 16_000.0) as usize]), duration, level, gain: 1.0 };
         s.loudest = level;
     }
 

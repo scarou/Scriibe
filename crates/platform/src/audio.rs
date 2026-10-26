@@ -1,7 +1,7 @@
 //! Micro : le trait `Recorder` et le traitement du son, qui est le même partout (mono, 16 kHz, 16 bits, niveau, fichier WAV).
 //! Port de `AudioRecorder` (Scribe) ; seule l'ouverture du micro est propre à chaque système.
 
-use scriibe_core::microphone::Microphone;
+use scriibe_core::microphone::{MicLevel, Microphone};
 use std::sync::Arc;
 
 /// Fréquence envoyée à Whisper et Deepgram : le format le plus léger qu'ils acceptent bien.
@@ -20,8 +20,10 @@ pub struct Recording {
     pub wav: Vec<u8>,
     /// Secondes de son.
     pub duration: f64,
-    /// RMS de la fenêtre la plus forte (≈ 0 pour un micro muet, de 0,019 à 0,083 pour une voix normale).
+    /// RMS de la fenêtre la plus forte, **avant** le gain (≈ 0 pour un micro muet, de 0,019 à 0,083 pour une voix normale).
     pub level: f32,
+    /// Amplification appliquée au son d'un micro faible (1 : aucune). Le niveau annoncé reste celui du micro.
+    pub gain: f32,
 }
 
 /// Ce qu'on sait du micro ouvert, pour le journal.
@@ -49,6 +51,22 @@ pub trait Recorder: Send + Sync {
     fn input_description(&self) -> String;
     /// Niveau instantané (0 à 1), appelé à chaque tampon pendant la prise.
     fn set_level_listener(&self, listener: Option<LevelListener>);
+}
+
+/// Niveau visé pour un micro faible : celui d'une voix normale (0,019 à 0,083).
+const TARGET_LEVEL: f32 = 0.06;
+/// Au-delà, on amplifierait surtout le bruit.
+const MAX_GAIN: f32 = 10.0;
+
+/// Amplification d'un micro faible, pour que Whisper reçoive un son d'un niveau normal. Pas en dessous du seuil « muet » (du bruit,
+/// pas une voix), ni au-dessus du niveau visé. Écart avec Scribe (voir `docs/ECARTS.md`) : mesuré sur un portable dont le micro
+/// donne 0,006, où le petit modèle Whisper ne comprenait presque rien.
+pub fn weak_voice_gain(level: f32) -> f32 {
+    if !(MicLevel::SILENT_BELOW..TARGET_LEVEL).contains(&level) {
+        1.0
+    } else {
+        (TARGET_LEVEL / level).min(MAX_GAIN)
+    }
 }
 
 /// Accumule le son d'une prise : mélange les canaux, passe à 16 kHz (moyenne sur la durée de chaque échantillon d'arrivée, ce qui
@@ -138,8 +156,14 @@ impl Capture {
         self.pcm.len() as f64 / f64::from(SAMPLE_RATE)
     }
 
-    pub fn finish(self) -> Recording {
-        Recording { duration: self.duration(), level: self.loudest, wav: wav(&self.pcm) }
+    pub fn finish(mut self) -> Recording {
+        let gain = weak_voice_gain(self.loudest);
+        if gain > 1.0 {
+            for sample in &mut self.pcm {
+                *sample = (f32::from(*sample) * gain).round().clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16;
+            }
+        }
+        Recording { duration: self.duration(), level: self.loudest, gain, wav: wav(&self.pcm) }
     }
 }
 
@@ -295,6 +319,24 @@ mod tests {
         let mut mac = Capture::new(16_000);
         feed(&mut mac);
         assert_eq!(MicLevel::assess(mac.loudest()), MicLevel::Ok, "niveau {}", mac.loudest());
+    }
+
+    #[test]
+    fn a_weak_voice_is_amplified_but_noise_and_good_voices_are_not() {
+        assert_eq!(weak_voice_gain(0.0005), 1.0, "du bruit : on ne l'amplifie pas");
+        assert!((weak_voice_gain(0.006) - 10.0).abs() < 1e-6, "0,006 → gain plafonné à 10");
+        assert!((weak_voice_gain(0.03) - 2.0).abs() < 1e-6);
+        assert_eq!(weak_voice_gain(0.06), 1.0);
+        assert_eq!(weak_voice_gain(0.2), 1.0);
+        let mut capture = Capture::new(16_000);
+        for _ in 0..100 {
+            capture.push(&[0.01; 160], 1);
+        }
+        let recording = capture.finish();
+        assert!((recording.gain - 6.0).abs() < 1e-4, "gain {}", recording.gain);
+        assert!((recording.level - 0.01).abs() < 1e-6, "le niveau annoncé reste celui du micro");
+        let sample = i16::from_le_bytes([recording.wav[44 + 4000], recording.wav[44 + 4001]]);
+        assert!((f32::from(sample) / 32768.0 - 0.06).abs() < 0.001, "échantillon {sample}");
     }
 
     #[test]
