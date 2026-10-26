@@ -66,57 +66,107 @@ fn executable_name(pid: u32) -> String {
     }
 }
 
-/// Les processus ayant une session active sur l'appareil par défaut ; pour la lecture, seulement ceux dont le son passe.
-fn active_pids(flow: EDataFlow) -> windows::core::Result<Vec<u32>> {
-    // SAFETY : appels COM sur un fil où COM est initialisé (`ComScope`) ; chaque interface est libérée à sa sortie de portée.
-    unsafe {
-        let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-        let device = enumerator.GetDefaultAudioEndpoint(flow, eConsole)?;
-        let manager: IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None)?;
-        let sessions = manager.GetSessionEnumerator()?;
-        let mut pids = Vec::new();
-        for i in 0..sessions.GetCount()? {
-            let control = sessions.GetSession(i)?;
-            if control.GetState()? != AudioSessionStateActive {
-                continue;
-            }
-            let control2: IAudioSessionControl2 = control.cast()?;
-            // Les sons du système (bips, alertes) : la session « sons système » n'est pas un média. Réponse S_OK (0) = oui,
-            // S_FALSE (1) = non : `is_ok()` vaudrait vrai dans les deux cas, d'où la comparaison avec zéro.
-            if control2.IsSystemSoundsSession().0 == 0 {
-                continue;
-            }
-            let pid = control2.GetProcessId()?;
-            if pid == 0 {
-                continue;
-            }
-            if flow == eRender {
-                let meter: IAudioMeterInformation = control.cast()?;
-                if meter.GetPeakValue()? < AUDIBLE {
-                    continue;
-                }
-            }
-            pids.push(pid);
-        }
-        Ok(pids)
+/// Ce que Windows dit d'une session audio (pour la décision, et pour le journal quand rien n'est mis en pause).
+struct Session {
+    capture: bool,
+    pid: u32,
+    name: String,
+    active: bool,
+    system: bool,
+    /// Niveau crête du son (0 à 1) ; absent si Windows ne l'a pas donné.
+    peak: Option<f32>,
+}
+
+impl Session {
+    /// Sort du son : active et son qui passe vraiment (un flux ouvert en silence n'est pas un média qui joue).
+    fn counts(&self) -> bool {
+        self.active && !self.system && self.pid != 0 && (self.capture || self.peak.is_some_and(|p| p >= AUDIBLE))
+    }
+
+    fn describe(&self) -> String {
+        format!(
+            "{} {} (pid {}){}{}{}",
+            if self.capture { "micro" } else { "son" },
+            if self.name.is_empty() { "?" } else { &self.name },
+            self.pid,
+            if self.active { " actif" } else { " inactif" },
+            if self.system { " système" } else { "" },
+            self.peak.map_or_else(|| " crête illisible".to_string(), |p| format!(" crête {p:.3}")),
+        )
     }
 }
 
-fn read_processes() -> Vec<AudioProcess> {
+/// Les sessions de l'appareil par défaut. Une session illisible est notée dans `problems` et ne fait pas échouer les autres.
+fn read_sessions(flow: EDataFlow, problems: &mut Vec<String>) -> Vec<Session> {
+    let capture = flow == eCapture;
+    let label = if capture { "enregistrement" } else { "lecture" };
+    // SAFETY : appels COM sur un fil où COM est initialisé (`ComScope`) ; chaque interface est libérée à sa sortie de portée.
+    let result: windows::core::Result<Vec<Session>> = unsafe {
+        (|| {
+            let enumerator: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
+            let device = enumerator.GetDefaultAudioEndpoint(flow, eConsole)?;
+            let manager: IAudioSessionManager2 = device.Activate(CLSCTX_ALL, None)?;
+            let list = manager.GetSessionEnumerator()?;
+            let mut sessions = Vec::new();
+            for i in 0..list.GetCount()? {
+                let control = list.GetSession(i)?;
+                let control2: IAudioSessionControl2 = control.cast()?;
+                let pid = control2.GetProcessId().unwrap_or(0);
+                sessions.push(Session {
+                    capture,
+                    pid,
+                    name: if pid == 0 { String::new() } else { executable_name(pid) },
+                    active: control.GetState()? == AudioSessionStateActive,
+                    // Les sons du système (bips, alertes) : la session « sons système » n'est pas un média. Réponse S_OK (0) = oui,
+                    // S_FALSE (1) = non : `is_ok()` vaudrait vrai dans les deux cas, d'où la comparaison avec zéro.
+                    system: control2.IsSystemSoundsSession().0 == 0,
+                    peak: control.cast::<IAudioMeterInformation>().and_then(|meter| meter.GetPeakValue()).ok(),
+                });
+            }
+            Ok(sessions)
+        })()
+    };
+    result.unwrap_or_else(|e| {
+        problems.push(format!("appareil d'{label} illisible ({e})"));
+        Vec::new()
+    })
+}
+
+fn read_all(problems: &mut Vec<String>) -> Vec<Session> {
     let _com = ComScope::enter();
-    let output = active_pids(eRender).unwrap_or_default();
-    let input = active_pids(eCapture).unwrap_or_default();
-    let mut all: Vec<u32> = output.iter().chain(input.iter()).copied().collect();
-    all.sort_unstable();
-    all.dedup();
-    all.into_iter()
-        .map(|pid| AudioProcess {
-            pid: i64::from(pid),
-            bundle: executable_name(pid),
-            output: output.contains(&pid),
-            input: input.contains(&pid),
+    let mut sessions = read_sessions(eRender, problems);
+    sessions.extend(read_sessions(eCapture, problems));
+    sessions
+}
+
+fn read_processes() -> Vec<AudioProcess> {
+    let sessions = read_all(&mut Vec::new());
+    let mut pids: Vec<u32> = sessions.iter().filter(|s| s.counts()).map(|s| s.pid).collect();
+    pids.sort_unstable();
+    pids.dedup();
+    pids.into_iter()
+        .map(|pid| {
+            let mine = sessions.iter().filter(|s| s.counts() && s.pid == pid);
+            AudioProcess {
+                pid: i64::from(pid),
+                bundle: sessions.iter().find(|s| s.pid == pid).map(|s| s.name.clone()).unwrap_or_default(),
+                output: mine.clone().any(|s| !s.capture),
+                input: mine.into_iter().any(|s| s.capture),
+            }
         })
         .collect()
+}
+
+fn describe_sessions() -> String {
+    let mut problems = Vec::new();
+    let sessions = read_all(&mut problems);
+    let mut parts: Vec<String> = sessions.iter().map(Session::describe).collect();
+    parts.extend(problems);
+    if parts.is_empty() {
+        "Windows ne voit aucune session audio".into()
+    } else {
+        format!("vu par Windows : {}", parts.join(" ; "))
+    }
 }
 
 fn key(up: bool) -> INPUT {
@@ -144,5 +194,9 @@ impl AudioSource for WasapiSessions {
 
     fn ignored(&self) -> &'static [&'static str] {
         &IGNORED
+    }
+
+    fn describe(&self) -> String {
+        std::thread::spawn(describe_sessions).join().unwrap_or_default()
     }
 }

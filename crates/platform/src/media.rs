@@ -34,6 +34,10 @@ pub trait AudioSource: Send + Sync + 'static {
     fn play_pause(&self);
     /// Processus système qui produisent des sons de leur propre chef : ils ne sont pas un média à interrompre.
     fn ignored(&self) -> &'static [&'static str];
+    /// Ce que le système voit, en une ligne, pour le journal quand rien n'est mis en pause (comprendre pourquoi).
+    fn describe(&self) -> String {
+        String::new()
+    }
 }
 
 /// Les délais de Scribe (`MediaPause.swift`) ; les tests les raccourcissent.
@@ -106,10 +110,14 @@ impl<S: AudioSource> Shared<S> {
         let ignored = self.source.ignored();
         match media_pause::decision(&snapshot, self.own_pid, ignored) {
             Decision::NothingPlaying => {
-                let mut state = lock(&self.state);
-                if state.generation == mine {
+                {
+                    let mut state = lock(&self.state);
+                    if state.generation != mine {
+                        return;
+                    }
                     state.active = false;
                 }
+                self.log(&format!("médias: rien ne joue — {}", self.source.describe()));
             }
             Decision::InCall => {
                 {
