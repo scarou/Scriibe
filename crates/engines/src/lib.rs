@@ -34,3 +34,10 @@ pub fn engines_folder() -> Option<std::path::PathBuf> {
     };
     Some(base.join(APP_NAME).join("engines"))
 }
+
+/// Nombre de fils de calcul pour un moteur de modèle : les cœurs physiques (au plus 8), pas les fils logiques. Sur un processeur à
+/// hyper-threading, whisper.cpp et llama.cpp ne vont pas plus vite avec 8 fils sur 4 cœurs, et ralentissent parfois.
+pub fn compute_threads() -> usize {
+    let logical = std::thread::available_parallelism().map_or(4, |n| n.get());
+    sysinfo::System::new().physical_core_count().filter(|n| *n > 0).unwrap_or(logical).min(logical).min(8)
+}

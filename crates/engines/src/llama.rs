@@ -239,11 +239,15 @@ impl Launcher for LlamaLauncher {
 
     fn args(&self, model: &str, use_assistant: bool) -> (Vec<String>, bool) {
         let assistant = if use_assistant { assistant(self.fs.as_ref(), model) } else { None };
-        (arguments(model, assistant.as_deref(), self.config.port), assistant.is_some())
+        let mut args = arguments(model, assistant.as_deref(), self.config.port);
+        // Écart avec Scribe (docs/ECARTS.md) : sans carte graphique, la génération se fait sur le processeur ; on ne lance pas plus de
+        // fils que de cœurs physiques.
+        args.extend(["-t".to_string(), crate::compute_threads().to_string()]);
+        (args, assistant.is_some())
     }
 
     fn describe(&self, assistant: bool) -> String {
-        if assistant { ", avec assistant MTP" } else { ", sans assistant MTP" }.to_string()
+        format!("{}, {} fils", if assistant { ", avec assistant MTP" } else { ", sans assistant MTP" }, crate::compute_threads())
     }
 
     fn missing_binary(&self) -> String {
