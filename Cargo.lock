@@ -2026,6 +2026,7 @@ dependencies = [
  "scriibe-engines",
  "serde_json",
  "tray-icon",
+ "windows 0.57.0",
  "windows-sys 0.59.0",
 ]
 

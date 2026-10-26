@@ -16,6 +16,13 @@ serde_json = "1"
 [target.'cfg(windows)'.dependencies]
 # Micro (WASAPI).
 cpal = "0.15"
+# Sessions audio (quelles applis jouent du son ou captent le micro) pour la pause des médias : les interfaces COM de WASAPI.
+windows = { version = "0.57", features = [
+    "Win32_Foundation",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+] }
 # Icône dans la zone de notification.
 tray-icon = "0.19"
 windows-sys = { version = "0.59", features = [

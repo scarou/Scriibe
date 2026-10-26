@@ -64,6 +64,7 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
     let llama_launcher = LlamaLauncher::new(fs.clone(), llama::PORT, Some(folder.join("llama-server.log")), path_var.as_deref());
     let llama = Arc::new(llama::new_server(llama_launcher, runtime.clone()));
 
+    platform.media.set_log(log_dyn.clone());
     let secrets: Arc<dyn Secrets> = platform.secrets.clone();
     let whisper_models = {
         let (fs, models) = (fs.clone(), models.clone());
