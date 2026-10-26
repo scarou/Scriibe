@@ -67,6 +67,8 @@ impl Log for MemoryLog {
 pub enum KeyKind {
     Deepgram,
     OpenRouter,
+    /// Jeton GitHub en lecture seule, pour la mise à jour de `scriibe.exe` (dépôt privé).
+    GitHub,
 }
 
 /// Où sont les clés : le gestionnaire d'identifiants du système, puis `.env` (voir `crates/platform`).

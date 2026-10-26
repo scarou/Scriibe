@@ -7,6 +7,7 @@ pub fn env_name(kind: KeyKind) -> &'static str {
     match kind {
         KeyKind::Deepgram => "DEEPGRAM_API_KEY",
         KeyKind::OpenRouter => "OPENROUTER_API_KEY",
+        KeyKind::GitHub => "GITHUB_TOKEN",
     }
 }
 
@@ -15,6 +16,7 @@ pub fn account_name(kind: KeyKind) -> &'static str {
     match kind {
         KeyKind::Deepgram => "deepgram",
         KeyKind::OpenRouter => "openrouter",
+        KeyKind::GitHub => "github",
     }
 }
 

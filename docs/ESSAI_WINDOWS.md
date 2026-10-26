@@ -8,6 +8,12 @@ GitHub → dépôt `scarou/scriibe` → onglet **Actions** → dernière exécut
 
 Une fenêtre noire (journal) s'ouvre, une icône ronde apparaît près de l'horloge (grise au repos) et **la page d'essais s'ouvre dans le navigateur**. Si elle ne s'ouvre pas : clic droit sur l'icône → « Ouvrir la page d'essais ». L'adresse de la page contient un jeton secret et ne répond qu'à cette machine.
 
+## 0 bis. Mettre à jour sans télécharger de zip
+
+La page d'essais a une carte **« Mise à jour de Scriibe »** (en haut). Une seule fois, il faut un **jeton GitHub en lecture seule** : GitHub → photo de profil → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token ; durée au choix (90 jours), **Only select repositories** → `Scriibe`, droit **Actions : Read-only** (rien d'autre), puis copier le jeton (il ne s'affiche qu'une fois). Le coller dans la carte et « Enregistrer le jeton » : il est gardé dans le Gestionnaire d'identifiants, jamais affiché ni écrit dans le journal.
+
+Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et titre), la taille et la source ; **« Installer et redémarrer »** demande confirmation, télécharge la dernière exécution verte de la CI, remplace `scriibe.exe` (l'ancien reste un moment sous le nom `scriibe.exe.old`, supprimé au lancement suivant) et relance Scriibe : une nouvelle page d'essais s'ouvre. Le dossier de `scriibe.exe` doit être un dossier où l'on peut écrire (pas `Program Files`).
+
 ## 1. La page
 
 1. **État de l'installation** : ce qui est trouvé ou manquant (whisper-server, modèles, llama-server, micro, touche globale), et les réglages de base (mise au propre aucune / llama.cpp, choix des modèles).

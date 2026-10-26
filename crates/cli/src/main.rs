@@ -4,7 +4,7 @@
 //! - `verifier` : ce qui est installé, trouvé, manquant (moteurs, modèles, micro, clés) ;
 //! - `micro [secondes]` : enregistre le micro et dit si le niveau convient ;
 //! - `essai [fichier.wav] [--traduire]` : transcrit un fichier (ou la dernière prise du micro) avec la vraie chaîne, sans toucher au clavier ;
-//! - `cle deepgram|openrouter` : enregistre une clé d'API dans le Gestionnaire d'identifiants (lue sur l'entrée standard) ;
+//! - `cle deepgram|openrouter|github` : enregistre une clé d'API dans le Gestionnaire d'identifiants (lue sur l'entrée standard) ;
 //! - `lancer` : la dictée, touche maintenue (Ctrl droit sous Windows), icône dans la zone de notification et page d'essais dans le
 //!   navigateur (téléchargements, micro, phrases du banc, rapport) ; c'est ce que fait un double-clic.
 
@@ -21,7 +21,8 @@ Usage : scriibe [commande]\n\n\
   micro [secondes]           enregistre le micro (3 s par défaut) et mesure le niveau\n\
   essai [fichier.wav] [--traduire]\n\
                              transcrit un fichier WAV (ou la dernière prise) avec la vraie chaîne, sans coller\n\
-  cle deepgram|openrouter    enregistre une clé d'API (lue sur l'entrée standard, jamais affichée ensuite)\n\
+  cle deepgram|openrouter|github
+                             enregistre une clé d'API (lue sur l'entrée standard, jamais affichée ensuite)\n\
   aide                       ce message\n";
 
 fn main() -> ExitCode {

@@ -52,6 +52,20 @@
     <div class="row"><span class="muted" id="version"></span><button id="refresh">Rafraîchir</button><button id="quit">Quitter Scriibe</button></div>
   </header>
 
+  <section class="card" id="update-card">
+    <h2>Mise à jour de Scriibe</h2>
+    <div class="muted" id="update-version"></div>
+    <div id="update-token" hidden>
+      <p class="muted">Pour récupérer les nouvelles versions sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le Gestionnaire d’identifiants de Windows, jamais affiché ni écrit dans le journal.</p>
+      <div class="row"><input type="password" id="token-input" placeholder="Colle le jeton GitHub ici" autocomplete="off" style="flex:1"><button id="token-save">Enregistrer le jeton</button></div>
+    </div>
+    <div id="update-actions" hidden>
+      <div class="row"><button id="update-check">Chercher une nouvelle version</button></div>
+      <div id="update-found"></div>
+    </div>
+    <div id="update-progress"></div>
+  </section>
+
   <section class="card" id="state-card">
     <h2>1. État de l’installation</h2>
     <table id="state"></table>
@@ -177,6 +191,51 @@ $('downloads').addEventListener('click', async (e) => {
   }
 });
 
+
+// --- Mise à jour de Scriibe ---
+let found = null;
+async function loadUpdate() {
+  const u = await api('update');
+  $('update-version').textContent = 'Version installée : ' + (u.current || 'compilée à la main (inconnue)') + (u.windows ? '' : ' — la mise à jour ne marche que sous Windows');
+  $('update-token').hidden = !u.windows || u.has_token;
+  $('update-actions').hidden = !u.windows || !u.has_token;
+  const p = u.progress;
+  if (p.state === 'running') {
+    const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+    $('update-progress').innerHTML = `<div class="bar"><div style="width:${pct}%"></div></div><span class="muted">Téléchargement ${mo(p.done)} / ${mo(p.total)} (${pct} %)</span>`;
+  } else if (p.state === 'installed') {
+    $('update-progress').innerHTML = '<span class="ok">✔ Nouvelle version installée. Scriibe redémarre : une nouvelle page s’ouvre dans quelques secondes (celle-ci peut être fermée).</span>';
+  } else if (p.state === 'failed') {
+    $('update-progress').innerHTML = `<div class="bad">Échec : ${esc(p.error)}</div>`;
+  } else {
+    $('update-progress').innerHTML = '';
+  }
+}
+$('token-save').onclick = async () => {
+  const out = await api('update/token', { token: $('token-input').value });
+  $('token-input').value = '';
+  if (!out.ok) alert(out.error);
+  loadUpdate();
+};
+$('update-check').onclick = async () => {
+  $('update-found').innerHTML = '<span class="muted">Recherche…</span>';
+  found = await api('update/check', {});
+  if (!found.ok) { $('update-found').innerHTML = `<div class="bad">${esc(found.error)}</div>`; return; }
+  const what = `<div class="muted">Dernière version : <b>${esc(found.sha)}</b> — « ${esc(found.title)} »<br>Construite le ${esc(found.date)} · <b>${mo(found.size)}</b><br>Source : ${esc(found.source)} (exécution n° ${found.run})</div>`;
+  $('update-found').innerHTML = found.up_to_date
+    ? what + '<div class="ok">✔ Vous avez déjà cette version.</div>'
+    : what + '<button class="primary" id="update-go">Installer et redémarrer</button>';
+};
+$('update-found').addEventListener('click', async (e) => {
+  if (e.target.id !== 'update-go') return;
+  if (confirm(`Installer la version ${found.sha} (${mo(found.size)})\ndepuis ${found.source} ?\n\nScriibe va redémarrer.`)) {
+    const out = await api('update/install', { confirmed: true });
+    if (!out.ok) alert(out.error);
+    $('update-found').innerHTML = '';
+    loadUpdate();
+  }
+});
+
 // --- Phrases et enregistrement ---
 function showPhrase() {
   const p = phrases[index];
@@ -277,14 +336,15 @@ $('copy').onclick = async () => {
   catch { $('copied').textContent = 'Copie refusée : sélectionnez le texte ci-dessous.'; }
 };
 
-$('refresh').onclick = () => { loadStatus(); loadDownloads(); loadLog(); };
+$('refresh').onclick = () => { loadStatus(); loadDownloads(); loadLog(); loadUpdate(); };
 $('quit').onclick = async () => { if (confirm('Quitter Scriibe ?')) { await api('quit', {}); document.body.innerHTML = '<main><p>Scriibe est arrêté. Vous pouvez fermer cette page.</p></main>'; } };
 
 (async () => {
   phrases = (await api('phrases')).phrases;
   showPhrase();
-  await loadStatus(); await loadDownloads(); await loadLog();
+  await loadStatus(); await loadDownloads(); await loadLog(); await loadUpdate();
   setInterval(loadDownloads, 1500);
+  setInterval(loadUpdate, 1500);
   setInterval(loadLog, 2000);
   setInterval(loadStatus, 8000);
 })();

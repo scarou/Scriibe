@@ -40,6 +40,7 @@ impl HistorySink for NoHistory {
 }
 
 pub fn run() -> Result<(), String> {
+    crate::web::remove_update_leftovers();
     let (config, log) = setup(true)?;
     let platform = scriibe_platform::system();
     let settings = config.settings();
@@ -199,7 +200,8 @@ pub fn key(kind: Option<&str>) -> Result<(), String> {
     let kind = match kind {
         Some("deepgram") => KeyKind::Deepgram,
         Some("openrouter") => KeyKind::OpenRouter,
-        _ => return Err("usage : scriibe cle deepgram|openrouter (puis colle la clé et valide)".into()),
+        Some("github") => KeyKind::GitHub,
+        _ => return Err("usage : scriibe cle deepgram|openrouter|github (puis colle la clé et valide)".into()),
     };
     #[cfg(windows)]
     {

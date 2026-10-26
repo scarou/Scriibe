@@ -4,8 +4,10 @@
 
 mod downloads;
 mod sinks;
+mod update;
 
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
+pub use update::remove_leftovers as remove_update_leftovers;
 
 use crate::app::{detect_whisper_models, models_folder, App};
 use downloads::{Downloads, Progress};
@@ -29,6 +31,9 @@ pub struct Context {
     app: Arc<App>,
     sinks: Arc<TestSinks>,
     downloads: Arc<Downloads>,
+    updater: Arc<update::Updater>,
+    /// Dernière version trouvée par « Chercher » : c'est elle, vue et confirmée, que « Installer » télécharge.
+    found: Mutex<Option<update::Latest>>,
     token: String,
     port: u16,
     last: Mutex<Option<Recording>>,
@@ -56,6 +61,8 @@ pub fn start(app: Arc<App>, sinks: Arc<TestSinks>, keys_error: Option<String>) -
         app,
         sinks,
         downloads: Arc::new(Downloads::default()),
+        updater: Arc::new(update::Updater::default()),
+        found: Mutex::new(None),
         token,
         port,
         last: Mutex::new(None),
@@ -162,6 +169,24 @@ fn handle(ctx: &Context, mut request: Request) {
             match result {
                 Ok(()) => ok(request, json!({"ok": true})),
                 Err(e) => fail(request, 502, &e),
+            }
+        }
+        (Method::Get, "api/update") => ok(request, update_state(ctx)),
+        (Method::Post, "api/update/token") => match save_update_token(ctx, input["token"].as_str().unwrap_or("")) {
+            Ok(()) => ok(request, json!({"ok": true})),
+            Err(e) => fail(request, 400, &e),
+        },
+        (Method::Post, "api/update/check") => match check_update(ctx) {
+            Ok(found) => ok(request, found),
+            Err(e) => fail(request, 502, &e),
+        },
+        (Method::Post, "api/update/install") => {
+            if input["confirmed"].as_bool() != Some(true) {
+                return fail(request, 400, "confirmation manquante");
+            }
+            match install_update(ctx) {
+                Ok(()) => ok(request, json!({"ok": true})),
+                Err(e) => fail(request, 409, &e),
             }
         }
         (Method::Post, "api/quit") => {
@@ -318,4 +343,75 @@ fn downloads_state(ctx: &Context) -> Value {
         })
         .collect();
     json!({"items": items})
+}
+
+fn update_state(ctx: &Context) -> Value {
+    let state = match ctx.updater.state() {
+        update::State::Idle => json!({"state": "idle"}),
+        update::State::Running { done, total } => json!({"state": "running", "done": done, "total": total}),
+        update::State::Installed => json!({"state": "installed"}),
+        update::State::Failed(e) => json!({"state": "failed", "error": e}),
+    };
+    json!({
+        "windows": cfg!(windows),
+        "has_token": ctx.app.platform.secrets.get(scriibe_engines::runtime::KeyKind::GitHub).is_some(),
+        "current": update::current_sha().map(|s| s[..s.len().min(7)].to_string()),
+        "repo": update::REPO,
+        "progress": state,
+    })
+}
+
+/// Enregistre le jeton GitHub dans le Gestionnaire d'identifiants (il n'est ni affiché, ni journalisé, ni renvoyé à la page).
+fn save_update_token(ctx: &Context, token: &str) -> Result<(), String> {
+    let _ = ctx;
+    #[cfg(windows)]
+    {
+        scriibe_platform::windows::set_credential(scriibe_engines::runtime::KeyKind::GitHub, token)?;
+        ctx.app.log.write("mise à jour: jeton GitHub enregistré dans le Gestionnaire d'identifiants");
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = token;
+        Err("l'enregistrement du jeton ne marche que sous Windows".into())
+    }
+}
+
+fn github_token(ctx: &Context) -> Result<String, String> {
+    ctx.app.platform.secrets.get(scriibe_engines::runtime::KeyKind::GitHub).ok_or_else(|| "aucun jeton GitHub enregistré".to_string())
+}
+
+/// Cherche la dernière version, sans rien télécharger : la page montre ce qui sera installé, puis demande confirmation.
+fn check_update(ctx: &Context) -> Result<Value, String> {
+    let latest = update::latest(&github_token(ctx)?)?;
+    let found = json!({
+        "ok": true,
+        "up_to_date": latest.up_to_date(),
+        "sha": latest.short_sha(),
+        "title": latest.title,
+        "date": latest.date,
+        "size": latest.size,
+        "run": latest.run_id,
+        "source": format!("github.com/{}", update::REPO),
+    });
+    *lock(&ctx.found) = Some(latest);
+    Ok(found)
+}
+
+fn install_update(ctx: &Context) -> Result<(), String> {
+    let latest = lock(&ctx.found).clone().ok_or("cherche d'abord la dernière version")?;
+    let token = github_token(ctx)?;
+    let app = ctx.app.clone();
+    ctx.updater.start(token, latest, ctx.app.log.clone() as Arc<dyn Log>, move || restart(&app))
+}
+
+/// Arrête les moteurs, relance le programme (une nouvelle page d'essais s'ouvre) puis s'arrête.
+fn restart(app: &App) {
+    app.whisper.server.stop();
+    app.llama.stop();
+    match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(std::env::args().skip(1)).spawn()) {
+        Ok(_) => app.log.write("mise à jour: nouvelle version lancée"),
+        Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance scriibe.exe à la main")),
+    }
+    std::process::exit(0);
 }
