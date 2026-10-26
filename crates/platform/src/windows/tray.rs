@@ -58,6 +58,9 @@ pub struct TrayHost {
     quit: MenuItem,
     open_data: MenuItem,
     open_log: MenuItem,
+    open_page: MenuItem,
+    /// Adresse de la page d'essais, connue une fois son serveur démarré.
+    page_url: Arc<Mutex<Option<String>>>,
     data_folder: PathBuf,
     log_file: PathBuf,
     idle_tip: String,
@@ -91,12 +94,18 @@ fn color_of(state: &IndicatorState) -> [u8; 3] {
 
 impl TrayHost {
     /// À appeler sur le fil principal. `idle_tip` : l'infobulle au repos (rappelle la touche).
-    pub fn create(idle_tip: &str, data_folder: PathBuf, log_file: PathBuf) -> Result<(Self, TrayIndicator), String> {
+    pub fn create(
+        idle_tip: &str,
+        data_folder: PathBuf,
+        log_file: PathBuf,
+        page_url: Arc<Mutex<Option<String>>>,
+    ) -> Result<(Self, TrayIndicator), String> {
         let menu = Menu::new();
+        let open_page = MenuItem::new("Ouvrir la page d'essais", true, None);
         let open_data = MenuItem::new("Ouvrir le dossier des données", true, None);
         let open_log = MenuItem::new("Ouvrir le journal", true, None);
         let quit = MenuItem::new("Quitter Scriibe", true, None);
-        for item in [&open_data, &open_log, &quit] {
+        for item in [&open_page, &open_data, &open_log, &quit] {
             menu.append(item).map_err(|e| format!("menu de l'icône : {e}"))?;
         }
         let tray = TrayIconBuilder::new()
@@ -107,7 +116,19 @@ impl TrayHost {
             .map_err(|e| format!("icône de la zone de notification : {e}"))?;
         let (tx, rx) = mpsc::channel();
         let indicator = TrayIndicator { tx: Mutex::new(tx), generation: Arc::new(AtomicU64::new(0)) };
-        let host = Self { tray, rx, quit, open_data, open_log, data_folder, log_file, idle_tip: idle_tip.to_string(), translation: None };
+        let host = Self {
+            tray,
+            rx,
+            quit,
+            open_data,
+            open_log,
+            open_page,
+            page_url,
+            data_folder,
+            log_file,
+            idle_tip: idle_tip.to_string(),
+            translation: None,
+        };
         Ok((host, indicator))
     }
 
@@ -151,15 +172,15 @@ impl TrayHost {
                 if event.id == *self.quit.id() {
                     return;
                 }
-                let target = if event.id == *self.open_data.id() {
-                    Some(&self.data_folder)
+                if event.id == *self.open_page.id() {
+                    let url = self.page_url.lock().ok().and_then(|u| u.clone());
+                    if let Some(url) = url {
+                        crate::open::open(&url);
+                    }
+                } else if event.id == *self.open_data.id() {
+                    crate::open::open(&self.data_folder.display().to_string());
                 } else if event.id == *self.open_log.id() {
-                    Some(&self.log_file)
-                } else {
-                    None
-                };
-                if let Some(path) = target {
-                    let _ = std::process::Command::new("explorer").arg(path).spawn();
+                    crate::open::open(&self.log_file.display().to_string());
                 }
             }
             std::thread::sleep(Duration::from_millis(20));

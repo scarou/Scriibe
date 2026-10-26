@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scriibe — essais</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --ink: #1c2230; --muted: #667085; --line: #dfe3ea;
+    --accent: #2f6fed; --accent-ink: #ffffff; --ok: #1a8a4a; --bad: #c43434; --warn: #b7791f; --rec: #d12f2f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171d; --card: #1d222b; --ink: #e8ebf0; --muted: #9aa3b2; --line: #2e3542; --accent: #5b8cff; --accent-ink: #0b1020; --ok: #4cc77f; --bad: #ff7a7a; --warn: #e6b25a; --rec: #ff5c5c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 1.4rem; margin: 8px 0; }
+  h2 { font-size: 1.1rem; margin: 0 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 14px 0; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.rec { background: var(--rec); color: #fff; border-color: var(--rec); }
+  button:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+  .grow { flex: 1 1 260px; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { text-align: left; padding: 5px 8px 5px 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+  .phrase { font-size: 1.25rem; font-weight: 600; margin: 8px 0; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px dashed var(--line); }
+  .meter { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; flex: 1 1 200px; }
+  .meter > div { height: 100%; width: 0; background: var(--ok); transition: width .1s; }
+  .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; width: 100%; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; max-height: 260px; font-size: .82rem; white-space: pre-wrap; word-break: break-word; }
+  .result { margin-top: 10px; padding: 10px; border-radius: 10px; background: var(--bg); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; }
+  select { font: inherit; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); max-width: 100%; }
+  audio { width: 100%; margin-top: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Scriibe — page d’essais</h1>
+    <div class="row"><span class="muted" id="version"></span><button id="refresh">Rafraîchir</button><button id="quit">Quitter Scriibe</button></div>
+  </header>
+
+  <section class="card" id="state-card">
+    <h2>1. État de l’installation</h2>
+    <table id="state"></table>
+    <div class="row">
+      <label>Mise au propre :
+        <select id="cleanup"><option value="none">Aucune (transcription littérale)</option><option value="llamaCpp">llama.cpp (sur cet ordinateur)</option></select>
+      </label>
+      <label>Modèle Whisper : <select id="whisper-model"></select></label>
+      <label>Modèle GGUF : <select id="llama-model"></select></label>
+    </div>
+    <div class="muted" id="paths"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Installer ce qui manque</h2>
+    <p class="muted">Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.</p>
+    <div id="downloads"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. Dictée d’essai (les 17 phrases du banc de Scribe)</h2>
+    <p class="muted">Lisez la phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite ; rien n’est collé ni gardé dans l’historique.</p>
+    <div class="row"><button id="prev">←</button><span id="phrase-index"></span><button id="next">→</button><span class="tag" id="phrase-category"></span></div>
+    <div class="phrase" id="phrase-text"></div>
+    <div class="muted" id="phrase-expect"></div>
+    <div class="row">
+      <button class="primary" id="record">● Enregistrer</button>
+      <div class="meter"><div id="meter"></div></div>
+      <span id="timer" class="muted">0,0 s</span>
+    </div>
+    <div class="row"><label><input type="checkbox" id="translate"> Traduire (comme Ctrl + Maj)</label></div>
+    <audio id="player" controls hidden></audio>
+    <div class="result" id="result" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2>4. Dictée avec la touche, dans une vraie appli</h2>
+    <p>Ouvrez le Bloc-notes, <b>maintenez Ctrl droit</b>, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.</p>
+    <div class="muted">Journal en direct (une ligne par étape, jamais le texte dicté) :</div>
+    <pre id="log">…</pre>
+  </section>
+
+  <section class="card">
+    <h2>5. Rapport à me coller</h2>
+    <div class="row"><button class="primary" id="copy">Copier le rapport</button><span class="muted" id="copied"></span></div>
+    <pre id="report">Faites quelques essais, puis cliquez sur « Copier le rapport ».</pre>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = (path, body) => fetch('api/' + path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+const fmt = (n) => (Math.round(n * 100) / 100).toString().replace('.', ',');
+const mo = (b) => Math.round(b / 1048576) + ' Mo';
+const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const base = (p) => String(p || '').split(/[\\/]/).pop();
+
+let status = null, phrases = [], index = 0, recording = false, results = [];
+
+function row(label, ok, detail) {
+  return `<tr><td class="${ok ? 'ok' : 'bad'}">${ok ? '✔' : '✘'}</td><td>${esc(label)}</td><td class="muted">${esc(detail)}</td></tr>`;
+}
+
+async function loadStatus() {
+  status = await api('status');
+  $('version').textContent = 'version ' + status.version;
+  const s = status;
+  $('state').innerHTML =
+    row('whisper-server', !!s.whisper.binary, s.whisper.binary || 'à installer (section 2)') +
+    row('Modèle Whisper', s.whisper.models.length > 0, s.whisper.models.map(base).join(', ') || 'à installer (section 2)') +
+    row('llama-server', !!s.llama.binary, s.llama.binary || 'à installer (section 2) — seulement si la mise au propre est activée') +
+    row('Modèle de mise au propre (GGUF)', s.llama.models.length > 0, s.llama.models.map(base).join(', ') || 'à installer (section 2)') +
+    row('Micro', s.microphones.length > 0, s.microphones.join(' | ') || 'aucun micro détecté') +
+    row('Touche globale', !s.keys_error, s.keys_error || 'Ctrl droit (Maj : traduire)');
+  $('cleanup').value = s.cleanup === 'llamaCpp' ? 'llamaCpp' : 'none';
+  const fill = (el, list, chosen) => {
+    el.innerHTML = '<option value="">(automatique : le meilleur trouvé)</option>' + list.map((p) => `<option value="${esc(p)}">${esc(base(p))}</option>`).join('');
+    el.value = list.includes(chosen) ? chosen : '';
+  };
+  fill($('whisper-model'), s.whisper.models, s.whisper.chosen);
+  fill($('llama-model'), s.llama.models, s.llama.chosen);
+  $('paths').innerHTML = `Réglages : ${esc(s.paths.settings)}<br>Modèles : ${esc(s.paths.models)}<br>Journal : ${esc(s.paths.log)}`;
+}
+
+for (const id of ['cleanup', 'whisper-model', 'llama-model']) {
+  $(id).addEventListener('change', async () => {
+    await api('settings', { cleanup: $('cleanup').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value });
+    loadStatus();
+  });
+}
+
+// --- Téléchargements ---
+const resolved = {};
+async function loadDownloads() {
+  const data = await api('downloads');
+  $('downloads').innerHTML = data.items.map((it) => {
+    const p = it.progress, r = resolved[it.id];
+    let action = '';
+    if (p.state === 'running') {
+      const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+      action = `<div class="bar"><div style="width:${pct}%"></div></div><span class="muted">${mo(p.done)} / ${mo(p.total)} (${pct} %)</span>`;
+    } else if (p.state === 'done') {
+      action = '<span class="ok">✔ installé</span>';
+    } else if (r && r.ok) {
+      action = `<div class="muted">${esc(r.name)} — <b>${mo(r.size)}</b><br>Source : ${esc(r.url)}<br>Destination : ${esc(r.dest)}</div><button class="primary" data-go="${it.id}">Télécharger (${mo(r.size)})</button>`;
+    } else {
+      action = `<button data-see="${it.id}">Voir la taille et la source</button>` + (r && !r.ok ? `<div class="bad">${esc(r.error)}</div>` : '') + (p.state === 'failed' ? `<div class="bad">Échec : ${esc(p.error)}</div>` : '');
+    }
+    return `<div style="margin:10px 0"><b>${esc(it.label)}</b><div class="muted">${esc(it.detail)}</div>${action}</div>`;
+  }).join('');
+}
+$('downloads').addEventListener('click', async (e) => {
+  const see = e.target.dataset.see, go = e.target.dataset.go;
+  if (see) { e.target.disabled = true; e.target.textContent = 'Recherche…'; resolved[see] = await api('downloads/resolve', { id: see }); loadDownloads(); }
+  if (go) {
+    const r = resolved[go];
+    if (confirm(`Télécharger ${r.name} (${mo(r.size)})\ndepuis ${r.url}\nvers ${r.dest} ?`)) {
+      const out = await api('downloads/start', { id: go, confirmed: true });
+      if (!out.ok) alert(out.error);
+      delete resolved[go];
+      loadDownloads();
+    }
+  }
+});
+
+// --- Phrases et enregistrement ---
+function showPhrase() {
+  const p = phrases[index];
+  $('phrase-index').textContent = `${index + 1} / ${phrases.length}`;
+  $('phrase-category').textContent = p.category;
+  $('phrase-text').textContent = p.text;
+  $('phrase-expect').textContent = p.expect;
+  $('result').hidden = true; $('player').hidden = true;
+}
+$('prev').onclick = () => { index = (index + phrases.length - 1) % phrases.length; showPhrase(); };
+$('next').onclick = () => { index = (index + 1) % phrases.length; showPhrase(); };
+
+let poll = null;
+$('record').onclick = async () => {
+  if (!recording) {
+    const out = await api('record/start', {});
+    if (!out.ok) { alert(out.error); return; }
+    recording = true;
+    $('record').textContent = '■ Terminer'; $('record').className = 'rec';
+    $('result').hidden = true; $('player').hidden = true;
+    poll = setInterval(async () => {
+      const l = await api('record/level');
+      $('meter').style.width = Math.round(l.level * 100) + '%';
+      $('timer').textContent = fmt(l.seconds) + ' s';
+    }, 120);
+  } else {
+    clearInterval(poll); recording = false; $('meter').style.width = '0';
+    $('record').textContent = 'Traitement…'; $('record').disabled = true; $('record').className = '';
+    const rec = await api('record/stop', {});
+    $('player').src = 'api/record/audio?' + Date.now(); $('player').hidden = false;
+    const out = await api('transcribe', { phrase: index, translate: $('translate').checked });
+    $('record').textContent = '● Enregistrer'; $('record').disabled = false;
+    showResult(rec, out);
+  }
+};
+
+function showResult(rec, out) {
+  const box = $('result'); box.hidden = false;
+  const levelNote = rec.verdict === 'correct' ? '<span class="ok">niveau correct</span>' : `<span class="${rec.verdict === 'muet' ? 'bad' : 'warn'}">micro ${rec.verdict}</span>`;
+  const gain = rec.gain > 1.05 ? ` — amplifié ×${fmt(rec.gain)}` : '';
+  if (out.error) { box.innerHTML = `<span class="bad">${esc(out.error)}</span>`; return; }
+  const t = out.timing;
+  const checks = (out.checks || []).map((c) => `<div class="${c.passed ? 'ok' : 'bad'}">${c.passed ? '✔' : '✘'} ${esc(c.label)}</div>`).join('');
+  box.innerHTML =
+    `<div class="muted">${fmt(rec.duration)} s — ${levelNote} (${fmt(rec.level)})${gain}</div>` +
+    (out.ok
+      ? `<div><b>Whisper a entendu :</b> ${esc(out.raw)}</div><div><b>Serait collé :</b> ${esc(out.text)}</div>`
+      : `<div class="bad"><b>Rien n’a été collé.</b></div>`) +
+    (out.messages.length ? `<div class="warn">${out.messages.map(esc).join('<br>')}</div>` : '') +
+    (t ? `<div class="muted">transcription ${fmt(t.transcription)} s — mise au propre ${fmt(t.cleanup)} s (${esc(t.outcome)}) — total après relâche ${fmt(t.total)} s</div>` : '') +
+    checks;
+  results = results.filter((r) => r.index !== index);
+  results.push({ index, category: phrases[index].category, text: phrases[index].text, out, rec, translated: $('translate').checked });
+  results.sort((a, b) => a.index - b.index);
+  buildReport();
+}
+
+// --- Journal et rapport ---
+async function loadLog() {
+  const data = await api('log');
+  const el = $('log'); const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+  el.textContent = data.lines.join('\n') || '(vide)';
+  if (atEnd) el.scrollTop = el.scrollHeight;
+  return data.lines;
+}
+
+async function buildReport() {
+  const lines = await loadLog();
+  const s = status;
+  let r = `Rapport Scriibe — version ${s.version}\n`;
+  r += `Touche : ${s.hotkey} ; transcription : ${s.transcription} ; mise au propre : ${s.cleanup_label}\n`;
+  r += `whisper-server : ${s.whisper.binary ? 'oui' : 'non'} ; modèles Whisper : ${s.whisper.models.map(base).join(', ') || 'aucun'}\n`;
+  r += `llama-server : ${s.llama.binary ? 'oui' : 'non'} ; modèles GGUF : ${s.llama.models.map(base).join(', ') || 'aucun'}\n`;
+  r += `Micros : ${s.microphones.join(' | ') || 'aucun'}${s.keys_error ? '\nTouche globale : ' + s.keys_error : ''}\n\n`;
+  for (const x of results) {
+    const t = x.out.timing, failed = (x.out.checks || []).filter((c) => !c.passed);
+    r += `Phrase ${x.index + 1} (${x.category})${x.translated ? ' [traduction]' : ''} : ${fmt(x.rec.duration)} s, micro ${x.rec.verdict} (${fmt(x.rec.level)})${x.rec.gain > 1.05 ? ' gain ×' + fmt(x.rec.gain) : ''}\n`;
+    r += `  lue      : ${x.text}\n  entendu  : ${x.out.raw ?? '—'}\n  collé    : ${x.out.text ?? '—'}\n`;
+    if (t) r += `  temps    : transcription ${fmt(t.transcription)} s, mise au propre ${fmt(t.cleanup)} s (${t.outcome}), total ${fmt(t.total)} s\n`;
+    if (x.out.messages.length) r += `  messages : ${x.out.messages.join(' / ')}\n`;
+    r += `  contrôles: ${(x.out.checks || []).length - failed.length}/${(x.out.checks || []).length}${failed.length ? ' — échec : ' + failed.map((c) => c.label).join(' ; ') : ''}\n`;
+  }
+  r += `\nJournal (dernières lignes) :\n${lines.slice(-25).join('\n')}\n`;
+  $('report').textContent = r;
+  return r;
+}
+$('copy').onclick = async () => {
+  const text = await buildReport();
+  try { await navigator.clipboard.writeText(text); $('copied').textContent = 'Copié : collez-le dans la conversation.'; }
+  catch { $('copied').textContent = 'Copie refusée : sélectionnez le texte ci-dessous.'; }
+};
+
+$('refresh').onclick = () => { loadStatus(); loadDownloads(); loadLog(); };
+$('quit').onclick = async () => { if (confirm('Quitter Scriibe ?')) { await api('quit', {}); document.body.innerHTML = '<main><p>Scriibe est arrêté. Vous pouvez fermer cette page.</p></main>'; } };
+
+(async () => {
+  phrases = (await api('phrases')).phrases;
+  showPhrase();
+  await loadStatus(); await loadDownloads(); await loadLog();
+  setInterval(loadDownloads, 1500);
+  setInterval(loadLog, 2000);
+  setInterval(loadStatus, 8000);
+})();
+</script>
+</body>
+</html>

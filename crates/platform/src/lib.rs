@@ -9,6 +9,7 @@ pub mod audio;
 pub mod indicator;
 pub mod keys;
 pub mod media;
+pub mod open;
 pub mod paste;
 pub mod secrets;
 pub mod sounds;

@@ -1,0 +1,369 @@
+[
+ {
+  "category": "Propre",
+  "text": "Je serai à la maison vers dix-neuf heures, on pourra dîner ensemble.",
+  "expect": "Whisper la rend propre : sautée si l'option est active.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "heure gardée",
+    "forms": [
+     "19 h",
+     "19 heures",
+     "dix-neuf heures"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« dîner ensemble » gardé",
+    "forms": [
+     "dîner ensemble"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Propre, longue",
+  "text": "J'ai relu le compte rendu de la réunion de mardi, il manque seulement la liste des participants et la date de la prochaine séance.",
+  "expect": "Propre aussi, plus longue : c'est là que sauter le modèle fait gagner le plus.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "participants gardés",
+    "forms": [
+     "participants"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« prochaine séance » gardée",
+    "forms": [
+     "prochaine séance"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Question",
+  "text": "Est-ce que tu peux m'envoyer le devis avant vendredi midi ?",
+  "expect": "Lis-la comme une question : elle doit rester une question.",
+  "checks": [
+   {
+    "kind": "question"
+   },
+   {
+    "kind": "has",
+    "label": "« devis » gardé",
+    "forms": [
+     "devis"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Hésitations",
+  "text": "Euh, je pense qu'on pourrait, euh, décaler la séance à jeudi.",
+  "expect": "Dis les « euh » : s'ils restent dans ce que Whisper a entendu, le modèle doit être appelé.",
+  "checks": [
+   {
+    "kind": "lacks",
+    "label": "« euh » retirés",
+    "forms": [
+     "euh",
+     "heu"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« jeudi » gardé",
+    "forms": [
+     "jeudi"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Hésitation en tête",
+  "text": "Bon ben, je te rappelle demain matin pour en parler.",
+  "expect": "« Bon ben » demande le modèle.",
+  "checks": [
+   {
+    "kind": "lacks",
+    "label": "« bon ben » retiré",
+    "forms": [
+     "bon ben",
+     "ben"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« demain matin » gardé",
+    "forms": [
+     "demain matin"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Reprise",
+  "text": "Le rendez-vous est à dix heures, non pardon, à onze heures.",
+  "expect": "Le texte collé ne doit garder que onze heures.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "onze heures gardé",
+    "forms": [
+     "onze heures",
+     "11 h",
+     "11 heures"
+    ]
+   },
+   {
+    "kind": "lacks",
+    "label": "dix heures retiré",
+    "forms": [
+     "dix heures",
+     "10 h",
+     "10 heures"
+    ]
+   },
+   {
+    "kind": "lacks",
+    "label": "« non pardon » retiré",
+    "forms": [
+     "pardon"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Reprise d'une traite",
+  "text": "Le rendez-vous est à dix heures non à onze heures.",
+  "expect": "Lis-la d'une traite, sans pause : si elle est sautée et que « dix heures » reste, c'est un saut à tort.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "onze heures gardé",
+    "forms": [
+     "onze heures",
+     "11 h",
+     "11 heures"
+    ]
+   },
+   {
+    "kind": "lacks",
+    "label": "dix heures retiré",
+    "forms": [
+     "dix heures",
+     "10 h",
+     "10 heures"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Reprise courte",
+  "text": "On part lundi, enfin mardi, selon la météo.",
+  "expect": "Le texte collé ne doit garder que mardi.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "mardi gardé",
+    "forms": [
+     "mardi"
+    ]
+   },
+   {
+    "kind": "lacks",
+    "label": "lundi retiré",
+    "forms": [
+     "lundi"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Reprise courte d'une traite",
+  "text": "On part lundi enfin mardi selon la météo.",
+  "expect": "D'une traite : le texte collé ne doit garder que mardi.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "mardi gardé",
+    "forms": [
+     "mardi"
+    ]
+   },
+   {
+    "kind": "lacks",
+    "label": "lundi retiré",
+    "forms": [
+     "lundi"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Répétition",
+  "text": "Je, je voulais te dire que le colis est bien arrivé.",
+  "expect": "Le « je » répété doit disparaître.",
+  "checks": [
+   {
+    "kind": "lacks",
+    "label": "« je » répété retiré",
+    "forms": [
+     "je je"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« colis » gardé",
+    "forms": [
+     "colis"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Signes dictés",
+  "text": "Le colis ouvrez la parenthèse le gros fermez la parenthèse est arrivé point à la ligne merci encore",
+  "expect": "Parenthèses et retour à la ligne attendus dans le texte collé.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "parenthèses",
+    "forms": [
+     "(le gros)",
+     "( le gros )"
+    ]
+   },
+   {
+    "kind": "new_line"
+   },
+   {
+    "kind": "lacks",
+    "label": "signes pas écrits en toutes lettres",
+    "forms": [
+     "parenthèse",
+     "parenthèses",
+     "à la ligne"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Question à plat",
+  "text": "Pourquoi le serveur ne répond plus depuis ce matin",
+  "expect": "Lis-la sans intonation : le « ? » doit apparaître.",
+  "checks": [
+   {
+    "kind": "question"
+   }
+  ]
+ },
+ {
+  "category": "Question sans inversion",
+  "text": "Tu m'envoies le devis avant vendredi",
+  "expect": "Lis-la comme une question : si elle est sautée sans « ? », c'est un saut à tort.",
+  "checks": [
+   {
+    "kind": "question"
+   }
+  ]
+ },
+ {
+  "category": "Dictionnaire",
+  "text": "J'ai ajouté une skill dans Claude Code pour ranger l'inbox du Vault.",
+  "expect": "« Claude Code » doit être écrit ainsi : s'il ne l'est pas, ajoute-le au dictionnaire (comme tes autres mots).",
+  "checks": [
+   {
+    "kind": "exact",
+    "label": "« Claude Code » écrit ainsi",
+    "form": "Claude Code"
+   },
+   {
+    "kind": "has",
+    "label": "« skill » gardé",
+    "forms": [
+     "skill"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Nombres",
+  "text": "La facture fait mille deux cent cinquante euros, à régler avant le quinze novembre.",
+  "expect": "Montant et date justes, en chiffres ou en lettres.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "montant juste",
+    "forms": [
+     "1 250",
+     "1250",
+     "mille deux cent cinquante",
+     "mille-deux-cent-cinquante"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "date juste",
+    "forms": [
+     "15 novembre",
+     "quinze novembre"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Oral familier",
+  "text": "Tu vois, le truc, c'est qu'on n'a pas le temps cette semaine.",
+  "expect": "Ton familier : « le truc » doit rester. Le modèle retire « tu vois » (tic de langage) ; sautée, la phrase le garde.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "« le truc » gardé",
+    "forms": [
+     "le truc"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« pas le temps » gardé",
+    "forms": [
+     "pas le temps"
+    ]
+   }
+  ]
+ },
+ {
+  "category": "Longue",
+  "text": "Pour la séance de demain, je propose qu'on commence par une respiration abdominale de cinq minutes, puis une visualisation du lieu ressource, et qu'on termine par un temps d'échange sur ce que chacun a ressenti pendant la semaine.",
+  "expect": "Une vingtaine de secondes : regarde surtout le temps total.",
+  "checks": [
+   {
+    "kind": "has",
+    "label": "« respiration abdominale » gardée",
+    "forms": [
+     "respiration abdominale"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "« lieu ressource » gardé",
+    "forms": [
+     "lieu ressource"
+    ]
+   },
+   {
+    "kind": "has",
+    "label": "cinq minutes gardées",
+    "forms": [
+     "cinq minutes",
+     "5 minutes",
+     "5 min"
+    ]
+   }
+  ]
+ }
+]

@@ -1,15 +1,16 @@
 use crate::app::{self, build, describe_engines, detect_whisper_models, models_folder, Choices};
+use crate::web::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{CleanupEngine, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
 use scriibe_engines::llama;
 use scriibe_engines::runtime::{KeyKind, Log};
 use scriibe_engines::server::Launcher;
-use scriibe_platform::indicator::ConsoleIndicator;
+use scriibe_platform::indicator::{ConsoleIndicator, Indicator};
 use scriibe_platform::paste::{PasteOutcome, Paster};
-use scriibe_platform::storage::{FileLog, HistorySink};
+use scriibe_platform::storage::{FileHistory, FileLog, HistorySink};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 fn setup(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
@@ -44,23 +45,39 @@ pub fn run() -> Result<(), String> {
     let settings = config.settings();
     eprintln!("Scriibe — {}", describe_engines(&settings));
     eprintln!("Données : {}", config.folder().display());
-    run_loop(config, log, platform)
-}
 
-#[cfg(windows)]
-fn run_loop(
-    config: Arc<scriibe_platform::storage::FileConfig>,
-    log: Arc<FileLog>,
-    platform: scriibe_platform::Platform,
-) -> Result<(), String> {
-    use scriibe_platform::indicator::Indicator;
-    use scriibe_platform::windows::tray::TrayHost;
-    let tip = "Scriibe — maintiens Ctrl droit pour dicter (+ Maj : traduire)";
-    let (host, indicator) = TrayHost::create(tip, config.folder().to_path_buf(), log.path().to_path_buf())?;
-    let indicator: Arc<dyn Indicator> = Arc::new(indicator);
-    let app = build(config, log, platform, Choices { paster: None, history: None, indicator });
+    // L'adresse de la page d'essais n'est connue qu'une fois son serveur démarré ; l'icône la lit au moment du clic.
+    let page_url: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    #[cfg(windows)]
+    let (host, real_indicator): (_, Arc<dyn Indicator>) = {
+        let tip = "Scriibe — maintiens Ctrl droit pour dicter (+ Maj : traduire)";
+        let (host, indicator) = scriibe_platform::windows::tray::TrayHost::create(
+            tip,
+            config.folder().to_path_buf(),
+            log.path().to_path_buf(),
+            page_url.clone(),
+        )?;
+        (host, Arc::new(indicator))
+    };
+    #[cfg(not(windows))]
+    let real_indicator: Arc<dyn Indicator> = Arc::new(ConsoleIndicator);
+
+    let settings_source = config.clone();
+    let history = Arc::new(FileHistory::open(config.folder().to_path_buf(), move || settings_source.settings()));
+    let sinks = TestSinks::new(platform.paster.clone(), history, real_indicator);
+    let choices = Choices {
+        paster: Some(Arc::new(SwitchPaster(sinks.clone()))),
+        history: Some(Arc::new(SwitchHistory(sinks.clone()))),
+        indicator: Arc::new(TeeIndicator(sinks.clone())),
+    };
+    let app = Arc::new(build(config, log, platform, choices));
+
     let (sink, events) = std::sync::mpsc::channel();
-    let _keys = app.platform.keys.start(sink)?;
+    let keys = app.platform.keys.start(sink);
+    let keys_error = keys.as_ref().err().cloned();
+    if let Some(e) = &keys_error {
+        eprintln!("Touche globale indisponible : {e}");
+    }
     let controller = app.controller.clone();
     let (whisper, llama) = (app.whisper.clone(), app.llama.clone());
     std::thread::Builder::new()
@@ -72,24 +89,30 @@ fn run_loop(
             })
         })
         .map_err(|e| e.to_string())?;
-    eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification pour quitter.");
-    host.run();
-    app.whisper.server.stop();
-    app.llama.stop();
-    Ok(())
-}
 
-#[cfg(not(windows))]
-fn run_loop(
-    config: Arc<scriibe_platform::storage::FileConfig>,
-    log: Arc<FileLog>,
-    platform: scriibe_platform::Platform,
-) -> Result<(), String> {
-    let app = build(config, log, platform, Choices { paster: None, history: None, indicator: Arc::new(ConsoleIndicator) });
-    let (sink, events) = std::sync::mpsc::channel();
-    let _keys = app.platform.keys.start(sink)?;
-    event_loop(app.controller.clone(), events, || {});
-    Ok(())
+    let (_context, url) = crate::web::start(app.clone(), sinks, keys_error)?;
+    if let Ok(mut slot) = page_url.lock() {
+        *slot = Some(url.clone());
+    }
+    eprintln!("Page d'essais : {url}");
+    if !std::env::args().any(|a| a == "--sans-navigateur") {
+        scriibe_platform::open::open(&url);
+    }
+    eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : page d'essais, quitter).");
+
+    #[cfg(windows)]
+    host.run();
+    #[cfg(not(windows))]
+    loop {
+        std::thread::park();
+    }
+    #[cfg(windows)]
+    {
+        app.whisper.server.stop();
+        app.llama.stop();
+        drop(keys);
+        Ok(())
+    }
 }
 
 /// Les événements du clavier, une à deux fois par seconde de quoi surveiller le micro, et toutes les 30 s de quoi libérer les moteurs.

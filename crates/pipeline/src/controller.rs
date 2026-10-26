@@ -203,6 +203,11 @@ impl Controller {
             state.input_description = info.description;
         }
         deps.indicator.show(IndicatorState::Listening);
+        deps.log.write(&format!(
+            "dictée: appui — micro ouvert ({}), appli : {}",
+            info_description(&deps.recorder),
+            lock(&self.inner.state).target.name
+        ));
         // Avant le son de début : le média s'arrête, et le micro ne l'entend pas.
         deps.media.pause_if_playing(settings.pause_media);
         deps.sounds.play(&settings.start_sound_name, settings.sound_volume);
@@ -287,6 +292,7 @@ impl Controller {
         };
         let released_at = deps.clock.now();
         let recording = deps.recorder.stop();
+        deps.log.write(&format!("dictée: relâchement — {:.1} s de son", recording.duration));
         deps.media.resume_if_paused();
         if recording.duration < MIN_DURATION {
             deps.indicator.show(IndicatorState::Hidden);
@@ -488,6 +494,10 @@ impl Controller {
             deps.indicator.flash(IndicatorState::Done, 0.9);
         }
     }
+}
+
+fn info_description(recorder: &Arc<dyn Recorder>) -> String {
+    recorder.input_description()
 }
 
 /// Ce qu'une dictée terminée apporte au traitement.

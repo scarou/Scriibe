@@ -233,6 +233,16 @@ fn run_special(case: &Value) -> Option<Result<(), String>> {
                 Err(e) => Err(format!("relecture impossible : {e}")),
             }
         }
+        "bench_contains" => flag(scriibe_core::bench::contains(
+            args["form"].as_str()?,
+            args["text"].as_str()?,
+            args["case_sensitive"].as_bool().unwrap_or(false),
+        )),
+        "bench_checks_pass" => {
+            let phrase = &scriibe_core::bench::phrases()[args["phrase"].as_u64()? as usize];
+            let text = if args["as_read"].as_bool() == Some(true) { phrase.text.as_str() } else { args["text"].as_str()? };
+            flag(phrase.failures(text).is_empty())
+        }
         "prompt_fingerprint" => text_is(cleaner::built_in_prompts_fingerprint()),
         "hotkey_sequence" => hotkey_sequence(args, expected, case.get("comparison").and_then(Value::as_str)),
         "command_held" => flag(hotkey_of(args).command_held(&keys_of(&args["held"]))),

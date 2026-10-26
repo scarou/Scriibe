@@ -1,0 +1,391 @@
+{
+  "schema": 1,
+  "suite": "bench_checks",
+  "description": "Contrôles automatiques du banc de dictée (BenchCheck.contains et les contrôles des 17 phrases de ReadingBench.phrases).",
+  "source": {
+    "repo": "scarou/scribe",
+    "commit": "0951ad7016d6f1358e7997575ca16e69d0c60be0",
+    "file": "Sources/Scribe/Checks.swift"
+  },
+  "notes": [
+    "`phrase` : indice (à partir de 0) dans `crates/core/data/bench_phrases.json`, extrait de ReadingBench.swift par tools/extraire_banc.py.",
+    "`as_read` : le texte est celui de la phrase à lire, tel quel (cas sans `text` : il vit dans ReadingBench.swift, pas dans Checks.swift)."
+  ],
+  "cases": [
+    {
+      "id": "bench_checks-001",
+      "name": "mot entier : « 10 h » dans « À 10 h. » (espace insécable)",
+      "line": 997,
+      "fn": "bench_contains",
+      "args": {
+        "form": "10 h",
+        "text": "À 10 h."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-002",
+      "name": "mot entier : « 10 h » pas dans « 110 h »",
+      "line": 998,
+      "fn": "bench_contains",
+      "args": {
+        "form": "10 h",
+        "text": "110 h"
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-003",
+      "name": "mot entier : « euh » pas dans « Heureux »",
+      "line": 998,
+      "fn": "bench_contains",
+      "args": {
+        "form": "euh",
+        "text": "Heureux"
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-004",
+      "name": "casse ignorée : « euh » dans « Euh, oui »",
+      "line": 998,
+      "fn": "bench_contains",
+      "args": {
+        "form": "euh",
+        "text": "Euh, oui"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-005",
+      "name": "espace fine insécable : « 1 250 » dans « 1 250 € »",
+      "line": 999,
+      "fn": "bench_contains",
+      "args": {
+        "form": "1 250",
+        "text": "1 250 €"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-006",
+      "name": "parenthèses : « (le gros) » dans une phrase",
+      "line": 999,
+      "fn": "bench_contains",
+      "args": {
+        "form": "(le gros)",
+        "text": "Le colis (le gros) est là"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-007",
+      "name": "contrôle exact : « Claude Code » ne se trouve pas dans « claude code »",
+      "line": 1113,
+      "fn": "bench_contains",
+      "args": {
+        "form": "Claude Code",
+        "text": "claude code",
+        "case_sensitive": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-008",
+      "name": "texte idéal de la phrase 1 : tous les contrôles passent",
+      "line": 1001,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 0,
+        "text": "Je serai à la maison vers 19 h, on pourra dîner ensemble."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-009",
+      "name": "texte idéal de la phrase 2 : tous les contrôles passent",
+      "line": 1002,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 1,
+        "text": "J'ai relu le compte rendu de la réunion de mardi, il manque seulement la liste des participants et la date de la prochaine séance."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-010",
+      "name": "texte idéal de la phrase 3 : tous les contrôles passent",
+      "line": 1003,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 2,
+        "text": "Est-ce que tu peux m'envoyer le devis avant vendredi midi ?"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-011",
+      "name": "texte idéal de la phrase 4 : tous les contrôles passent",
+      "line": 1004,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 3,
+        "text": "Je pense qu'on pourrait décaler la séance à jeudi."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-012",
+      "name": "texte idéal de la phrase 5 : tous les contrôles passent",
+      "line": 1005,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 4,
+        "text": "Je te rappelle demain matin pour en parler."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-013",
+      "name": "texte idéal de la phrase 6 : tous les contrôles passent",
+      "line": 1006,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 5,
+        "text": "Le rendez-vous est à 11 h."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-014",
+      "name": "texte idéal de la phrase 7 : tous les contrôles passent",
+      "line": 1007,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 6,
+        "text": "Le rendez-vous est à onze heures."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-015",
+      "name": "texte idéal de la phrase 8 : tous les contrôles passent",
+      "line": 1008,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 7,
+        "text": "On part mardi, selon la météo."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-016",
+      "name": "texte idéal de la phrase 9 : tous les contrôles passent",
+      "line": 1009,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 8,
+        "text": "On part mardi selon la météo."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-017",
+      "name": "texte idéal de la phrase 10 : tous les contrôles passent",
+      "line": 1010,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 9,
+        "text": "Je voulais te dire que le colis est bien arrivé."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-018",
+      "name": "texte idéal de la phrase 11 : tous les contrôles passent",
+      "line": 1011,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 10,
+        "text": "Le colis (le gros) est arrivé.\nMerci encore"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-019",
+      "name": "texte idéal de la phrase 12 : tous les contrôles passent",
+      "line": 1012,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 11,
+        "text": "Pourquoi le serveur ne répond plus depuis ce matin ?"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-020",
+      "name": "texte idéal de la phrase 13 : tous les contrôles passent",
+      "line": 1013,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 12,
+        "text": "Tu m'envoies le devis avant vendredi ?"
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-021",
+      "name": "texte idéal de la phrase 14 : tous les contrôles passent",
+      "line": 1014,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 13,
+        "text": "J'ai ajouté une skill dans Claude Code pour ranger l'inbox du Vault."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-022",
+      "name": "texte idéal de la phrase 15 : tous les contrôles passent",
+      "line": 1015,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 14,
+        "text": "La facture fait 1 250 €, à régler avant le 15 novembre."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-023",
+      "name": "texte idéal de la phrase 16 : tous les contrôles passent",
+      "line": 1016,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 15,
+        "text": "Le truc, c'est qu'on n'a pas le temps cette semaine."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-024",
+      "name": "texte idéal de la phrase 17 : tous les contrôles passent",
+      "line": 1017,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 16,
+        "text": "Pour la séance de demain, je propose qu'on commence par une respiration abdominale de 5 minutes, puis une visualisation du lieu ressource."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-025",
+      "name": "phrase 4 lue telle quelle (euh, reprise, signes en toutes lettres) : au moins un contrôle échoue",
+      "line": 1023,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 3,
+        "as_read": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-026",
+      "name": "phrase 5 lue telle quelle (euh, reprise, signes en toutes lettres) : au moins un contrôle échoue",
+      "line": 1023,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 4,
+        "as_read": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-027",
+      "name": "phrase 6 lue telle quelle (euh, reprise, signes en toutes lettres) : au moins un contrôle échoue",
+      "line": 1023,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 5,
+        "as_read": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-028",
+      "name": "phrase 8 lue telle quelle (euh, reprise, signes en toutes lettres) : au moins un contrôle échoue",
+      "line": 1023,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 7,
+        "as_read": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-029",
+      "name": "phrase 10 lue telle quelle (euh, reprise, signes en toutes lettres) : au moins un contrôle échoue",
+      "line": 1023,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 9,
+        "as_read": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-030",
+      "name": "phrase 11 lue telle quelle (euh, reprise, signes en toutes lettres) : au moins un contrôle échoue",
+      "line": 1023,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 10,
+        "as_read": true
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-031",
+      "name": "reprise « 10 heures, non pardon, à 11 heures » ratée",
+      "line": 1108,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 5,
+        "text": "Le rendez-vous est à 10 heures, non pardon, à 11 heures."
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-032",
+      "name": "reprise « à 11 heures » réussie",
+      "line": 1109,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 5,
+        "text": "Le rendez-vous est à 11 heures."
+      },
+      "expected": true
+    },
+    {
+      "id": "bench_checks-033",
+      "name": "« Bon, ben, » repéré",
+      "line": 1110,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 4,
+        "text": "Bon, ben, je te rappelle demain matin."
+      },
+      "expected": false
+    },
+    {
+      "id": "bench_checks-034",
+      "name": "« Je… je » repéré",
+      "line": 1111,
+      "fn": "bench_checks_pass",
+      "args": {
+        "phrase": 9,
+        "text": "Je… je voulais te dire que le colis est bien arrivé."
+      },
+      "expected": false
+    }
+  ]
+}

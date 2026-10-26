@@ -1,0 +1,272 @@
+//! Téléchargements proposés par la page d'essais. Rien ne part sans que la personne ait vu le nom, la taille et la source, puis confirmé.
+//! Les noms de fichiers sont résolus à l'instant (API de GitHub et de Hugging Face) : on affiche la vraie taille avant de télécharger.
+
+use serde_json::Value;
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
+
+/// Ce que la page propose.
+pub struct Item {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub detail: &'static str,
+}
+
+pub const ITEMS: [Item; 6] = [
+    Item { id: "whisper-server", label: "whisper-server (Windows)", detail: "Le programme de transcription (whisper.cpp), avec ses DLL." },
+    Item { id: "whisper-base", label: "Modèle Whisper « base »", detail: "Le plus rapide ; quelques erreurs sur les mots courts." },
+    Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent." },
+    Item {
+        id: "llama-server",
+        label: "llama-server (Windows, processeur)",
+        detail: "Le programme de mise au propre (llama.cpp), version processeur.",
+    },
+    Item {
+        id: "qwen-1.5b",
+        label: "Modèle de mise au propre « Qwen 2.5 1,5 B »",
+        detail: "Petit modèle d'instructions (licence Apache 2.0), ≈ 1 Go.",
+    },
+    Item { id: "qwen-3b", label: "Modèle de mise au propre « Qwen 2.5 3 B »", detail: "Deux fois plus gros, meilleur, plus lent." },
+];
+
+#[derive(Debug, Clone)]
+pub struct Resolved {
+    pub name: String,
+    pub size: u64,
+    pub url: String,
+    /// Dossier où le fichier (ou le contenu du zip) est rangé.
+    pub dest: PathBuf,
+    pub unzip: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Progress {
+    Running { done: u64, total: u64 },
+    Done,
+    Failed(String),
+}
+
+#[derive(Default)]
+pub struct Downloads {
+    progress: Mutex<HashMap<String, Progress>>,
+}
+
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+fn agent() -> ureq::Agent {
+    ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(15)).timeout_read(Duration::from_secs(60)).build()
+}
+
+fn get_json(url: &str) -> Result<Value, String> {
+    let response = agent()
+        .get(url)
+        .set("User-Agent", "scriibe")
+        .set("Accept", "application/json")
+        .timeout(Duration::from_secs(30))
+        .call()
+        .map_err(|e| format!("{url} : {e}"))?;
+    serde_json::from_reader(response.into_reader()).map_err(|e| format!("réponse illisible de {url} ({e})"))
+}
+
+/// Premier fichier de ces versions (la plus récente d'abord) dont le nom satisfait `wanted`.
+fn release_asset(repo: &str, wanted: impl Fn(&str) -> bool) -> Result<(String, u64, String), String> {
+    let releases = get_json(&format!("https://api.github.com/repos/{repo}/releases?per_page=30"))?;
+    for release in releases.as_array().into_iter().flatten() {
+        for asset in release["assets"].as_array().into_iter().flatten() {
+            let name = asset["name"].as_str().unwrap_or("");
+            if wanted(name) {
+                let url = asset["browser_download_url"].as_str().ok_or("adresse de téléchargement absente")?;
+                return Ok((name.to_string(), asset["size"].as_u64().unwrap_or(0), url.to_string()));
+            }
+        }
+    }
+    Err(format!("aucun fichier correspondant dans les dernières versions de {repo}"))
+}
+
+/// Taille d'un fichier d'un dépôt Hugging Face.
+fn hub_file(repo: &str, file: &str) -> Result<(String, u64, String), String> {
+    let tree = get_json(&format!("https://huggingface.co/api/models/{repo}/tree/main"))?;
+    let entries = tree.as_array().ok_or("liste de fichiers illisible")?;
+    match entries.iter().find(|e| e["path"].as_str() == Some(file)) {
+        Some(entry) => {
+            let size = entry["lfs"]["size"].as_u64().or_else(|| entry["size"].as_u64()).unwrap_or(0);
+            Ok((file.to_string(), size, format!("https://huggingface.co/{repo}/resolve/main/{file}")))
+        }
+        None => {
+            let names: Vec<&str> =
+                entries.iter().filter_map(|e| e["path"].as_str()).filter(|n| n.ends_with(".gguf") || n.ends_with(".bin")).collect();
+            Err(format!("« {file} » n'est pas dans {repo} (fichiers : {})", names.join(", ")))
+        }
+    }
+}
+
+/// Le nom, la taille et la source de ce qu'on téléchargerait.
+pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
+    let models = data.join("models");
+    let engines = scriibe_engines::engines_folder().ok_or("dossier des moteurs introuvable")?;
+    let windows_only = |what: &str| -> Result<(), String> {
+        if cfg!(windows) {
+            Ok(())
+        } else {
+            Err(format!("{what} : proposé seulement sous Windows pour l'instant"))
+        }
+    };
+    let (found, dest, unzip) = match id {
+        "whisper-server" => {
+            windows_only("whisper-server")?;
+            (release_asset("ggml-org/whisper.cpp", |n| n == "whisper-bin-x64.zip")?, engines.join("whisper"), true)
+        }
+        "llama-server" => {
+            windows_only("llama-server")?;
+            (
+                release_asset("ggml-org/llama.cpp", |n| n.starts_with("llama-") && n.ends_with("-bin-win-cpu-x64.zip"))?,
+                engines.join("llama"),
+                true,
+            )
+        }
+        "whisper-base" => (hub_file("ggerganov/whisper.cpp", "ggml-base.bin")?, models, false),
+        "whisper-small" => (hub_file("ggerganov/whisper.cpp", "ggml-small.bin")?, models, false),
+        "qwen-1.5b" => (hub_file("Qwen/Qwen2.5-1.5B-Instruct-GGUF", "qwen2.5-1.5b-instruct-q4_k_m.gguf")?, models, false),
+        "qwen-3b" => (hub_file("Qwen/Qwen2.5-3B-Instruct-GGUF", "qwen2.5-3b-instruct-q4_k_m.gguf")?, models, false),
+        other => return Err(format!("téléchargement inconnu : {other}")),
+    };
+    let (name, size, url) = found;
+    Ok(Resolved { name, size, url, dest, unzip })
+}
+
+/// Décompresse à plat : le programme et ses DLL côte à côte (jamais de chemin du zip, donc pas d'écriture hors du dossier).
+fn unzip_flat(zip_path: &Path, dest: &Path) -> Result<usize, String> {
+    let file = std::fs::File::open(zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("zip illisible ({e})"))?;
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    let mut written = 0;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        if !entry.is_file() {
+            continue;
+        }
+        let Some(name) = entry.enclosed_name().and_then(|p| p.file_name().map(|n| n.to_owned())) else { continue };
+        let mut out = std::fs::File::create(dest.join(name)).map_err(|e| e.to_string())?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        written += 1;
+    }
+    Ok(written)
+}
+
+fn fetch(resolved: &Resolved, progress: &dyn Fn(u64, u64)) -> Result<(), String> {
+    std::fs::create_dir_all(&resolved.dest).map_err(|e| format!("{} : {e}", resolved.dest.display()))?;
+    let part = resolved.dest.join(format!("{}.part", resolved.name));
+    let response = agent().get(&resolved.url).set("User-Agent", "scriibe").call().map_err(|e| format!("téléchargement refusé ({e})"))?;
+    let total = response.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(resolved.size);
+    let mut reader = response.into_reader();
+    let result = (|| -> Result<(), String> {
+        let mut out = std::fs::File::create(&part).map_err(|e| e.to_string())?;
+        let mut buffer = vec![0u8; 256 * 1024];
+        let mut done = 0u64;
+        loop {
+            let n = reader.read(&mut buffer).map_err(|e| format!("connexion interrompue après {} Mo ({e})", done / 1_048_576))?;
+            if n == 0 {
+                break;
+            }
+            out.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
+            done += n as u64;
+            progress(done, total);
+        }
+        out.flush().map_err(|e| e.to_string())?;
+        if total > 0 && done < total {
+            return Err(format!("fichier incomplet ({} sur {} Mo)", done / 1_048_576, total / 1_048_576));
+        }
+        Ok(())
+    })();
+    if let Err(e) = result {
+        let _ = std::fs::remove_file(&part);
+        return Err(e);
+    }
+    if resolved.unzip {
+        let count = unzip_flat(&part, &resolved.dest);
+        let _ = std::fs::remove_file(&part);
+        count.map(|_| ())
+    } else {
+        std::fs::rename(&part, resolved.dest.join(&resolved.name)).map_err(|e| e.to_string())
+    }
+}
+
+impl Downloads {
+    pub fn progress(&self) -> HashMap<String, Progress> {
+        lock(&self.progress).clone()
+    }
+
+    /// Lance le téléchargement en arrière-plan. `log` reçoit une ligne au départ et à la fin (nom, taille, source : jamais de clé).
+    pub fn start(self: &Arc<Self>, id: &str, resolved: Resolved, log: Arc<dyn scriibe_engines::runtime::Log>) -> Result<(), String> {
+        {
+            let mut map = lock(&self.progress);
+            if matches!(map.get(id), Some(Progress::Running { .. })) {
+                return Err("déjà en cours".into());
+            }
+            map.insert(id.to_string(), Progress::Running { done: 0, total: resolved.size });
+        }
+        log.write(&format!(
+            "téléchargement: {} ({} Mo) depuis {} vers {} — demandé et confirmé dans la page d'essais",
+            resolved.name,
+            resolved.size / 1_048_576,
+            resolved.url,
+            resolved.dest.display()
+        ));
+        let (me, id) = (Arc::clone(self), id.to_string());
+        std::thread::spawn(move || {
+            let outcome = fetch(&resolved, &|done, total| {
+                lock(&me.progress).insert(id.clone(), Progress::Running { done, total });
+            });
+            log.write(&format!(
+                "téléchargement: {} {}",
+                resolved.name,
+                outcome.as_ref().map_or_else(|e| format!("échec ({e})"), |()| "terminé".into())
+            ));
+            lock(&me.progress).insert(id, outcome.map_or_else(Progress::Failed, |()| Progress::Done));
+        });
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zip_entries_are_flattened_and_cannot_escape() {
+        let dir = std::env::temp_dir().join(format!("scriibe-zip-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let archive = dir.join("a.zip");
+        {
+            let mut writer = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+            let options = zip::write::SimpleFileOptions::default();
+            writer.start_file("Release/whisper-server.exe", options).unwrap();
+            writer.write_all(b"exe").unwrap();
+            writer.start_file("../evil.txt", options).unwrap();
+            writer.write_all(b"x").unwrap();
+            writer.start_file("Release/sub/ggml.dll", options).unwrap();
+            writer.write_all(b"dll").unwrap();
+            writer.finish().unwrap();
+        }
+        let out = dir.join("out");
+        let count = unzip_flat(&archive, &out).unwrap();
+        assert_eq!(count, 2, "le chemin qui remonte est ignoré");
+        assert!(out.join("whisper-server.exe").exists() && out.join("ggml.dll").exists());
+        assert!(!dir.join("evil.txt").exists());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn every_item_has_a_distinct_id() {
+        let mut ids: Vec<_> = ITEMS.iter().map(|i| i.id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), ITEMS.len());
+    }
+}

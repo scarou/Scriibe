@@ -5,16 +5,18 @@
 //! - `micro [secondes]` : enregistre le micro et dit si le niveau convient ;
 //! - `essai [fichier.wav] [--traduire]` : transcrit un fichier (ou la dernière prise du micro) avec la vraie chaîne, sans toucher au clavier ;
 //! - `cle deepgram|openrouter` : enregistre une clé d'API dans le Gestionnaire d'identifiants (lue sur l'entrée standard) ;
-//! - `lancer` : la dictée, touche maintenue (Ctrl droit sous Windows), icône dans la zone de notification.
+//! - `lancer` : la dictée, touche maintenue (Ctrl droit sous Windows), icône dans la zone de notification et page d'essais dans le
+//!   navigateur (téléchargements, micro, phrases du banc, rapport) ; c'est ce que fait un double-clic.
 
 mod app;
 mod commands;
+mod web;
 
 use std::process::ExitCode;
 
 const HELP: &str = "Scriibe — dictée vocale\n\n\
 Usage : scriibe [commande]\n\n\
-  lancer                     la dictée : maintiens Ctrl droit, parle, relâche (par défaut)\n\
+  lancer                     la dictée (maintiens Ctrl droit, parle, relâche) + la page d'essais dans le navigateur (par défaut)\n\
   verifier                   ce qui est installé, trouvé ou manquant\n\
   micro [secondes]           enregistre le micro (3 s par défaut) et mesure le niveau\n\
   essai [fichier.wav] [--traduire]\n\
