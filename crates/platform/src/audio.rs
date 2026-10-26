@@ -8,7 +8,10 @@ use std::sync::Arc;
 pub const SAMPLE_RATE: u32 = 16_000;
 
 /// Les premières 150 ms ne comptent pas dans le niveau (son de début, clic de touche).
-const SKIPPED_SECONDS: f64 = 0.15;
+pub const SKIPPED_SECONDS: f64 = 0.15;
+/// Windows : à l'ouverture du flux, certains pilotes (Conexant mesuré sur un portable HP) produisent un « bang » qui décroît pendant
+/// ≈ 300 ms, jusqu'à saturer. Il fausserait le niveau (un micro faible passerait pour correct) : on l'ignore plus longtemps.
+pub const SKIPPED_SECONDS_WINDOWS: f64 = 0.45;
 
 /// Une prise terminée.
 #[derive(Debug, Clone, PartialEq)]
@@ -61,12 +64,19 @@ pub struct Capture {
     pcm: Vec<i16>,
     loudest: f32,
     seen: f64,
+    /// Secondes du début qui ne comptent pas dans le niveau.
+    skip: f64,
 }
 
 impl Capture {
     pub fn new(input_rate: u32) -> Self {
+        Self::with_skip(input_rate, SKIPPED_SECONDS)
+    }
+
+    /// `skip` : secondes du début ignorées pour le niveau (le son, lui, est gardé en entier).
+    pub fn with_skip(input_rate: u32, skip: f64) -> Self {
         let rate = f64::from(input_rate.max(1));
-        Self { ratio: rate / f64::from(SAMPLE_RATE), rate, weight: 0.0, sum: 0.0, pcm: Vec::new(), loudest: 0.0, seen: 0.0 }
+        Self { ratio: rate / f64::from(SAMPLE_RATE), rate, weight: 0.0, sum: 0.0, pcm: Vec::new(), loudest: 0.0, seen: 0.0, skip }
     }
 
     /// Ajoute un tampon (échantillons entrelacés, `channels` canaux). Rend le niveau instantané du tampon (RMS × 9, borné à 1) pour
@@ -80,7 +90,7 @@ impl Capture {
         // Le niveau se mesure sur le premier canal, comme Scribe (`floatChannelData[0]`).
         let energy: f32 = interleaved.chunks_exact(channels).map(|f| f[0] * f[0]).sum();
         let rms = (energy / frames as f32).sqrt();
-        if self.seen / self.rate >= SKIPPED_SECONDS {
+        if self.seen / self.rate >= self.skip {
             self.loudest = self.loudest.max(rms);
         }
         self.seen += frames as f64;
@@ -262,6 +272,29 @@ mod tests {
         assert_eq!(capture.loudest(), 0.0);
         capture.push(&vec![0.001; 1_600], 1);
         assert!((capture.loudest() - 0.001).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_driver_bang_at_the_start_does_not_hide_a_weak_voice() {
+        use scriibe_core::microphone::MicLevel;
+        // Mesuré sur un portable HP (Conexant) : ≈ 0,3 s de « bang » décroissant, puis une voix faible (≈ 0,007).
+        // Les tampons de WASAPI font 10 ms.
+        let feed = |capture: &mut Capture| {
+            let bang: Vec<f32> = (0..4_800).map(|i| 0.9 * (-(i as f32) / 1_000.0).exp()).collect();
+            for chunk in bang.chunks(160) {
+                capture.push(chunk, 1);
+            }
+            for _ in 0..100 {
+                capture.push(&[0.007; 160], 1);
+            }
+        };
+        let mut windows = Capture::with_skip(16_000, SKIPPED_SECONDS_WINDOWS);
+        feed(&mut windows);
+        assert_eq!(MicLevel::assess(windows.loudest()), MicLevel::Weak, "niveau {}", windows.loudest());
+        // Avec le seuil de 150 ms du Mac, le bang aurait fait passer ce micro faible pour correct.
+        let mut mac = Capture::new(16_000);
+        feed(&mut mac);
+        assert_eq!(MicLevel::assess(mac.loudest()), MicLevel::Ok, "niveau {}", mac.loudest());
     }
 
     #[test]
