@@ -9,7 +9,7 @@ Tout écart de comportement entre Scriibe et la version de référence (Scribe, 
 | 2026-10-25 | Reconnaissance du français dans le garde-fou de la traduction | `lingua` à la place de `NLLanguageRecognizer` (Apple) | Pas d'équivalent portable ; mêmes seuils (français > 0,5 et > langue cible) | `translation_guard-*` (tous passent) |
 | 2026-10-25 | Mode Amusant (schtroumpf) | La mise au propre se fait en Simple, sans la transformation schtroumpf | Le moteur dépend de l'analyseur grammatical d'Apple (reporté) | `playful_schtroumpf-*` (reportés) ; `playful_mode_is_cleaned_in_simple_for_now` |
 | 2026-10-25 | Arrêt d'un serveur | Arrêt immédiat du processus (puis attente de sa fin), sans SIGTERM puis SIGKILL 0,3 s plus tard | `std` ne sait pas envoyer SIGTERM ; Windows n'a pas d'équivalent ; le serveur n'a rien à sauvegarder | `server.rs` |
-| 2026-10-25 | Fils de calcul de Whisper | `min(8, cœurs)` au lieu de 8 fixes | Un ordinateur à 4 cœurs ne doit pas en saturer 8 | `whisper_starts_once_and_is_reused` |
+| 2026-10-25 | Fils de calcul de Whisper | `min(8, cœurs physiques)` au lieu de 8 fixes (2026-10-26 : cœurs physiques et non logiques) | Un ordinateur à 4 cœurs ne doit pas en saturer 8 ; l'hyper-threading ne double pas la vitesse de whisper.cpp | `whisper_starts_once_and_is_reused` |
 | 2026-10-25 | En-tête `X-Title` envoyé à OpenRouter | « Scriibe » au lieu de « Scribe » | Nom de l'appli | `openrouter_needs_a_key_and_sends_it` |
 | 2026-10-25 | Palmarès des applis (`top_apps`) | À égalité de mots, ordre alphabétique | Scribe laisse l'ordre au hasard du dictionnaire | — |
 | 2026-10-25 | Libellé de l'indicateur de micro Bluetooth | Inchangé (« — Bluetooth, déconseillé ») | — | `microphone-010` |

@@ -117,7 +117,10 @@ pub struct WhisperLauncher {
 impl WhisperLauncher {
     pub fn new(fs: Arc<dyn FileSystem>, port: u16, path_var: Option<&std::ffi::OsStr>) -> Self {
         let binary = find_binary(fs.as_ref(), "whisper-server", &binary_candidates(), path_var);
-        let threads = std::thread::available_parallelism().map_or(4, |n| n.get()).min(8);
+        // Les cœurs physiques, pas les fils logiques : sur un processeur à hyper-threading, whisper.cpp ralentit quand ses fils se
+        // partagent un même cœur (4 cœurs / 8 fils logiques : 8 fils ne vont pas plus vite que 4).
+        let logical = std::thread::available_parallelism().map_or(4, |n| n.get());
+        let threads = sysinfo::System::new().physical_core_count().filter(|n| *n > 0).unwrap_or(logical).min(logical).min(8);
         Self {
             config: ServerConfig {
                 name: "whisper",
@@ -154,6 +157,10 @@ impl Launcher for WhisperLauncher {
         let args =
             ["-m", model, "--host", "127.0.0.1", "--port", &self.config.port.to_string(), "-l", "auto", "-t", &self.threads.to_string()];
         (args.iter().map(|s| s.to_string()).collect(), false)
+    }
+
+    fn describe(&self, _assistant: bool) -> String {
+        format!(", {} fils", self.threads)
     }
 
     fn missing_binary(&self) -> String {
