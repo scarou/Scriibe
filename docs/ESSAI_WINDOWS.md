@@ -26,6 +26,12 @@ Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et 
 
 Section « Clés du cloud » de la page : coller la clé Deepgram et/ou OpenRouter (champ masqué, « Enregistrer ») ; elles vont dans le Gestionnaire d'identifiants, jamais affichées ni journalisées. Puis, dans la section 1, choisir **Transcription : Deepgram (cloud)** et/ou **Mise au propre : OpenRouter (cloud)** (modèle par défaut de Scribe : `anthropic/claude-haiku-4.5`). Refaire les mêmes dictées qu'en local et comparer les temps du journal (« transcription N s », « mise au propre N s », « total après relâche N s »). Le local reste la priorité ; le cloud sert de dépannage quand la machine ne suit pas.
 
+## Carte graphique et durée de conservation du modèle (llama.cpp)
+
+- **Version Vulkan** : section 2, « llama-server (Windows, carte graphique Vulkan) » remplace la version processeur (retélécharger la version processeur pour revenir). Section 1 : « Lister les cartes » puis « Carte graphique de llama.cpp » (automatique, processeur seulement, ou une carte). Le rapport cite l'appareil choisi, `llama-server --list-devices` et le début du journal du moteur. Sur le portable de test, aucune carte n'a donné d'avantage net par dictée (voir `CHANGELOG.md`, S03).
+- **Garder le modèle chargé** : 30 min (comme Scribe), 2 h, 8 h ou tant que Scriibe tourne. Après une libération, la dictée suivante coûte 15 à 45 s sur ce portable.
+- Les deux choix sont gardés dans `moteurs.json` (dossier de données).
+
 ## Pause des médias (essayée : marche avec Chrome)
 
 Cocher **« Mettre en pause la musique ou la vidéo pendant la dictée »** dans la section 1 de la page (coupé par défaut, comme dans Scribe). Lancer une vidéo (YouTube) ou de la musique, puis dicter avec Ctrl droit : le son doit s'arrêter une fraction de seconde après l'appui, et reprendre au relâchement. Le journal de la page note chaque étape (« médias: pause demandée … », « relance demandée »). Cas à vérifier : pas de pause si rien ne joue (la vidéo ne doit **pas** démarrer), pas de pause pendant un appel, un appui très bref ne fait pas clignoter la vidéo.
