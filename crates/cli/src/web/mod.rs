@@ -164,6 +164,10 @@ fn handle(ctx: &Context, mut request: Request) {
             if input["confirmed"].as_bool() != Some(true) {
                 return fail(request, 400, "confirmation manquante");
             }
+            // Les fichiers d'un moteur en marche ne peuvent pas être remplacés.
+            if id.starts_with("llama-") {
+                ctx.app.llama.stop();
+            }
             let result = downloads::resolve(&id, ctx.app.config.folder())
                 .and_then(|resolved| ctx.downloads.start(&id, resolved, ctx.app.log.clone() as Arc<dyn Log>));
             match result {
@@ -264,6 +268,7 @@ fn status(ctx: &Context) -> Value {
         "transcription_engine": match settings.transcription_engine { TranscriptionEngine::Whisper => "whisper", TranscriptionEngine::Deepgram => "deepgram" },
         "cleanup": match settings.cleanup_engine { CleanupEngine::None => "none", CleanupEngine::LlamaCpp => "llamaCpp", CleanupEngine::OpenRouter => "openRouter", _ => "other" },
         "cleanup_model": settings.cleanup_model,
+        "llama_log": engine_hints(&folder.join("llama-server.log")),
         "cleanup_label": settings.cleanup_engine.label(),
         "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
@@ -444,4 +449,20 @@ fn restart(app: &App) {
         Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance scriibe.exe à la main")),
     }
     std::process::exit(0);
+}
+
+/// Les lignes du journal d'un moteur qui disent sur quoi il tourne (carte graphique, couches déchargées) : les dernières seulement.
+fn engine_hints(path: &std::path::Path) -> Vec<String> {
+    let Ok(bytes) = std::fs::read(path) else { return Vec::new() };
+    let tail = &bytes[bytes.len().saturating_sub(300_000)..];
+    let text = String::from_utf8_lossy(tail);
+    let hints: Vec<String> = text
+        .lines()
+        .filter(|l| {
+            let l = l.to_lowercase();
+            l.contains("vulkan") || l.contains("offloaded") || l.contains("using device") || l.contains("no gpu")
+        })
+        .map(|l| l.trim().chars().take(180).collect())
+        .collect();
+    hints[hints.len().saturating_sub(8)..].to_vec()
 }

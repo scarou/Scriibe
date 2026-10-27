@@ -343,7 +343,9 @@ async function buildReport() {
   r += `Touche : ${s.hotkey} ; transcription : ${s.transcription} ; mise au propre : ${s.cleanup_label}\n`;
   r += `whisper-server : ${s.whisper.binary ? 'oui' : 'non'} ; modèles Whisper : ${s.whisper.models.map(base).join(', ') || 'aucun'}\n`;
   r += `llama-server : ${s.llama.binary ? 'oui' : 'non'} ; modèles GGUF : ${s.llama.models.map(base).join(', ') || 'aucun'}\n`;
-  r += `Micros : ${s.microphones.join(' | ') || 'aucun'}${s.keys_error ? '\nTouche globale : ' + s.keys_error : ''}\n\n`;
+  r += `Micros : ${s.microphones.join(' | ') || 'aucun'}${s.keys_error ? '\nTouche globale : ' + s.keys_error : ''}\n`;
+  if (s.llama_log.length) r += `Journal de llama-server (carte graphique) :\n  ${s.llama_log.join('\n  ')}\n`;
+  r += '\n';
   for (const x of results) {
     const t = x.out.timing, failed = (x.out.checks || []).filter((c) => !c.passed);
     r += `Phrase ${x.index + 1} (${x.category})${x.translated ? ' [traduction]' : ''} : ${fmt(x.rec.duration)} s, micro ${x.rec.verdict} (${fmt(x.rec.level)})${x.rec.gain > 1.05 ? ' gain ×' + fmt(x.rec.gain) : ''}\n`;

@@ -15,7 +15,7 @@ pub struct Item {
     pub detail: &'static str,
 }
 
-pub const ITEMS: [Item; 6] = [
+pub const ITEMS: [Item; 7] = [
     Item { id: "whisper-server", label: "whisper-server (Windows)", detail: "Le programme de transcription (whisper.cpp), avec ses DLL." },
     Item { id: "whisper-base", label: "Modèle Whisper « base »", detail: "Le plus rapide ; quelques erreurs sur les mots courts." },
     Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent." },
@@ -23,6 +23,11 @@ pub const ITEMS: [Item; 6] = [
         id: "llama-server",
         label: "llama-server (Windows, processeur)",
         detail: "Le programme de mise au propre (llama.cpp), version processeur.",
+    },
+    Item {
+        id: "llama-vulkan",
+        label: "llama-server (Windows, carte graphique Vulkan)",
+        detail: "Remplace la version processeur : la mise au propre tourne sur la carte graphique (à comparer aux temps du processeur). Pour revenir en arrière, retélécharger la version processeur.",
     },
     Item {
         id: "qwen-1.5b",
@@ -40,6 +45,8 @@ pub struct Resolved {
     /// Dossier où le fichier (ou le contenu du zip) est rangé.
     pub dest: PathBuf,
     pub unzip: bool,
+    /// Vide d'abord les programmes et DLL du dossier : deux versions d'un moteur (processeur, Vulkan) ne doivent pas se mélanger.
+    pub clean: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -129,6 +136,14 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
                 true,
             )
         }
+        "llama-vulkan" => {
+            windows_only("llama-server Vulkan")?;
+            (
+                release_asset("ggml-org/llama.cpp", |n| n.starts_with("llama-") && n.ends_with("-bin-win-vulkan-x64.zip"))?,
+                engines.join("llama"),
+                true,
+            )
+        }
         "whisper-base" => (hub_file("ggerganov/whisper.cpp", "ggml-base.bin")?, models, false),
         "whisper-small" => (hub_file("ggerganov/whisper.cpp", "ggml-small.bin")?, models, false),
         "qwen-1.5b" => (hub_file("Qwen/Qwen2.5-1.5B-Instruct-GGUF", "qwen2.5-1.5b-instruct-q4_k_m.gguf")?, models, false),
@@ -136,7 +151,8 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
         other => return Err(format!("téléchargement inconnu : {other}")),
     };
     let (name, size, url) = found;
-    Ok(Resolved { name, size, url, dest, unzip })
+    let clean = id.starts_with("llama-");
+    Ok(Resolved { name, size, url, dest, unzip, clean })
 }
 
 /// Décompresse à plat : le programme et ses DLL côte à côte (jamais de chemin du zip, donc pas d'écriture hors du dossier).
@@ -156,6 +172,21 @@ fn unzip_flat(zip_path: &Path, dest: &Path) -> Result<usize, String> {
         written += 1;
     }
     Ok(written)
+}
+
+/// Supprime les programmes et DLL d'un dossier de moteur (rien d'autre : les modèles sont ailleurs).
+fn clean_engine_folder(folder: &Path) -> Result<(), String> {
+    let Ok(entries) = std::fs::read_dir(folder) else { return Ok(()) };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_engine_file =
+            path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("exe") || e.eq_ignore_ascii_case("dll"));
+        if is_engine_file {
+            std::fs::remove_file(&path)
+                .map_err(|e| format!("{} ne peut pas être remplacé ({e}) : le moteur est-il encore lancé ?", path.display()))?;
+        }
+    }
+    Ok(())
 }
 
 fn fetch(resolved: &Resolved, progress: &dyn Fn(u64, u64)) -> Result<(), String> {
@@ -188,6 +219,12 @@ fn fetch(resolved: &Resolved, progress: &dyn Fn(u64, u64)) -> Result<(), String>
         return Err(e);
     }
     if resolved.unzip {
+        if resolved.clean {
+            if let Err(e) = clean_engine_folder(&resolved.dest) {
+                let _ = std::fs::remove_file(&part);
+                return Err(e);
+            }
+        }
         let count = unzip_flat(&part, &resolved.dest);
         let _ = std::fs::remove_file(&part);
         count.map(|_| ())
@@ -259,6 +296,21 @@ mod tests {
         assert_eq!(count, 2, "le chemin qui remonte est ignoré");
         assert!(out.join("whisper-server.exe").exists() && out.join("ggml.dll").exists());
         assert!(!dir.join("evil.txt").exists());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn cleaning_an_engine_folder_removes_programs_and_dlls_only() {
+        let dir = std::env::temp_dir().join(format!("scriibe-clean-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["llama-server.exe", "ggml-vulkan.dll", "notes.txt"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+        clean_engine_folder(&dir).unwrap();
+        assert!(!dir.join("llama-server.exe").exists() && !dir.join("ggml-vulkan.dll").exists());
+        assert!(dir.join("notes.txt").exists());
+        assert!(clean_engine_folder(&dir.join("absent")).is_ok());
         let _ = std::fs::remove_dir_all(dir);
     }
 
