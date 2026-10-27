@@ -486,7 +486,21 @@ impl Controller {
         if settings.language == scriibe_core::settings::DictationLanguage::Fr && translated.is_none() {
             text = french_typography(&text);
         }
+        // Trace du collage : un Ctrl+V envoyé n'est pas un texte reçu, et sans cette ligne un collage perdu en silence ne laisse rien.
+        let focus_at_paste = deps.apps.current();
+        let paste_start = deps.clock.now();
         let pasted = deps.paster.paste(&text, settings.restore_clipboard);
+        deps.log.write(&format!(
+            "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}",
+            text.chars().count(),
+            focus_at_paste.name,
+            job.target.name,
+            seconds(elapsed_since(paste_start)),
+            match &pasted {
+                PasteOutcome::Pasted => String::new(),
+                PasteOutcome::CopiedOnly(_) => " — copié seulement".to_string(),
+            }
+        ));
         let total = elapsed_since(job.released_at);
         let timing = DictationTiming {
             transcription: transcription.as_secs_f64(),

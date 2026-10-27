@@ -292,6 +292,7 @@ fn a_normal_dictation_is_transcribed_cleaned_pasted_and_recorded() {
     assert!((timing.total - 0.65).abs() < 1e-6, "total {}", timing.total);
     let log = r.world.log.lines().join("\n");
     assert!(log.contains("transcription 0.30 s (deepgram)") && log.contains("total après relâche 0.65 s"), "{log}");
+    assert!(log.contains("collage: 41 signes envoyés à notepad (à l'appui : notepad)"), "{log}");
 }
 
 #[test]
