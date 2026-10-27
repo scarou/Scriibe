@@ -271,6 +271,7 @@ fn status(ctx: &Context) -> Value {
         "cleanup_model": settings.cleanup_model,
         "llama_log": engine_hints(&folder.join("llama-server.log")),
         "llama_device": ctx.app.llama.launcher().device(),
+        "llama_idle_minutes": crate::app::read_engine_options(&folder).llama_idle_minutes,
         "cleanup_label": settings.cleanup_engine.label(),
         "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
@@ -306,10 +307,20 @@ fn save_settings(ctx: &Context, input: &Value) -> Result<(), String> {
             return Err("appareil invalide".into());
         }
         if device != ctx.app.llama.launcher().device() {
-            crate::app::write_llama_device(ctx.app.config.folder(), device)?;
+            let mut options = crate::app::read_engine_options(ctx.app.config.folder());
+            options.llama_device = device.to_string();
+            crate::app::write_engine_options(ctx.app.config.folder(), &options)?;
             ctx.app.llama.launcher().set_device(device);
             // Le serveur redémarre à la prochaine dictée avec le nouvel appareil.
             ctx.app.llama.stop();
+        }
+    }
+    if let Some(minutes) = input["llama_idle_minutes"].as_u64() {
+        let mut options = crate::app::read_engine_options(ctx.app.config.folder());
+        if u64::from(options.llama_idle_minutes) != minutes {
+            options.llama_idle_minutes = minutes.min(24 * 60) as u32;
+            crate::app::write_engine_options(ctx.app.config.folder(), &options)?;
+            ctx.app.llama.set_idle_limit(options.idle_limit());
         }
     }
     if let Some(pause) = input["pause_media"].as_bool() {

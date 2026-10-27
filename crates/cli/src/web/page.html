@@ -80,6 +80,7 @@
       <label>Modèle GGUF : <select id="llama-model"></select></label>
     </div>
     <div class="row"><label>Carte graphique de llama.cpp : <select id="llama-device"><option value="">Automatique (toutes les cartes)</option><option value="none">Processeur seulement</option></select></label><button id="devices-load">Lister les cartes</button></div>
+    <div class="row"><label>Garder le modèle de mise au propre chargé : <select id="llama-idle"><option value="30">30 min sans dictée (comme Scribe)</option><option value="120">2 h</option><option value="480">8 h</option><option value="0">tant que Scriibe tourne</option></select></label></div>
     <div class="row" id="model-row" hidden><label>Modèle OpenRouter : <input type="text" id="cleanup-model" style="width:22em"></label></div>
     <div class="row"><label><input type="checkbox" id="pause-media"> Mettre en pause la musique ou la vidéo pendant la dictée</label></div>
     <div class="muted" id="paths"></div>
@@ -158,6 +159,7 @@ async function loadStatus() {
   $('transcription').value = s.transcription_engine;
   if (![...$('llama-device').options].some((o) => o.value === s.llama_device)) $('llama-device').add(new Option(s.llama_device, s.llama_device));
   $('llama-device').value = s.llama_device;
+  $('llama-idle').value = String(s.llama_idle_minutes);
   $('model-row').hidden = s.cleanup !== 'openRouter';
   if (document.activeElement !== $('cleanup-model')) $('cleanup-model').value = s.cleanup_model;
   for (const k of ['deepgram', 'openrouter']) $('key-' + k + '-state').innerHTML = s.keys[k] ? '<span class="ok">✔ présente</span>' : '<span class="muted">absente</span>';
@@ -170,9 +172,9 @@ async function loadStatus() {
   $('paths').innerHTML = `Réglages : ${esc(s.paths.settings)}<br>Modèles : ${esc(s.paths.models)}<br>Journal : ${esc(s.paths.log)}`;
 }
 
-for (const id of ['cleanup', 'transcription', 'cleanup-model', 'whisper-model', 'llama-model', 'llama-device', 'pause-media']) {
+for (const id of ['cleanup', 'transcription', 'cleanup-model', 'whisper-model', 'llama-model', 'llama-device', 'llama-idle', 'pause-media']) {
   $(id).addEventListener('change', async () => {
-    await api('settings', { cleanup: $('cleanup').value, transcription: $('transcription').value, cleanup_model: $('cleanup-model').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, llama_device: $('llama-device').value, pause_media: $('pause-media').checked });
+    await api('settings', { cleanup: $('cleanup').value, transcription: $('transcription').value, cleanup_model: $('cleanup-model').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, llama_device: $('llama-device').value, llama_idle_minutes: Number($('llama-idle').value), pause_media: $('pause-media').checked });
     loadStatus();
   });
 }
