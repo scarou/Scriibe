@@ -67,6 +67,7 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
         let _ = std::fs::remove_file(&llama_log);
     }
     let llama_launcher = LlamaLauncher::new(fs.clone(), llama::PORT, Some(llama_log), path_var.as_deref());
+    llama_launcher.set_device(&read_llama_device(&folder));
     let llama = Arc::new(llama::new_server(llama_launcher, runtime.clone()));
 
     platform.media.set_log(log_dyn.clone());
@@ -130,4 +131,23 @@ pub fn describe_engines(settings: &AppSettings) -> String {
         settings.cleanup_engine.label(),
         settings.hotkey
     )
+}
+
+/// Le choix de l'appareil de `llama-server` est gardé à part des réglages (qui ont le format de Scribe) : `moteurs.json`. Provisoire,
+/// en attendant la fenêtre de Réglages.
+fn engine_options_path(folder: &Path) -> PathBuf {
+    folder.join("moteurs.json")
+}
+
+pub fn read_llama_device(folder: &Path) -> String {
+    std::fs::read_to_string(engine_options_path(folder))
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|json| json["llamaDevice"].as_str().map(str::to_string))
+        .unwrap_or_default()
+}
+
+pub fn write_llama_device(folder: &Path, device: &str) -> Result<(), String> {
+    let text = serde_json::json!({ "llamaDevice": device }).to_string();
+    std::fs::write(engine_options_path(folder), text).map_err(|e| format!("impossible d'écrire moteurs.json ({e})"))
 }

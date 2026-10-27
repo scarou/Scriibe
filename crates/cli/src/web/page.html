@@ -79,6 +79,7 @@
       <label>Modèle Whisper : <select id="whisper-model"></select></label>
       <label>Modèle GGUF : <select id="llama-model"></select></label>
     </div>
+    <div class="row"><label>Carte graphique de llama.cpp : <select id="llama-device"><option value="">Automatique (toutes les cartes)</option><option value="none">Processeur seulement</option></select></label><button id="devices-load">Lister les cartes</button></div>
     <div class="row" id="model-row" hidden><label>Modèle OpenRouter : <input type="text" id="cleanup-model" style="width:22em"></label></div>
     <div class="row"><label><input type="checkbox" id="pause-media"> Mettre en pause la musique ou la vidéo pendant la dictée</label></div>
     <div class="muted" id="paths"></div>
@@ -155,6 +156,8 @@ async function loadStatus() {
   $('cleanup').value = ['llamaCpp', 'openRouter'].includes(s.cleanup) ? s.cleanup : 'none';
   $('pause-media').checked = !!s.pause_media;
   $('transcription').value = s.transcription_engine;
+  if (![...$('llama-device').options].some((o) => o.value === s.llama_device)) $('llama-device').add(new Option(s.llama_device, s.llama_device));
+  $('llama-device').value = s.llama_device;
   $('model-row').hidden = s.cleanup !== 'openRouter';
   if (document.activeElement !== $('cleanup-model')) $('cleanup-model').value = s.cleanup_model;
   for (const k of ['deepgram', 'openrouter']) $('key-' + k + '-state').innerHTML = s.keys[k] ? '<span class="ok">✔ présente</span>' : '<span class="muted">absente</span>';
@@ -167,9 +170,9 @@ async function loadStatus() {
   $('paths').innerHTML = `Réglages : ${esc(s.paths.settings)}<br>Modèles : ${esc(s.paths.models)}<br>Journal : ${esc(s.paths.log)}`;
 }
 
-for (const id of ['cleanup', 'transcription', 'cleanup-model', 'whisper-model', 'llama-model', 'pause-media']) {
+for (const id of ['cleanup', 'transcription', 'cleanup-model', 'whisper-model', 'llama-model', 'llama-device', 'pause-media']) {
   $(id).addEventListener('change', async () => {
-    await api('settings', { cleanup: $('cleanup').value, transcription: $('transcription').value, cleanup_model: $('cleanup-model').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, pause_media: $('pause-media').checked });
+    await api('settings', { cleanup: $('cleanup').value, transcription: $('transcription').value, cleanup_model: $('cleanup-model').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, llama_device: $('llama-device').value, pause_media: $('pause-media').checked });
     loadStatus();
   });
 }
@@ -183,6 +186,16 @@ document.addEventListener('click', async (e) => {
   if (!out.ok) alert(out.error);
   loadStatus();
 });
+
+$('devices-load').onclick = async () => {
+  $('devices-load').disabled = true; $('devices-load').textContent = 'Recherche…';
+  const out = await api('llama/devices');
+  for (const line of out.lines) {
+    const m = /^(\w+\d+):\s*(.*)$/.exec(line.trim());
+    if (m && ![...$('llama-device').options].some((o) => o.value === m[1])) $('llama-device').add(new Option(`${m[1]} — ${m[2]}`, m[1]));
+  }
+  $('devices-load').disabled = false; $('devices-load').textContent = 'Lister les cartes';
+};
 
 // --- Téléchargements ---
 const resolved = {};
@@ -345,7 +358,9 @@ async function buildReport() {
   r += `whisper-server : ${s.whisper.binary ? 'oui' : 'non'} ; modèles Whisper : ${s.whisper.models.map(base).join(', ') || 'aucun'}\n`;
   r += `llama-server : ${s.llama.binary ? 'oui' : 'non'} ; modèles GGUF : ${s.llama.models.map(base).join(', ') || 'aucun'}\n`;
   r += `Micros : ${s.microphones.join(' | ') || 'aucun'}${s.keys_error ? '\nTouche globale : ' + s.keys_error : ''}\n`;
-  if (s.llama_log.length) r += `Journal de llama-server (carte graphique) :\n  ${s.llama_log.join('\n  ')}\n`;
+  r += `llama-server : appareil choisi « ${s.llama_device || 'automatique'} » ; journal du moteur ${s.llama_log.bytes} octets\n`;
+  if (s.llama_log.hints.length) r += `  lignes carte graphique :\n    ${s.llama_log.hints.join('\n    ')}\n`;
+  else if (s.llama_log.tail.length) r += `  (aucune ligne carte graphique) dernières lignes :\n    ${s.llama_log.tail.join('\n    ')}\n`;
   if (devices.length) r += `llama-server --list-devices :\n  ${devices.join('\n  ')}\n`;
   r += '\n';
   for (const x of results) {

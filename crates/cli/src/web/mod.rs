@@ -270,6 +270,7 @@ fn status(ctx: &Context) -> Value {
         "cleanup": match settings.cleanup_engine { CleanupEngine::None => "none", CleanupEngine::LlamaCpp => "llamaCpp", CleanupEngine::OpenRouter => "openRouter", _ => "other" },
         "cleanup_model": settings.cleanup_model,
         "llama_log": engine_hints(&folder.join("llama-server.log")),
+        "llama_device": ctx.app.llama.launcher().device(),
         "cleanup_label": settings.cleanup_engine.label(),
         "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
@@ -298,6 +299,18 @@ fn save_settings(ctx: &Context, input: &Value) -> Result<(), String> {
     }
     if let Some(model) = input["cleanup_model"].as_str().map(str::trim).filter(|m| !m.is_empty()) {
         settings.cleanup_model = model.to_string();
+    }
+    if let Some(device) = input["llama_device"].as_str() {
+        // Caractères d'un nom d'appareil de llama.cpp (« Vulkan1 », « none ») : rien d'autre ne part en option.
+        if !device.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err("appareil invalide".into());
+        }
+        if device != ctx.app.llama.launcher().device() {
+            crate::app::write_llama_device(ctx.app.config.folder(), device)?;
+            ctx.app.llama.launcher().set_device(device);
+            // Le serveur redémarre à la prochaine dictée avec le nouvel appareil.
+            ctx.app.llama.stop();
+        }
     }
     if let Some(pause) = input["pause_media"].as_bool() {
         settings.pause_media = pause;
@@ -452,20 +465,27 @@ fn restart(app: &App) {
     std::process::exit(0);
 }
 
-/// Les lignes du journal d'un moteur qui disent sur quoi il tourne (carte graphique, couches déchargées) : les dernières seulement.
-fn engine_hints(path: &std::path::Path) -> Vec<String> {
-    let Ok(bytes) = std::fs::read(path) else { return Vec::new() };
-    let tail = &bytes[bytes.len().saturating_sub(300_000)..];
-    let text = String::from_utf8_lossy(tail);
-    let hints: Vec<String> = text
-        .lines()
+/// Le journal d'un moteur : sa taille, les lignes qui disent sur quoi il tourne (carte graphique, couches déchargées) et les dernières
+/// lignes, pour voir ce qu'il contient quand rien ne correspond.
+fn engine_hints(path: &std::path::Path) -> Value {
+    let Ok(bytes) = std::fs::read(path) else { return json!({"bytes": 0, "hints": [], "tail": []}) };
+    let tail_bytes = &bytes[bytes.len().saturating_sub(300_000)..];
+    let text = String::from_utf8_lossy(tail_bytes);
+    let short = |l: &str| -> String { l.trim().chars().take(180).collect() };
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    let hints: Vec<String> = lines
+        .iter()
         .filter(|l| {
             let l = l.to_lowercase();
             l.contains("vulkan") || l.contains("offloaded") || l.contains("using device") || l.contains("no gpu")
         })
-        .map(|l| l.trim().chars().take(180).collect())
+        .map(|l| short(l))
         .collect();
-    hints[hints.len().saturating_sub(8)..].to_vec()
+    json!({
+        "bytes": bytes.len(),
+        "hints": hints[hints.len().saturating_sub(8)..],
+        "tail": lines[lines.len().saturating_sub(4)..].iter().map(|l| short(l)).collect::<Vec<_>>(),
+    })
 }
 
 /// Ce que `llama-server --list-devices` dit des cartes graphiques qu'il sait utiliser (quelques lignes, 20 s au plus).

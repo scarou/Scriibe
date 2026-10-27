@@ -200,6 +200,8 @@ pub struct LlamaLauncher {
     config: ServerConfig,
     fs: Arc<dyn FileSystem>,
     binary: Option<PathBuf>,
+    /// Appareil imposé à `llama-server` (`--device Vulkan1`, ou `none` pour le processeur seul) ; vide : il choisit lui-même.
+    device: std::sync::Mutex<String>,
 }
 
 impl LlamaLauncher {
@@ -220,7 +222,17 @@ impl LlamaLauncher {
             },
             fs,
             binary,
+            device: std::sync::Mutex::new(String::new()),
         }
+    }
+
+    /// Impose un appareil au prochain démarrage du serveur (vide : choix automatique).
+    pub fn set_device(&self, device: &str) {
+        *self.device.lock().unwrap_or_else(|p| p.into_inner()) = device.trim().to_string();
+    }
+
+    pub fn device(&self) -> String {
+        self.device.lock().unwrap_or_else(|p| p.into_inner()).clone()
     }
 }
 
@@ -243,6 +255,12 @@ impl Launcher for LlamaLauncher {
         // Écart avec Scribe (docs/ECARTS.md) : sans carte graphique, la génération se fait sur le processeur ; on ne lance pas plus de
         // fils que de cœurs physiques.
         args.extend(["-t".to_string(), crate::compute_threads().to_string()]);
+        // Écart avec Scribe : plusieurs cartes graphiques (portable avec carte intégrée et carte dédiée) : llama.cpp répartit sinon le
+        // modèle entre elles ; le choix de l'appareil est laissé à la personne.
+        let device = self.device();
+        if !device.is_empty() {
+            args.extend(["--device".to_string(), device]);
+        }
         (args, assistant.is_some())
     }
 
@@ -282,5 +300,36 @@ pub fn ensure_running_within(server: &Arc<EngineServer<LlamaLauncher>>, model: &
     match receiver.recv_timeout(within) {
         Ok(result) => result,
         Err(_) => Err(ServiceError::new("llama.cpp met trop de temps à démarrer")),
+    }
+}
+
+#[cfg(test)]
+mod device_tests {
+    use super::*;
+
+    struct NoFiles;
+    impl FileSystem for NoFiles {
+        fn exists(&self, _: &Path) -> bool {
+            false
+        }
+        fn list_dir(&self, _: &Path) -> Vec<String> {
+            Vec::new()
+        }
+        fn walk(&self, _: &Path) -> Vec<PathBuf> {
+            Vec::new()
+        }
+    }
+
+    #[test]
+    fn the_chosen_device_is_added_to_the_options_only_when_there_is_one() {
+        let launcher = LlamaLauncher::new(Arc::new(NoFiles), 8179, None, None);
+        let has_device = |launcher: &LlamaLauncher| launcher.args("/m/a.gguf", false).0.windows(2).any(|w| w[0] == "--device");
+        assert!(!has_device(&launcher), "automatique : aucune option, comme Scribe");
+        launcher.set_device(" Vulkan1 ");
+        let args = launcher.args("/m/a.gguf", false).0;
+        let at = args.iter().position(|a| a == "--device").unwrap();
+        assert_eq!(args[at + 1], "Vulkan1");
+        launcher.set_device("");
+        assert!(!has_device(&launcher));
     }
 }
