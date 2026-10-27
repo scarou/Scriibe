@@ -1,4 +1,4 @@
-# Reprise — 27/10/2026 (fin de S04)
+# Reprise — 27/10/2026 (fin de S04, pour S05)
 
 Le texte ci-dessous est le prompt à coller au début de la session suivante.
 
@@ -40,7 +40,7 @@ EN SUSPENS (pas pour cette session sauf demande)
 - Au retour de Christophe sur son Mac : exporter les messages complets des prompts des 8 modes, de la traduction et du préchauffage depuis le Swift, sur une branche locale jetable de Scribe jamais fusionnée, dans fixtures/prompts.json (voir fixtures/A_FAIRE.md) ; créer la mémoire du projet, le groupe « Scriibe » de la barre latérale et le carnet d'idées du vault.
 - Vérifier le nom Scriibe (INPI/EUIPO, recherche web) avant l'ouverture ; README anglais et CONTRIBUTING ; versions publiques (Releases) à l'ouverture, qui remplaceront le jeton GitHub de la mise à jour.
 - Choix à faire plus tard : Wayland, langue de l'interface au-delà du français, équivalent portable du mode Amusant, moteur optionnel Kyutai (Mac MLX / PC NVIDIA), démarrage avec Windows, signature Authenticode.
-- Reprendre le déroulement du banc de dictée (archive, comparaison), le test de frappe et ui_logic.json avec l'interface (étape 6) ; les 17 phrases et leurs contrôles sont déjà repris.
+- Banc de dictée (archive, comparaison), test de frappe et ui_logic.json : repris en S04 ; reste la comparaison « avec / sans modèle » du banc (écart noté).
 
-CLÔTURE DE SESSION : applique la section « Clôture de session » de CLAUDE.md (CHANGELOG, REPRISE, ROADMAP, README, ECARTS, A_FAIRE à jour ; fmt, clippy, tests, CI verte), puis renomme la session « S04 - jj/mm/aaaa - Titre résumant la session » (mcp__claude-code-remote__set_session_title, avec l'identifiant de get_session).
+CLÔTURE DE SESSION : applique la section « Clôture de session » de CLAUDE.md (CHANGELOG, REPRISE, ROADMAP, README, ECARTS, A_FAIRE à jour ; fmt, clippy, tests, CI verte), puis renomme la session « S05 - jj/mm/aaaa - Titre résumant la session » (mcp__claude-code-remote__set_session_title, avec l'identifiant de get_session).
 ```
