@@ -2,20 +2,17 @@
   import { onMount } from 'svelte';
   import { api } from './lib/api';
   import { status } from './lib/status.svelte';
+  import { tabs, type TabId } from './lib/tabs';
   import Settings from './tabs/Settings.svelte';
   import Install from './tabs/Install.svelte';
   import Bench from './tabs/Bench.svelte';
   import Update from './tabs/Update.svelte';
   import Journal from './tabs/Journal.svelte';
-
-  const tabs = [
-    { id: 'settings', label: 'Réglages', icon: '⚙' },
-    { id: 'install', label: 'Installation', icon: '⬇' },
-    { id: 'bench', label: 'Banc d’essai', icon: '🎤' },
-    { id: 'update', label: 'Mise à jour', icon: '⟳' },
-    { id: 'journal', label: 'Journal et rapport', icon: '☰' },
-  ] as const;
-  type TabId = (typeof tabs)[number]['id'];
+  import Dictionary from './tabs/Dictionary.svelte';
+  import Modes from './tabs/Modes.svelte';
+  import History from './tabs/History.svelte';
+  import Dashboard from './tabs/Dashboard.svelte';
+  import Help from './tabs/Help.svelte';
 
   const saved = (() => {
     try {
@@ -24,7 +21,7 @@
       return null;
     }
   })();
-  let tab = $state<TabId>(tabs.some((t) => t.id === saved) ? (saved as TabId) : 'settings');
+  let tab = $state<TabId>(tabs.some((t) => t.id === saved) ? (saved as TabId) : 'dashboard');
   let stopped = $state(false);
 
   function choose(id: TabId) {
@@ -60,7 +57,12 @@
       {#if status.failed}
         <div class="card bad">Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.</div>
       {/if}
-      {#if tab === 'settings'}<Settings />
+      {#if tab === 'dashboard'}<Dashboard />
+      {:else if tab === 'history'}<History />
+      {:else if tab === 'modes'}<Modes />
+      {:else if tab === 'dictionary'}<Dictionary />
+      {:else if tab === 'help'}<Help />
+      {:else if tab === 'settings'}<Settings />
       {:else if tab === 'install'}<Install />
       {:else if tab === 'bench'}<Bench />
       {:else if tab === 'update'}<Update />

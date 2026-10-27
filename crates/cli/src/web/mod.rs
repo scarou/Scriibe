@@ -3,6 +3,7 @@
 //! banc de dictée de Scribe et de voir ce que Whisper a entendu, ce qui serait collé, les contrôles et les temps, puis de copier un rapport.
 
 mod assets;
+mod data;
 mod downloads;
 mod sinks;
 mod update;
@@ -13,6 +14,7 @@ pub use update::remove_leftovers as remove_update_leftovers;
 use crate::app::{detect_whisper_models, models_folder, App};
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
+use scriibe_core::dictionary::{Correction, UserDictionary};
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
@@ -21,6 +23,7 @@ use scriibe_engines::runtime::{KeyKind, Log};
 use scriibe_engines::server::Launcher;
 use scriibe_engines::whisper::{self, WhisperLauncher};
 use scriibe_platform::audio::Recording;
+use scriibe_platform::storage::FileHistory;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -28,6 +31,7 @@ use tiny_http::{Header, Method, Request, Response, Server};
 
 pub struct Context {
     app: Arc<App>,
+    history: Arc<FileHistory>,
     sinks: Arc<TestSinks>,
     downloads: Arc<Downloads>,
     updater: Arc<update::Updater>,
@@ -51,13 +55,19 @@ fn build_id() -> String {
 }
 
 /// Démarre le serveur dans un fil et rend son adresse complète.
-pub fn start(app: Arc<App>, sinks: Arc<TestSinks>, keys_error: Option<String>) -> Result<(Arc<Context>, String), String> {
+pub fn start(
+    app: Arc<App>,
+    history: Arc<FileHistory>,
+    sinks: Arc<TestSinks>,
+    keys_error: Option<String>,
+) -> Result<(Arc<Context>, String), String> {
     let server = Server::http("127.0.0.1:0").map_err(|e| format!("serveur local impossible : {e}"))?;
     let port = server.server_addr().to_ip().map(|a| a.port()).ok_or("port inconnu")?;
     let token = scriibe_core::modes::new_id();
     let url = format!("http://127.0.0.1:{port}/{token}/");
     let context = Arc::new(Context {
         app,
+        history,
         sinks,
         downloads: Arc::new(Downloads::default()),
         updater: Arc::new(update::Updater::default()),
@@ -119,6 +129,45 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Get, "api/phrases") => ok(request, phrases()),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
+        (Method::Get, "api/modes") => ok(request, data::modes(&ctx.app.config.settings())),
+        (Method::Post, "api/modes/choose") => match choose_mode(ctx, input["choice"].as_str().unwrap_or("")) {
+            Ok(view) => ok(request, view),
+            Err(e) => fail(request, 400, &e),
+        },
+        (Method::Get, "api/dictionary") => ok(request, dictionary_view(&ctx.app.config.dictionary())),
+        (Method::Post, "api/dictionary") => match save_dictionary(ctx, &input) {
+            Ok(view) => ok(request, view),
+            Err(e) => fail(request, 400, &e),
+        },
+        (Method::Get, "api/history") => ok(request, ctx.history.read(|store, _, _| data::history(store))),
+        (Method::Get, "api/stats") => ok(request, ctx.history.read(data::stats)),
+        (Method::Post, "api/history/delete") => {
+            let id = input["id"].as_str().unwrap_or("").to_string();
+            ctx.history.update(|store, _, _| store.delete(&id));
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/history/clear") => {
+            if input["confirmed"].as_bool() != Some(true) {
+                return fail(request, 400, "confirmation manquante");
+            }
+            ctx.history.update(|store, _, _| store.clear_history());
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/history/preview") => {
+            let (keep_text, keep_days) = history_choice(&input);
+            let change = ctx.history.read(|store, calendar, now| store.preview_history_change(calendar, now, keep_text, keep_days));
+            ok(request, json!({"ok": true, "purged": change.purged, "erased": change.erased}))
+        }
+        (Method::Post, "api/history/apply") => {
+            if input["confirmed"].as_bool() != Some(true) {
+                return fail(request, 400, "confirmation manquante");
+            }
+            let (keep_text, keep_days) = history_choice(&input);
+            match apply_history_change(ctx, keep_text, keep_days) {
+                Ok(()) => ok(request, json!({"ok": true})),
+                Err(e) => fail(request, 500, &e),
+            }
+        }
         (Method::Get, "api/settings") => ok(request, json!({"settings": ctx.app.config.settings()})),
         (Method::Post, "api/settings") => match patch_settings(ctx, &input) {
             Ok(settings) => ok(request, json!({"ok": true, "settings": settings})),
@@ -328,6 +377,65 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
 /// Réglages facultatifs, absents du fichier tant qu'ils n'ont pas de valeur.
 const OPTIONAL_KEYS: [&str; 2] = ["historyKeepDays", "customModeID"];
 
+/// Le mode choisi : un mode livré (« formal ») ou l'identifiant d'un mode personnel.
+fn choose_mode(ctx: &Context, choice: &str) -> Result<Value, String> {
+    let mut settings = ctx.app.config.settings();
+    settings.set_mode_choice(choice);
+    if settings.mode_choice() != choice {
+        return Err("mode inconnu".into());
+    }
+    ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())?;
+    Ok(data::modes(&settings))
+}
+
+fn dictionary_view(dictionary: &UserDictionary) -> Value {
+    json!({
+        "words": dictionary.words,
+        "corrections": dictionary.corrections.iter().map(|c| json!({"heard": c.heard, "written": c.written})).collect::<Vec<_>>(),
+    })
+}
+
+/// Enregistre le dictionnaire tel que la page l'envoie : mots et corrections nettoyés (espaces, lignes vides, doublons de mots).
+fn clean_dictionary(input: &Value) -> UserDictionary {
+    let mut words: Vec<String> = Vec::new();
+    for word in input["words"].as_array().into_iter().flatten().filter_map(Value::as_str) {
+        let word = word.trim();
+        if !word.is_empty() && !words.iter().any(|w| w.eq_ignore_ascii_case(word)) {
+            words.push(word.to_string());
+        }
+    }
+    let corrections = input["corrections"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|c| {
+            let (heard, written) = (c["heard"].as_str()?.trim(), c["written"].as_str()?.trim());
+            (!heard.is_empty() && !written.is_empty()).then(|| Correction { heard: heard.to_string(), written: written.to_string() })
+        })
+        .collect();
+    UserDictionary { words, corrections }
+}
+
+fn save_dictionary(ctx: &Context, input: &Value) -> Result<Value, String> {
+    let dictionary = clean_dictionary(input);
+    ctx.app.config.save_dictionary(&dictionary).map_err(|e| format!("impossible d'écrire le dictionnaire ({e})"))?;
+    Ok(dictionary_view(&dictionary))
+}
+
+fn history_choice(input: &Value) -> (bool, Option<i64>) {
+    (input["keep_text"].as_bool().unwrap_or(true), input["keep_days"].as_i64())
+}
+
+/// Applique « garder le texte » et la durée de conservation : l'historique est purgé ou effacé (définitif, l'aperçu a été montré),
+/// puis les réglages sont enregistrés.
+fn apply_history_change(ctx: &Context, keep_text: bool, keep_days: Option<i64>) -> Result<(), String> {
+    let settings = ctx.history.update(|store, calendar, now| {
+        store.apply_history_change(calendar, now, keep_text, keep_days);
+        store.settings.clone()
+    });
+    ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())
+}
+
 fn record_start(ctx: &Context) -> Result<String, String> {
     if ctx.app.controller.is_recording() || ctx.app.controller.is_busy() {
         return Err("une dictée est en cours avec la touche".into());
@@ -535,6 +643,16 @@ fn llama_devices(ctx: &Context) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_dictionary_sent_by_the_page_is_cleaned() {
+        let cleaned = clean_dictionary(&json!({
+            "words": ["  Scriibe ", "", "scriibe", "Tauri"],
+            "corrections": [{"heard": " cri be ", "written": "Scriibe"}, {"heard": "", "written": "x"}, {"heard": "a"}],
+        }));
+        assert_eq!(cleaned.words, vec!["Scriibe", "Tauri"], "espaces retirés, mot vide et doublon (majuscules ignorées) écartés");
+        assert_eq!(cleaned.corrections, vec![Correction { heard: "cri be".into(), written: "Scriibe".into() }]);
+    }
 
     #[test]
     fn settings_changes_are_merged_by_key_and_unknown_or_unsafe_ones_are_refused() {

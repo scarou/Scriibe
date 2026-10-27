@@ -124,6 +124,13 @@ impl FileConfig {
     pub fn dictionary(&self) -> UserDictionary {
         self.dictionary.get(|text| UserDictionary::from_json(text).ok(), UserDictionary::default)
     }
+
+    pub fn save_dictionary(&self, dictionary: &UserDictionary) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(dictionary).map_err(std::io::Error::other)?;
+        write_atomic(&self.folder.join("dictionary.json"), &json)?;
+        self.dictionary.forget();
+        Ok(())
+    }
 }
 
 /// D'où le chef d'orchestre lit les réglages et le dictionnaire (relus à chaque dictée : une modification à la main s'applique tout de suite).
@@ -167,14 +174,24 @@ impl FileHistory {
     pub fn dictation_count(&self) -> usize {
         self.store.lock().unwrap_or_else(|p| p.into_inner()).history.len()
     }
-}
 
-impl HistorySink for FileHistory {
-    fn record(&self, dictation: Dictation) {
+    /// Lit l'historique (la durée de conservation est d'abord appliquée si elle est due : « à l'ouverture des pages »).
+    pub fn read<R>(&self, f: impl FnOnce(&Store, &Calendar<Local>, DateTime<Utc>) -> R) -> R {
+        self.update(|store, calendar, now| f(store, calendar, now))
+    }
+
+    /// Change l'historique puis l'écrit sur le disque. `f` reçoit l'état, le calendrier local et l'heure.
+    pub fn update<R>(&self, f: impl FnOnce(&mut Store, &Calendar<Local>, DateTime<Utc>) -> R) -> R {
         let mut store = self.store.lock().unwrap_or_else(|p| p.into_inner());
         store.settings = (self.settings)();
-        let now: DateTime<Utc> = Utc::now();
-        store.add(&Calendar::new(Local), now, dictation);
+        let (calendar, now) = (Calendar::new(Local), Utc::now());
+        store.apply_retention_if_due(&calendar, now);
+        let result = f(&mut store, &calendar, now);
+        self.persist(&store);
+        result
+    }
+
+    fn persist(&self, store: &Store) {
         for (name, json) in [
             ("history.json", serde_json::to_string_pretty(&store.history)),
             ("history-totals.json", serde_json::to_string_pretty(&store.archive)),
@@ -183,6 +200,12 @@ impl HistorySink for FileHistory {
                 let _ = write_atomic(&self.folder.join(name), &json);
             }
         }
+    }
+}
+
+impl HistorySink for FileHistory {
+    fn record(&self, dictation: Dictation) {
+        self.update(|store, calendar, now| store.add(calendar, now, dictation));
     }
 }
 
@@ -250,6 +273,45 @@ mod tests {
         assert_eq!(settings.transcription_engine, TranscriptionEngine::Whisper);
         assert_eq!(settings.cleanup_engine, CleanupEngine::LlamaCpp);
         assert_eq!(settings.hotkey, Hotkey::system_default());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn history_is_kept_on_disk_deleted_and_purged_by_age() {
+        let dir = temp("history-by-age");
+        let history = FileHistory::open(dir.clone(), AppSettings::default);
+        let now = Utc::now();
+        let old = Dictation::new(now - chrono::Duration::days(40), "Chrome", "vieux", "vieux", 20, 8.0, 0);
+        let fresh = Dictation::new(now, "Bloc-notes", "frais", "frais", 10, 4.0, 1);
+        let fresh_id = fresh.id.clone();
+        history.record(old);
+        history.record(fresh);
+        assert_eq!(FileHistory::open(dir.clone(), AppSettings::default).dictation_count(), 2, "écrit sur le disque");
+
+        // Garder 30 jours : la dictée de il y a 40 jours part, ses totaux restent dans l'archive.
+        let kept = history.update(|store, calendar, now| {
+            store.apply_history_change(calendar, now, true, Some(30));
+            (store.history.len(), store.archive.iter().map(|d| d.words).sum::<i64>())
+        });
+        assert_eq!(kept, (1, 20));
+        assert_eq!(history.read(|store, _, _| store.total_words()), 30, "les chiffres comptent l'archive");
+
+        history.update(|store, _, _| store.delete(&fresh_id));
+        assert_eq!(history.dictation_count(), 0);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_dictionary_is_saved_and_read_back() {
+        let dir = temp("dictionary");
+        let config = FileConfig::new(dir.clone());
+        assert!(config.dictionary().words.is_empty());
+        let dictionary = UserDictionary {
+            words: vec!["Scriibe".into()],
+            corrections: vec![scriibe_core::dictionary::Correction { heard: "cri be".into(), written: "Scriibe".into() }],
+        };
+        config.save_dictionary(&dictionary).unwrap();
+        assert_eq!(config.dictionary(), dictionary);
         let _ = std::fs::remove_dir_all(dir);
     }
 

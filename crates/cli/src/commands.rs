@@ -66,7 +66,7 @@ pub fn run() -> Result<(), String> {
 
     let settings_source = config.clone();
     let history = Arc::new(FileHistory::open(config.folder().to_path_buf(), move || settings_source.settings()));
-    let sinks = TestSinks::new(platform.paster.clone(), history, real_indicator);
+    let sinks = TestSinks::new(platform.paster.clone(), history.clone(), real_indicator);
     let choices = Choices {
         paster: Some(Arc::new(SwitchPaster(sinks.clone()))),
         history: Some(Arc::new(SwitchHistory(sinks.clone()))),
@@ -92,7 +92,7 @@ pub fn run() -> Result<(), String> {
         })
         .map_err(|e| e.to_string())?;
 
-    let (_context, url) = crate::web::start(app.clone(), sinks, keys_error)?;
+    let (_context, url) = crate::web::start(app.clone(), history, sinks, keys_error)?;
     if let Ok(mut slot) = page_url.lock() {
         *slot = Some(url.clone());
     }

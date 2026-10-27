@@ -100,3 +100,76 @@ export interface Transcribed {
   verdict: 'muet' | 'faible' | 'correct';
   profile: Profile;
 }
+
+export interface Correction {
+  heard: string;
+  written: string;
+}
+
+export interface Dictionary {
+  words: string[];
+  corrections: Correction[];
+}
+
+export interface ModeExample {
+  id: string;
+  dictation: string;
+  expected: string;
+}
+
+export interface CustomMode {
+  id: string;
+  name: string;
+  style: string;
+  rewrites: boolean;
+  vouvoie: boolean;
+  examples: ModeExample[];
+}
+
+export interface BuiltInMode {
+  id: string;
+  label: string;
+  summary: string;
+  has_style: boolean;
+  original_style: string | null;
+  typed_style: string;
+  modified: boolean;
+  available: boolean;
+}
+
+export interface Modes {
+  built_in: BuiltInMode[];
+  groups: string[][];
+  choice: string;
+  active_label: string;
+}
+
+export interface HistoryItem {
+  id: string;
+  date: string;
+  app: string;
+  raw: string;
+  text: string;
+  has_text: boolean;
+  words: number;
+  duration: number;
+  wpm: number;
+  corrections: number;
+  translation: string | null;
+  timing: { transcription: number; cleanup: number; total: number; outcome: string } | null;
+}
+
+export interface Stats {
+  dictations: number;
+  total_words: number;
+  today_words: number;
+  yesterday_words: number;
+  today_change: number | null;
+  average_wpm: number;
+  time_saved: number;
+  streak: number;
+  corrections_this_week: number;
+  last_days: { day: string; words: number }[];
+  top_apps: { name: string; words: number; share: number }[];
+  typing_wpm: number;
+}
