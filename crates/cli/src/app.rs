@@ -1,7 +1,7 @@
 //! L'assemblage : les moteurs, la plateforme et le chef d'orchestre, branchés ensemble.
 
 use scriibe_core::lang::LinguaGuesser;
-use scriibe_core::settings::AppSettings;
+use scriibe_core::settings::{is_device_name, AppSettings};
 use scriibe_engines::fs::{FileSystem, RealFs};
 use scriibe_engines::http::UreqHttp;
 use scriibe_engines::llama::{self, LlamaLauncher};
@@ -68,10 +68,10 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
         let _ = std::fs::remove_file(&llama_log);
     }
     let llama_launcher = LlamaLauncher::new(fs.clone(), llama::PORT, Some(llama_log), path_var.as_deref());
-    let options = read_engine_options(&folder);
-    llama_launcher.set_device(&options.llama_device);
+    let startup = config.settings();
+    llama_launcher.set_device(&startup.llama_device);
     let llama = Arc::new(llama::new_server(llama_launcher, runtime.clone()));
-    llama.set_idle_limit(options.idle_limit());
+    llama.set_idle_limit(idle_limit(startup.llama_idle_minutes));
 
     platform.media.set_log(log_dyn.clone());
     let secrets: Arc<dyn Secrets> = platform.secrets.clone();
@@ -136,46 +136,36 @@ pub fn describe_engines(settings: &AppSettings) -> String {
     )
 }
 
-/// Options de moteur propres à Scriibe, gardées à part des réglages (qui ont le format de Scribe) : `moteurs.json`. Provisoire, en
-/// attendant la fenêtre de Réglages.
-#[derive(Debug, Clone, PartialEq)]
-pub struct EngineOptions {
-    /// Appareil imposé à `llama-server` (« Vulkan1 », « none »), vide : automatique.
-    pub llama_device: String,
-    /// Minutes sans dictée avant de libérer `llama-server` ; 0 : tant que le programme tourne. 30 comme Scribe.
-    pub llama_idle_minutes: u32,
+/// Le délai de libération de `llama-server` pour une durée en minutes (0 : jamais).
+pub fn idle_limit(minutes: i64) -> Option<Duration> {
+    (minutes > 0).then(|| Duration::from_secs(minutes as u64 * 60))
 }
 
-impl Default for EngineOptions {
-    fn default() -> Self {
-        Self { llama_device: String::new(), llama_idle_minutes: 30 }
-    }
-}
-
-impl EngineOptions {
-    pub fn idle_limit(&self) -> Option<Duration> {
-        (self.llama_idle_minutes > 0).then(|| Duration::from_secs(u64::from(self.llama_idle_minutes) * 60))
-    }
-}
-
-fn engine_options_path(folder: &Path) -> PathBuf {
+fn legacy_options_path(folder: &Path) -> PathBuf {
     folder.join("moteurs.json")
 }
 
-pub fn read_engine_options(folder: &Path) -> EngineOptions {
-    let json: Option<serde_json::Value> =
-        std::fs::read_to_string(engine_options_path(folder)).ok().and_then(|text| serde_json::from_str(&text).ok());
-    let defaults = EngineOptions::default();
-    let Some(json) = json else { return defaults };
-    EngineOptions {
-        llama_device: json["llamaDevice"].as_str().map(str::to_string).unwrap_or(defaults.llama_device),
-        llama_idle_minutes: json["llamaIdleMinutes"].as_u64().map_or(defaults.llama_idle_minutes, |m| m.min(24 * 60) as u32),
+/// Reprend dans les réglages ce que S03 gardait à part dans `moteurs.json` (carte graphique, durée de conservation), puis supprime
+/// le fichier : les réglages sont désormais au même endroit.
+pub fn migrate_engine_options(config: &FileConfig) {
+    let path = legacy_options_path(config.folder());
+    let Some(json) = std::fs::read_to_string(&path).ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()) else {
+        return;
+    };
+    let mut settings = config.settings();
+    apply_legacy_options(&mut settings, &json);
+    if config.save_settings(&settings).is_ok() {
+        let _ = std::fs::remove_file(path);
     }
 }
 
-pub fn write_engine_options(folder: &Path, options: &EngineOptions) -> Result<(), String> {
-    let text = serde_json::json!({ "llamaDevice": options.llama_device, "llamaIdleMinutes": options.llama_idle_minutes }).to_string();
-    std::fs::write(engine_options_path(folder), text).map_err(|e| format!("impossible d'écrire moteurs.json ({e})"))
+fn apply_legacy_options(settings: &mut AppSettings, json: &serde_json::Value) {
+    if let Some(device) = json["llamaDevice"].as_str().filter(|d| is_device_name(d)) {
+        settings.llama_device = device.to_string();
+    }
+    if let Some(minutes) = json["llamaIdleMinutes"].as_u64() {
+        settings.llama_idle_minutes = minutes.min(24 * 60) as i64;
+    }
 }
 
 #[cfg(test)]
@@ -183,18 +173,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn engine_options_are_kept_in_a_small_file_and_default_to_scribes_values() {
+    fn legacy_engine_file_moves_into_the_settings_and_goes_away() {
         let dir = std::env::temp_dir().join(format!("scriibe-moteurs-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        assert_eq!(read_engine_options(&dir), EngineOptions::default(), "pas de fichier : les valeurs de Scribe");
-        assert_eq!(EngineOptions::default().idle_limit(), Some(Duration::from_secs(30 * 60)));
-        let options = EngineOptions { llama_device: "Vulkan1".into(), llama_idle_minutes: 0 };
-        write_engine_options(&dir, &options).unwrap();
-        assert_eq!(read_engine_options(&dir), options);
-        assert_eq!(options.idle_limit(), None, "0 : jamais libéré");
-        std::fs::write(dir.join("moteurs.json"), r#"{"llamaDevice": "none"}"#).unwrap();
-        assert_eq!(read_engine_options(&dir).llama_idle_minutes, 30, "champ absent : la valeur par défaut");
+        let config = FileConfig::new(dir.clone());
+        config.create_settings_if_missing().unwrap();
+        assert_eq!(config.settings().llama_idle_minutes, 30, "valeur de Scribe par défaut");
+        assert_eq!(idle_limit(30), Some(Duration::from_secs(30 * 60)));
+        assert_eq!(idle_limit(0), None, "0 : jamais libéré");
+
+        migrate_engine_options(&config);
+        assert_eq!(config.settings().llama_device, "", "pas de fichier : rien ne change");
+
+        std::fs::write(dir.join("moteurs.json"), r#"{"llamaDevice": "Vulkan1", "llamaIdleMinutes": 0}"#).unwrap();
+        migrate_engine_options(&config);
+        let settings = config.settings();
+        assert_eq!((settings.llama_device.as_str(), settings.llama_idle_minutes), ("Vulkan1", 0));
+        assert!(!dir.join("moteurs.json").exists());
+
+        let mut partial = AppSettings::default();
+        apply_legacy_options(&mut partial, &serde_json::json!({"llamaDevice": "a b; rm"}));
+        assert_eq!(partial.llama_device, "", "un nom d'appareil invalide est refusé");
+        assert_eq!(partial.llama_idle_minutes, 30, "champ absent : la valeur par défaut");
         let _ = std::fs::remove_dir_all(dir);
     }
 }

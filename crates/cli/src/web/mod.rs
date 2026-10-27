@@ -14,7 +14,7 @@ use crate::app::{detect_whisper_models, models_folder, App};
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::microphone::MicLevel;
-use scriibe_core::settings::{CleanupEngine, TranscriptionEngine};
+use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
 use scriibe_engines::llama::{self, LlamaLauncher};
 use scriibe_engines::runtime::{KeyKind, Log};
@@ -119,8 +119,9 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Get, "api/phrases") => ok(request, phrases()),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
-        (Method::Post, "api/settings") => match save_settings(ctx, &input) {
-            Ok(()) => ok(request, json!({"ok": true})),
+        (Method::Get, "api/settings") => ok(request, json!({"settings": ctx.app.config.settings()})),
+        (Method::Post, "api/settings") => match patch_settings(ctx, &input) {
+            Ok(settings) => ok(request, json!({"ok": true, "settings": settings})),
             Err(e) => fail(request, 400, &e),
         },
         (Method::Post, "api/record/start") => match record_start(ctx) {
@@ -279,69 +280,53 @@ fn status(ctx: &Context) -> Value {
         "cleanup_model": settings.cleanup_model,
         "llama_log": engine_hints(&folder.join("llama-server.log")),
         "llama_device": ctx.app.llama.launcher().device(),
-        "llama_idle_minutes": crate::app::read_engine_options(&folder).llama_idle_minutes,
+        "llama_idle_minutes": settings.llama_idle_minutes,
         "cleanup_label": settings.cleanup_engine.label(),
         "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
         "llama": {"binary": llama_binary.map(|p| p.display().to_string()), "models": llama_models, "chosen": settings.llama_cpp_model},
         "keys": {"deepgram": key(KeyKind::Deepgram), "openrouter": key(KeyKind::OpenRouter)},
         "microphones": app.platform.recorder.microphones().iter().map(|m| m.label()).collect::<Vec<_>>(),
+        "microphone_list": app.platform.recorder.microphones().iter().map(|m| json!({"uid": m.uid, "label": m.label()})).collect::<Vec<_>>(),
     })
 }
 
-fn save_settings(ctx: &Context, input: &Value) -> Result<(), String> {
-    let mut settings = ctx.app.config.settings();
-    if let Some(cleanup) = input["cleanup"].as_str() {
-        settings.cleanup_engine = match cleanup {
-            "none" => CleanupEngine::None,
-            "llamaCpp" => CleanupEngine::LlamaCpp,
-            "openRouter" => CleanupEngine::OpenRouter,
-            other => return Err(format!("moteur inconnu : {other}")),
-        };
-    }
-    if let Some(engine) = input["transcription"].as_str() {
-        settings.transcription_engine = match engine {
-            "whisper" => TranscriptionEngine::Whisper,
-            "deepgram" => TranscriptionEngine::Deepgram,
-            other => return Err(format!("moteur de transcription inconnu : {other}")),
-        };
-    }
-    if let Some(model) = input["cleanup_model"].as_str().map(str::trim).filter(|m| !m.is_empty()) {
-        settings.cleanup_model = model.to_string();
-    }
-    if let Some(device) = input["llama_device"].as_str() {
-        // Caractères d'un nom d'appareil de llama.cpp (« Vulkan1 », « none ») : rien d'autre ne part en option.
-        if !device.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-            return Err("appareil invalide".into());
+/// Les réglages après des changements (clés et valeurs du fichier de réglages, comme dans Scribe) : lecture tolérante du résultat.
+fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, String> {
+    let Some(changes) = changes.as_object() else { return Err("changements illisibles".into()) };
+    let mut merged = serde_json::to_value(before).map_err(|e| e.to_string())?;
+    let object = merged.as_object_mut().ok_or("réglages illisibles")?;
+    for (key, value) in changes {
+        if !object.contains_key(key) && !OPTIONAL_KEYS.contains(&key.as_str()) {
+            return Err(format!("réglage inconnu : {key}"));
         }
-        if device != ctx.app.llama.launcher().device() {
-            let mut options = crate::app::read_engine_options(ctx.app.config.folder());
-            options.llama_device = device.to_string();
-            crate::app::write_engine_options(ctx.app.config.folder(), &options)?;
-            ctx.app.llama.launcher().set_device(device);
-            // Le serveur redémarre à la prochaine dictée avec le nouvel appareil.
-            ctx.app.llama.stop();
-        }
+        object.insert(key.clone(), value.clone());
     }
-    if let Some(minutes) = input["llama_idle_minutes"].as_u64() {
-        let mut options = crate::app::read_engine_options(ctx.app.config.folder());
-        if u64::from(options.llama_idle_minutes) != minutes {
-            options.llama_idle_minutes = minutes.min(24 * 60) as u32;
-            crate::app::write_engine_options(ctx.app.config.folder(), &options)?;
-            ctx.app.llama.set_idle_limit(options.idle_limit());
-        }
+    if changes.get("llamaDevice").and_then(Value::as_str).is_some_and(|d| !is_device_name(d)) {
+        return Err("appareil invalide".into());
     }
-    if let Some(pause) = input["pause_media"].as_bool() {
-        settings.pause_media = pause;
-    }
-    if let Some(path) = input["whisper_model"].as_str() {
-        settings.whisper_model_path = path.to_string();
-    }
-    if let Some(path) = input["llama_model"].as_str() {
-        settings.llama_cpp_model = path.to_string();
-    }
-    ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())
+    AppSettings::from_value(&merged).ok_or_else(|| "réglages illisibles".to_string())
 }
+
+/// Applique des changements aux réglages, puis fait tout de suite ce qu'il faut pour `llama-server` (appareil, durée de conservation).
+/// Rend les réglages enregistrés.
+fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
+    let before = ctx.app.config.settings();
+    let after = merge_settings(&before, changes)?;
+    if after.llama_device != before.llama_device {
+        ctx.app.llama.launcher().set_device(&after.llama_device);
+        // Le serveur redémarre à la prochaine dictée avec le nouvel appareil.
+        ctx.app.llama.stop();
+    }
+    if after.llama_idle_minutes != before.llama_idle_minutes {
+        ctx.app.llama.set_idle_limit(crate::app::idle_limit(after.llama_idle_minutes));
+    }
+    ctx.app.config.save_settings(&after).map_err(|e| e.to_string())?;
+    serde_json::to_value(&after).map_err(|e| e.to_string())
+}
+
+/// Réglages facultatifs, absents du fichier tant qu'ils n'ont pas de valeur.
+const OPTIONAL_KEYS: [&str; 2] = ["historyKeepDays", "customModeID"];
 
 fn record_start(ctx: &Context) -> Result<String, String> {
     if ctx.app.controller.is_recording() || ctx.app.controller.is_busy() {
@@ -544,5 +529,25 @@ fn llama_devices(ctx: &Context) -> Vec<String> {
         }
         Ok(Err(e)) => vec![format!("lecture impossible ({e})")],
         Err(_) => vec!["pas de réponse en 20 s".into()],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_changes_are_merged_by_key_and_unknown_or_unsafe_ones_are_refused() {
+        let before = AppSettings::default();
+        let after = merge_settings(&before, &json!({"pauseMedia": true, "llamaIdleMinutes": 120, "language": "en"})).unwrap();
+        assert!(after.pause_media);
+        assert_eq!(after.llama_idle_minutes, 120);
+        assert_eq!(after.language.raw(), "en");
+        assert_eq!(after.cleanup_model, before.cleanup_model, "le reste ne bouge pas");
+        assert!(merge_settings(&before, &json!({"inconnu": 1})).unwrap_err().contains("inconnu"));
+        assert!(merge_settings(&before, &json!({"llamaDevice": "Vulkan0; calc"})).is_err());
+        assert!(merge_settings(&before, &json!([1])).is_err());
+        let kept = merge_settings(&before, &json!({"historyKeepDays": 30})).unwrap();
+        assert_eq!(kept.history_keep_days, Some(30), "réglage facultatif absent du fichier tant qu'il n'a pas de valeur");
     }
 }

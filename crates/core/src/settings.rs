@@ -259,6 +259,12 @@ pub struct AppSettings {
     /// Nombre de jours d'historique gardés (aujourd'hui compris) ; `None` : tout garder.
     #[serde(rename = "historyKeepDays", skip_serializing_if = "Option::is_none")]
     pub history_keep_days: Option<i64>,
+    /// Appareil imposé à `llama-server` (« Vulkan1 », « none ») ; vide : automatique. Propre à Scriibe (Scribe ignore ce champ).
+    #[serde(rename = "llamaDevice")]
+    pub llama_device: String,
+    /// Minutes sans dictée avant de libérer `llama-server` ; 0 : tant que le programme tourne. Propre à Scriibe.
+    #[serde(rename = "llamaIdleMinutes")]
+    pub llama_idle_minutes: i64,
 }
 
 impl Default for AppSettings {
@@ -304,8 +310,18 @@ impl Default for AppSettings {
             whisper_idle_minutes: 10,
             list_bullet: ListBullet::Dash,
             history_keep_days: None,
+            llama_device: String::new(),
+            llama_idle_minutes: LLAMA_IDLE_DEFAULT,
         }
     }
+}
+
+/// 30 minutes, comme Scribe.
+pub const LLAMA_IDLE_DEFAULT: i64 = 30;
+
+/// Un nom d'appareil de llama.cpp (« Vulkan1 », « none ») : lettres, chiffres, « _ » ; rien d'autre ne part en option au moteur.
+pub fn is_device_name(name: &str) -> bool {
+    name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// Durées proposées pour libérer Whisper au repos (0 : jamais).
@@ -387,6 +403,8 @@ impl AppSettings {
                 .unwrap_or(d.whisper_idle_minutes),
             list_bullet: get(o, "listBullet").unwrap_or(d.list_bullet),
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
+            llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
+            llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),
         })
     }
 

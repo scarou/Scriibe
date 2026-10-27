@@ -18,6 +18,7 @@ fn setup(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, 
     if config.create_settings_if_missing().map_err(|e| format!("impossible d'écrire {} ({e})", config.settings_path().display()))? {
         eprintln!("Premier lancement : réglages créés dans {}", config.settings_path().display());
     }
+    app::migrate_engine_options(&config);
     let log = Arc::new(FileLog::new(config.folder(), echo_log));
     Ok((config, log))
 }

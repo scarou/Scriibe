@@ -33,6 +33,27 @@ export interface Status {
   llama: { binary: string | null; models: string[]; chosen: string };
   keys: { deepgram: boolean; openrouter: boolean };
   microphones: string[];
+  microphone_list: { uid: string; label: string }[];
+}
+
+/** Les réglages, avec les clés du fichier de réglages (le format de Scribe). */
+export interface Settings {
+  language: 'fr' | 'en' | 'multi';
+  transcriptionEngine: 'whisper' | 'deepgram';
+  whisperModelPath: string;
+  cleanupEngine: 'openRouter' | 'lmStudio' | 'llamaCpp' | 'ollama' | 'none';
+  cleanupModel: string;
+  llamaCppModel: string;
+  llamaDevice: string;
+  llamaIdleMinutes: number;
+  pauseMedia: boolean;
+  restoreClipboard: boolean;
+  skipWhenClean: boolean;
+  microphoneUID: string;
+  translationLanguage: 'en' | 'es' | 'de' | 'it' | 'pt';
+  keepDictationText: boolean;
+  historyKeepDays?: number | null;
+  [key: string]: unknown;
 }
 
 export interface Phrase {
