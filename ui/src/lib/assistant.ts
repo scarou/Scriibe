@@ -33,6 +33,7 @@ export const needLabels: Record<string, string> = {
   'whisper-small': 'Modèle Whisper « small »',
   'llama-server': 'llama-server',
   'llama-vulkan': 'llama-server (Vulkan)',
+  'qwen-0.5b': 'Modèle Qwen 2.5 0,5 B',
   'qwen-1.5b': 'Modèle Qwen 2.5 1,5 B',
   'qwen-3b': 'Modèle Qwen 2.5 3 B',
 };
@@ -51,6 +52,8 @@ export function isInstalled(id: string, s: Status): boolean {
     case 'llama-server':
     case 'llama-vulkan':
       return !!s.llama.binary;
+    case 'qwen-0.5b':
+      return has(s.llama.models, 'qwen2.5-0.5b');
     case 'qwen-1.5b':
       return has(s.llama.models, 'qwen2.5-1.5b');
     case 'qwen-3b':

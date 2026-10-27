@@ -26,7 +26,7 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 
 ## Tests
 
-- Interface : `cd ui && npm ci && npm run check && npm test && npm run build` (svelte-check, Vitest dont le rejeu de `fixtures/ui_logic.json`, construction) ; la CI le fait avant `cargo` sur les trois systèmes. Contrôle visuel depuis le cloud : lancer `target/debug/scriibe lancer --sans-navigateur` (variable `SCRIIBE_DATA` pour un dossier de données jetable), lire l'adresse dans la sortie, et piloter la page avec Playwright (`require('playwright')`) pour des captures.
+- Interface : `cd ui && npm ci && npm run check && npm test && npm run build` (svelte-check, Vitest dont le rejeu de `fixtures/ui_logic.json`, construction) ; la CI le fait avant `cargo` sur les trois systèmes. Contrôle visuel depuis le cloud : lancer `target/debug/scriibe lancer --sans-navigateur` (variable `SCRIIBE_DATA` pour un dossier de données jetable), lire l'adresse dans la sortie, et piloter la page avec Playwright (`require('playwright')`) : `tools/captures_interface.js` (captures de tous les onglets, clair ou sombre).
 
 - `cargo test --workspace` rejoue les cas de `fixtures/` (`crates/core/tests/fixtures.rs`, `crates/engines/tests/fixtures.rs`) plus les tests écrits à la main.
 - Un cas `invariant` ou `history_scenario` n'a pas de paire entrée → sortie : un test écrit à la main doit **citer son identifiant** (`prompts_005_…` pour `prompts-005`). Le banc d'essai échoue si un cas n'est cité nulle part.

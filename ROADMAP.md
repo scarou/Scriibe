@@ -7,7 +7,7 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 3. ✔ **Cœur Rust** (`crates/core`) : 337 cas rejoués (303 en S01 + 34 du banc) ; avec les 39 des moteurs, 376 des 399 passent ; 14 cas d'interface et 9 du mode Amusant attendent. Prompts identiques à Scribe 1.12.0 (empreinte). *(S01, S02)*
 4. ✔ **Moteurs** (`crates/engines`) : `whisper-server` et `llama-server`, clients Deepgram, OpenRouter, LM Studio, Ollama. Testés avec un monde simulé ; les vrais serveurs restent à essayer sur une machine. *(S01)*
 5. ✔ **MVP Windows** — essayé de bout en bout sur un vrai PC (S03) : touche, collage, icône, bips, annulation, traduction, pause des médias, cloud en dépannage, mise à jour intégrée. Restes : voir « Étape 5 en détail ». *(S02, S03)*
-6. ▶ **Interface complète** (parité avec Scribe) : Réglages, Dictionnaire, Modes, Historique, Tableau de bord, Aide, bancs d'essai, test de frappe ; rejouer `fixtures/ui_logic.json` côté interface.
+6. ✔ **Interface complète** (parité avec Scribe) écrite en S04 : fenêtre Tauri 2, interface Svelte 5, Réglages, Dictionnaire, Modes, Historique, Tableau de bord, Aide, banc comparable, test de frappe, assistant de premier lancement, pastille (bêta) ; cas `ui_logic.json` rejoués. **Reste à essayer sur le PC** : la fenêtre, la pastille, l'assistant, la reprise d'un téléchargement (voir « Étape 6 en détail »). *(S04)*
 7. ○ **macOS**, puis **Linux X11**, puis **Linux Wayland** (bêta).
 8. ○ **Ouverture** : README anglais, CONTRIBUTING, vérification du nom (INPI/EUIPO, recherche web), passage du dépôt en public.
 9. ○ **Mode Amusant** (schtroumpf) : dépend de l'analyseur grammatical d'Apple ; trouver un équivalent portable ou l'abandonner.
@@ -16,16 +16,21 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 
 Objectif : dicter sous Windows, de bout en bout (touche → micro → transcription → mise au propre → collage), sur le PC Windows de Christophe (HP, AZERTY, Radeon RX 540 2 Go + Intel UHD 620).
 
-**Fait** : S02 : `crates/platform`, `crates/pipeline`, `crates/cli`, page d'essais, CI qui publie `scriibe.exe`, micro, Whisper, llama.cpp. S03 : touche globale, collage, icône, bips, annulation, traduction (essayés), attente du préchauffage, préchargement au lancement, mise à jour depuis la page, pause des médias, clés et moteurs cloud, llama-server Vulkan et choix de la carte, durée de conservation du modèle ; mesures et décision provisoire par niveau de machine (voir `CHANGELOG.md`, S03).
+**Fait** : S02 : `crates/platform`, `crates/pipeline`, `crates/cli`, page d'essais, CI qui publie `scriibe.exe`, micro, Whisper, llama.cpp. S03 : touche globale, collage, icône, bips, annulation, traduction (essayés), attente du préchauffage, préchargement au lancement, mise à jour depuis la page, pause des médias, clés et moteurs cloud, llama-server Vulkan et choix de la carte, durée de conservation du modèle ; mesures et décision par niveau de machine (voir `CHANGELOG.md`, S03). S04 : reprise automatique des téléchargements, assistant de premier lancement par niveau de machine (décision confirmée), réglages sortis de `moteurs.json`.
 
-**Reste à faire (petit, peut se faire avec l'étape 6)** :
+**Reste à faire (sur le PC de Christophe)** :
 
-1. **Reprise automatique d'un téléchargement interrompu** (en-tête `Range`) et nouvel essai : un modèle de 465 Mo a échoué une fois à 6 Mo.
-2. **Assistant de premier lancement par niveau de machine** : mesurer la machine (cœurs, mémoire, cartes) et proposer la chaîne (local, local + mise au propre cloud, tout cloud) ; décision provisoire dans le journal S03, à confirmer avec Christophe.
-3. **Pause des médias** : essayer un appel (Teams, Meet), un lecteur local (VLC), une sortie autre que l'appareil par défaut ; ignorer d'autres programmes système si besoin (`IGNORED` dans `audio_sessions.rs`).
-4. **Précision de Whisper `small` contre `base`** (jugée sur les textes, pas sur les temps : `small` prend 9 à 10 s ici) et Qwen 0,5 B pour une mise au propre locale plus rapide.
-5. **Rester chargé** : décider si le modèle local de mise au propre reste chargé tant que Scriibe tourne (réglage actuel : 30 min par défaut, comme Scribe).
-6. Ensuite : la **fenêtre Tauri** avec les Réglages de base (étape 6, qui reprend la page d'essais et `moteurs.json`).
+1. **Pause des médias** : essayer un appel (Teams, Meet), un lecteur local (VLC), une sortie autre que l'appareil par défaut ; ignorer d'autres programmes système si besoin (`IGNORED` dans `audio_sessions.rs`).
+2. **Précision de Whisper `small` contre `base`** : deux passages du banc (onglet Banc d'essai) puis la comparaison, jugée sur les textes et non sur les temps (`small` prend 9 à 10 s ici) ; **Qwen 0,5 B** (maintenant dans l'onglet Installation) pour une mise au propre locale plus rapide.
+3. **Rester chargé** : décider si le modèle local de mise au propre reste chargé tant que Scriibe tourne (le réglage existe : « tant que Scriibe tourne »).
+
+## Étape 6 en détail
+
+**Fait (S04, vérifié par les tests, la CI et des captures depuis le cloud)** : fenêtre Tauri 2 + interface Svelte 5 embarquée ; Tableau de bord (chiffres, test de frappe, assistant), Historique, Modes (livrés et personnels), Dictionnaire, Réglages, Installation (reprise des téléchargements), Banc d'essai (passages gardés, comparaison, différences mot à mot), Mise à jour, Journal et rapport, Aide (8 sections) ; pastille d'écoute à l'écran (bêta, coupée par défaut) ; cas `ui_logic.json` rejoués.
+
+**Reste à essayer sur le PC de Christophe** : la fenêtre (ouverture, repli navigateur, fermeture puis réouverture par l'icône, boîtes de dialogue, copie du rapport), l'assistant et la détection des cartes graphiques, une reprise de téléchargement en vrai, la pastille (focus jamais volé, transparence, position, trois styles) puis la rendre active par défaut si elle est bonne.
+
+**Reste à faire (code)** : logo définitif (l'icône est provisoire) ; comparaison « avec / sans modèle » du banc (écart noté) ; « réglages du banc selon les modes personnels » ; zone de capture des essais de frappe plus stricte si besoin ; langue de l'interface au-delà du français ; commandes Tauri (IPC) si une fonction l'exige (choix de fichier).
 
 ## Plus tard, sans date
 

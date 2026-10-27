@@ -15,7 +15,7 @@ pub struct Item {
     pub detail: &'static str,
 }
 
-pub const ITEMS: [Item; 7] = [
+pub const ITEMS: [Item; 8] = [
     Item { id: "whisper-server", label: "whisper-server (Windows)", detail: "Le programme de transcription (whisper.cpp), avec ses DLL." },
     Item { id: "whisper-base", label: "Modèle Whisper « base »", detail: "Le plus rapide ; quelques erreurs sur les mots courts." },
     Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent." },
@@ -28,6 +28,11 @@ pub const ITEMS: [Item; 7] = [
         id: "llama-vulkan",
         label: "llama-server (Windows, carte graphique Vulkan)",
         detail: "Remplace la version processeur : la mise au propre tourne sur la carte graphique (à comparer aux temps du processeur). Pour revenir en arrière, retélécharger la version processeur.",
+    },
+    Item {
+        id: "qwen-0.5b",
+        label: "Modèle de mise au propre « Qwen 2.5 0,5 B »",
+        detail: "Très petit (≈ 400 Mo) : le plus rapide sur processeur, à essayer avant de juger sa qualité (Apache 2.0).",
     },
     Item {
         id: "qwen-1.5b",
@@ -146,6 +151,7 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
         }
         "whisper-base" => (hub_file("ggerganov/whisper.cpp", "ggml-base.bin")?, models, false),
         "whisper-small" => (hub_file("ggerganov/whisper.cpp", "ggml-small.bin")?, models, false),
+        "qwen-0.5b" => (hub_file("Qwen/Qwen2.5-0.5B-Instruct-GGUF", "qwen2.5-0.5b-instruct-q4_k_m.gguf")?, models, false),
         "qwen-1.5b" => (hub_file("Qwen/Qwen2.5-1.5B-Instruct-GGUF", "qwen2.5-1.5b-instruct-q4_k_m.gguf")?, models, false),
         "qwen-3b" => (hub_file("Qwen/Qwen2.5-3B-Instruct-GGUF", "qwen2.5-3b-instruct-q4_k_m.gguf")?, models, false),
         other => return Err(format!("téléchargement inconnu : {other}")),
