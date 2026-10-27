@@ -142,7 +142,16 @@ impl Spawner for RealSpawner {
             }
             std::fs::OpenOptions::new().create(true).write(true).append(t.append).truncate(!t.append).open(&t.path).ok()
         });
-        command.stderr(log.map_or_else(Stdio::null, Stdio::from));
+        // llama.cpp écrit une partie de son journal (carte graphique trouvée, couches déchargées) sur la sortie normale : les deux
+        // vont dans le même fichier.
+        match log.map(|file| file.try_clone().map(|clone| (file, clone))) {
+            Some(Ok((err, out))) => {
+                command.stderr(Stdio::from(err)).stdout(Stdio::from(out));
+            }
+            Some(Err(_)) | None => {
+                command.stderr(Stdio::null());
+            }
+        }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;

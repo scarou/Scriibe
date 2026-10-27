@@ -121,6 +121,7 @@ fn handle(ctx: &Context, mut request: Request) {
         }
         (Method::Get, "api/status") => ok(request, status(ctx)),
         (Method::Get, "api/phrases") => ok(request, phrases()),
+        (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
         (Method::Post, "api/settings") => match save_settings(ctx, &input) {
             Ok(()) => ok(request, json!({"ok": true})),
@@ -465,4 +466,43 @@ fn engine_hints(path: &std::path::Path) -> Vec<String> {
         .map(|l| l.trim().chars().take(180).collect())
         .collect();
     hints[hints.len().saturating_sub(8)..].to_vec()
+}
+
+/// Ce que `llama-server --list-devices` dit des cartes graphiques qu'il sait utiliser (quelques lignes, 20 s au plus).
+fn llama_devices(ctx: &Context) -> Vec<String> {
+    let path_var = std::env::var_os("PATH");
+    let Some(binary) = LlamaLauncher::new(Arc::new(RealFs), llama::PORT, None, path_var.as_deref()).binary() else {
+        return vec!["llama-server introuvable".into()];
+    };
+    let mut command = std::process::Command::new(&binary);
+    command
+        .arg("--list-devices")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    let (sender, receiver) = std::sync::mpsc::channel();
+    match command.spawn() {
+        Ok(child) => {
+            std::thread::spawn(move || {
+                let _ = sender.send(child.wait_with_output());
+            });
+        }
+        Err(e) => return vec![format!("llama-server ne démarre pas ({e})")],
+    }
+    match receiver.recv_timeout(std::time::Duration::from_secs(20)) {
+        Ok(Ok(output)) => {
+            let text = format!("{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            let lines: Vec<String> =
+                text.lines().map(|l| l.trim().chars().take(180).collect::<String>()).filter(|l| !l.is_empty()).collect();
+            ctx.app.log.write(&format!("llama-server --list-devices: {} lignes", lines.len()));
+            lines.into_iter().take(14).collect()
+        }
+        Ok(Err(e)) => vec![format!("lecture impossible ({e})")],
+        Err(_) => vec!["pas de réponse en 20 s".into()],
+    }
 }

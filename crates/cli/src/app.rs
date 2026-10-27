@@ -61,7 +61,12 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
     let path_var = std::env::var_os("PATH");
 
     let whisper = Arc::new(Whisper::new(WhisperLauncher::new(fs.clone(), whisper::PORT, path_var.as_deref()), runtime.clone()));
-    let llama_launcher = LlamaLauncher::new(fs.clone(), llama::PORT, Some(folder.join("llama-server.log")), path_var.as_deref());
+    // Le journal du moteur s'allonge à chaque requête : on le repart de zéro au lancement s'il est devenu gros.
+    let llama_log = folder.join("llama-server.log");
+    if std::fs::metadata(&llama_log).is_ok_and(|m| m.len() > 2_000_000) {
+        let _ = std::fs::remove_file(&llama_log);
+    }
+    let llama_launcher = LlamaLauncher::new(fs.clone(), llama::PORT, Some(llama_log), path_var.as_deref());
     let llama = Arc::new(llama::new_server(llama_launcher, runtime.clone()));
 
     platform.media.set_log(log_dyn.clone());
