@@ -468,7 +468,7 @@ fn restart(app: &App) {
 /// Le journal d'un moteur : sa taille, les lignes qui disent sur quoi il tourne (carte graphique, couches déchargées) et les dernières
 /// lignes, pour voir ce qu'il contient quand rien ne correspond.
 fn engine_hints(path: &std::path::Path) -> Value {
-    let Ok(bytes) = std::fs::read(path) else { return json!({"bytes": 0, "hints": [], "tail": []}) };
+    let Ok(bytes) = std::fs::read(path) else { return json!({"bytes": 0, "hints": [], "head": [], "tail": []}) };
     let tail_bytes = &bytes[bytes.len().saturating_sub(300_000)..];
     let text = String::from_utf8_lossy(tail_bytes);
     let short = |l: &str| -> String { l.trim().chars().take(180).collect() };
@@ -477,13 +477,14 @@ fn engine_hints(path: &std::path::Path) -> Value {
         .iter()
         .filter(|l| {
             let l = l.to_lowercase();
-            l.contains("vulkan") || l.contains("offloaded") || l.contains("using device") || l.contains("no gpu")
+            l.contains("vulkan") || l.contains("offload") || l.contains("device") || l.contains("gpu") || l.contains("backend")
         })
         .map(|l| short(l))
         .collect();
     json!({
         "bytes": bytes.len(),
         "hints": hints[hints.len().saturating_sub(8)..],
+        "head": lines.iter().take(14).map(|l| short(l)).collect::<Vec<_>>(),
         "tail": lines[lines.len().saturating_sub(4)..].iter().map(|l| short(l)).collect::<Vec<_>>(),
     })
 }

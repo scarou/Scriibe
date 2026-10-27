@@ -360,7 +360,7 @@ async function buildReport() {
   r += `Micros : ${s.microphones.join(' | ') || 'aucun'}${s.keys_error ? '\nTouche globale : ' + s.keys_error : ''}\n`;
   r += `llama-server : appareil choisi « ${s.llama_device || 'automatique'} » ; journal du moteur ${s.llama_log.bytes} octets\n`;
   if (s.llama_log.hints.length) r += `  lignes carte graphique :\n    ${s.llama_log.hints.join('\n    ')}\n`;
-  else if (s.llama_log.tail.length) r += `  (aucune ligne carte graphique) dernières lignes :\n    ${s.llama_log.tail.join('\n    ')}\n`;
+  else if (s.llama_log.head.length) r += `  (aucune ligne carte graphique) début du journal :\n    ${s.llama_log.head.join('\n    ')}\n`;
   if (devices.length) r += `llama-server --list-devices :\n  ${devices.join('\n  ')}\n`;
   r += '\n';
   for (const x of results) {
