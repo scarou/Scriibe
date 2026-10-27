@@ -269,7 +269,7 @@ impl Updater {
             *state = Some(State::Running { done: 0, total: latest.size });
         }
         log.write(&format!(
-            "mise à jour: {} ({}, {} Mo) depuis GitHub {REPO} (exécution {}) vers {} — demandée et confirmée dans la page d'essais",
+            "mise à jour: {} ({}, {} Mo) depuis GitHub {REPO} (exécution {}) vers {} — demandée et confirmée dans l'interface",
             latest.short_sha(),
             latest.title,
             latest.size / 1_048_576,

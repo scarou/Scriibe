@@ -569,7 +569,7 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
     }
     let translate = input["translate"].as_bool().unwrap_or(false);
     ctx.sinks.begin();
-    ctx.app.controller.process_recording(recording.clone(), translate, "page d'essais");
+    ctx.app.controller.process_recording(recording.clone(), translate, "banc d'essai");
     let captured = ctx.sinks.finish();
     let phrase = input["phrase"].as_u64().and_then(|i| bench::phrases().get(i as usize));
     let pasted = captured.pasted.clone().unwrap_or_default();

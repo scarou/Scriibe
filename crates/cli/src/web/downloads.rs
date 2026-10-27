@@ -340,7 +340,7 @@ impl Downloads {
             map.insert(id.to_string(), Progress::Running { done: 0, total: resolved.size });
         }
         log.write(&format!(
-            "téléchargement: {} ({} Mo) depuis {} vers {} — demandé et confirmé dans la page d'essais",
+            "téléchargement: {} ({} Mo) depuis {} vers {} — demandé et confirmé dans l'interface",
             resolved.name,
             resolved.size / 1_048_576,
             resolved.url,
