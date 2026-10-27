@@ -27,6 +27,11 @@ Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. �
 | **Messages complets des prompts** (consigne, exemples, dictionnaire) pour les 8 modes, la traduction et le préchauffage | Un oracle texte exact demande d'exécuter `Cleaner.messages(...)` ; seul l'empreinte (`prompts.json`) est connue aujourd'hui. Au retour sur le Mac : exporter les messages dans un fichier JSON **sans modifier le dépôt Scribe** (branche locale jetable, jamais fusionnée), puis les ajouter à `fixtures/prompts.json`. |
 | Mesures avec un modèle (`--cleantest`, `--selftest`) | Pas des tests automatiques : des mesures, à refaire sur chaque plateforme. |
 
+## Noté en S03 (aucun cas de `Checks.swift` en plus)
+
+- La **logique de minuteries de la pause des médias** (`MediaPause.swift`, hors de la partie pure déjà reprise) n'a pas de cas dans `Checks.swift` : elle est vérifiée par des tests écrits à la main (`crates/platform/src/media.rs`, `media::tests`, avec une fausse source audio) et à la main sur un PC.
+- Rien d'autre n'a été ajouté ni retiré : les cas en attente (`ui_logic.json`, mode Amusant, prompts complets, banc, test de frappe) sont inchangés.
+
 ## Sans objet pour le cœur
 
 Sélecteur de fichiers, `llama-server --help` (cas `invariant` : à vérifier à l'exécution), cartes et rubriques de l'interface (reprises dans `ui_logic.json` quand elles ont une logique testable).

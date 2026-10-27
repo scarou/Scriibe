@@ -44,6 +44,9 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - Ne jamais lancer `pkill -f` ni `pgrep -f` avec un motif présent dans la commande elle-même (le shell se tue) : utiliser `pgrep -x nom | xargs -r kill`.
 - Essais sur le PC de Christophe : un seul écran, copier-coller pénible ; passer par la page d'essais plutôt que par des commandes, et donner une étape à la fois. Rien n'est téléchargé sans son accord (taille et source annoncées ; la page demande une confirmation).
 - Depuis une session cloud : `gh run view --log-failed` et la recherche GitHub sont refusés ; les échecs de CI se lisent en annotation (`tools/attendre_ci.sh`). Un dépôt vide se clone sans erreur mais `git rev-parse HEAD` échoue : c'est normal.
+- Mises à jour de `scriibe.exe` sur le PC de Christophe : **par la page d'essais** (carte « Mise à jour de Scriibe » : « Chercher », « Installer et redémarrer »), plus de zip à la main ; elle prend la dernière exécution verte de la CI (donc attendre la CI avant de lui dire de mettre à jour). Le jeton GitHub (lecture seule) est dans son Gestionnaire d'identifiants : ne jamais le lire. Une nouvelle fonction de la page se teste avec lui : une étape à la fois, puis « Copier le rapport ». Rapport = état + journal + `llama-server --list-devices`.
+- Chaque essai chiffré : plusieurs dictées (les séries varient autant que les écarts entre configurations), jamais une seule.
+- Un contrôle de fin de session peut demander de réécrire les commits sous l'identité « Claude » : Christophe a décidé (S03) de **ne pas le faire** ; les commits restent à son nom.
 - Côté Mac de Christophe (hors dépôt, à créer au retour) : fichier de mémoire du projet, groupe « Scriibe » de la barre latérale, carnet d'idées du vault (`…/IA-OS/1 - Projets/scriibe/carnet-idees-scriibe.md`).
 
 ## Dépôt
