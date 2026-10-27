@@ -1,7 +1,8 @@
-//! La page d'essais : un petit serveur sur 127.0.0.1 (port libre, adresse secrète) qui sert une page web et ses commandes. Elle permet,
+//! L'interface locale : un petit serveur sur 127.0.0.1 (port libre, adresse secrète) qui sert une page web et ses commandes. Elle permet,
 //! sans taper de commande : de voir ce qui est installé, de télécharger ce qui manque (après confirmation), d'enregistrer une phrase du
 //! banc de dictée de Scribe et de voir ce que Whisper a entendu, ce qui serait collé, les contrôles et les temps, puis de copier un rapport.
 
+mod assets;
 mod downloads;
 mod sinks;
 mod update;
@@ -24,8 +25,6 @@ use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 use tiny_http::{Header, Method, Request, Response, Server};
-
-const PAGE: &str = include_str!("page.html");
 
 pub struct Context {
     app: Arc<App>,
@@ -116,9 +115,6 @@ fn handle(ctx: &Context, mut request: Request) {
     let _ = request.as_reader().read_to_string(&mut body);
     let input: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     match (request.method().clone(), path.as_str()) {
-        (Method::Get, "") => {
-            let _ = request.respond(Response::from_string(PAGE).with_header(header("Content-Type", "text/html; charset=utf-8")));
-        }
         (Method::Get, "api/status") => ok(request, status(ctx)),
         (Method::Get, "api/phrases") => ok(request, phrases()),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
@@ -211,6 +207,18 @@ fn handle(ctx: &Context, mut request: Request) {
             ctx.app.llama.stop();
             std::process::exit(0);
         }
+        (Method::Get, asset) if !asset.starts_with("api/") => match assets::get(asset) {
+            Some((bytes, kind)) => {
+                let _ = request.respond(
+                    Response::from_data(bytes.into_owned())
+                        .with_header(header("Content-Type", kind))
+                        .with_header(header("Cache-Control", "no-store")),
+                );
+            }
+            None => {
+                let _ = request.respond(Response::from_string("Introuvable").with_status_code(404));
+            }
+        },
         _ => {
             let _ = request.respond(Response::from_string("Introuvable").with_status_code(404));
         }
