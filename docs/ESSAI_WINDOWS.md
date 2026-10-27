@@ -22,7 +22,11 @@ Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et 
 4. **Dictée avec la touche**, dans une vraie appli (Bloc-notes) : maintenir **Ctrl droit**, parler, relâcher ; **Maj** en plus : traduction ; toute autre touche pendant l'appui : annulation. Le journal s'affiche en direct dans la page.
 5. **Rapport** : « Copier le rapport » met dans le presse-papiers un texte avec l'état, les résultats et le journal : à coller dans la conversation.
 
-## Pause des médias (à essayer)
+## Cloud en dépannage (à comparer au local)
+
+Section « Clés du cloud » de la page : coller la clé Deepgram et/ou OpenRouter (champ masqué, « Enregistrer ») ; elles vont dans le Gestionnaire d'identifiants, jamais affichées ni journalisées. Puis, dans la section 1, choisir **Transcription : Deepgram (cloud)** et/ou **Mise au propre : OpenRouter (cloud)** (modèle par défaut de Scribe : `anthropic/claude-haiku-4.5`). Refaire les mêmes dictées qu'en local et comparer les temps du journal (« transcription N s », « mise au propre N s », « total après relâche N s »). Le local reste la priorité ; le cloud sert de dépannage quand la machine ne suit pas.
+
+## Pause des médias (essayée : marche avec Chrome)
 
 Cocher **« Mettre en pause la musique ou la vidéo pendant la dictée »** dans la section 1 de la page (coupé par défaut, comme dans Scribe). Lancer une vidéo (YouTube) ou de la musique, puis dicter avec Ctrl droit : le son doit s'arrêter une fraction de seconde après l'appui, et reprendre au relâchement. Le journal de la page note chaque étape (« médias: pause demandée … », « relance demandée »). Cas à vérifier : pas de pause si rien ne joue (la vidéo ne doit **pas** démarrer), pas de pause pendant un appel, un appui très bref ne fait pas clignoter la vidéo.
 

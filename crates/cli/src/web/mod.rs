@@ -13,10 +13,10 @@ use crate::app::{detect_whisper_models, models_folder, App};
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::microphone::MicLevel;
-use scriibe_core::settings::CleanupEngine;
+use scriibe_core::settings::{CleanupEngine, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
 use scriibe_engines::llama::{self, LlamaLauncher};
-use scriibe_engines::runtime::Log;
+use scriibe_engines::runtime::{KeyKind, Log};
 use scriibe_engines::server::Launcher;
 use scriibe_engines::whisper::{self, WhisperLauncher};
 use scriibe_platform::audio::Recording;
@@ -172,10 +172,21 @@ fn handle(ctx: &Context, mut request: Request) {
             }
         }
         (Method::Get, "api/update") => ok(request, update_state(ctx)),
-        (Method::Post, "api/update/token") => match save_update_token(ctx, input["token"].as_str().unwrap_or("")) {
+        (Method::Post, "api/update/token") => match save_key(ctx, KeyKind::GitHub, input["token"].as_str().unwrap_or("")) {
             Ok(()) => ok(request, json!({"ok": true})),
             Err(e) => fail(request, 400, &e),
         },
+        (Method::Post, "api/keys") => {
+            let kind = match input["kind"].as_str() {
+                Some("deepgram") => KeyKind::Deepgram,
+                Some("openrouter") => KeyKind::OpenRouter,
+                _ => return fail(request, 400, "clé inconnue"),
+            };
+            match save_key(ctx, kind, input["value"].as_str().unwrap_or("")) {
+                Ok(()) => ok(request, json!({"ok": true})),
+                Err(e) => fail(request, 400, &e),
+            }
+        }
         (Method::Post, "api/update/check") => match check_update(ctx) {
             Ok(found) => ok(request, found),
             Err(e) => fail(request, 502, &e),
@@ -250,12 +261,14 @@ fn status(ctx: &Context) -> Value {
         "paths": {"data": folder.display().to_string(), "settings": app.config.settings_path().display().to_string(), "models": models.display().to_string(),
                   "log": app.log.path().display().to_string(), "engines": scriibe_engines::engines_folder().map(|p| p.display().to_string())},
         "transcription": format!("{:?}", settings.transcription_engine),
-        "cleanup": match settings.cleanup_engine { CleanupEngine::None => "none", CleanupEngine::LlamaCpp => "llamaCpp", _ => "other" },
+        "transcription_engine": match settings.transcription_engine { TranscriptionEngine::Whisper => "whisper", TranscriptionEngine::Deepgram => "deepgram" },
+        "cleanup": match settings.cleanup_engine { CleanupEngine::None => "none", CleanupEngine::LlamaCpp => "llamaCpp", CleanupEngine::OpenRouter => "openRouter", _ => "other" },
+        "cleanup_model": settings.cleanup_model,
         "cleanup_label": settings.cleanup_engine.label(),
         "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
         "llama": {"binary": llama_binary.map(|p| p.display().to_string()), "models": llama_models, "chosen": settings.llama_cpp_model},
-        "keys": {"deepgram": key(scriibe_engines::runtime::KeyKind::Deepgram), "openrouter": key(scriibe_engines::runtime::KeyKind::OpenRouter)},
+        "keys": {"deepgram": key(KeyKind::Deepgram), "openrouter": key(KeyKind::OpenRouter)},
         "microphones": app.platform.recorder.microphones().iter().map(|m| m.label()).collect::<Vec<_>>(),
     })
 }
@@ -266,8 +279,19 @@ fn save_settings(ctx: &Context, input: &Value) -> Result<(), String> {
         settings.cleanup_engine = match cleanup {
             "none" => CleanupEngine::None,
             "llamaCpp" => CleanupEngine::LlamaCpp,
+            "openRouter" => CleanupEngine::OpenRouter,
             other => return Err(format!("moteur inconnu : {other}")),
         };
+    }
+    if let Some(engine) = input["transcription"].as_str() {
+        settings.transcription_engine = match engine {
+            "whisper" => TranscriptionEngine::Whisper,
+            "deepgram" => TranscriptionEngine::Deepgram,
+            other => return Err(format!("moteur de transcription inconnu : {other}")),
+        };
+    }
+    if let Some(model) = input["cleanup_model"].as_str().map(str::trim).filter(|m| !m.is_empty()) {
+        settings.cleanup_model = model.to_string();
     }
     if let Some(pause) = input["pause_media"].as_bool() {
         settings.pause_media = pause;
@@ -358,31 +382,33 @@ fn update_state(ctx: &Context) -> Value {
     };
     json!({
         "windows": cfg!(windows),
-        "has_token": ctx.app.platform.secrets.get(scriibe_engines::runtime::KeyKind::GitHub).is_some(),
+        "has_token": ctx.app.platform.secrets.get(KeyKind::GitHub).is_some(),
         "current": update::current_sha().map(|s| s[..s.len().min(7)].to_string()),
         "repo": update::REPO,
         "progress": state,
     })
 }
 
-/// Enregistre le jeton GitHub dans le Gestionnaire d'identifiants (il n'est ni affiché, ni journalisé, ni renvoyé à la page).
-fn save_update_token(ctx: &Context, token: &str) -> Result<(), String> {
+/// Enregistre une clé ou un jeton dans le Gestionnaire d'identifiants (elle n'est ni affichée, ni journalisée, ni renvoyée à la page).
+fn save_key(ctx: &Context, kind: KeyKind, value: &str) -> Result<(), String> {
     let _ = ctx;
     #[cfg(windows)]
     {
-        scriibe_platform::windows::set_credential(scriibe_engines::runtime::KeyKind::GitHub, token)?;
-        ctx.app.log.write("mise à jour: jeton GitHub enregistré dans le Gestionnaire d'identifiants");
+        scriibe_platform::windows::set_credential(kind, value)?;
+        ctx.app
+            .log
+            .write(&format!("clés: {} enregistrée dans le Gestionnaire d'identifiants", scriibe_platform::secrets::account_name(kind)));
         Ok(())
     }
     #[cfg(not(windows))]
     {
-        let _ = token;
-        Err("l'enregistrement du jeton ne marche que sous Windows".into())
+        let _ = (kind, value);
+        Err("l'enregistrement d'une clé ne marche que sous Windows".into())
     }
 }
 
 fn github_token(ctx: &Context) -> Result<String, String> {
-    ctx.app.platform.secrets.get(scriibe_engines::runtime::KeyKind::GitHub).ok_or_else(|| "aucun jeton GitHub enregistré".to_string())
+    ctx.app.platform.secrets.get(KeyKind::GitHub).ok_or_else(|| "aucun jeton GitHub enregistré".to_string())
 }
 
 /// Cherche la dernière version, sans rien télécharger : la page montre ce qui sera installé, puis demande confirmation.

@@ -71,13 +71,24 @@
     <table id="state"></table>
     <div class="row">
       <label>Mise au propre :
-        <select id="cleanup"><option value="none">Aucune (transcription littérale)</option><option value="llamaCpp">llama.cpp (sur cet ordinateur)</option></select>
+        <select id="cleanup"><option value="none">Aucune (transcription littérale)</option><option value="llamaCpp">llama.cpp (sur cet ordinateur)</option><option value="openRouter">OpenRouter (cloud)</option></select>
+      </label>
+      <label>Transcription :
+        <select id="transcription"><option value="whisper">Whisper (sur cet ordinateur)</option><option value="deepgram">Deepgram (cloud)</option></select>
       </label>
       <label>Modèle Whisper : <select id="whisper-model"></select></label>
       <label>Modèle GGUF : <select id="llama-model"></select></label>
     </div>
+    <div class="row" id="model-row" hidden><label>Modèle OpenRouter : <input type="text" id="cleanup-model" style="width:22em"></label></div>
     <div class="row"><label><input type="checkbox" id="pause-media"> Mettre en pause la musique ou la vidéo pendant la dictée</label></div>
     <div class="muted" id="paths"></div>
+  </section>
+
+  <section class="card">
+    <h2>Clés du cloud (dépannage)</h2>
+    <p class="muted">Pour essayer Deepgram (transcription) ou OpenRouter (mise au propre) quand l’ordinateur est trop lent en local. Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.</p>
+    <div class="row"><b style="min-width:7em">Deepgram</b><span id="key-deepgram-state"></span><input type="password" id="key-deepgram" placeholder="Colle la clé ici" autocomplete="off" style="flex:1"><button data-key="deepgram">Enregistrer</button></div>
+    <div class="row"><b style="min-width:7em">OpenRouter</b><span id="key-openrouter-state"></span><input type="password" id="key-openrouter" placeholder="Colle la clé ici" autocomplete="off" style="flex:1"><button data-key="openrouter">Enregistrer</button></div>
   </section>
 
   <section class="card">
@@ -141,8 +152,12 @@ async function loadStatus() {
     row('Modèle de mise au propre (GGUF)', s.llama.models.length > 0, s.llama.models.map(base).join(', ') || 'à installer (section 2)') +
     row('Micro', s.microphones.length > 0, s.microphones.join(' | ') || 'aucun micro détecté') +
     row('Touche globale', !s.keys_error, s.keys_error || 'Ctrl droit (Maj : traduire)');
-  $('cleanup').value = s.cleanup === 'llamaCpp' ? 'llamaCpp' : 'none';
+  $('cleanup').value = ['llamaCpp', 'openRouter'].includes(s.cleanup) ? s.cleanup : 'none';
   $('pause-media').checked = !!s.pause_media;
+  $('transcription').value = s.transcription_engine;
+  $('model-row').hidden = s.cleanup !== 'openRouter';
+  if (document.activeElement !== $('cleanup-model')) $('cleanup-model').value = s.cleanup_model;
+  for (const k of ['deepgram', 'openrouter']) $('key-' + k + '-state').innerHTML = s.keys[k] ? '<span class="ok">✔ présente</span>' : '<span class="muted">absente</span>';
   const fill = (el, list, chosen) => {
     el.innerHTML = '<option value="">(automatique : le meilleur trouvé)</option>' + list.map((p) => `<option value="${esc(p)}">${esc(base(p))}</option>`).join('');
     el.value = list.includes(chosen) ? chosen : '';
@@ -152,12 +167,22 @@ async function loadStatus() {
   $('paths').innerHTML = `Réglages : ${esc(s.paths.settings)}<br>Modèles : ${esc(s.paths.models)}<br>Journal : ${esc(s.paths.log)}`;
 }
 
-for (const id of ['cleanup', 'whisper-model', 'llama-model', 'pause-media']) {
+for (const id of ['cleanup', 'transcription', 'cleanup-model', 'whisper-model', 'llama-model', 'pause-media']) {
   $(id).addEventListener('change', async () => {
-    await api('settings', { cleanup: $('cleanup').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, pause_media: $('pause-media').checked });
+    await api('settings', { cleanup: $('cleanup').value, transcription: $('transcription').value, cleanup_model: $('cleanup-model').value, whisper_model: $('whisper-model').value, llama_model: $('llama-model').value, pause_media: $('pause-media').checked });
     loadStatus();
   });
 }
+
+document.addEventListener('click', async (e) => {
+  const kind = e.target.dataset && e.target.dataset.key;
+  if (!kind) return;
+  const input = $('key-' + kind);
+  const out = await api('keys', { kind, value: input.value });
+  input.value = '';
+  if (!out.ok) alert(out.error);
+  loadStatus();
+});
 
 // --- Téléchargements ---
 const resolved = {};
