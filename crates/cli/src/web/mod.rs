@@ -20,6 +20,7 @@ pub fn download_ids() -> Vec<&'static str> {
 
 use crate::app::{detect_whisper_models, models_folder, App};
 use crate::assistant;
+use crate::overlay::OverlayModel;
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
@@ -43,6 +44,7 @@ pub struct Context {
     app: Arc<App>,
     history: Arc<FileHistory>,
     bench: BenchStore,
+    overlay: Arc<OverlayModel>,
     sinks: Arc<TestSinks>,
     downloads: Arc<Downloads>,
     updater: Arc<update::Updater>,
@@ -72,6 +74,7 @@ pub fn start(
     app: Arc<App>,
     history: Arc<FileHistory>,
     sinks: Arc<TestSinks>,
+    overlay: Arc<OverlayModel>,
     keys_error: Option<String>,
 ) -> Result<(Arc<Context>, String), String> {
     let server = Server::http("127.0.0.1:0").map_err(|e| format!("serveur local impossible : {e}"))?;
@@ -83,6 +86,7 @@ pub fn start(
         app,
         history,
         bench,
+        overlay,
         sinks,
         downloads: Arc::new(Downloads::default()),
         updater: Arc::new(update::Updater::default()),
@@ -174,6 +178,11 @@ fn handle(ctx: &Context, mut request: Request) {
                 Some((older, newer)) => ok(request, bench_view::comparison(&older, &newer)),
                 None => fail(request, 404, "il faut deux passages pour comparer"),
             }
+        }
+        (Method::Get, "api/overlay") => ok(request, overlay_view(ctx)),
+        (Method::Post, "api/overlay/preview") => {
+            ctx.overlay.preview();
+            ok(request, json!({"ok": true}))
         }
         (Method::Get, "api/assistant") => ok(request, assistant_view(ctx)),
         (Method::Post, "api/assistant/apply") => match assistant_apply(ctx, input["chain"].as_str().unwrap_or("")) {
@@ -431,6 +440,20 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
 
 /// Réglages facultatifs, absents du fichier tant qu'ils n'ont pas de valeur.
 const OPTIONAL_KEYS: [&str; 2] = ["historyKeepDays", "customModeID"];
+
+/// Ce que la pastille à l'écran montre (état, niveau, alertes) avec l'apparence choisie.
+fn overlay_view(ctx: &Context) -> Value {
+    let settings = ctx.app.config.settings();
+    let mut view = ctx.overlay.snapshot().json();
+    view["appearance"] = json!({
+        "enabled": settings.overlay_enabled,
+        "style": settings.capture_style,
+        "position": settings.capture_position,
+        "color": settings.capture_color,
+        "opacity": settings.capture_opacity,
+    });
+    view
+}
 
 /// L'assistant de premier lancement : la machine mesurée (une fois), les chaînes proposées et celle qui est conseillée.
 fn assistant_view(ctx: &Context) -> Value {

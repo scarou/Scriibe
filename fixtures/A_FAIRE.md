@@ -6,18 +6,18 @@ Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. �
 
 | Fichier | Cas | Raison |
 |---|---|---|
-| `ui_logic.json` | 14 | Logique d'interface (position de l'indicateur, cartes repliables, zone du banc, vumètre) : sera rejouée par les tests de l'interface web (étape 6). |
+| `ui_logic.json` | 14 | **Rejoués en S04 par `ui/src/lib/logic.test.ts`** (Vitest) : les 11 cas avec paire entrée → sortie (position de l'indicateur, cartes repliables, zone du banc), le vumètre (`ui_logic-012`, test écrit à la main) et l'Aide (`ui_logic-014`, `tabs.test.ts`) ; `ui_logic-013` (Réglages en cinq rubriques) est écarté (`docs/ECARTS.md`). Le test échoue si un cas n'est ni rejoué ni écarté. |
 | `playful_schtroumpf.json` | 9 | Mode Amusant reporté (dépend de l'analyseur grammatical d'Apple). |
 
-## À reprendre avec l'interface complète (étape 6)
+## À reprendre avec l'interface complète (étape 6) — fait en S04 sauf mention
 
 | Lignes de `Checks.swift` | Sujet | Pourquoi pas maintenant |
 |---|---|---|
-| 542–563, 573–586, 1000–1125 (sauf contrôles) | **Banc de dictée** : déroulement (`ReadingBench` : phrase suivante, « Passer », « Relire »), rapport avec temps à la française, archive des passages, comparaison, différences mot à mot, réglages d'un passage | fonctionnalité d'interface ; **déjà repris en S02** : les 17 phrases et les contrôles `BenchCheck` (`bench_checks.json`, utilisés par la page d'essais) |
-| 786–839 | **Test de frappe** (`TypingTest`) : vitesse nette, seuils (90 %, 12 s–10 min, 200 mots/min), moyenne | fonctionnalité d'interface ; les valeurs sont dans le test, à extraire avec le port de `TypingTest.swift` |
+| 542–563, 573–586, 1000–1125 (sauf contrôles) | **Banc de dictée** : déroulement (`ReadingBench` : phrase suivante, « Passer », « Relire »), rapport avec temps à la française, archive des passages, comparaison, différences mot à mot, réglages d'un passage | **Repris en S04** : déroulement, archive, comparaison, différences mot à mot (`bench_archive.rs`, `bench_store.rs`, `benchflow.ts`) ; **reste** : la comparaison « avec / sans modèle » (écart noté) et les « réglages du banc selon les modes personnels » |
+| 786–839 | **Test de frappe** (`TypingTest`) : vitesse nette, seuils (90 %, 12 s–10 min, 200 mots/min), moyenne | **Repris en S04** : `ui/src/lib/typing.ts` + `typing.test.ts` (textes extraits par `tools/extraire_frappe.py`) ; reste la zone de saisie sans correction automatique propre à AppKit (une zone de texte web sans correction ni collage la remplace) |
 | 247–252 | **Phrases types** de `--cleantest` (12 phrases, contrôles associés) | à reprendre avec le port de `CleanTest.swift` |
 | 242–246 | Réglages du banc selon les modes personnels | dépend du banc |
-| 604, 608–625 | Vumètre et aperçu de l'indicateur (minuteries) | dépend de l'interface de l'indicateur |
+| 604, 608–625 | Vumètre et aperçu de l'indicateur (minuteries) | courbe du vumètre reprise (`MeterHistory`) ; l'aperçu et les minuteries attendent la fenêtre d'indicateur |
 | 748–788, 825–839 | Zone du banc et zone de frappe (`NSTextView`) | propre à AppKit |
 
 ## Impossibles sans le Swift sur un Mac

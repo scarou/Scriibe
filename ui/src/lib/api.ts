@@ -54,6 +54,11 @@ export interface Settings {
   keepDictationText: boolean;
   typingWPM: number;
   setupDone: boolean;
+  overlayEnabled: boolean;
+  captureStyle: 'pill' | 'dot' | 'meter';
+  capturePosition: 'left' | 'center' | 'right';
+  captureColor: 'scribe' | 'gray' | 'red' | 'blue' | 'black';
+  captureOpacity: number;
   historyKeepDays?: number | null;
   [key: string]: unknown;
 }

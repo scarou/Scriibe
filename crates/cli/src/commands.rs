@@ -1,4 +1,5 @@
 use crate::app::{self, build, describe_engines, detect_whisper_models, models_folder, Choices};
+use crate::overlay::{OverlayIndicator, OverlayModel};
 use crate::web::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{CleanupEngine, TranscriptionEngine};
@@ -64,6 +65,10 @@ pub fn run() -> Result<(), String> {
     #[cfg(not(windows))]
     let real_indicator: Arc<dyn Indicator> = Arc::new(ConsoleIndicator);
 
+    // L'état de l'indicateur à l'écran suit l'icône : tout ce qui est montré à l'une l'est à l'autre.
+    let overlay = Arc::new(OverlayModel::default());
+    let real_indicator: Arc<dyn Indicator> = Arc::new(OverlayIndicator { inner: real_indicator, model: overlay.clone() });
+
     let settings_source = config.clone();
     let history = Arc::new(FileHistory::open(config.folder().to_path_buf(), move || settings_source.settings()));
     let sinks = TestSinks::new(platform.paster.clone(), history.clone(), real_indicator);
@@ -92,13 +97,13 @@ pub fn run() -> Result<(), String> {
         })
         .map_err(|e| e.to_string())?;
 
-    let (_context, url) = crate::web::start(app.clone(), history, sinks, keys_error)?;
+    let (_context, url) = crate::web::start(app.clone(), history, sinks, overlay.clone(), keys_error)?;
     if let Ok(mut slot) = page_url.lock() {
         *slot = Some(url.clone());
     }
     eprintln!("Interface : {url}");
     if !std::env::args().any(|a| a == "--sans-navigateur") {
-        open_interface(&url, &app);
+        open_interface(&url, &app, &overlay);
     }
     app.controller.preload();
     eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
@@ -120,15 +125,18 @@ pub fn run() -> Result<(), String> {
 
 /// Ouvre l'interface : dans la fenêtre de Scriibe (Windows) ou, si elle ne peut pas s'ouvrir ou sur demande (`--navigateur`), dans le
 /// navigateur.
-fn open_interface(url: &str, app: &app::App) {
+fn open_interface(url: &str, app: &app::App, overlay: &Arc<OverlayModel>) {
     #[cfg(windows)]
     if !std::env::args().any(|a| a == "--navigateur") {
         match crate::window::start(url.to_string(), app.log.clone() as Arc<dyn Log>) {
-            Ok(()) => return,
+            Ok(()) => {
+                crate::window::start_overlay(url.to_string(), overlay.clone(), app.config.clone(), app.log.clone() as Arc<dyn Log>);
+                return;
+            }
             Err(e) => app.log.write(&format!("fenêtre: impossible ({e}) : ouverture dans le navigateur")),
         }
     }
-    let _ = app;
+    let _ = (app, overlay);
     scriibe_platform::open::open(url);
 }
 

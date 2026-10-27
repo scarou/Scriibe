@@ -4,13 +4,16 @@
 //! La boucle de Tauri tourne dans son propre fil (`any_thread`) : le fil principal garde la boucle de messages de l'icône et du
 //! crochet clavier. Si WebView2 manque ou refuse de démarrer, l'appelant retombe sur le navigateur.
 
+use crate::overlay::{origin_x, OverlayModel, BOTTOM_GAP, WINDOW_SIZE};
 use scriibe_engines::runtime::Log;
+use scriibe_platform::storage::FileConfig;
 use std::panic::AssertUnwindSafe;
 use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 use std::time::Duration;
-use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, PhysicalPosition, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 
 const LABEL: &str = "main";
+const OVERLAY_LABEL: &str = "overlay";
 
 static HANDLE: Mutex<Option<AppHandle>> = Mutex::new(None);
 
@@ -88,4 +91,84 @@ fn run(url: String, ready: mpsc::Sender<Result<(), String>>) -> Result<(), Strin
         }
     });
     Ok(())
+}
+
+/// La fenêtre de la pastille : sans cadre, transparente, toujours devant, jamais activée (le texte doit se coller dans l'appli qui a le focus)
+/// et insensible à la souris. Elle charge la même interface avec « #overlay ».
+fn build_overlay(app: &AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
+    let url: Url = format!("{url}#overlay").parse().map_err(|e| format!("adresse illisible ({e})"))?;
+    let window = WebviewWindowBuilder::new(app, OVERLAY_LABEL, WebviewUrl::External(url))
+        .title("Scriibe — indicateur")
+        .inner_size(WINDOW_SIZE.0, WINDOW_SIZE.1)
+        .resizable(false)
+        .decorations(false)
+        .transparent(true)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .focusable(false)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    let _ = window.set_ignore_cursor_events(true);
+    Ok(window)
+}
+
+/// Pose la fenêtre en bas de la zone de travail de l'écran où se trouve la souris, selon la position choisie.
+fn place_overlay(app: &AppHandle, window: &tauri::WebviewWindow, position: scriibe_core::settings::CapturePosition) {
+    let monitor = app
+        .cursor_position()
+        .ok()
+        .and_then(|p| app.monitor_from_point(p.x, p.y).ok().flatten())
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let Some(monitor) = monitor else { return };
+    let (area, scale) = (monitor.work_area(), monitor.scale_factor());
+    let (width, height) = (WINDOW_SIZE.0 * scale, WINDOW_SIZE.1 * scale);
+    let x = origin_x(position, f64::from(area.position.x), f64::from(area.size.width), width);
+    let y = f64::from(area.position.y) + f64::from(area.size.height) - BOTTOM_GAP * scale - height;
+    let _ = window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+}
+
+/// Surveille l'état de la pastille : la montre et la cache avec l'état de la dictée quand le réglage « Afficher la pastille » est coché.
+/// La fenêtre est créée (cachée) au premier besoin, puis réutilisée.
+pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConfig>, log: Arc<dyn Log>) {
+    let _ = std::thread::Builder::new().name("scriibe-pastille".into()).spawn(move || {
+        let mut shown = false;
+        let mut failed = false;
+        loop {
+            std::thread::sleep(Duration::from_millis(40));
+            let settings = config.settings();
+            let want = settings.overlay_enabled && model.snapshot().visible();
+            if failed || want == shown {
+                continue;
+            }
+            let Some(app) = handle().clone() else { continue };
+            let window = match app.get_webview_window(OVERLAY_LABEL) {
+                Some(window) => window,
+                None if want => match build_overlay(&app, &url) {
+                    Ok(window) => {
+                        log.write("pastille: fenêtre créée");
+                        window
+                    }
+                    Err(e) => {
+                        log.write(&format!("pastille: impossible ({e})"));
+                        failed = true;
+                        continue;
+                    }
+                },
+                None => {
+                    shown = false;
+                    continue;
+                }
+            };
+            if want {
+                place_overlay(&app, &window, settings.capture_position);
+                let _ = window.show();
+            } else {
+                let _ = window.hide();
+            }
+            shown = want;
+        }
+    });
 }

@@ -24,9 +24,8 @@ scriibe/
 │  ├─ engines/     whisper-server, llama-server, clients Deepgram / OpenRouter / LM Studio / Ollama
 │  ├─ platform/    interface par système + une implémentation par système (+ faux pour les tests)
 │  ├─ pipeline/    le chef d'orchestre : touche → micro → transcription → mise au propre → collage → historique
-│  └─ cli/         `scriibe` : exécutable en ligne de commande avec icône de notification (jalon de l'étape 5)
-├─ src-tauri/      application Tauri : assemble core + engines + platform, expose les commandes à l'interface
-├─ ui/             interface web (TypeScript) : Réglages, Dictionnaire, Modes, Historique, Tableau de bord, Aide
+│  └─ cli/         `scriibe` : l'exécutable (icône de notification, serveur local de l'interface, fenêtre Tauri sous Windows, sous-commandes de diagnostic)
+├─ ui/             interface web Svelte 5 + TypeScript : Tableau de bord, Historique, Modes, Dictionnaire, Réglages, Installation, Banc d'essai, Mise à jour, Journal, Aide
 ├─ fixtures/       cas de référence JSON tirés de Scribe
 └─ docs/
 ```
@@ -74,9 +73,13 @@ Le cœur Rust doit les passer **à l'identique** (399 cas dans 17 fichiers : 376
 
 ## 4. Interface
 
-**Jalon actuel (étape 5)** : `crates/cli` sert une **page d'essais** web locale (serveur `tiny_http` sur 127.0.0.1, port libre, adresse à jeton secret) : état de l'installation, téléchargements confirmés, banc de dictée (les 17 phrases de Scribe), rapport. Elle prépare l'interface complète ci-dessous et sert de banc d'essai sur les vraies machines ; ses essais passent par le chef d'orchestre avec des adaptateurs qui détournent le collage et l'historique (`web/sinks.rs`).
+**Depuis S04 (étape 6)** : une **fenêtre Tauri 2** (WebView2 sous Windows) affiche une interface **Svelte 5** (`ui/`, Vite, TypeScript) que sert le petit serveur local de `crates/cli` (`tiny_http`, 127.0.0.1, port libre, adresse à jeton secret, contrôle de l'en-tête `Host`). L'interface construite (`ui/dist`) est **embarquée** dans `scriibe.exe` (`rust-embed`) : la mise à jour par l'interface (un seul exécutable) marche comme avant. Le Rust garde la logique et l'état ; l'interface affiche et envoie des requêtes (`api/…`). Choix : une seule API pour la fenêtre et pour un navigateur, ce qui permet de contrôler l'interface par captures depuis une session cloud ; les commandes Tauri (IPC) viendront pour ce qu'une page ne sait pas faire (fenêtre d'indicateur transparente sans focus, choix de fichier).
 
-Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affiche et envoie des commandes. Parité visée avec Scribe : onglets de Réglages, Dictionnaire, Modes personnalisables, Historique, Tableau de bord, Aide, bancs d'essai. L'indicateur de dictée est une fenêtre à part, transparente, sans focus.
+- `window.rs` (Windows) : la boucle de Tauri tourne dans son propre fil (`any_thread`), le fil principal garde la boucle de messages de l'icône et du crochet clavier ; fermer la fenêtre ne quitte pas Scriibe ; l'icône (« Ouvrir Scriibe ») la rouvre ; si WebView2 manque, l'interface s'ouvre dans le navigateur. Les autres systèmes gardent le navigateur jusqu'à leur étape (7).
+- Pages : Tableau de bord (chiffres, test de frappe, assistant de premier lancement), Historique, Modes, Dictionnaire, Réglages, Installation, Banc d'essai (passages gardés, comparaison), Mise à jour, Journal et rapport, Aide.
+- Logique d'interface testée sans écran : `ui/src/lib/*.test.ts` (Vitest), dont le rejeu de `fixtures/ui_logic.json` ; `npm run check` (svelte-check) ; la CI construit l'interface avant `cargo`.
+- Réglages : `settings.json`, même format que Scribe, plus quelques clés propres à Scriibe (`llamaDevice`, `llamaIdleMinutes`, `setupDone`) ; l'API les change par fusion de clés (`POST api/settings`).
+- Scribe (Mac) garde son interface SwiftUI ; l'indicateur de dictée de Scriibe reste l'icône de la zone de notification jusqu'à sa fenêtre à part (transparente, sans focus).
 
 ## 5. Points durs connus
 
@@ -104,6 +107,7 @@ Tauri 2 + interface web. Le Rust garde la logique et l'état ; l'interface affic
 | Touche de dictée sous Windows et Linux | Ctrl droit, Maj en plus pour traduire (AZERTY : AltGr est Ctrl gauche + Alt droite pour Windows, jamais confondu avec Ctrl droit) | 2026-10-25 |
 | Premier jalon de l'étape 5 | exécutable en ligne de commande avec icône de notification, avant la fenêtre Tauri | 2026-10-25 |
 | Tâches de fond du chef d'orchestre | trait `Executor` (fils en réel, exécution immédiate ou manuelle dans les tests) | 2026-10-25 |
+| Cadre de l'interface web | Svelte 5 + Vite + TypeScript (`ui/`), servie par le serveur local de `crates/cli` et affichée dans une fenêtre Tauri 2 | 2026-10-27 |
 | Retrouver un serveur resté d'une session précédente | `sysinfo` (lignes de commande des processus), à la place de `pkill`, qui n'existe pas sous Windows | 2026-10-25 |
 
-À trancher : la gestion de Wayland ; la langue de l'interface au-delà du français ; le cadre de l'interface web (Svelte ou React).
+À trancher : la gestion de Wayland ; la langue de l'interface au-delà du français.

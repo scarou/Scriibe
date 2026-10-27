@@ -2,6 +2,7 @@
   import { api } from '../lib/api';
   import { base } from '../lib/format';
   import { onMount } from 'svelte';
+  import { colors, positions, styles } from '../lib/appearance';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
@@ -154,6 +155,39 @@
     <div class="row">
       <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
         Sauter la mise au propre quand Whisper rend déjà un texte propre (modes Simple et Amusant)</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Apparence de l’indicateur</h2>
+    <p class="muted">L’icône près de l’horloge change toujours de couleur. La <b>pastille à l’écran</b> (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.</p>
+    <div class="row">
+      <label><input type="checkbox" checked={v.overlayEnabled} onchange={(e) => settings.change({ overlayEnabled: e.currentTarget.checked })} />
+        Afficher la pastille à l’écran (bêta)</label>
+    </div>
+    <div class="row">
+      <label>Style :
+        <select value={v.captureStyle} onchange={(e) => settings.change({ captureStyle: e.currentTarget.value as never })}>
+          {#each styles as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+        </select>
+      </label>
+      <label>Position :
+        <select value={v.capturePosition} onchange={(e) => settings.change({ capturePosition: e.currentTarget.value as never })}>
+          {#each positions as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+        </select>
+      </label>
+      <label>Couleur :
+        <select value={v.captureColor} onchange={(e) => settings.change({ captureColor: e.currentTarget.value as never })}>
+          {#each colors as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label>Transparence :
+        <input type="range" min="0.3" max="1" step="0.05" value={v.captureOpacity} onchange={(e) => settings.change({ captureOpacity: Number(e.currentTarget.value) })} />
+        {Math.round(v.captureOpacity * 100)} %
+      </label>
+      <button onclick={() => api('overlay/preview', {})} disabled={!v.overlayEnabled}>Aperçu</button>
     </div>
   </section>
 
