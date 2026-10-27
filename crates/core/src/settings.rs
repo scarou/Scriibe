@@ -268,8 +268,8 @@ pub struct AppSettings {
     /// L'assistant de premier lancement a été passé (appliqué ou écarté). Propre à Scriibe.
     #[serde(rename = "setupDone")]
     pub setup_done: bool,
-    /// Afficher la pastille d'écoute à l'écran (en plus de l'icône de la zone de notification). Propre à Scriibe ; coupé par défaut tant que
-    /// la fenêtre n'est pas validée sur tous les PC.
+    /// Afficher la pastille d'écoute à l'écran (en plus de l'icône de la zone de notification). Propre à Scriibe ; active par défaut depuis S05
+    /// (essayée sur le PC de test : trois styles, traduction, focus conservé).
     #[serde(rename = "overlayEnabled")]
     pub overlay_enabled: bool,
 }
@@ -320,7 +320,7 @@ impl Default for AppSettings {
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
             setup_done: false,
-            overlay_enabled: false,
+            overlay_enabled: true,
         }
     }
 }

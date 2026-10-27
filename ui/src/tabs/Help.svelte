@@ -37,7 +37,7 @@
       <p>Les <b>mots</b> du dictionnaire sont écrits exactement comme vous les avez saisis. Une <b>correction</b> « entendu → écrit » remplace toujours ce que Whisper entend. Les signes dictés (« ouvrez la parenthèse », « tiret » pour une liste) marchent sans rien configurer.</p>
     {:else if open === 'indicator'}
       <h2>L’indicateur</h2>
-      <p>L’icône près de l’horloge change de couleur : <b>gris</b> au repos, <b>rouge</b> pendant l’écoute, <b>orange</b> pendant le traitement, <b>vert</b> une fois le texte collé, <b>bleu</b> pour un message. Une pastille à l’écran viendra plus tard.</p>
+      <p>L’icône près de l’horloge change de couleur : <b>gris</b> au repos, <b>rouge</b> pendant l’écoute, <b>orange</b> pendant le traitement, <b>vert</b> une fois le texte collé, <b>bleu</b> pour un message. La <b>pastille à l’écran</b> (bêta, active par défaut, à décocher dans Réglages → Apparence) montre l’état de la dictée, le niveau du micro, les alertes et la langue d’une traduction, sans prendre le focus.</p>
     {:else if open === 'measures'}
       <h2>Mesurer et comparer</h2>
       <p>Le <b>Banc d’essai</b> fait lire les 17 phrases de Scribe et contrôle automatiquement le résultat (chiffres, ponctuation, mots gardés) en donnant les temps de chaque étape. L’onglet <b>Journal et rapport</b> copie un rapport à coller dans la conversation. Sans carte graphique, comptez 2 à 3 s de transcription ; une mise au propre dans le cloud ajoute 1 s, sur cet ordinateur 2 à 4 s.</p>
