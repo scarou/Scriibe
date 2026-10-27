@@ -30,7 +30,7 @@ Section « Clés du cloud » de la page : coller la clé Deepgram et/ou OpenRout
 
 - **Version Vulkan** : section 2, « llama-server (Windows, carte graphique Vulkan) » remplace la version processeur (retélécharger la version processeur pour revenir). Section 1 : « Lister les cartes » puis « Carte graphique de llama.cpp » (automatique, processeur seulement, ou une carte). Le rapport cite l'appareil choisi, `llama-server --list-devices` et le début du journal du moteur. Sur le portable de test, aucune carte n'a donné d'avantage net par dictée (voir `CHANGELOG.md`, S03).
 - **Garder le modèle chargé** : 30 min (comme Scribe), 2 h, 8 h ou tant que Scriibe tourne. Après une libération, la dictée suivante coûte 15 à 45 s sur ce portable.
-- Les deux choix sont gardés dans `moteurs.json` (dossier de données).
+- Les deux choix sont gardés dans les réglages (onglet Réglages ; l’ancien `moteurs.json` est repris au premier lancement).
 
 ## Pause des médias (essayée : marche avec Chrome)
 

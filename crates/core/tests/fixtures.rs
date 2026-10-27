@@ -437,6 +437,10 @@ fn run_case(case: &Value) -> Result<Option<()>, String> {
             }
             p if p.starts_with("max_duration_ms:") => {
                 let limit: u128 = p["max_duration_ms:".len()..].parse().map_err(|_| "durée illisible")?;
+                // La limite de Scribe protège d'un retour arrière catastrophique (des minutes), mesurée en version optimisée sur un
+                // Mac. Les tests tournent en version de débogage sur des exécuteurs partagés (1,16 s mesuré sous Windows pour 1 s) :
+                // marge de 5 fois, qui attrape encore un vrai blocage.
+                let limit = limit * 5;
                 if began.elapsed().as_millis() < limit {
                     Ok(Some(()))
                 } else {
