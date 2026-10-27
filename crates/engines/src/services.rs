@@ -445,7 +445,8 @@ mod tests {
         let worker = std::thread::spawn(move || {
             let _running = background.begin();
             started.send(()).unwrap();
-            std::thread::sleep(Duration::from_millis(150));
+            // Large : sous charge, le fil de test peut reprendre bien après ce signal, et il doit encore trouver le préchauffage en cours.
+            std::thread::sleep(Duration::from_millis(700));
         });
         ready.recv().unwrap();
         let waited = warm_ups.wait();

@@ -32,6 +32,12 @@ pub trait AudioSource: Send + Sync + 'static {
     fn processes(&self) -> Vec<AudioProcess>;
     /// La touche Lecture/Pause du clavier, appuyée puis relâchée.
     fn play_pause(&self);
+    /// Lecture/Pause visée sur ces lecteurs quand le système sait le faire (sinon la touche du clavier, qui va au dernier programme
+    /// inscrit comme lecteur, pas forcément celui qui joue). Retourne une précision pour le journal (vide : touche du clavier).
+    fn play_pause_for(&self, _players: &[AudioProcess]) -> String {
+        self.play_pause();
+        String::new()
+    }
     /// Processus système qui produisent des sons de leur propre chef : ils ne sont pas un média à interrompre.
     fn ignored(&self) -> &'static [&'static str];
     /// Ce que le système voit, en une ligne, pour le journal quand rien n'est mis en pause (comprendre pourquoi).
@@ -138,8 +144,9 @@ impl<S: AudioSource> Shared<S> {
                     state.paused = media_pause::playing(&snapshot, self.own_pid, ignored).into_iter().cloned().collect();
                     state.sent_at = Some(Instant::now());
                 }
-                self.source.play_pause();
-                self.log(&format!("médias: pause demandée ({})", names.join(", ")));
+                let paused = lock(&self.state).paused.clone();
+                let how = self.source.play_pause_for(&paused);
+                self.log(&format!("médias: pause demandée ({}){how}", names.join(", ")));
                 self.verify(mine);
             }
         }
@@ -207,8 +214,8 @@ impl<S: AudioSource> Shared<S> {
             self.log(&format!("médias: autre chose joue ({}), pas de relance", others.join(", ")));
             return;
         }
-        self.source.play_pause();
-        self.log("médias: relance demandée");
+        let how = self.source.play_pause_for(players);
+        self.log(&format!("médias: relance demandée{how}"));
     }
 }
 
@@ -296,6 +303,9 @@ mod tests {
         keys: Mutex<usize>,
         /// Ce que la touche lance : rien (le navigateur s'arrête), ou un autre lecteur qui démarre.
         key_starts_other: Mutex<bool>,
+        /// Le système sait viser le lecteur : la touche du clavier n'est pas utilisée.
+        can_target: Mutex<bool>,
+        targeted: Mutex<usize>,
     }
 
     impl Fake {
@@ -304,6 +314,9 @@ mod tests {
         }
         fn keys(&self) -> usize {
             *lock(&self.keys)
+        }
+        fn targeted(&self) -> usize {
+            *lock(&self.targeted)
         }
     }
 
@@ -321,6 +334,15 @@ mod tests {
             } else {
                 list.retain(|p| p.pid != BROWSER);
             }
+        }
+        fn play_pause_for(&self, players: &[AudioProcess]) -> String {
+            if !*lock(&self.0.can_target) {
+                self.play_pause();
+                return String::new();
+            }
+            *lock(&self.0.targeted) += 1;
+            lock(&self.0.processes).retain(|p| !players.iter().any(|q| q.pid == p.pid));
+            " — commande envoyée à la fenêtre".into()
         }
         fn ignored(&self) -> &'static [&'static str] {
             &["system.exe"]
@@ -438,5 +460,19 @@ mod tests {
         media.pause_if_playing(true);
         wait(250);
         assert_eq!(fake.keys(), 2, "pause, puis la même touche pour annuler ce que la première a lancé");
+    }
+
+    #[test]
+    fn a_player_that_can_be_targeted_never_gets_the_keyboard_key() {
+        let fake = Arc::new(Fake::default());
+        fake.set(vec![process(BROWSER, true, false)]);
+        *lock(&fake.can_target) = true;
+        let media = pauser(&fake);
+        media.pause_if_playing(true);
+        wait(100);
+        assert_eq!((fake.targeted(), fake.keys()), (1, 0), "pause visée, sans la touche du clavier");
+        media.resume_if_paused();
+        wait(150);
+        assert_eq!((fake.targeted(), fake.keys()), (2, 0), "relance visée aussi");
     }
 }

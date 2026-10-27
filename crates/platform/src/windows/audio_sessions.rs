@@ -13,11 +13,17 @@ use windows::Win32::Media::Audio::{
     MMDeviceEnumerator,
 };
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED};
-use windows_sys::Win32::Foundation::CloseHandle;
+use windows_sys::Win32::Foundation::{CloseHandle, BOOL, HWND, LPARAM};
 use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, VK_MEDIA_PLAY_PAUSE,
 };
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    EnumWindows, GetWindow, GetWindowThreadProcessId, IsWindowVisible, SendMessageTimeoutW, GW_OWNER, SMTO_ABORTIFHUNG,
+};
+
+const WM_APPCOMMAND: u32 = 0x0319;
+const APPCOMMAND_MEDIA_PLAY_PAUSE: isize = 14;
 
 /// En dessous, la session est du silence (flux ouvert sans son).
 const AUDIBLE: f32 = 0.0005;
@@ -169,6 +175,46 @@ fn describe_sessions() -> String {
     }
 }
 
+/// Les fenêtres de premier niveau visibles d'un processus (celles qu'un lecteur a à l'écran, sans les fenêtres filles).
+fn top_windows(pid: u32) -> Vec<HWND> {
+    struct Search {
+        pid: u32,
+        found: Vec<HWND>,
+    }
+    unsafe extern "system" fn visit(window: HWND, data: LPARAM) -> BOOL {
+        // SAFETY : `data` est l'adresse du `Search` posé sur la pile de `top_windows`, vivant pendant toute l'énumération.
+        let search = unsafe { &mut *(data as *mut Search) };
+        let mut owner_pid = 0u32;
+        // SAFETY : fenêtre donnée par l'énumération ; lecture seule.
+        let visible = unsafe {
+            GetWindowThreadProcessId(window, &mut owner_pid);
+            IsWindowVisible(window) != 0 && GetWindow(window, GW_OWNER).is_null()
+        };
+        if owner_pid == search.pid && visible {
+            search.found.push(window);
+        }
+        1
+    }
+    let mut search = Search { pid, found: Vec::new() };
+    // SAFETY : la fonction de rappel ne sort pas de cet appel ; `search` reste valide jusqu'à son retour.
+    unsafe {
+        EnumWindows(Some(visit), &mut search as *mut Search as LPARAM);
+    }
+    search.found
+}
+
+/// Envoie « Lecture/Pause » à la première fenêtre du processus (la commande multimédia de Windows, que VLC et d'autres lecteurs de
+/// bureau comprennent) ; faux si le processus n'a pas de fenêtre à lui (l'audio d'un navigateur vit dans un processus sans fenêtre).
+fn send_app_command(pid: u32) -> bool {
+    let Some(window) = top_windows(pid).into_iter().next() else { return false };
+    let mut result = 0usize;
+    // SAFETY : envoi d'un message à une fenêtre existante, avec délai maximal (un programme figé ne bloque pas la dictée).
+    let sent = unsafe {
+        SendMessageTimeoutW(window, WM_APPCOMMAND, window as usize, APPCOMMAND_MEDIA_PLAY_PAUSE << 16, SMTO_ABORTIFHUNG, 500, &mut result)
+    };
+    sent != 0
+}
+
 fn key(up: bool) -> INPUT {
     INPUT {
         r#type: INPUT_KEYBOARD,
@@ -189,6 +235,26 @@ impl AudioSource for WasapiSessions {
         // SAFETY : tableau d'entrées valide pour la durée de l'appel.
         unsafe {
             SendInput(inputs.len() as u32, inputs.as_ptr(), std::mem::size_of::<INPUT>() as i32);
+        }
+    }
+
+    fn play_pause_for(&self, players: &[AudioProcess]) -> String {
+        let mut targeted = Vec::new();
+        let mut keyboard = false;
+        for player in players {
+            if player.pid > 0 && send_app_command(player.pid as u32) {
+                targeted.push(player.bundle.clone());
+            } else {
+                keyboard = true;
+            }
+        }
+        if keyboard {
+            self.play_pause();
+        }
+        match (targeted.is_empty(), keyboard) {
+            (true, _) => String::new(),
+            (false, false) => format!(" — commande envoyée à la fenêtre de {}", targeted.join(", ")),
+            (false, true) => format!(" — commande envoyée à la fenêtre de {}, touche du clavier pour les autres", targeted.join(", ")),
         }
     }
 
