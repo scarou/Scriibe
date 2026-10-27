@@ -4,6 +4,7 @@
 //! Le comportement de référence est celui de Scribe (macOS, Swift) ; les cas de `fixtures/` en sont tirés.
 
 pub mod bench;
+pub mod bench_archive;
 pub mod cleaner;
 pub mod dictionary;
 pub mod history;

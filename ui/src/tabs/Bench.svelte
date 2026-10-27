@@ -3,9 +3,9 @@
   import { api, type Phrase, type Take, type Transcribed } from '../lib/api';
   import { bench } from '../lib/bench.svelte';
   import { fmt } from '../lib/format';
+  import BenchArchive from '../components/BenchArchive.svelte';
   import ProfileBars from '../components/ProfileBars.svelte';
 
-  let index = $state(0);
   let recording = $state(false);
   let working = $state(false);
   let translate = $state(false);
@@ -16,17 +16,33 @@
   let audio = $state('');
   let poll: ReturnType<typeof setInterval> | undefined;
 
+  let index = $derived(bench.current);
   let phrase = $derived<Phrase | undefined>(bench.phrases[index]);
+  let finished = $derived(!bench.running && bench.results.length > 0);
 
-  function go(delta: number) {
-    const n = bench.phrases.length;
-    index = (index + n + delta) % n;
+  function clearTake() {
     take = null;
     out = null;
     audio = '';
   }
 
+  function start() {
+    clearTake();
+    bench.start();
+  }
+
+  function skip() {
+    clearTake();
+    bench.skip();
+  }
+
+  async function redo() {
+    clearTake();
+    await bench.redoLast();
+  }
+
   async function toggle() {
+    if (!bench.running) return;
     if (!recording) {
       const started = await api('record/start', {});
       if (!started.ok) {
@@ -34,9 +50,7 @@
         return;
       }
       recording = true;
-      take = null;
-      out = null;
-      audio = '';
+      clearTake();
       poll = setInterval(async () => {
         const l = await api<{ seconds: number; level: number }>('record/level');
         level = l.level;
@@ -47,16 +61,20 @@
       recording = false;
       level = 0;
       working = true;
+      const phraseIndex = index;
       take = await api<Take>('record/stop', {});
       audio = 'api/record/audio?' + Date.now();
-      out = await api<Transcribed>('transcribe', { phrase: index, translate });
+      out = await api<Transcribed>('transcribe', { phrase: phraseIndex, translate });
       working = false;
-      if (phrase && take && out && !out.error) bench.add({ index, category: phrase.category, text: phrase.text, out, take, translated: translate });
+      const p = bench.phrases[phraseIndex];
+      if (p && take && out && !out.error && out.ok && out.timing) {
+        await bench.record({ index: phraseIndex, category: p.category, text: p.text, out, take, translated: translate, setup: out.setup });
+      }
     }
   }
 
   onMount(() => {
-    if (!bench.phrases.length) void api<{ phrases: Phrase[] }>('phrases').then((r) => (bench.phrases = r.phrases));
+    if (!bench.phrases.length) void api<{ phrases: Phrase[] }>('phrases').then((r) => bench.setPhrases(r.phrases));
     return () => clearInterval(poll);
   });
 </script>
@@ -64,16 +82,17 @@
 <h1>Banc d’essai</h1>
 
 <section class="card">
-  <h2>Dictée d’essai (les 17 phrases du banc de Scribe)</h2>
+  <h2>Banc de dictée (les 17 phrases de Scribe)</h2>
   <p class="muted">
-    Lisez la phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite ; rien n’est collé
-    ni gardé dans l’historique.
+    Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles
+    et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.
   </p>
-  {#if phrase}
+
+  {#if !bench.running && !finished}
+    <div class="row"><button class="primary" onclick={start} disabled={!bench.phrases.length}>Commencer un passage</button></div>
+  {:else if phrase && bench.running}
     <div class="row">
-      <button onclick={() => go(-1)} disabled={recording || working}>←</button>
-      <span>{index + 1} / {bench.phrases.length}</span>
-      <button onclick={() => go(1)} disabled={recording || working}>→</button>
+      <span class="tag">{index + 1} / {bench.phrases.length}</span>
       <span class="tag">{phrase.category}</span>
     </div>
     <div class="phrase">{phrase.text}</div>
@@ -85,37 +104,69 @@
       <div class="meter"><div style="width: {Math.round(level * 100)}%"></div></div>
       <span class="muted">{fmt(seconds)} s</span>
     </div>
-    <div class="row"><label><input type="checkbox" bind:checked={translate} /> Traduire (comme Ctrl + Maj)</label></div>
-    {#if audio}<audio controls src={audio}></audio>{/if}
-    {#if take && out}
-      <div class="result">
-        {#if out.error}
-          <span class="bad">{out.error}</span>
+    <div class="row">
+      <label><input type="checkbox" bind:checked={translate} /> Traduire (comme Ctrl + Maj)</label>
+      <button onclick={skip} disabled={recording || working}>Passer</button>
+      <button onclick={redo} disabled={recording || working || !bench.results.length}>Relire la dernière</button>
+      <button onclick={() => { clearTake(); bench.stop(); }} disabled={recording || working}>Arrêter</button>
+    </div>
+  {:else}
+    <p class="ok">✔ Passage fini : {bench.results.length} phrase(s) lue(s).</p>
+    <div class="row"><button class="primary" onclick={start}>Recommencer un passage</button></div>
+  {/if}
+
+  {#if audio}<audio controls src={audio}></audio>{/if}
+  {#if take && out}
+    <div class="result">
+      {#if out.error}
+        <span class="bad">{out.error}</span>
+      {:else}
+        <div class="muted">
+          {fmt(take.duration)} s —
+          {#if take.verdict === 'correct'}<span class="ok">niveau correct</span>{:else}<span class={take.verdict === 'muet' ? 'bad' : 'warn'}>micro {take.verdict}</span>{/if}
+          ({fmt(take.level)}){take.gain > 1.05 ? ` — amplifié ×${fmt(take.gain)}` : ''}
+        </div>
+        <ProfileBars profile={out.profile} />
+        {#if out.ok}
+          <div><b>Whisper a entendu :</b> {out.raw}</div>
+          <div><b>Serait collé :</b> {out.text}</div>
         {:else}
-          <div class="muted">
-            {fmt(take.duration)} s —
-            {#if take.verdict === 'correct'}<span class="ok">niveau correct</span>{:else}<span class={take.verdict === 'muet' ? 'bad' : 'warn'}>micro {take.verdict}</span>{/if}
-            ({fmt(take.level)}){take.gain > 1.05 ? ` — amplifié ×${fmt(take.gain)}` : ''}
-          </div>
-          <ProfileBars profile={out.profile} />
-          {#if out.ok}
-            <div><b>Whisper a entendu :</b> {out.raw}</div>
-            <div><b>Serait collé :</b> {out.text}</div>
-          {:else}
-            <div class="bad"><b>Rien n’a été collé.</b></div>
-          {/if}
-          {#if out.messages.length}<div class="warn">{#each out.messages as m}{m}<br />{/each}</div>{/if}
-          {#if out.timing}
-            <div class="muted">
-              transcription {fmt(out.timing.transcription)} s — mise au propre {fmt(out.timing.cleanup)} s ({out.timing.outcome}) — total après relâche {fmt(out.timing.total)} s
-            </div>
-          {/if}
-          {#each out.checks as c (c.label)}<div class={c.passed ? 'ok' : 'bad'}>{c.passed ? '✔' : '✘'} {c.label}</div>{/each}
+          <div class="bad"><b>Rien n’a été collé</b> : la phrase reste à lire.</div>
         {/if}
-      </div>
-    {/if}
+        {#if out.messages.length}<div class="warn">{#each out.messages as m}{m}<br />{/each}</div>{/if}
+        {#if out.timing}
+          <div class="muted">
+            transcription {fmt(out.timing.transcription)} s — mise au propre {fmt(out.timing.cleanup)} s ({out.timing.outcome}) — total après relâche {fmt(out.timing.total)} s
+          </div>
+        {/if}
+        {#each out.checks as c (c.label)}<div class={c.passed ? 'ok' : 'bad'}>{c.passed ? '✔' : '✘'} {c.label}</div>{/each}
+      {/if}
+    </div>
   {/if}
 </section>
+
+{#if bench.results.length}
+  <section class="card">
+    <h2>Ce passage</h2>
+    <div class="muted">{bench.results[0].setup.transcription} · {bench.results[0].setup.cleanup} · {bench.results[0].setup.mode}</div>
+    <table>
+      <tbody>
+        {#each bench.results as r (r.index)}
+          {@const failed = r.out.checks.filter((c) => !c.passed)}
+          <tr>
+            <td>{r.index + 1}</td>
+            <td>{r.category}</td>
+            <td class={failed.length ? 'bad' : 'ok'}>{r.out.checks.length - failed.length}/{r.out.checks.length}{failed.length ? ' — ' + failed.map((c) => c.label).join(' ; ') : ''}</td>
+            <td class="muted">{r.out.timing ? fmt(r.out.timing.total) + ' s' : ''}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <p class="muted">Le rapport à copier (onglet « Journal et rapport ») reprend ces résultats.</p>
+  </section>
+{/if}
+
+<BenchArchive />
 
 <style>
   .phrase { font-size: 1.25rem; font-weight: 600; margin: 8px 0; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px dashed var(--line); }

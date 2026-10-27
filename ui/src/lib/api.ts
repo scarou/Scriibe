@@ -88,6 +88,64 @@ export interface Take {
   profile: Profile;
 }
 
+/** Les réglages d'un passage du banc, écrits comme on les lit. */
+export interface BenchSetup {
+  version: string;
+  transcription: string;
+  cleanup: string;
+  mode: string;
+  modeDetail: string;
+  skipWhenClean: boolean;
+  microphone: string;
+}
+
+export interface RunSummary {
+  id: string;
+  date: string;
+  setup: BenchSetup;
+  summary: string;
+  settings_changed: boolean;
+  phrases: number;
+  checks_passed: number;
+  checks_total: number;
+  average_total: number | null;
+  average_by_outcome: { outcome: string; average: number; count: number }[];
+}
+
+export interface DiffWord {
+  text: string;
+  changed: boolean;
+}
+
+export interface ComparedSide {
+  pasted: string;
+  raw: string;
+  timing: Timing;
+  checks: { label: string; passed: boolean }[];
+}
+
+export interface ComparedRow {
+  category: string;
+  text: string;
+  in_both: boolean;
+  changed: boolean;
+  improvements: string[];
+  regressions: string[];
+  older: ComparedSide | null;
+  newer: ComparedSide | null;
+  older_words: DiffWord[] | null;
+  newer_words: DiffWord[] | null;
+}
+
+export interface Comparison {
+  older: RunSummary;
+  newer: RunSummary;
+  common: number;
+  improved: number;
+  regressed: number;
+  rows: ComparedRow[];
+}
+
 export interface Transcribed {
   ok: boolean;
   error?: string;
@@ -101,6 +159,7 @@ export interface Transcribed {
   gain: number;
   verdict: 'muet' | 'faible' | 'correct';
   profile: Profile;
+  setup: BenchSetup;
 }
 
 export interface Correction {

@@ -3,6 +3,7 @@
 //! banc de dictée de Scribe et de voir ce que Whisper a entendu, ce qui serait collé, les contrôles et les temps, puis de copier un rapport.
 
 mod assets;
+mod bench_view;
 mod data;
 mod downloads;
 mod sinks;
@@ -21,6 +22,7 @@ use crate::app::{detect_whisper_models, models_folder, App};
 use crate::assistant;
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
+use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
 use scriibe_core::dictionary::{Correction, UserDictionary};
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
@@ -30,6 +32,7 @@ use scriibe_engines::runtime::{KeyKind, Log};
 use scriibe_engines::server::Launcher;
 use scriibe_engines::whisper::{self, WhisperLauncher};
 use scriibe_platform::audio::Recording;
+use scriibe_platform::bench_store::BenchStore;
 use scriibe_platform::storage::FileHistory;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -39,6 +42,7 @@ use tiny_http::{Header, Method, Request, Response, Server};
 pub struct Context {
     app: Arc<App>,
     history: Arc<FileHistory>,
+    bench: BenchStore,
     sinks: Arc<TestSinks>,
     downloads: Arc<Downloads>,
     updater: Arc<update::Updater>,
@@ -74,9 +78,11 @@ pub fn start(
     let port = server.server_addr().to_ip().map(|a| a.port()).ok_or("port inconnu")?;
     let token = scriibe_core::modes::new_id();
     let url = format!("http://127.0.0.1:{port}/{token}/");
+    let bench = BenchStore::open(BenchStore::standard_folder(app.config.folder()));
     let context = Arc::new(Context {
         app,
         history,
+        bench,
         sinks,
         downloads: Arc::new(Downloads::default()),
         updater: Arc::new(update::Updater::default()),
@@ -139,6 +145,36 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Get, "api/phrases") => ok(request, phrases()),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
+        (Method::Get, "api/bench/runs") => {
+            ok(request, json!({"runs": ctx.bench.runs().iter().map(bench_view::run_summary).collect::<Vec<_>>()}))
+        }
+        (Method::Post, "api/bench/save") => match BenchRun::from_value(&input) {
+            Some(run) => {
+                ctx.bench.save(run);
+                ok(request, json!({"ok": true, "deleted": ctx.bench.is_deleted(input["id"].as_str().unwrap_or(""))}))
+            }
+            None => fail(request, 400, "passage illisible"),
+        },
+        (Method::Post, "api/bench/discard") => {
+            ctx.bench.discard(input["id"].as_str().unwrap_or(""));
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/bench/delete") => {
+            ctx.bench.delete(input["id"].as_str().unwrap_or(""));
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/bench/compare") => {
+            let runs = ctx.bench.runs();
+            let pick = |key: &str| input[key].as_str().and_then(|id| ctx.bench.get(id));
+            let pair = match (pick("older"), pick("newer")) {
+                (Some(older), Some(newer)) => Some((older, newer)),
+                _ => bench_archive::default_pair(&runs).map(|(o, n)| (o.clone(), n.clone())),
+            };
+            match pair {
+                Some((older, newer)) => ok(request, bench_view::comparison(&older, &newer)),
+                None => fail(request, 404, "il faut deux passages pour comparer"),
+            }
+        }
         (Method::Get, "api/assistant") => ok(request, assistant_view(ctx)),
         (Method::Post, "api/assistant/apply") => match assistant_apply(ctx, input["chain"].as_str().unwrap_or("")) {
             Ok(()) => ok(request, json!({"ok": true})),
@@ -517,9 +553,7 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
     let checks: Vec<Value> = phrase
         .map(|p| p.checks.iter().map(|c| json!({"label": c.label(), "passed": !pasted.is_empty() && c.passes(&pasted)})).collect())
         .unwrap_or_default();
-    let timing = captured.dictation.as_ref().and_then(|d| d.timing.as_ref()).map(|t| {
-        json!({"transcription": t.transcription, "cleanup": t.cleanup, "total": t.total, "outcome": format!("{:?}", t.outcome).to_lowercase()})
-    });
+    let timing = captured.dictation.as_ref().and_then(|d| d.timing.as_ref()).and_then(|t| serde_json::to_value(t).ok());
     Ok(json!({
         "ok": captured.pasted.is_some(),
         "raw": captured.dictation.as_ref().map(|d| d.raw_text.clone()),
@@ -532,7 +566,35 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
         "gain": recording.gain,
         "verdict": verdict(recording.level),
         "profile": profile_json(&recording),
+        "setup": current_setup(ctx),
     }))
+}
+
+/// Les réglages d'un passage du banc, d'après les réglages d'aujourd'hui et ce que Scriibe utilise vraiment (modèles trouvés).
+fn current_setup(ctx: &Context) -> BenchSetup {
+    let settings = ctx.app.config.settings();
+    let models = models_folder(ctx.app.config.folder());
+    let fs = RealFs;
+    let whisper = if settings.whisper_model_path.is_empty() {
+        detect_whisper_models(&fs, &models).into_iter().next().unwrap_or_default()
+    } else {
+        settings.whisper_model_path.clone()
+    };
+    let llama_model = if settings.llama_cpp_model.is_empty() {
+        llama::detect_models(&fs, std::slice::from_ref(&models), Some(&models)).into_iter().next().unwrap_or_default()
+    } else {
+        settings.llama_cpp_model.clone()
+    };
+    let microphone = ctx
+        .app
+        .platform
+        .recorder
+        .microphones()
+        .iter()
+        .find(|m| m.uid == settings.microphone_uid)
+        .map(|m| m.name.clone())
+        .unwrap_or_default();
+    bench_view::setup_for(&settings, &build_id(), &whisper, &llama_model, &microphone)
 }
 
 fn downloads_state(ctx: &Context) -> Value {

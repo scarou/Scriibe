@@ -6,6 +6,7 @@
 
 pub mod apps;
 pub mod audio;
+pub mod bench_store;
 pub mod indicator;
 pub mod keys;
 pub mod machine;

@@ -21,6 +21,7 @@ describe('rapport', () => {
   it('donne le détail d’une phrase du banc', () => {
     const result = {
       index: 2, category: 'Chiffres', text: 'Il est 19h.', translated: false,
+      setup: { version: 'v', transcription: 'Whisper', cleanup: 'Sans modèle', mode: 'Simple', modeDetail: '', skipWhenClean: false, microphone: 'Micro' },
       take: { duration: 4.2, verdict: 'correct', level: 0.04, gain: 1 },
       out: {
         raw: 'il est dix-neuf heures', text: 'Il est 19 h.', messages: [], profile: { peak: 0.3, clipped: 0, levels: [0.1, 0.2] },
@@ -32,5 +33,6 @@ describe('rapport', () => {
     expect(r).toContain('Phrase 3 (Chiffres) : 4,2 s');
     expect(r).toContain('collé    : Il est 19 h.');
     expect(r).toContain('contrôles: 1/2 — échec : espace');
+    expect(r).toContain('Banc de dictée — v · Whisper · Sans modèle · Simple · Micro');
   });
 });

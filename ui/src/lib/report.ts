@@ -1,6 +1,7 @@
 import type { Status } from './api';
-import type { BenchResult } from './bench.svelte';
+import type { BenchResult } from './benchflow';
 import { base, fmt } from './format';
+import { setupSummary } from './setup';
 
 /** Le rapport que Christophe copie et colle dans la conversation : état, résultats du banc, journal. */
 export function buildReport(s: Status, results: BenchResult[], devices: string[], log: string[]): string {
@@ -14,6 +15,7 @@ export function buildReport(s: Status, results: BenchResult[], devices: string[]
   else if (s.llama_log.head.length) r += `  (aucune ligne carte graphique) début du journal :\n    ${s.llama_log.head.join('\n    ')}\n`;
   if (devices.length) r += `llama-server --list-devices :\n  ${devices.join('\n  ')}\n`;
   r += '\n';
+  if (results.length) r += `Banc de dictée — ${setupSummary(results[0].setup)}\n`;
   for (const x of results) {
     const t = x.out.timing;
     const failed = x.out.checks.filter((c) => !c.passed);
