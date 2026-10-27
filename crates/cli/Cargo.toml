@@ -23,3 +23,9 @@ tiny_http = "0.12"
 ureq = "2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 rust-embed = "8"
+
+[target."cfg(windows)".dependencies]
+tauri = { version = "2", default-features = false, features = ["wry"] }
+
+[build-dependencies]
+tauri-build = "2"

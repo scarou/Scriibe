@@ -96,12 +96,12 @@ pub fn run() -> Result<(), String> {
     if let Ok(mut slot) = page_url.lock() {
         *slot = Some(url.clone());
     }
-    eprintln!("Page d'essais : {url}");
+    eprintln!("Interface : {url}");
     if !std::env::args().any(|a| a == "--sans-navigateur") {
-        scriibe_platform::open::open(&url);
+        open_interface(&url, &app);
     }
     app.controller.preload();
-    eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : page d'essais, quitter).");
+    eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
 
     #[cfg(windows)]
     host.run();
@@ -116,6 +116,20 @@ pub fn run() -> Result<(), String> {
         drop(keys);
         Ok(())
     }
+}
+
+/// Ouvre l'interface : dans la fenêtre de Scriibe (Windows) ou, si elle ne peut pas s'ouvrir ou sur demande (`--navigateur`), dans le
+/// navigateur.
+fn open_interface(url: &str, app: &app::App) {
+    #[cfg(windows)]
+    if !std::env::args().any(|a| a == "--navigateur") {
+        match crate::window::start(url.to_string(), app.log.clone() as Arc<dyn Log>) {
+            Ok(()) => return,
+            Err(e) => app.log.write(&format!("fenêtre: impossible ({e}) : ouverture dans le navigateur")),
+        }
+    }
+    let _ = app;
+    scriibe_platform::open::open(url);
 }
 
 /// Les événements du clavier, une à deux fois par seconde de quoi surveiller le micro, et toutes les 30 s de quoi libérer les moteurs.

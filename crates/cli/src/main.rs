@@ -11,12 +11,14 @@
 mod app;
 mod commands;
 mod web;
+#[cfg(windows)]
+mod window;
 
 use std::process::ExitCode;
 
 const HELP: &str = "Scriibe — dictée vocale\n\n\
 Usage : scriibe [commande]\n\n\
-  lancer                     la dictée (maintiens Ctrl droit, parle, relâche) + la page d'essais dans le navigateur (par défaut)\n\
+  lancer                     la dictée (maintiens Ctrl droit, parle, relâche) + la fenêtre de Scriibe (par défaut ; --navigateur : dans le navigateur ; --sans-navigateur : sans rien ouvrir)\n\
   verifier                   ce qui est installé, trouvé ou manquant\n\
   micro [secondes]           enregistre le micro (3 s par défaut) et mesure le niveau\n\
   essai [fichier.wav] [--traduire]\n\

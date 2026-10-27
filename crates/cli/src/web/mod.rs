@@ -458,7 +458,7 @@ fn install_update(ctx: &Context) -> Result<(), String> {
     ctx.updater.start(token, latest, ctx.app.log.clone() as Arc<dyn Log>, move || restart(&app))
 }
 
-/// Arrête les moteurs, relance le programme (une nouvelle page d'essais s'ouvre) puis s'arrête.
+/// Arrête les moteurs, relance le programme (la fenêtre se rouvre) puis s'arrête.
 fn restart(app: &App) {
     app.whisper.server.stop();
     app.llama.stop();

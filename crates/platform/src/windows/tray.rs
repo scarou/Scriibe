@@ -101,7 +101,7 @@ impl TrayHost {
         page_url: Arc<Mutex<Option<String>>>,
     ) -> Result<(Self, TrayIndicator), String> {
         let menu = Menu::new();
-        let open_page = MenuItem::new("Ouvrir la page d'essais", true, None);
+        let open_page = MenuItem::new("Ouvrir Scriibe", true, None);
         let open_data = MenuItem::new("Ouvrir le dossier des données", true, None);
         let open_log = MenuItem::new("Ouvrir le journal", true, None);
         let quit = MenuItem::new("Quitter Scriibe", true, None);

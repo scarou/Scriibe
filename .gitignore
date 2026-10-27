@@ -9,3 +9,4 @@ models/
 *.m4a
 .DS_Store
 Thumbs.db
+crates/cli/gen/
