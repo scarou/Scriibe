@@ -3349,6 +3349,7 @@ dependencies = [
  "scriibe-core",
  "scriibe-engines",
  "serde_json",
+ "sysinfo",
  "tray-icon",
  "windows 0.57.0",
  "windows-sys 0.59.0",

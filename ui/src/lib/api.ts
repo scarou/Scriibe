@@ -52,6 +52,8 @@ export interface Settings {
   microphoneUID: string;
   translationLanguage: 'en' | 'es' | 'de' | 'it' | 'pt';
   keepDictationText: boolean;
+  typingWPM: number;
+  setupDone: boolean;
   historyKeepDays?: number | null;
   [key: string]: unknown;
 }

@@ -11,7 +11,14 @@ mod update;
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
 pub use update::remove_leftovers as remove_update_leftovers;
 
+/// Les identifiants des éléments de la page Installation (l'assistant vérifie que ce qu'il demande existe).
+#[cfg(test)]
+pub fn download_ids() -> Vec<&'static str> {
+    downloads::ITEMS.iter().map(|i| i.id).collect()
+}
+
 use crate::app::{detect_whisper_models, models_folder, App};
+use crate::assistant;
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::dictionary::{Correction, UserDictionary};
@@ -43,6 +50,8 @@ pub struct Context {
     recording_since: Mutex<Option<Instant>>,
     /// Ce que la touche globale n'a pas pu démarrer (affiché dans l'état).
     keys_error: Mutex<Option<String>>,
+    /// La machine, mesurée à la première demande de l'assistant (la recherche des cartes graphiques prend quelques secondes).
+    machine: Mutex<Option<scriibe_platform::machine::MachineInfo>>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -77,6 +86,7 @@ pub fn start(
         last: Mutex::new(None),
         recording_since: Mutex::new(None),
         keys_error: Mutex::new(keys_error),
+        machine: Mutex::new(None),
     });
     let shared = context.clone();
     std::thread::Builder::new()
@@ -129,6 +139,15 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Get, "api/phrases") => ok(request, phrases()),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
+        (Method::Get, "api/assistant") => ok(request, assistant_view(ctx)),
+        (Method::Post, "api/assistant/apply") => match assistant_apply(ctx, input["chain"].as_str().unwrap_or("")) {
+            Ok(()) => ok(request, json!({"ok": true})),
+            Err(e) => fail(request, 400, &e),
+        },
+        (Method::Post, "api/assistant/skip") => match assistant_done(ctx) {
+            Ok(()) => ok(request, json!({"ok": true})),
+            Err(e) => fail(request, 500, &e),
+        },
         (Method::Get, "api/modes") => ok(request, data::modes(&ctx.app.config.settings())),
         (Method::Post, "api/modes/choose") => match choose_mode(ctx, input["choice"].as_str().unwrap_or("")) {
             Ok(view) => ok(request, view),
@@ -376,6 +395,35 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
 
 /// Réglages facultatifs, absents du fichier tant qu'ils n'ont pas de valeur.
 const OPTIONAL_KEYS: [&str; 2] = ["historyKeepDays", "customModeID"];
+
+/// L'assistant de premier lancement : la machine mesurée (une fois), les chaînes proposées et celle qui est conseillée.
+fn assistant_view(ctx: &Context) -> Value {
+    let machine = lock(&ctx.machine).get_or_insert_with(scriibe_platform::machine::probe).clone();
+    let has_key = ctx.app.platform.secrets.get(KeyKind::OpenRouter).is_some();
+    json!({
+        "done": ctx.app.config.settings().setup_done,
+        "machine": assistant::machine_json(&machine),
+        "chains": assistant::offered(&machine).into_iter().map(assistant::chain_json).collect::<Vec<_>>(),
+        "recommended": assistant::recommended(&machine, has_key),
+        "has_openrouter_key": has_key,
+    })
+}
+
+fn assistant_apply(ctx: &Context, id: &str) -> Result<(), String> {
+    let chain = assistant::chain(id).ok_or("chaîne inconnue")?;
+    let mut settings = ctx.app.config.settings();
+    assistant::apply(chain, &mut settings);
+    ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())?;
+    ctx.app.log.write(&format!("assistant: chaîne « {} » appliquée", chain.id));
+    Ok(())
+}
+
+/// « Garder mes réglages » : l'assistant ne se représente plus.
+fn assistant_done(ctx: &Context) -> Result<(), String> {
+    let mut settings = ctx.app.config.settings();
+    settings.setup_done = true;
+    ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())
+}
 
 /// Le mode choisi : un mode livré (« formal ») ou l'identifiant d'un mode personnel.
 fn choose_mode(ctx: &Context, choice: &str) -> Result<Value, String> {

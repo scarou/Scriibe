@@ -12,6 +12,7 @@ scriibe-core = { path = "../core", default-features = false }
 scriibe-engines = { path = "../engines" }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 serde_json = "1"
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 
 [target.'cfg(windows)'.dependencies]
 # Micro (WASAPI).

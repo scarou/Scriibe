@@ -265,6 +265,9 @@ pub struct AppSettings {
     /// Minutes sans dictée avant de libérer `llama-server` ; 0 : tant que le programme tourne. Propre à Scriibe.
     #[serde(rename = "llamaIdleMinutes")]
     pub llama_idle_minutes: i64,
+    /// L'assistant de premier lancement a été passé (appliqué ou écarté). Propre à Scriibe.
+    #[serde(rename = "setupDone")]
+    pub setup_done: bool,
 }
 
 impl Default for AppSettings {
@@ -312,6 +315,7 @@ impl Default for AppSettings {
             history_keep_days: None,
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
+            setup_done: false,
         }
     }
 }
@@ -405,6 +409,7 @@ impl AppSettings {
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
             llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
             llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),
+            setup_done: get(o, "setupDone").unwrap_or(d.setup_done),
         })
     }
 

@@ -2,6 +2,13 @@
   import { onMount } from 'svelte';
   import { api, type Stats } from '../lib/api';
   import { spoken } from '../lib/format';
+  import { settings } from '../lib/settings.svelte';
+  import Assistant from '../components/Assistant.svelte';
+  import TypingTest from '../components/TypingTest.svelte';
+  import type { TabId } from '../lib/tabs';
+
+  let { goto }: { goto: (tab: TabId) => void } = $props();
+  let showAssistant = $state(false);
 
   let s = $state<Stats | null>(null);
 
@@ -9,6 +16,7 @@
   const weekday = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' });
 
   onMount(() => {
+    void settings.load();
     const load = () => void api<Stats>('stats').then((r) => (s = r));
     load();
     const timer = setInterval(load, 5000);
@@ -17,6 +25,10 @@
 </script>
 
 <h1>Tableau de bord</h1>
+
+{#if showAssistant || (settings.value && !settings.value.setupDone)}
+  <Assistant onclose={() => { showAssistant = false; void settings.load(); }} ongoto={(tab) => goto(tab)} />
+{/if}
 
 {#if s}
   <div class="grid">
@@ -47,6 +59,13 @@
     {:else}
       <p class="muted">Pas encore de dictée.</p>
     {/each}
+  </section>
+  <div class="row"><button onclick={() => (showAssistant = true)}>Relancer l’assistant de premier lancement</button></div>
+
+  <section class="card">
+    <h2>Ma vitesse au clavier</h2>
+    <p class="muted">Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.</p>
+    <TypingTest />
   </section>
 {:else}
   <p class="muted">Chargement…</p>

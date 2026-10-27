@@ -8,6 +8,7 @@ pub mod apps;
 pub mod audio;
 pub mod indicator;
 pub mod keys;
+pub mod machine;
 pub mod media;
 pub mod open;
 pub mod paste;

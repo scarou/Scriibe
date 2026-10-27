@@ -57,7 +57,7 @@
       {#if status.failed}
         <div class="card bad">Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.</div>
       {/if}
-      {#if tab === 'dashboard'}<Dashboard />
+      {#if tab === 'dashboard'}<Dashboard goto={choose} />
       {:else if tab === 'history'}<History />
       {:else if tab === 'modes'}<Modes />
       {:else if tab === 'dictionary'}<Dictionary />

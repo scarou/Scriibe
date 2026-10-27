@@ -9,6 +9,7 @@
 //!   navigateur (téléchargements, micro, phrases du banc, rapport) ; c'est ce que fait un double-clic.
 
 mod app;
+mod assistant;
 mod commands;
 mod web;
 #[cfg(windows)]

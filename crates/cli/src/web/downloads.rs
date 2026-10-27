@@ -189,34 +189,120 @@ fn clean_engine_folder(folder: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Ce qu'une source rend quand on lui demande un fichier à partir d'un octet.
+struct Opened {
+    reader: Box<dyn Read>,
+    /// L'octet où la réponse commence : celui demandé (réponse partielle), ou 0 si la source ignore la reprise et renvoie tout.
+    start: u64,
+    /// Taille totale du fichier, 0 si inconnue.
+    total: u64,
+}
+
+/// D'où viennent les octets (le réseau, ou une fausse source dans les tests).
+trait Source {
+    fn open(&self, from: u64) -> Result<Opened, String>;
+}
+
+struct HttpSource {
+    url: String,
+}
+
+/// « bytes 100-999/1000 » ou « bytes */1000 » : la taille totale.
+fn total_from_content_range(header: &str) -> Option<u64> {
+    header.rsplit('/').next()?.trim().parse().ok()
+}
+
+impl Source for HttpSource {
+    fn open(&self, from: u64) -> Result<Opened, String> {
+        let mut request = agent().get(&self.url).set("User-Agent", "scriibe");
+        if from > 0 {
+            request = request.set("Range", &format!("bytes={from}-"));
+        }
+        match request.call() {
+            Ok(response) => {
+                let partial = response.status() == 206;
+                let length: u64 = response.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(0);
+                let total = if partial {
+                    response.header("Content-Range").and_then(total_from_content_range).unwrap_or(from + length)
+                } else {
+                    length
+                };
+                Ok(Opened { reader: Box::new(response.into_reader()), start: if partial { from } else { 0 }, total })
+            }
+            // Rien à reprendre : le fichier est déjà entier, ou la reprise n'a pas de sens (fichier changé) : on repart de zéro.
+            Err(ureq::Error::Status(416, response)) => {
+                let total = response.header("Content-Range").and_then(total_from_content_range).unwrap_or(0);
+                if total > 0 && total == from {
+                    Ok(Opened { reader: Box::new(std::io::empty()), start: from, total })
+                } else {
+                    self.open(0)
+                }
+            }
+            Err(e) => Err(format!("téléchargement refusé ({e})")),
+        }
+    }
+}
+
+/// Combien de fois une connexion coupée est reprise (là où elle s'est arrêtée) avant d'abandonner.
+const RESUME_ATTEMPTS: u32 = 6;
+
+/// Reçoit le fichier dans `part`. Une coupure de connexion reprend toute seule à l'octet où elle s'est produite (en-tête `Range`) ; un
+/// fichier `.part` laissé par un échec précédent est repris de même. En cas d'abandon, `part` est gardé pour la prochaine fois.
+/// Rend la taille reçue.
+fn receive(source: &dyn Source, part: &Path, expected: u64, pause: Duration, progress: &dyn Fn(u64, u64)) -> Result<u64, String> {
+    let mut failures = 0;
+    loop {
+        let have = std::fs::metadata(part).map(|m| m.len()).unwrap_or(0);
+        // Un fichier plus gros que la taille annoncée n'est pas le bon : on repart de zéro.
+        let from = if expected > 0 && have > expected { 0 } else { have };
+        let outcome = (|| -> Result<u64, String> {
+            let mut opened = source.open(from)?;
+            let total = if opened.total > 0 { opened.total } else { expected };
+            let mut out = if opened.start == 0 {
+                std::fs::File::create(part).map_err(|e| e.to_string())?
+            } else {
+                std::fs::OpenOptions::new().append(true).open(part).map_err(|e| e.to_string())?
+            };
+            let mut done = opened.start;
+            let mut buffer = vec![0u8; 256 * 1024];
+            loop {
+                let n =
+                    opened.reader.read(&mut buffer).map_err(|e| format!("connexion interrompue après {} Mo ({e})", done / 1_048_576))?;
+                if n == 0 {
+                    break;
+                }
+                out.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
+                done += n as u64;
+                progress(done, total);
+            }
+            out.flush().map_err(|e| e.to_string())?;
+            if total > 0 && done < total {
+                return Err(format!("fichier incomplet ({} sur {} Mo)", done / 1_048_576, total / 1_048_576));
+            }
+            Ok(done)
+        })();
+        match outcome {
+            Ok(done) => return Ok(done),
+            Err(e) => {
+                failures += 1;
+                if failures > RESUME_ATTEMPTS {
+                    return Err(format!("{e} ; ce qui est déjà reçu est gardé : relancer le téléchargement le reprend"));
+                }
+                std::thread::sleep(pause * failures);
+            }
+        }
+    }
+}
+
 fn fetch(resolved: &Resolved, progress: &dyn Fn(u64, u64)) -> Result<(), String> {
     std::fs::create_dir_all(&resolved.dest).map_err(|e| format!("{} : {e}", resolved.dest.display()))?;
     let part = resolved.dest.join(format!("{}.part", resolved.name));
-    let response = agent().get(&resolved.url).set("User-Agent", "scriibe").call().map_err(|e| format!("téléchargement refusé ({e})"))?;
-    let total = response.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(resolved.size);
-    let mut reader = response.into_reader();
-    let result = (|| -> Result<(), String> {
-        let mut out = std::fs::File::create(&part).map_err(|e| e.to_string())?;
-        let mut buffer = vec![0u8; 256 * 1024];
-        let mut done = 0u64;
-        loop {
-            let n = reader.read(&mut buffer).map_err(|e| format!("connexion interrompue après {} Mo ({e})", done / 1_048_576))?;
-            if n == 0 {
-                break;
-            }
-            out.write_all(&buffer[..n]).map_err(|e| e.to_string())?;
-            done += n as u64;
-            progress(done, total);
-        }
-        out.flush().map_err(|e| e.to_string())?;
-        if total > 0 && done < total {
-            return Err(format!("fichier incomplet ({} sur {} Mo)", done / 1_048_576, total / 1_048_576));
-        }
-        Ok(())
-    })();
-    if let Err(e) = result {
+    let source = HttpSource { url: resolved.url.clone() };
+    let received = receive(&source, &part, resolved.size, Duration::from_secs(2), progress)?;
+    if resolved.size > 0 && received != resolved.size {
+        // Reçu en entier mais pas de la taille annoncée : un fichier changé ou abîmé ne se reprend pas.
         let _ = std::fs::remove_file(&part);
-        return Err(e);
+        return Err(format!("taille inattendue ({received} octets au lieu de {})", resolved.size));
     }
     if resolved.unzip {
         if resolved.clean {
@@ -312,6 +398,116 @@ mod tests {
         assert!(dir.join("notes.txt").exists());
         assert!(clean_engine_folder(&dir.join("absent")).is_ok());
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Une fausse source : `data`, qui coupe la connexion après `cut_after` octets reçus à chaque ouverture (jusqu'à `cuts` fois).
+    struct Flaky {
+        data: Vec<u8>,
+        cut_after: usize,
+        cuts: std::cell::Cell<u32>,
+        ignore_range: bool,
+        opens: std::cell::RefCell<Vec<u64>>,
+    }
+
+    struct Cutting {
+        data: std::io::Cursor<Vec<u8>>,
+        left: usize,
+    }
+
+    impl Read for Cutting {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            if self.left == 0 {
+                return Err(std::io::Error::other("connexion coupée"));
+            }
+            let n = buf.len().min(self.left);
+            let read = self.data.read(&mut buf[..n])?;
+            self.left -= read;
+            Ok(read)
+        }
+    }
+
+    impl Source for Flaky {
+        fn open(&self, from: u64) -> Result<Opened, String> {
+            self.opens.borrow_mut().push(from);
+            let start = if self.ignore_range { 0 } else { from };
+            let rest = self.data[start as usize..].to_vec();
+            let total = self.data.len() as u64;
+            if self.cuts.get() > 0 {
+                self.cuts.set(self.cuts.get() - 1);
+                return Ok(Opened { reader: Box::new(Cutting { data: std::io::Cursor::new(rest), left: self.cut_after }), start, total });
+            }
+            Ok(Opened { reader: Box::new(std::io::Cursor::new(rest)), start, total })
+        }
+    }
+
+    fn flaky(len: usize, cut_after: usize, cuts: u32, ignore_range: bool) -> Flaky {
+        let data: Vec<u8> = (0..len).map(|i| (i % 251) as u8).collect();
+        Flaky { data, cut_after, cuts: std::cell::Cell::new(cuts), ignore_range, opens: Default::default() }
+    }
+
+    fn temp_part(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("scriibe-recv-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join("x.part")
+    }
+
+    #[test]
+    fn a_cut_connection_resumes_where_it_stopped() {
+        let part = temp_part("resume");
+        let source = flaky(1_000_000, 300_000, 2, false);
+        let got = receive(&source, &part, 1_000_000, Duration::ZERO, &|_, _| {}).unwrap();
+        assert_eq!(got, 1_000_000);
+        assert_eq!(std::fs::read(&part).unwrap(), source.data, "les octets sont les bons, sans trou ni doublon");
+        assert_eq!(*source.opens.borrow(), vec![0, 300_000, 600_000], "chaque reprise part de l'octet atteint");
+        let _ = std::fs::remove_dir_all(part.parent().unwrap());
+    }
+
+    #[test]
+    fn a_part_file_left_by_a_failure_is_resumed_next_time() {
+        let part = temp_part("left");
+        let source = flaky(500_000, 0, 0, false);
+        std::fs::write(&part, &source.data[..200_000]).unwrap();
+        let got = receive(&source, &part, 500_000, Duration::ZERO, &|_, _| {}).unwrap();
+        assert_eq!((got, std::fs::read(&part).unwrap()), (500_000, source.data.clone()));
+        assert_eq!(*source.opens.borrow(), vec![200_000]);
+        let _ = std::fs::remove_dir_all(part.parent().unwrap());
+    }
+
+    #[test]
+    fn a_source_that_ignores_the_range_restarts_from_zero_without_corrupting_the_file() {
+        let part = temp_part("norange");
+        let source = flaky(400_000, 150_000, 1, true);
+        let got = receive(&source, &part, 400_000, Duration::ZERO, &|_, _| {}).unwrap();
+        assert_eq!((got, std::fs::read(&part).unwrap()), (400_000, source.data.clone()));
+        let _ = std::fs::remove_dir_all(part.parent().unwrap());
+    }
+
+    #[test]
+    fn too_many_cuts_give_up_but_keep_what_was_received() {
+        let part = temp_part("giveup");
+        let source = flaky(1_000_000, 100_000, 100, false);
+        let err = receive(&source, &part, 1_000_000, Duration::ZERO, &|_, _| {}).unwrap_err();
+        assert!(err.contains("gardé"), "{err}");
+        assert!(std::fs::metadata(&part).unwrap().len() >= 100_000);
+        let _ = std::fs::remove_dir_all(part.parent().unwrap());
+    }
+
+    #[test]
+    fn a_part_file_larger_than_the_announced_size_is_dropped() {
+        let part = temp_part("toobig");
+        let source = flaky(100_000, 0, 0, false);
+        std::fs::write(&part, vec![7u8; 150_000]).unwrap();
+        let got = receive(&source, &part, 100_000, Duration::ZERO, &|_, _| {}).unwrap();
+        assert_eq!((got, std::fs::read(&part).unwrap()), (100_000, source.data.clone()));
+        let _ = std::fs::remove_dir_all(part.parent().unwrap());
+    }
+
+    #[test]
+    fn the_total_comes_from_the_content_range_header() {
+        assert_eq!(total_from_content_range("bytes 100-999/1000"), Some(1000));
+        assert_eq!(total_from_content_range("bytes */1000"), Some(1000));
+        assert_eq!(total_from_content_range("bytes 0-9/*"), None);
     }
 
     #[test]
