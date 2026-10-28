@@ -12,6 +12,9 @@ Le symbole est celui de Scribe : **une plume de stylo percée d'une onde sonore*
 |---|---|
 | `scriibe-symbole.svg` | Symbole seul, un ton (`currentColor`) : petites tailles, barre latérale |
 | `scriibe-icone-windows.svg`, `-macos.svg`, `-linux.svg` | Icône de l'appli (grille macOS : carré de 824 px dans 1024), une par système |
+| `scriibe-logotype-windows.svg`, `-macos.svg`, `-linux.svg` | Mot complet, fond clair (dégradé de la couleur du système vers l'encre `#1C2427`) |
+| `scriibe-logotype-windows-sombre.svg`, `-macos-sombre.svg`, `-linux-sombre.svg` | Mot complet, fond sombre (dégradé vers `#F4F7F7`) |
+| `scriibe-logotype-mono.svg` | Mot complet, un ton (`currentColor`) |
 
 ## Où la couleur est utilisée
 
@@ -19,6 +22,14 @@ Le symbole est celui de Scribe : **une plume de stylo percée d'une onde sonore*
 - **La pastille à l'écran** : la couleur « Couleur de Scriibe » suit la marque du système.
 - **L'icône de l'exécutable Windows** : `crates/cli/icons/icon.ico` et `icon.png` (bleu). Les icônes macOS et Linux seront fabriquées à l'étape 7, avec le même outil.
 - **L'icône près de l'horloge** (Windows) : un disque de la couleur de l'état (gris, rouge, orange, vert, bleu) avec la plume en blanc (`crates/platform/src/windows/plume32.alpha`, un masque de 32×32 octets).
+
+## Le logotype
+
+La plume qui écoute, « scrii » à la plume (**Dancing Script** 700) puis « be » à la machine (**Courier Prime** Bold), le curseur. Les lettres sont **celles de Scribe**, déjà converties en tracés (aucune police n'est livrée ni à installer) : `tools/faire_logotype.py` les relit dans `scribe-logotype.svg` (dépôt de Scribe, jamais modifié), double le « i » de « scri » et décale « be » et le curseur d'autant. Polices sous licence SIL Open Font License 1.1 (textes dans le dépôt de Scribe : `OFL-DancingScript.txt`, `OFL-CourierPrime.txt`).
+
+```bash
+python3 tools/faire_logotype.py <chemin de scribe/logo/scribe-logotype.svg> [décalage du second i, 25 par défaut]
+```
 
 ## Fabriquer les icônes
 
@@ -31,5 +42,4 @@ Si le dessin du symbole change, changer ensemble : les SVG de ce dossier, `ui/sr
 
 ## À faire
 
-- **Logotype** (le mot « Scriibe » en tracés, comme celui de Scribe avec Dancing Script et Courier Prime) : pas encore dessiné ; la barre latérale écrit le nom en texte à côté du symbole.
 - Icônes macOS (`.icns`) et Linux (PNG de plusieurs tailles) à l'étape 7.

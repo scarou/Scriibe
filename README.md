@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logo/scriibe-logotype-windows-sombre.svg">
+    <img src="logo/scriibe-logotype-windows.svg" alt="Scriibe" width="420">
+  </picture>
+</p>
+
 # Scriibe
 
 Dictée vocale pour Windows, macOS et Linux. Maintenir une touche, parler, relâcher : le texte est transcrit, mis au propre et collé dans l'appli ouverte.
