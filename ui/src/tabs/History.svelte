@@ -99,7 +99,7 @@
       {/if}
       {#if d.mode || d.timing}
         <div class="muted">
-          {#if d.mode}Mode : {d.mode}{#if d.timing} — {outcomeLabels[d.timing.outcome] ?? d.timing.outcome}{/if}{/if}
+          {#if d.mode}Mode : {d.mode}{#if d.timing}{' — ' + (outcomeLabels[d.timing.outcome] ?? d.timing.outcome)}{/if}{/if}
           {#if d.timing}{d.mode ? ' · ' : ''}transcription {fmt(d.timing.transcription)} s · mise au propre {fmt(d.timing.cleanup)} s · total {fmt(d.timing.total)} s{/if}
         </div>
       {/if}

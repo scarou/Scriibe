@@ -4,6 +4,7 @@
 
 mod audio_sessions;
 mod credentials;
+pub mod file_dialog;
 mod foreground;
 mod keyboard;
 mod paste;

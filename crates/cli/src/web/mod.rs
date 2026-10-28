@@ -153,6 +153,11 @@ fn handle(ctx: &Context, mut request: Request) {
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
         (Method::Get, "api/phrases") => ok(request, phrases()),
+        (Method::Get, "api/signs") => ok(
+            request,
+            json!({"signs": scriibe_core::spoken_signs::ALL.iter().map(|s| json!({"said": s.said, "written": s.written})).collect::<Vec<_>>()}),
+        ),
+        (Method::Post, "api/pick-file") => ok(request, pick_file(input["kind"].as_str().unwrap_or(""))),
         (Method::Post, "api/sounds/play") => {
             let volume = input["volume"].as_f64().unwrap_or(0.5);
             ctx.app.platform.sounds.play(input["name"].as_str().unwrap_or(""), volume);
@@ -432,6 +437,23 @@ fn local_models(ctx: &Context, engine: &str) -> Value {
     }
 }
 
+/// « Parcourir… » : la boîte d'ouverture de fichier du système (Windows seulement pour l'instant), `{"path": null}` si on annule.
+fn pick_file(kind: &str) -> Value {
+    #[cfg(windows)]
+    {
+        let (title, filter): (&str, &[(&str, &str)]) = match kind {
+            "whisper" => ("Choisir un modèle Whisper (fichier ggml .bin)", &[("Modèles Whisper (*.bin)", "*.bin")]),
+            _ => return json!({"ok": false, "error": "type de fichier inconnu"}),
+        };
+        json!({"ok": true, "path": scriibe_platform::windows::file_dialog::pick_file(title, filter)})
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = kind;
+        json!({"ok": false, "error": "le choix d'un fichier n'est pas encore pris en charge sur ce système"})
+    }
+}
+
 fn status(ctx: &Context) -> Value {
     let app = &ctx.app;
     let settings = app.config.settings();
@@ -509,6 +531,9 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
         ctx.app.llama.launcher().set_device(&after.llama_device);
         // Le serveur redémarre à la prochaine dictée avec le nouvel appareil.
         ctx.app.llama.stop();
+    }
+    if after.whisper_idle_minutes != before.whisper_idle_minutes {
+        ctx.app.whisper.server.set_idle_limit(crate::app::idle_limit(after.whisper_idle_minutes));
     }
     if after.llama_idle_minutes != before.llama_idle_minutes {
         ctx.app.llama.set_idle_limit(crate::app::idle_limit(after.llama_idle_minutes));

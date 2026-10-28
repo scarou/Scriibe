@@ -66,6 +66,13 @@
     if (name && name !== 'Aucun') void api('sounds/play', { name, volume: v?.soundVolume ?? 0.5 });
   }
 
+  /** « Choisir un fichier… » : la boîte d'ouverture de Windows, pour un modèle Whisper rangé ailleurs. */
+  async function chooseWhisperFile() {
+    const out = await api<{ ok: boolean; path?: string | null; error?: string }>('pick-file', { kind: 'whisper' });
+    if (!out.ok) alert(out.error);
+    else if (out.path) await settings.change({ whisperModelPath: out.path });
+  }
+
   async function saveKey(kind: 'deepgram' | 'openrouter') {
     const out = await api('keys', { kind, value: keyInput[kind] });
     keyInput[kind] = '';
@@ -105,13 +112,36 @@
       </label>
       {#if v.transcriptionEngine === 'whisper'}
         <label>Modèle Whisper :
-          <select value={s.whisper.models.includes(v.whisperModelPath) ? v.whisperModelPath : ''} onchange={(e) => settings.change({ whisperModelPath: e.currentTarget.value })}>
+          <select value={v.whisperModelPath} onchange={(e) => settings.change({ whisperModelPath: e.currentTarget.value })}>
             <option value="">(automatique : le meilleur trouvé)</option>
+            {#if v.whisperModelPath && !s.whisper.models.includes(v.whisperModelPath)}<option value={v.whisperModelPath}>{base(v.whisperModelPath)}</option>{/if}
             {#each s.whisper.models as m (m)}<option value={m}>{base(m)}</option>{/each}
+          </select>
+        </label>
+        <button onclick={chooseWhisperFile}>Choisir un fichier…</button>
+      {:else}
+        <label>Modèle Deepgram :
+          <select value={v.transcriptionModel} onchange={(e) => settings.change({ transcriptionModel: e.currentTarget.value })}>
+            <option value="nova-3">nova-3 (le plus précis)</option>
+            <option value="nova-2">nova-2 (secours)</option>
           </select>
         </label>
       {/if}
     </div>
+    {#if v.transcriptionEngine === 'whisper'}
+      <div class="row">
+        <label>Libérer Whisper au repos :
+          <select value={String(v.whisperIdleMinutes)} onchange={(e) => settings.change({ whisperIdleMinutes: Number(e.currentTarget.value) })}>
+            {#each [0, 5, 10, 30, 60] as m (m)}<option value={String(m)}>{m === 0 ? 'Jamais' : `${m} min`}</option>{/each}
+          </select>
+        </label>
+      </div>
+      <p class="muted">
+        {v.whisperIdleMinutes === 0
+          ? 'Whisper reste en mémoire (environ 1 Go) tant que Scriibe tourne.'
+          : `Sans dictée pendant ${v.whisperIdleMinutes} min, Whisper s’arrête et rend sa mémoire ; il revient à l’appui de la touche (environ 1 s, pendant que tu parles).`}
+      </p>
+    {/if}
     <div class="row">
       <label>Mise au propre :
         <select value={v.cleanupEngine} onchange={(e) => settings.change({ cleanupEngine: e.currentTarget.value as never })}>

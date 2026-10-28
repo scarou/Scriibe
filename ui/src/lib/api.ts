@@ -49,12 +49,15 @@ export interface Settings {
   language: 'fr' | 'en' | 'multi';
   transcriptionEngine: 'whisper' | 'deepgram';
   whisperModelPath: string;
+  transcriptionModel: string;
+  whisperIdleMinutes: number;
   cleanupEngine: 'openRouter' | 'lmStudio' | 'llamaCpp' | 'ollama' | 'none';
   cleanupModel: string;
   llamaCppModel: string;
   llamaDevice: string;
   llamaIdleMinutes: number;
   pauseMedia: boolean;
+  listBullet: 'dash' | 'dot' | 'star';
   startSoundName: string;
   endSoundName: string;
   soundVolume: number;
