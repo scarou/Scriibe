@@ -252,6 +252,13 @@ impl Controller {
         lock(&self.inner.state).capture.clone()
     }
 
+    /// Un événement de clavier venu de la page (le crochet du système ne voit rien quand la fenêtre de Scriibe a le focus) : il ne sert qu'à
+    /// la capture, jamais à dicter. Rend faux si aucune capture n'est en cours.
+    pub fn feed_capture(&self, event: KeyEvent) -> bool {
+        let KeyEvent::Changed { changed, down, held } = event;
+        self.capture_key(changed, down, &held)
+    }
+
     /// Note la touche si la capture est en cours (rend vrai : l'événement ne sert alors pas à dicter).
     fn capture_key(&self, changed: Key, down: bool, held: &[Key]) -> bool {
         let mut state = lock(&self.inner.state);
@@ -272,7 +279,11 @@ impl Controller {
         // Seulement le nombre de touches : le journal ne dit jamais ce qui est tapé.
         if first || finished_now {
             let note = if finished_now { "combinaison complète" } else { "touche notée" };
-            self.inner.deps.log.write(&format!("capture des touches: {note} ({count} touche(s) dans la combinaison)"));
+            let app = self.inner.deps.apps.current().name;
+            self.inner
+                .deps
+                .log
+                .write(&format!("capture des touches: {note} ({count} touche(s) dans la combinaison), fenêtre active : {app}"));
         }
         true
     }

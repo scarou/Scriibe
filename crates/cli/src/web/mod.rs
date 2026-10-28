@@ -60,6 +60,8 @@ pub struct Context {
     machine: Mutex<Option<scriibe_platform::machine::MachineInfo>>,
     /// Ce que la capture de touche en cours règle : « dictation » ou « translate ».
     capture_kind: Mutex<String>,
+    /// Les touches que la page dit tenues pendant une capture (la fenêtre de Scriibe ne reçoit rien du crochet quand elle a le focus).
+    capture_held: Mutex<Vec<scriibe_core::hotkey::Key>>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -100,6 +102,7 @@ pub fn start(
         keys_error: Mutex::new(keys_error),
         machine: Mutex::new(None),
         capture_kind: Mutex::new("dictation".into()),
+        capture_held: Mutex::new(Vec::new()),
     });
     let shared = context.clone();
     std::thread::Builder::new()
@@ -184,7 +187,19 @@ fn handle(ctx: &Context, mut request: Request) {
         }
         (Method::Post, "api/keys/capture/start") => {
             *lock(&ctx.capture_kind) = if input["kind"] == "translate" { "translate".into() } else { "dictation".into() };
+            lock(&ctx.capture_held).clear();
             ctx.app.controller.start_capture();
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/keys/capture/key") => {
+            let vk = input["code"].as_str().and_then(scriibe_platform::keys::vk_of_web_code);
+            if let Some(vk) = vk {
+                let down = input["down"].as_bool().unwrap_or(false);
+                let event = scriibe_platform::keys::translate_vk(&mut lock(&ctx.capture_held), vk, down);
+                if let Some(event) = event {
+                    ctx.app.controller.feed_capture(event);
+                }
+            }
             ok(request, json!({"ok": true}))
         }
         (Method::Post, "api/keys/capture/stop") => {

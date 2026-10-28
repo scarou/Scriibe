@@ -49,7 +49,39 @@
     }, 150);
   }
 
+  /** Quand la fenêtre de Scriibe a le focus, le crochet du système ne reçoit rien : pendant une capture, la page rapporte elle-même les touches. */
+  const pressed = new Set<string>();
+  let sending: Promise<unknown> = Promise.resolve();
+
+  function report(code: string, down: boolean) {
+    sending = sending.then(() => api('keys/capture/key', { code, down })).catch(() => {});
+  }
+
+  function onKeyDown(e: KeyboardEvent) {
+    if (!kind || capture.finished) return;
+    e.preventDefault();
+    if (e.repeat || pressed.has(e.code)) return;
+    pressed.add(e.code);
+    report(e.code, true);
+  }
+
+  function onKeyUp(e: KeyboardEvent) {
+    if (!kind) return;
+    e.preventDefault();
+    if (!pressed.delete(e.code)) return;
+    report(e.code, false);
+  }
+
+  /** La fenêtre perd le focus (touche Windows, Alt+Tab…) : les relâchements ne viendront pas, on les rapporte. */
+  function onBlur() {
+    for (const code of [...pressed]) {
+      pressed.delete(code);
+      if (kind) report(code, false);
+    }
+  }
+
   function stop(callServer = true) {
+    pressed.clear();
     if (timer) clearInterval(timer);
     timer = null;
     if (callServer) void api('keys/capture/stop', {});
@@ -92,6 +124,8 @@
   });
 </script>
 
+<svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onblur={onBlur} />
+
 {#if s && v}
   <div class="row">
     <span>Touche de dictée : <b>{s.dictation_label}</b></span>
@@ -109,7 +143,8 @@
         {#if capture.labels?.length}<div class="live">{capture.labels.join(' + ')}</div>
         {:else if waited > 6}
           <div class="warn">Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une
-            autre touche (Windows, Ctrl gauche, une touche de fonction…).</div>
+            autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre :
+            passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.</div>
         {/if}
         <div class="row"><button onclick={() => stop()}>Annuler</button></div>
       {:else if capture.error}
@@ -129,7 +164,7 @@
   <div class="row">
     <button onclick={test} disabled={testing || !!kind}>{testing ? 'Maintiens ta touche…' : 'Tester ma touche'}</button>
     <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>Rétablir Ctrl droit + Maj</button>
-    {#if detected}<span class="ok">✔ Touche reconnue : Scriibe écoute ({s.dictation_label}).</span>{:else if testing}<span class="muted">Maintiens {s.dictation_label}…</span>{/if}
+    {#if detected}<span class="ok">✔ Touche reconnue : Scriibe écoute ({s.dictation_label}).</span>{:else if testing}<span class="muted">Passe dans le Bloc-notes (ou une autre appli), puis maintiens {s.dictation_label}…</span>{/if}
   </div>
   <p class="muted">
     Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl,

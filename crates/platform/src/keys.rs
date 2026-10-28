@@ -152,6 +152,53 @@ pub fn vk_of(key: Key) -> Option<u32> {
     }
 }
 
+/// Le code de touche de Windows d'une touche vue par la page (`KeyboardEvent.code`) : la fenêtre de Scriibe ne reçoit pas les touches du
+/// crochet global quand elle a le focus, la page les rapporte donc elle-même pendant une capture.
+pub fn vk_of_web_code(code: &str) -> Option<u32> {
+    let fixed = match code {
+        "ControlLeft" => vk::LCONTROL,
+        "ControlRight" => vk::RCONTROL,
+        "ShiftLeft" => vk::LSHIFT,
+        "ShiftRight" => vk::RSHIFT,
+        "AltLeft" => VK_LMENU,
+        "AltRight" => 0xA5,
+        "MetaLeft" => VK_LWIN,
+        "MetaRight" => VK_RWIN,
+        "IntlBackslash" => 0xE2,
+        "Pause" => 0x13,
+        "ScrollLock" => 0x91,
+        "PrintScreen" => 0x2C,
+        "ContextMenu" => 0x5D,
+        "Insert" => 0x2D,
+        "Home" => 0x24,
+        "End" => 0x23,
+        "PageUp" => 0x21,
+        "PageDown" => 0x22,
+        "Space" => 0x20,
+        "Enter" | "NumpadEnter" => 0x0D,
+        "Tab" => 0x09,
+        "Escape" => 0x1B,
+        "Backspace" => 0x08,
+        "Delete" => 0x2E,
+        "CapsLock" => 0x14,
+        "ArrowLeft" => 0x25,
+        "ArrowUp" => 0x26,
+        "ArrowRight" => 0x27,
+        "ArrowDown" => 0x28,
+        _ => 0,
+    };
+    if fixed != 0 {
+        return Some(fixed);
+    }
+    if let Some(n) = code.strip_prefix('F').and_then(|n| n.parse::<u32>().ok()).filter(|n| (1..=24).contains(n)) {
+        return Some(0x6F + n);
+    }
+    if let Some(letter) = code.strip_prefix("Key").filter(|l| l.len() == 1) {
+        return letter.bytes().next().filter(u8::is_ascii_uppercase).map(u32::from);
+    }
+    code.strip_prefix("Digit").filter(|d| d.len() == 1).and_then(|d| d.bytes().next()).filter(u8::is_ascii_digit).map(u32::from)
+}
+
 /// L'identifiant d'une touche de la liste (`f9`, `left_win`…), si elle y est.
 pub fn id_of(key: Key) -> Option<&'static str> {
     let code = vk_of(key)?;
@@ -324,6 +371,20 @@ mod tests {
     const A: u32 = 0x41;
     const LALT: u32 = 0xA4;
     const F9: u32 = 0x78;
+
+    #[test]
+    fn web_codes_become_windows_codes() {
+        assert_eq!(vk_of_web_code("F9"), Some(0x78));
+        assert_eq!(vk_of_web_code("F24"), Some(0x87));
+        assert_eq!(vk_of_web_code("F25"), None);
+        assert_eq!(vk_of_web_code("ControlLeft"), Some(vk::LCONTROL));
+        assert_eq!(vk_of_web_code("IntlBackslash"), Some(0xE2));
+        assert_eq!(vk_of_web_code("KeyV"), Some(0x56));
+        assert_eq!(vk_of_web_code("Digit5"), Some(0x35));
+        assert_eq!(vk_of_web_code("Unidentified"), None);
+        // Les touches de la liste des choix gardent leur code.
+        assert_eq!(id_of(key_of(vk_of_web_code("Pause").unwrap())), Some("pause"));
+    }
 
     #[test]
     fn right_control_alone_is_a_dictation() {
