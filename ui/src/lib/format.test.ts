@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { base, fmt, mo, percent, spoken, when } from './format';
+import { base, compte, fmt, mo, percent, spoken, taille, when } from './format';
 
 describe('format', () => {
   it('dit les durées', () => {
@@ -28,5 +28,18 @@ describe('format', () => {
     expect(percent(5, 0)).toBe(0);
     expect(percent(50, 200)).toBe(25);
     expect(percent(300, 200)).toBe(100);
+  });
+});
+
+
+describe('tailles et nombres courts', () => {
+  it('dit les Mo, puis les Go à partir de 1 Go', () => {
+    expect(taille(147_951_465)).toBe('141 Mo');
+    expect(taille(1_073_741_824)).toBe('1,0 Go');
+    expect(taille(2_490_000_000)).toBe('2,3 Go');
+  });
+
+  it('abrège les nombres de téléchargements', () => {
+    expect([compte(950), compte(1200), compte(12_345), compte(1_200_000), compte(3_000_000)]).toEqual(['950', '1,2 k', '12 k', '1,2 M', '3 M']);
   });
 });

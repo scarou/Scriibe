@@ -275,3 +275,20 @@ export interface Stats {
   top_apps: { name: string; words: number; share: number }[];
   typing_wpm: number;
 }
+
+/** Un modèle du dossier de l'appli (page Installation). */
+export interface InstalledModel {
+  name: string;
+  path: string;
+  size: number;
+  /** « llama », « whisper » ou « partial » (téléchargement interrompu). */
+  kind: 'llama' | 'whisper' | 'partial';
+  used: boolean;
+}
+
+export type DownloadProgress = { state: 'idle' | 'running' | 'done' | 'failed'; done?: number; total?: number; error?: string };
+
+/** Ce que Hugging Face répond à « Chercher » : les fichiers d'un dépôt, ou des dépôts. */
+export type HubAnswer =
+  | { mode: 'files'; repo: string; kind: 'llama' | 'whisper'; files: { name: string; size: number; note: string | null; downloadable: boolean; id: string }[] }
+  | { mode: 'search'; repos: { repo: string; downloads: number; likes: number }[] };

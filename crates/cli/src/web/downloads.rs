@@ -1,6 +1,7 @@
 //! Téléchargements proposés par la page d'essais. Rien ne part sans que la personne ait vu le nom, la taille et la source, puis confirmé.
 //! Les noms de fichiers sont résolus à l'instant (API de GitHub et de Hugging Face) : on affiche la vraie taille avant de télécharger.
 
+use super::hub;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -8,38 +9,60 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
-/// Ce que la page propose.
+/// Ce que la page propose d'office : les programmes des moteurs, et quelques modèles recommandés (les autres se choisissent sur
+/// Hugging Face, voir `hub`).
 pub struct Item {
     pub id: &'static str,
     pub label: &'static str,
     pub detail: &'static str,
+    /// « program », « whisper » (modèle de transcription) ou « llama » (modèle de mise au propre).
+    pub kind: &'static str,
 }
 
 pub const ITEMS: [Item; 8] = [
-    Item { id: "whisper-server", label: "whisper-server (Windows)", detail: "Le programme de transcription (whisper.cpp), avec ses DLL." },
-    Item { id: "whisper-base", label: "Modèle Whisper « base »", detail: "Le plus rapide ; quelques erreurs sur les mots courts." },
-    Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent." },
+    Item {
+        id: "whisper-server",
+        label: "whisper-server (Windows)",
+        detail: "Le programme de transcription (whisper.cpp), avec ses DLL.",
+        kind: "program",
+    },
+    Item {
+        id: "whisper-base",
+        label: "Modèle Whisper « base »",
+        detail: "Le plus rapide ; quelques erreurs sur les mots courts.",
+        kind: "whisper",
+    },
+    Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent.", kind: "whisper" },
     Item {
         id: "llama-server",
         label: "llama-server (Windows, processeur)",
         detail: "Le programme de mise au propre (llama.cpp), version processeur.",
+        kind: "program",
     },
     Item {
         id: "llama-vulkan",
         label: "llama-server (Windows, carte graphique Vulkan)",
         detail: "Remplace la version processeur : la mise au propre tourne sur la carte graphique (à comparer aux temps du processeur). Pour revenir en arrière, retélécharger la version processeur.",
+        kind: "program",
     },
     Item {
         id: "qwen-0.5b",
         label: "Modèle de mise au propre « Qwen 2.5 0,5 B »",
         detail: "Très petit (≈ 400 Mo) : le plus rapide sur processeur, à essayer avant de juger sa qualité (Apache 2.0).",
+        kind: "llama",
     },
     Item {
         id: "qwen-1.5b",
         label: "Modèle de mise au propre « Qwen 2.5 1,5 B »",
         detail: "Petit modèle d'instructions (licence Apache 2.0), ≈ 1 Go.",
+        kind: "llama",
     },
-    Item { id: "qwen-3b", label: "Modèle de mise au propre « Qwen 2.5 3 B »", detail: "Deux fois plus gros, meilleur, plus lent." },
+    Item {
+        id: "qwen-3b",
+        label: "Modèle de mise au propre « Qwen 2.5 3 B »",
+        detail: "Deux fois plus gros, meilleur, plus lent.",
+        kind: "llama",
+    },
 ];
 
 #[derive(Debug, Clone)]
@@ -85,6 +108,34 @@ fn get_json(url: &str) -> Result<Value, String> {
     serde_json::from_reader(response.into_reader()).map_err(|e| format!("réponse illisible de {url} ({e})"))
 }
 
+/// Comme `get_json`, avec des paramètres d'adresse (encodés par `ureq`).
+fn get_json_query(url: &str, query: &[(&str, &str)]) -> Result<Value, String> {
+    let mut request = agent().get(url).set("User-Agent", "scriibe").set("Accept", "application/json").timeout(Duration::from_secs(30));
+    for (key, value) in query {
+        request = request.query(key, value);
+    }
+    let response = request.call().map_err(|e| format!("{url} : {e}"))?;
+    serde_json::from_reader(response.into_reader()).map_err(|e| format!("réponse illisible de {url} ({e})"))
+}
+
+/// Les fichiers d'un dépôt Hugging Face qu'on peut prendre comme modèle de ce genre, avec leur taille.
+pub fn hub_list(repo: &str, kind: hub::Kind) -> Result<Vec<hub::HubFile>, String> {
+    if !hub::valid_repo(repo) {
+        return Err(format!("« {repo} » n'est pas un nom de dépôt (attendu : propriétaire/nom)"));
+    }
+    let tree = get_json(&format!("https://huggingface.co/api/models/{repo}/tree/main"))?;
+    Ok(hub::files_from_tree(&tree, kind))
+}
+
+/// Des dépôts Hugging Face qui correspondent à ces mots (les modèles GGUF pour la mise au propre).
+pub fn hub_search(words: &str, kind: hub::Kind, sort: &str) -> Result<Vec<hub::HubRepo>, String> {
+    let mut query = vec![("search", words), ("sort", hub::sort_key(sort)), ("direction", "-1"), ("limit", "15")];
+    if kind == hub::Kind::Llama {
+        query.push(("filter", "gguf"));
+    }
+    Ok(hub::repos_from_search(&get_json_query("https://huggingface.co/api/models", &query)?))
+}
+
 /// Premier fichier de ces versions (la plus récente d'abord) dont le nom satisfait `wanted`.
 fn release_asset(repo: &str, wanted: impl Fn(&str) -> bool) -> Result<(String, u64, String), String> {
     let releases = get_json(&format!("https://api.github.com/repos/{repo}/releases?per_page=30"))?;
@@ -128,6 +179,9 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
             Err(format!("{what} : proposé seulement sous Windows pour l'instant"))
         }
     };
+    if let Some((repo, file, _)) = hub::parse_download_id(id) {
+        return hub_resolved(&repo, &file, models);
+    }
     let (found, dest, unzip) = match id {
         "whisper-server" => {
             windows_only("whisper-server")?;
@@ -159,6 +213,11 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
     let (name, size, url) = found;
     let clean = id.starts_with("llama-");
     Ok(Resolved { name, size, url, dest, unzip, clean })
+}
+
+fn hub_resolved(repo: &str, file: &str, models: PathBuf) -> Result<Resolved, String> {
+    let (name, size, url) = hub_file(repo, file)?;
+    Ok(Resolved { name, size, url, dest: models, unzip: false, clean: false })
 }
 
 /// Décompresse à plat : le programme et ses DLL côte à côte (jamais de chemin du zip, donc pas d'écriture hors du dossier).

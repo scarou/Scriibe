@@ -6,6 +6,7 @@ mod assets;
 mod bench_view;
 mod data;
 mod downloads;
+mod hub;
 mod sinks;
 mod trial;
 mod update;
@@ -306,6 +307,21 @@ fn handle(ctx: &Context, mut request: Request) {
             Err(e) => fail(request, 409, &e),
         },
         (Method::Get, "api/downloads") => ok(request, downloads_state(ctx)),
+        (Method::Get, "api/models") => ok(request, models_state(ctx)),
+        (Method::Post, "api/models/delete") => {
+            let folder = models_folder(ctx.app.config.folder());
+            match hub::delete_installed(&folder, std::path::Path::new(input["path"].as_str().unwrap_or(""))) {
+                Ok(()) => {
+                    ctx.app.log.write(&format!("modèles: {} supprimé à la demande de l'interface", input["name"].as_str().unwrap_or("?")));
+                    ok(request, json!({"ok": true}))
+                }
+                Err(e) => fail(request, 409, &e),
+            }
+        }
+        (Method::Post, "api/hub/look") => match hub_look(&input) {
+            Ok(result) => ok(request, result),
+            Err(e) => fail(request, 502, &e),
+        },
         (Method::Post, "api/downloads/resolve") => {
             let id = input["id"].as_str().unwrap_or("");
             match downloads::resolve(id, ctx.app.config.folder()) {
@@ -754,9 +770,8 @@ fn bench_model(ctx: &Context, input: &Value) -> Value {
     }
 }
 
-/// Les réglages d'un passage du banc, d'après les réglages d'aujourd'hui et ce que Scriibe utilise vraiment (modèles trouvés).
-fn current_setup(ctx: &Context) -> BenchSetup {
-    let settings = ctx.app.config.settings();
+/// Les modèles que Scriibe utilise vraiment : celui des réglages, ou à défaut le premier trouvé (Whisper, mise au propre).
+fn effective_models(ctx: &Context, settings: &AppSettings) -> (String, String) {
     let models = models_folder(ctx.app.config.folder());
     let fs = RealFs;
     let whisper = if settings.whisper_model_path.is_empty() {
@@ -769,6 +784,58 @@ fn current_setup(ctx: &Context) -> BenchSetup {
     } else {
         settings.llama_cpp_model.clone()
     };
+    (whisper, llama_model)
+}
+
+/// Les modèles du dossier de l'appli, avec ce qui sert en ce moment.
+fn models_state(ctx: &Context) -> Value {
+    let settings = ctx.app.config.settings();
+    let (whisper, llama_model) = effective_models(ctx, &settings);
+    let folder = models_folder(ctx.app.config.folder());
+    let same = |a: &std::path::Path, b: &str| a.to_string_lossy().eq_ignore_ascii_case(b);
+    let list: Vec<Value> = hub::installed(&RealFs, &folder, |p| std::fs::metadata(p).map_or(0, |m| m.len()))
+        .into_iter()
+        .map(|m| {
+            let used = (m.kind == "whisper" && same(&m.path, &whisper)) || (m.kind == "llama" && same(&m.path, &llama_model));
+            json!({"name": m.name, "path": m.path.display().to_string(), "size": m.size, "kind": m.kind, "used": used})
+        })
+        .collect();
+    json!({"folder": folder.display().to_string(), "models": list})
+}
+
+/// Cherche sur Hugging Face : un dépôt (adresse ou « propriétaire/nom ») donne ses fichiers, des mots donnent des dépôts.
+fn hub_look(input: &Value) -> Result<Value, String> {
+    let kind = hub::Kind::parse(input["kind"].as_str().unwrap_or("llama")).ok_or("genre de modèle inconnu")?;
+    let sort = input["sort"].as_str().unwrap_or("popular");
+    let text = input["query"].as_str().unwrap_or("").trim();
+    if text.is_empty() {
+        return Err("tapez un nom de dépôt (propriétaire/nom), une adresse Hugging Face ou des mots à chercher".into());
+    }
+    match hub::parse_query(text) {
+        hub::Query::Repo { repo, file } => {
+            let files: Vec<Value> = downloads::hub_list(&repo, kind)?
+                .into_iter()
+                .filter(|f| file.as_ref().is_none_or(|wanted| &f.name == wanted))
+                .map(|f| {
+                    json!({"name": f.name, "size": f.size, "note": f.note, "downloadable": f.downloadable, "id": hub::download_id(&repo, &f.name)})
+                })
+                .collect();
+            Ok(json!({"mode": "files", "repo": repo, "kind": kind.as_str(), "files": files}))
+        }
+        hub::Query::Search(words) => {
+            let repos: Vec<Value> = downloads::hub_search(&words, kind, sort)?
+                .into_iter()
+                .map(|r| json!({"repo": r.repo, "downloads": r.downloads, "likes": r.likes}))
+                .collect();
+            Ok(json!({"mode": "search", "repos": repos}))
+        }
+    }
+}
+
+/// Les réglages d'un passage du banc, d'après les réglages d'aujourd'hui et ce que Scriibe utilise vraiment (modèles trouvés).
+fn current_setup(ctx: &Context) -> BenchSetup {
+    let settings = ctx.app.config.settings();
+    let (whisper, llama_model) = effective_models(ctx, &settings);
     let microphone = ctx
         .app
         .platform
@@ -781,21 +848,27 @@ fn current_setup(ctx: &Context) -> BenchSetup {
     bench_view::setup_for(&settings, &build_id(), &whisper, &llama_model, &microphone)
 }
 
+fn progress_json(progress: Option<&Progress>) -> Value {
+    match progress {
+        Some(Progress::Running { done, total }) => json!({"state": "running", "done": done, "total": total}),
+        Some(Progress::Done) => json!({"state": "done"}),
+        Some(Progress::Failed(e)) => json!({"state": "failed", "error": e}),
+        None => json!({"state": "idle"}),
+    }
+}
+
 fn downloads_state(ctx: &Context) -> Value {
     let progress = ctx.downloads.progress();
     let items: Vec<Value> = downloads::ITEMS
         .iter()
         .map(|item| {
-            let state = match progress.get(item.id) {
-                Some(Progress::Running { done, total }) => json!({"state": "running", "done": done, "total": total}),
-                Some(Progress::Done) => json!({"state": "done"}),
-                Some(Progress::Failed(e)) => json!({"state": "failed", "error": e}),
-                None => json!({"state": "idle"}),
-            };
-            json!({"id": item.id, "label": item.label, "detail": item.detail, "progress": state})
+            json!({"id": item.id, "label": item.label, "detail": item.detail, "kind": item.kind, "progress": progress_json(progress.get(item.id))})
         })
         .collect();
-    json!({"items": items})
+    // Les téléchargements choisis sur Hugging Face (`hf:<dépôt>/<fichier>`) : la page les retrouve par leur identifiant.
+    let chosen: serde_json::Map<String, Value> =
+        progress.iter().filter(|(id, _)| id.starts_with("hf:")).map(|(id, p)| (id.clone(), progress_json(Some(p)))).collect();
+    json!({"items": items, "chosen": chosen})
 }
 
 fn update_state(ctx: &Context) -> Value {

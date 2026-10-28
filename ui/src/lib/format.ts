@@ -8,6 +8,19 @@ export function mo(bytes: number): string {
   return Math.round(bytes / 1048576) + ' Mo';
 }
 
+/** Une taille de fichier à la française : « 148 Mo », « 2,5 Go » (au-dessus de 1 Go). */
+export function taille(bytes: number): string {
+  if (bytes < 1073741824) return Math.round(bytes / 1048576) + ' Mo';
+  return (bytes / 1073741824).toFixed(1).replace('.', ',') + ' Go';
+}
+
+/** Un nombre d'une dizaine de milliers, court : « 950 », « 12,3 k », « 1,2 M ». */
+export function compte(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) return (n / 1000).toFixed(n < 10_000 ? 1 : 0).replace('.', ',').replace(/,0$/, '') + ' k';
+  return (n / 1_000_000).toFixed(1).replace('.', ',').replace(/,0$/, '') + ' M';
+}
+
 /** Le nom d'un fichier dans un chemin Windows ou Unix. */
 export function base(path: string | null | undefined): string {
   return String(path ?? '').split(/[\\/]/).pop() ?? '';

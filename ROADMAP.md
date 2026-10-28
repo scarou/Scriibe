@@ -39,6 +39,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 **Fait en S06** (écarts dans `docs/ECARTS.md`) : LM Studio et Ollama dans l'interface ; sons de début et de fin (choix, « Aucun », volume) ; menu de l'icône (touches, mode en un clic, copier la dernière dictée) ; phrases types et banc d'essai de la mise au propre ; carte « Signes dictés » (`listBullet`) ; modèle Deepgram, fichier modèle Whisper, libération de Whisper ; logotype ; préchargement relancé au changement de modèle, de moteur, de mode ou de dictionnaire.
 
 **Reste** :
+0. ✔ Onglet Installation refondu (S07) : modèles installés avec suppression, recherche et choix de fichiers sur Hugging Face (la liste n'est plus figée). Recherche et listes **non essayées avec le vrai Hugging Face** (injoignable depuis le cloud) : à essayer sur le PC.
 1. **Langue de l'interface** au-delà du français (choix à faire avec Christophe).
 2. ✔ **Comparaison « avec / sans modèle »** du banc et réglages du banc selon les modes personnels (S07 : le nom et l'empreinte de la consigne d'un mode personnel étaient déjà dans les réglages d'un passage ; test ajouté).
 3. ✔ Boîtes de confirmation et d'avertissement dessinées par la page (titre « Scriibe », bouton qui dit ce qu'il fait ; S07 ; à essayer sur le PC).
