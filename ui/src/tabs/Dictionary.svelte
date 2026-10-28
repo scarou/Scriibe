@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type Dictionary } from '../lib/api';
 
@@ -56,7 +57,7 @@
 <p class="muted">Ce que Scriibe écrit exactement, même quand Whisper l’entend autrement. {saved}</p>
 
 <section class="card">
-  <h2>Mots à écrire exactement</h2>
+  <h2>Mots à écrire exactement <HelpButton section="dictionary" /></h2>
   <p class="muted">Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.</p>
   <div class="row">
     <input type="text" class="grow" placeholder="Ajouter un mot ou une expression" bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
@@ -72,7 +73,7 @@
 </section>
 
 <section class="card">
-  <h2>Corrections « entendu → écrit »</h2>
+  <h2>Corrections « entendu → écrit » <HelpButton section="dictionary" /></h2>
   <p class="muted">Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.</p>
   <div class="row">
     <input type="text" class="grow" placeholder="Entendu" bind:value={heard} />

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { api } from '../lib/api';
   import { base } from '../lib/format';
   import { onMount } from 'svelte';
@@ -56,8 +57,8 @@
 <h1>Réglages</h1>
 
 {#if s && v}
-  <section class="card">
-    <h2>Moteurs</h2>
+  <section class="card" id="moteurs">
+    <h2>Moteurs <HelpButton section="privacy" /></h2>
     <p class="muted">Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.</p>
     <div class="row">
       <label>Transcription :
@@ -122,8 +123,8 @@
     {/if}
   </section>
 
-  <section class="card">
-    <h2>Dictée</h2>
+  <section class="card" id="dictee">
+    <h2>Dictée <HelpButton section="dictate" /></h2>
     <KeyPicker />
     <div class="row">
       <label>Langue dictée :
@@ -159,8 +160,8 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>Apparence de l’indicateur</h2>
+  <section class="card" id="indicateur">
+    <h2>Apparence de l’indicateur <HelpButton section="indicator" /></h2>
     <p class="muted">L’icône près de l’horloge change toujours de couleur. La <b>pastille à l’écran</b> (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.</p>
     <div class="row">
       <label><input type="checkbox" checked={v.overlayEnabled} onchange={(e) => settings.change({ overlayEnabled: e.currentTarget.checked })} />
@@ -192,8 +193,8 @@
     </div>
   </section>
 
-  <section class="card">
-    <h2>Clés du cloud (dépannage)</h2>
+  <section class="card" id="cles">
+    <h2>Clés du cloud (dépannage) <HelpButton section="privacy" /></h2>
     <p class="muted">Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}

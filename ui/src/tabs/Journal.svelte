@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { bench } from '../lib/bench.svelte';
@@ -49,7 +50,7 @@
 </section>
 
 <section class="card">
-  <h2>Rapport à me coller</h2>
+  <h2>Rapport à me coller <HelpButton section="measures" /></h2>
   <div class="row"><button class="primary" onclick={copy}>Copier le rapport</button><span class="muted">{copied}</span></div>
   <pre>{report}</pre>
 </section>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type Stats } from '../lib/api';
   import { spoken } from '../lib/format';
@@ -7,7 +8,7 @@
   import TypingTest from '../components/TypingTest.svelte';
   import type { TabId } from '../lib/tabs';
 
-  let { goto }: { goto: (tab: TabId) => void } = $props();
+  let { goto }: { goto: (tab: TabId, anchor?: string) => void } = $props();
   let showAssistant = $state(false);
 
   let s = $state<Stats | null>(null);
@@ -63,7 +64,7 @@
   <div class="row"><button onclick={() => (showAssistant = true)}>Relancer l’assistant de premier lancement</button></div>
 
   <section class="card">
-    <h2>Ma vitesse au clavier</h2>
+    <h2>Ma vitesse au clavier <HelpButton section="measures" /></h2>
     <p class="muted">Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.</p>
     <TypingTest />
   </section>

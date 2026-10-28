@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type HistoryItem } from '../lib/api';
   import { fmt, when } from '../lib/format';
@@ -102,8 +103,8 @@
   {/each}
 </section>
 
-<section class="card">
-  <h2>Conservation</h2>
+<section class="card" id="conservation">
+  <h2>Conservation <HelpButton section="privacy" /></h2>
   <div class="row"><label><input type="checkbox" bind:checked={keepText} onchange={previewChange} /> Garder le texte des dictées (sinon seule la fiche chiffrée reste)</label></div>
   <div class="row">
     <label>Garder l’historique :

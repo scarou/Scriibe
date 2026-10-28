@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { base, mo, percent } from '../lib/format';
@@ -67,7 +68,7 @@
 <h1>Installation</h1>
 
 <section class="card">
-  <h2>État de l’installation</h2>
+  <h2>État de l’installation <HelpButton section="start" /></h2>
   <table>
     <tbody>
       {#each rows as r (r.label)}

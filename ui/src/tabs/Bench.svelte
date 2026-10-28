@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type Phrase, type Take, type Transcribed } from '../lib/api';
   import { bench } from '../lib/bench.svelte';
@@ -82,7 +83,7 @@
 <h1>Banc d’essai</h1>
 
 <section class="card">
-  <h2>Banc de dictée (les 17 phrases de Scribe)</h2>
+  <h2>Banc de dictée (les 17 phrases de Scribe) <HelpButton section="measures" /></h2>
   <p class="muted">
     Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles
     et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.

@@ -1,67 +1,248 @@
 <script lang="ts">
-  import { defaultHelpSection, helpSections, type HelpId } from '../lib/help';
+  import { onMount } from 'svelte';
+  import OverlayView, { type View } from '../overlay/OverlayView.svelte';
+  import { helpSections } from '../lib/help';
+  import { nav } from '../lib/nav.svelte';
+  import { settings } from '../lib/settings.svelte';
+  import { status } from '../lib/status.svelte';
+  import type { TabId } from '../lib/tabs';
 
-  let open = $state<HelpId>(defaultHelpSection);
+  let s = $derived(status.value);
+  let v = $derived(settings.value);
+  let open = $derived(nav.helpSection);
+  /** Les touches en vigueur (réglables dans Réglages → Dictée). */
+  let dictate = $derived(s?.dictation_label ?? 'Ctrl droit');
+  let translate = $derived(s?.translate_label ?? 'Maj');
+  let language = $derived(
+    ({ en: 'anglais', es: 'espagnol', de: 'allemand', it: 'italien', pt: 'portugais (Brésil)' } as Record<string, string>)[v?.translationLanguage ?? 'en'] ?? 'anglais',
+  );
+
+  onMount(() => void settings.load());
+
+  /** Une phrase de la page sur ce qui part ou non sur Internet, d'après les moteurs choisis. */
+  let privacySummary = $derived.by(() => {
+    if (!v) return '';
+    const voice = v.transcriptionEngine === 'whisper' ? 'ta voix reste sur cet ordinateur' : 'l’enregistrement de chaque dictée part chez Deepgram';
+    const local = v.cleanupEngine === 'llamaCpp' || v.cleanupEngine === 'lmStudio' || v.cleanupEngine === 'ollama';
+    const text =
+      v.cleanupEngine === 'none'
+        ? 'aucun modèle ne met le texte au propre (mais une traduction passe par OpenRouter)'
+        : local
+          ? 'le texte est mis au propre sur cet ordinateur'
+          : 'le texte part chez OpenRouter pour être mis au propre';
+    const everythingLocal = v.transcriptionEngine === 'whisper' && local;
+    return `Avec tes réglages actuels, ${voice}, et ${text}.${everythingLocal ? ' Rien ne part sur Internet.' : ''}`;
+  });
+
+  /** L'indicateur dans ses trois états, avec le style, la couleur et la transparence réglés. */
+  function sample(state: View['state']): View {
+    return {
+      visible: true,
+      state,
+      message: null,
+      translation: null,
+      mic: 'ok',
+      level: 0.6,
+      appearance: { enabled: true, style: v?.captureStyle ?? 'pill', position: 'center', color: v?.captureColor ?? 'scribe', opacity: v?.captureOpacity ?? 1 },
+    };
+  }
+  const curve = Array.from({ length: 40 }, (_, i) => Math.max(0.1, 0.35 + 0.3 * Math.sin(i / 3) + 0.2 * Math.sin(i / 1.3)));
 </script>
 
+{#snippet go(label: string, tab: TabId, anchor?: string)}
+  <button class="go" onclick={() => nav.go(tab, anchor)} title="Ouvrir : {label}">→ {label}</button>
+{/snippet}
+
+{#snippet example(said: string, pasted: string, note?: string)}
+  <div class="example">
+    <div class="line"><span class="who">Tu dis</span><i>« {said} »</i></div>
+    <div class="line"><span class="who strong">Scriibe colle</span><b>{pasted}</b></div>
+    {#if note}<div class="note">{note}</div>{/if}
+  </div>
+{/snippet}
+
+{#snippet tip(text: string)}
+  <div class="tip">💡 {text}</div>
+{/snippet}
+
+{#snippet question(q: string, answer: string)}
+  <div class="q"><b>{q}</b><div>{answer}</div></div>
+{/snippet}
+
 <h1>Aide</h1>
+<p class="muted lead">Comment se servir de Scriibe, et à quoi sert chaque chose. Les boutons <b>→</b> ouvrent le bon réglage ; le <b>?</b> de chaque carte ouvre l’explication qui la concerne.</p>
 
 <div class="layout">
   <ul class="toc">
-    {#each helpSections as s (s.id)}
-      <li><button class:active={open === s.id} onclick={() => (open = s.id)}>{s.title}</button></li>
+    {#each helpSections as sec (sec.id)}
+      <li><button class:active={open === sec.id} onclick={() => (nav.helpSection = sec.id)}>{sec.title}</button></li>
     {/each}
   </ul>
 
   <section class="card body">
     {#if open === 'start'}
       <h2>Premiers pas</h2>
-      <ol>
-        <li>Onglet <b>Installation</b> : vérifiez que tout est là (whisper-server, un modèle Whisper, et si vous voulez une mise au propre sur cet ordinateur, llama-server et un modèle). La taille et la source sont montrées avant tout téléchargement.</li>
-        <li>Onglet <b>Banc d’essai</b> : lisez une phrase à voix haute pour vérifier le micro et voir ce que Whisper entend.</li>
-        <li>Dans n’importe quelle appli : <b>maintenez Ctrl droit</b>, parlez, relâchez. Le texte est collé.</li>
+      <p>Scriibe écrit à ta place dans n’importe quelle appli : tu maintiens une touche, tu parles, tu relâches, et le texte, propre et ponctué, se colle là où est ton curseur.</p>
+      <ol class="steps">
+        <li><b>Installe ce qu’il faut.</b> Pour tout faire sur cet ordinateur, il faut <b>whisper-server</b> et un modèle Whisper (la transcription), puis, si tu veux une mise au propre sans Internet, <b>llama-server</b> et un modèle. L’onglet Installation dit ce qui manque et, avant tout téléchargement, montre le nom, la taille réelle et la source : rien ne se télécharge sans ton accord.</li>
+        <li><b>Choisis tes moteurs.</b> Whisper et llama.cpp font tout sur cet ordinateur, sans Internet ; Deepgram et OpenRouter passent par des services en ligne et demandent une clé : ils servent de dépannage quand l’ordinateur est trop lent. Au premier lancement, l’assistant du Tableau de bord mesure ton ordinateur et propose la chaîne qui lui convient.</li>
+        <li><b>Dicte.</b> Clique dans un document, maintiens <b>{dictate}</b>, dis une phrase, relâche : elle s’écrit.</li>
       </ol>
+      <div class="links">
+        {@render go('Installation', 'install')}
+        {@render go('Les moteurs', 'settings', 'moteurs')}
+        {@render go('La touche et le micro', 'settings', 'dictee')}
+        {@render go('Tableau de bord', 'dashboard')}
+      </div>
+      {@render tip('Pour vérifier le micro et voir ce que Whisper entend, lis une phrase dans le Banc d’essai : elle montre le niveau du micro avant d’aller dicter dans une vraie appli.')}
+
     {:else if open === 'dictate'}
       <h2>Dicter et traduire</h2>
+      <p>Maintiens <b>{dictate}</b> tout le temps où tu parles ; au relâchement, Scriibe transcrit, met au propre et colle. Parle naturellement : les « euh », les reprises et les répétitions sont retirés pour toi (sauf en mode Littéral, ou si le moteur de mise au propre est « Aucune »).</p>
+      {@render example('euh, le rendez-vous est à dix heures, non pardon, à onze heures', 'Le rendez-vous est à 11 h.', 'Une reprise (« non pardon », « enfin ») ne garde que la version corrigée.')}
+      {@render example('est-ce que tu peux m’envoyer le devis avant vendredi midi', 'Est-ce que tu peux m’envoyer le devis avant vendredi midi ?', 'Une question ou une demande reste une question : Scriibe l’écrit, il n’y répond pas (voir « Problèmes fréquents » si cela arrive).')}
+      <h3>Traduire en dictant</h3>
+      <p>Ajoute <b>{translate}</b> pendant la dictée : tu parles en français, le texte est collé en <b>{language}</b>. La langue se choisit dans Réglages → Dictée (« Traduire vers »), la touche aussi (« Touche tenue en plus pour traduire »).</p>
+      {@render example('tu peux me rappeler demain matin', 'Can you call me back tomorrow morning?', 'Ici en anglais.')}
+      <p>La traduction passe toujours par le moteur de mise au propre, même en Littéral : avec OpenRouter, le texte part alors en ligne. Sans moteur (« Aucune »), {translate} ne traduit pas : le texte reste en français. <i>Pourquoi :</i> c’est le modèle qui traduit, en un seul appel avec la mise au propre ; sans modèle, rien ne peut le faire.</p>
+      <h3>Choisir ses touches</h3>
+      <p>Par défaut : <b>Ctrl droit</b> pour dicter, <b>Maj</b> en plus pour traduire. Tu peux les changer, et même choisir une combinaison (par exemple Ctrl gauche + F9) : Réglages → Dictée → Touche de dictée, puis « Tester ma touche ». <i>Pourquoi ces limites :</i> une touche seule comme Ctrl gauche, Alt ou Maj se déclencherait à chaque raccourci (Ctrl+C, Alt+Tab) ; AltGr sert à taper « @ » ou « € » sur un clavier AZERTY, et la touche Windows ouvre le menu Démarrer.</p>
+      <h3>Bon à savoir</h3>
       <ul>
-        <li><b>Ctrl droit</b> maintenu : dictée. Relâcher : transcription, mise au propre et collage.</li>
-        <li><b>Maj</b> en plus pendant l’appui : le texte est <b>traduit</b> (langue choisie dans Réglages).</li>
-        <li>Une <b>autre touche</b> pendant l’appui annule : rien n’est collé.</li>
-        <li>Dites la ponctuation : « virgule », « point », « point d’interrogation », « à la ligne ».</li>
+        <li>Une <b>autre touche</b> pendant l’appui (par exemple {dictate} + une lettre) annule la dictée : c’est un raccourci, pas une dictée. <i>Pourquoi :</i> Ctrl+C ne doit pas ouvrir le micro pour rien.</li>
+        <li>Une dictée de <b>trois mots ou moins</b> est collée sans passer par le modèle, en mode Simple (hors traduction) : c’est plus rapide, mais un « euh » y reste.</li>
+        <li>Ce que tu avais copié <b>revient dans le presse-papiers</b> après le collage (réglable). <i>Pourquoi :</i> Scriibe passe par le presse-papiers pour coller, et ne doit pas te le prendre. Seul le texte est remis : une image ou des fichiers copiés avant la dictée sont perdus.</li>
+        <li><b>« Mettre en pause la musique ou la vidéo »</b> (Réglages → Dictée, coupé au départ) : une vidéo ou une musique qui joue s’arrête quand tu maintiens la touche et reprend quand tu relâches. Scriibe regarde quelles applis sortent du son. Un lecteur qui a sa fenêtre (VLC, Spotify…) reçoit la commande Lecture/Pause directement ; les navigateurs la reçoivent par la touche Lecture/Pause du clavier. Si cette touche lance une autre appli que celle qui jouait, Scriibe l’annule. Pendant un appel (Teams, Meet, Zoom…), Scriibe ne touche à rien, et si tu lances autre chose pendant la dictée, il ne relance pas l’ancien média. <i>Pourquoi :</i> interrompre un appel ou relancer le mauvais lecteur serait pire que de laisser jouer.</li>
+        <li>Le <b>menu de l’icône</b>, près de l’horloge, ouvre la fenêtre, le dossier des données et le journal, ou quitte Scriibe.</li>
       </ul>
+      <div class="links">{@render go('Réglages de la dictée', 'settings', 'dictee')}</div>
+
     {:else if open === 'modes'}
       <h2>Les modes</h2>
-      <p>Le mode règle le ton de la mise au propre : <b>Littéral</b> (aucun modèle), <b>Simple</b> (retire les « euh », met la ponctuation), <b>Soutenu</b> et les modes métiers. Vous pouvez modifier la consigne d’un mode ou créer le vôtre, avec des exemples : ce sont eux qui donnent le style. Sans moteur de mise au propre, seul le mode Littéral s’applique.</p>
+      <p>Le mode décide de ce que devient ton texte. Tous gardent tes informations et tes questions, et ne doivent jamais répondre à ce que tu dictes (un garde-fou y veille) ; les modes qui reformulent changent le ton, et Courrier vouvoie le destinataire.</p>
+      {@render example('bon ben j’ai regardé le devis que tu m’as envoyé et franchement ça me va sauf le prix de la livraison', 'J’ai regardé le devis que tu m’as envoyé et franchement ça me va, sauf le prix de la livraison.', 'Simple : retire les « euh », ponctue, garde tes mots.')}
+      {@render example('bon ben j’ai regardé le devis que tu m’as envoyé et franchement ça me va sauf le prix de la livraison', 'J’ai examiné le devis que tu m’as adressé et, franchement, cela me convient, à l’exception du coût de la livraison.', 'Soutenu : reformule dans un français soigné.')}
+      {@render example('est-ce que tu as pensé à réserver le restaurant pour l’anniversaire de maman', 'Tu as pensé à réserver le resto pour l’anniv de maman ?', 'Un mode personnel « SMS », avec trois exemples.')}
+      <ul>
+        <li><b>Littéral</b> : aucun modèle, seulement les signes dictés, le dictionnaire et la typographie.</li>
+        <li><b>Simple</b> (par défaut), <b>Soutenu</b>, et quatre modes professionnels : sophrologie, informatique et IA, courrier administratif, commercial.</li>
+      </ul>
+      <h3>Créer ton mode</h3>
+      <ol class="steps">
+        <li>Onglet Modes → « Mes modes » : un nom, une consigne (« Écris comme un SMS court et amical »).</li>
+        <li>« Fidèle » garde tes mots avec la consigne en plus ; « Reformule » réécrit dans le style, comme les modes métiers.</li>
+        <li>Ajoute deux ou trois <b>exemples</b> : une dictée telle que tu la dirais, et le texte que tu attends. Ce sont eux qui donnent vraiment le style.</li>
+        <li>Choisis-le dans la liste, puis dicte un texte pour vérifier que les questions restent des questions et que les reprises sont corrigées.</li>
+      </ol>
+      {@render tip('Avec un petit modèle sur un ordinateur ordinaire, une consigne seule change peu le texte : mesuré sur Mac, un mode « SMS » sans exemples écrivait comme Simple, et avec trois exemples il écrivait « resto » et « anniv ». Les exemples comptent plus que la consigne.')}
+      <p class="muted">Le mode Amusant (langage schtroumpf) de Scribe n’existe pas dans Scriibe.</p>
+      <div class="links">{@render go('Les modes', 'modes')}</div>
+
     {:else if open === 'dictionary'}
       <h2>Dictionnaire et signes</h2>
-      <p>Les <b>mots</b> du dictionnaire sont écrits exactement comme vous les avez saisis. Une <b>correction</b> « entendu → écrit » remplace toujours ce que Whisper entend. Les signes dictés (« ouvrez la parenthèse », « tiret » pour une liste) marchent sans rien configurer.</p>
+      <p>Le dictionnaire apprend à Scriibe tes mots à toi, et les signes se dictent à voix haute.</p>
+      <h3>Signes dictés</h3>
+      {@render example('le colis ouvrez la parenthèse le gros fermez la parenthèse est arrivé point à la ligne merci encore', 'Le colis (le gros) est arrivé.\nMerci encore.', 'Les variantes sont reconnues : « ouvre » ou « ouvrez », « ferme » ou « fermez », « retour à la ligne », « nouveau paragraphe »…')}
+      <p>« À la ligne » dit seul coupe aussi la ligne (« merci beaucoup, à la ligne, cordialement »), à condition d’être isolé par de la ponctuation : au début de la dictée, ou entre virgules ou points, ce que Whisper écrit quand tu marques une pause. Dans une phrase, il reste du texte : « aller à la ligne 5 », « arrivé à la ligne d’arrivée ». Devant un début de liste (« ma liste à la ligne tiret du lait »), « à la ligne » compte aussi sans ponctuation. Ailleurs, « retour à la ligne » est plus sûr : il marche même sans pause. <i>Pourquoi :</i> « à la ligne » est aussi une expression ordinaire ; sans ces règles, Scriibe couperait tes phrases au mauvais endroit.</p>
+      {@render tip('Les signes dépendent de ce que Whisper entend. Un modèle plus petit ou un micro faible entend parfois « ouvrait » à la place de « ouvrez » : la conversion ne se déclenche alors pas. Dis les signes distinctement, ou ajoute une correction automatique pour la variante entendue.')}
+      <h3>Listes</h3>
+      {@render example('les courses retour à la ligne tiret du lait retour à la ligne tiret du pain', 'Les courses\n- du lait\n- du pain', '« tiret » ou « puce » en début de ligne donne un tiret. Pour une liste numérotée : « point 1 », « point 2 »… (en lettres, « point un, » avec une pause) ou « numéro suivant » pour passer au numéro d’après.')}
+      <p>Ces mots ne comptent qu’au début d’une ligne, c’est-à-dire au début de la dictée ou après un saut de ligne (« retour à la ligne », « point à la ligne », « nouveau paragraphe ») : « il a mis un tiret entre les deux mots » reste une phrase ordinaire. Mais une ligne qui commence par « Point 3 du contrat » devient « 3. du contrat » : c’est le prix de la dictée à la voix. « Tirer », « tirez », « tiré » ou « tirée », que Whisper entend parfois à la place de « tiret », comptent aussi, mais seulement après un saut de ligne. Pas en dictée anglaise ni après une traduction.</p>
+      <h3>Mes mots</h3>
+      <p>Noms, marques, jargon (« Claude Code », le nom d’un client) : ajoutés ici, ils sont donnés comme <b>indices</b> à la transcription et au modèle, et donc mieux reconnus. Pour une écriture certaine, ajoute aussi une correction automatique : un indice aide, il ne garantit rien.</p>
+      <h3>Corrections automatiques</h3>
+      <p>Un mot entendu est remplacé par celui que tu choisis : utile pour un mot toujours mal entendu (« cloud code » → « Claude Code »), ou pour un signe à toi (« trois points d’exclamation » → !!!). La correction s’applique toujours, à chaque dictée.</p>
+      <div class="links">{@render go('Ouvrir le dictionnaire', 'dictionary')}</div>
+
     {:else if open === 'indicator'}
       <h2>L’indicateur</h2>
-      <p>L’icône près de l’horloge change de couleur : <b>gris</b> au repos, <b>rouge</b> pendant l’écoute, <b>orange</b> pendant le traitement, <b>vert</b> une fois le texte collé, <b>bleu</b> pour un message. La <b>pastille à l’écran</b> (bêta, active par défaut, à décocher dans Réglages → Apparence) montre l’état de la dictée, le niveau du micro, les alertes et la langue d’une traduction, sans prendre le focus.</p>
+      <p>Pendant la dictée, une petite pastille en bas de l’écran montre où en est Scriibe, sans que tu aies à regarder ailleurs. Elle ne prend jamais le focus : ce que tu tapes continue d’aller dans ton appli. <i>Pourquoi :</i> sans cela, tu ne saurais pas si Scriibe t’entend, avant d’avoir parlé dans le vide.</p>
+      <div class="samples">
+        {#each [['Écoute', 'listening'], ['Mise au propre', 'working'], ['Collé', 'done']] as [name, state] (state)}
+          <div class="sample">
+            <div class="stagebox"><OverlayView view={sample(state as View['state'])} levels={curve} inline /></div>
+            <span class="muted">{name}</span>
+          </div>
+        {/each}
+      </div>
+      <ul>
+        <li><b>Écoute</b> : « J’écoute… », ou un point ou une courbe qui suit ta voix selon le style. « Je n’entends rien… » ou « Je t’entends à peine… » si le micro est trop faible.</li>
+        <li><b>Mise au propre</b> : un arc qui tourne (avec « Mise au propre… » dans la pastille), le temps de transcrire et de mettre au propre. Pour une traduction, la langue est annoncée.</li>
+        <li><b>Collé</b> : un ✓ confirme que le texte est arrivé.</li>
+        <li><b>L’icône près de l’horloge</b> change toujours de couleur : <b>gris</b> au repos, <b>rouge</b> pendant l’écoute, <b>orange</b> pendant le traitement, <b>vert</b> une fois le texte collé, <b>bleu</b> pour un message. Elle sert quand la pastille est coupée.</li>
+        <li>Trois styles (pastille, point sobre, vumètre), trois positions, cinq couleurs et une transparence réglable. La pastille est active par défaut ; elle se coupe dans les réglages.</li>
+      </ul>
+      <div class="links">{@render go('Régler l’indicateur', 'settings', 'indicateur')}</div>
+
     {:else if open === 'measures'}
       <h2>Mesurer et comparer</h2>
-      <p>Le <b>Banc d’essai</b> fait lire les 17 phrases de Scribe et contrôle automatiquement le résultat (chiffres, ponctuation, mots gardés) en donnant les temps de chaque étape. L’onglet <b>Journal et rapport</b> copie un rapport à coller dans la conversation. Sans carte graphique, comptez 2 à 3 s de transcription ; une mise au propre dans le cloud ajoute 1 s, sur cet ordinateur 2 à 4 s.</p>
+      <p>Ces outils ne servent pas au quotidien : ils répondent à une question précise. Choisis-les selon ce que tu veux savoir.</p>
+      {@render question('Scriibe marche-t-il bien chez moi, en vrai ?', 'Le Banc d’essai : tu lis 17 phrases pièges (hésitations, reprises, questions, signes dictés), et chacune est contrôlée automatiquement. Il montre ce que Whisper a entendu, ce qui serait collé, les temps de chaque étape, et le niveau du micro.')}
+      {@render question('Qu’est-ce qu’un changement a modifié ?', 'Chaque passage du banc est gardé avec ses réglages (version, moteurs, modèles, micro). Refais un passage après avoir changé un réglage ou installé une mise à jour, puis « Comparer deux passages » : les mots changés, et les contrôles gagnés ou perdus. C’est ainsi qu’on juge Whisper « small » contre « base », ou le cloud contre le local.')}
+      {@render question('Quel moteur choisir sur mon ordinateur ?', 'L’assistant du Tableau de bord propose une chaîne selon les cœurs, la mémoire et la carte graphique, avec les temps mesurés sur un portable ordinaire. Un passage du banc dit ensuite si elle te convient. Attention : un seul passage de 17 phrases donne une tendance, pas une mesure ferme ; relire les phrases change aussi ce que Whisper entend.')}
+      {@render question('Combien de temps j’attends ?', 'L’Historique donne, pour chaque dictée, le temps de transcription, de mise au propre et le total depuis le relâchement de la touche. Le Journal garde une ligne par étape (jamais le texte).')}
+      {@render question('Comment est calculé le temps gagné du Tableau de bord ?', `Pour chaque dictée, Scriibe compare le temps passé à parler au temps qu’il t’aurait fallu pour taper le même texte, à ta vitesse au clavier (réglée à ${v?.typingWPM ?? 40} mots par minute dans « Ma vitesse au clavier », pour tout l’historique, jours purgés compris : il n’en reste que les totaux du jour).`)}
+      {@render question('Quelle est ma vraie vitesse de frappe ?', 'Dans le Tableau de bord, « Ma vitesse au clavier » : tu recopies un texte de quelques lignes, le chrono part à ta première lettre, les fautes passent en rouge, et l’essai s’arrête quand le texte est identique (ou avec « Terminer »). Le résultat est net (mots du texte × part de lettres justes ÷ minutes). Ne sont pas retenus : un essai sous 90 % de lettres justes, plus court que 12 s, plus long que 10 min ou au-delà de 200 mots/min. « Utiliser » reporte la moyenne des essais retenus dans ta vitesse au clavier ; le temps gagné est alors recalculé pour tout l’historique.')}
+      {@render question('Le rapport, à quoi sert-il ?', 'Journal et rapport → « Copier le rapport » met dans le presse-papiers l’état de l’installation, le dernier passage du banc et les dernières lignes du journal : c’est ce qu’il faut coller pour qu’on t’aide à comprendre un problème.')}
+      <div class="links">{@render go('Banc d’essai', 'bench')}{@render go('Journal et rapport', 'journal')}</div>
+
     {:else if open === 'privacy'}
       <h2>Sur cet ordinateur ou en ligne</h2>
-      <p>Avec <b>Whisper</b> et <b>llama.cpp</b>, rien ne quitte l’ordinateur. <b>Deepgram</b> (transcription) et <b>OpenRouter</b> (mise au propre) envoient le son ou le texte à leur service : c’est un dépannage quand l’ordinateur est trop lent. Les clés sont gardées dans le Gestionnaire d’identifiants de Windows. L’historique reste sur cet ordinateur ; vous réglez sa durée dans l’onglet Historique.</p>
+      <p>{privacySummary}</p>
+      <ul>
+        <li><b>Whisper</b> (transcription) et <b>llama.cpp</b> (mise au propre) tournent sur cet ordinateur : rien ne part sur Internet.</li>
+        <li><b>Deepgram</b> reçoit l’enregistrement de chaque dictée, une fois la touche relâchée (rien en dehors de tes dictées) ; <b>OpenRouter</b> reçoit le texte transcrit pour le mettre au propre.</li>
+        <li><b>Mémoire</b> : Whisper s’arrête après 10 minutes sans dictée et revient à l’appui de la touche, pendant que tu parles ; le modèle de mise au propre de llama.cpp se libère après 30 minutes par défaut (réglable : 2 h, 8 h ou « tant que Scriibe tourne »). <i>Pourquoi :</i> ils occupent plusieurs Go de mémoire. Après une libération, la première dictée est plus lente : sur un ordinateur sans carte graphique, comptez 15 à 45 s pour le modèle local ; le préchargement au lancement l’évite pour la première.</li>
+        <li>Les mots de « Mes mots » accompagnent la dictée : vers Deepgram et OpenRouter si tu les utilises.</li>
+        <li>La traduction passe toujours par le moteur de mise au propre, même en Littéral.</li>
+        <li>Choisis « Aucune » comme mise au propre pour ne charger aucun modèle : le texte est transcrit tel quel (signes dictés, dictionnaire, typographie). Les modes et la traduction sont alors indisponibles.</li>
+        <li>L’historique, le dictionnaire, les réglages et les passages du banc restent sur cet ordinateur, dans le dossier de données (Réglages → Emplacements).</li>
+        <li>Onglet Historique, carte « Conservation » : décoche « Garder le texte des dictées » pour ne garder que les statistiques (date, appli, mots, durée, temps), ou « Ne garder que les derniers jours » : les dictées plus anciennes sont supprimées, il n’en reste que des totaux par jour, sans texte, pour le Tableau de bord. Un aperçu du nombre de dictées touchées s’affiche avant toute suppression. Cela ne change pas ce que reçoivent Deepgram ou OpenRouter pendant la dictée.</li>
+        <li>Les clés de Deepgram et d’OpenRouter ne sont jamais affichées ni écrites dans le journal ; elles sont rangées dans le Gestionnaire d’identifiants de Windows.</li>
+      </ul>
+      <div class="links">{@render go('Les moteurs', 'settings', 'moteurs')}{@render go('Conservation de l’historique', 'history', 'conservation')}</div>
+
     {:else}
       <h2>Problèmes fréquents</h2>
-      <ul>
-        <li><b>Rien n’est collé</b> : lisez le journal ; le collage est bloqué dans une fenêtre lancée en administrateur.</li>
-        <li><b>Micro faible ou muet</b> : mesurez-le dans le Banc d’essai ; réglez le volume d’entrée de Windows.</li>
-        <li><b>La première dictée est très lente</b> : le modèle local se recharge après une libération ; réglez « Garder le modèle chargé » dans Réglages.</li>
-        <li><b>Il manque un programme ou un modèle</b> : onglet Installation.</li>
-        <li><b>Mise à jour</b> : onglet « Mise à jour », puis « Chercher une nouvelle version » et « Installer et redémarrer ».</li>
-      </ul>
+      {@render question('Rien ne se colle, ou une phrase manque.', 'Regarde le journal (Journal et rapport) : chaque dictée y laisse une ligne « collage: … signes envoyés à … ». Si la ligne dit « copié seulement », le texte est dans le presse-papiers : Ctrl+V le colle. Le collage est bloqué par Windows dans une fenêtre lancée en administrateur. Si la ligne dit que le texte a été envoyé mais que rien n’apparaît, l’appli n’a pas lu le presse-papiers : essaie dans le Bloc-notes pour voir si le problème vient de l’appli, et copie le rapport.')}
+      {@render question('Ma touche ne fait rien.', 'Réglages → Dictée → « Tester ma touche », puis maintiens la touche : si Scriibe ne passe pas en écoute, un autre programme la capte peut-être (outil de macros, logiciel du clavier). Choisis une autre touche ou une combinaison. Si le journal parle d’un crochet clavier refusé, relance Scriibe.')}
+      {@render question('Le début de ma phrase est perdu.', 'Avec un casque Bluetooth, Windows bascule en mode « mains libres » à l’ouverture du micro (1 à 3 s) : attends que la pastille affiche « J’écoute… » avant de parler, ou mieux, choisis un micro filaire ou USB dans Réglages → Dictée → Micro. Un micro de portable est souvent faible : le Banc d’essai montre son niveau.')}
+      {@render question('La première phrase après une longue pause est lente.', 'Pour rendre de la mémoire, Whisper s’arrête après 10 minutes sans dictée et le modèle de mise au propre de llama.cpp après la durée réglée (« Garder le modèle chargé »). Ils reviennent à l’appui de la touche : Whisper en une seconde environ, le modèle local en 15 à 45 s sans carte graphique. Choisis « tant que Scriibe tourne » pour le garder chargé.')}
+      {@render question('Il manque un programme ou un modèle.', 'Onglet Installation : whisper-server, un modèle Whisper (ggml-base.bin pour commencer), et pour une mise au propre locale llama-server et un modèle GGUF. Chaque téléchargement montre sa taille et sa source avant de demander ton accord ; une connexion coupée reprend là où elle s’était arrêtée.')}
+      {@render question('Avec llama.cpp, la mise au propre ne démarre pas.', 'Il faut llama-server et un fichier modèle .gguf (onglet Installation, qui dit ce qui manque). Si le journal du moteur parle de mémoire, essaie « Processeur seulement » dans Réglages → Moteurs → Carte graphique : sur une carte de 2 Go, le modèle ne tient pas toujours.')}
+      {@render question('Ma question a reçu une réponse au lieu d’être écrite.', 'Le garde-fou écarte la plupart de ces sorties : un mode qui reformule réessaie en Simple, sinon le texte est collé sans mise au propre. S’il en laisse passer une avec un mode personnel, ajoute à ce mode un exemple de question.')}
+      {@render question('Un mot est toujours mal écrit.', 'Ajoute-le dans « Mes mots », ou une correction automatique (ce que Whisper entend → ce qu’il doit écrire). Un modèle Whisper plus gros entend mieux mais prend plus de temps : le Banc d’essai permet de le mesurer sur tes phrases.')}
+      {@render question('La musique ou la vidéo ne s’arrête pas.', 'Vérifie que « Mettre en pause la musique ou la vidéo » est cochée (Réglages → Dictée). Le journal dit ce que Windows voit : « rien ne joue » liste les applis audio et leur niveau, « pause demandée » dit à qui la commande est partie. Pendant un appel, rien n’est mis en pause, exprès.')}
+      {@render question('La fenêtre est vide ou ne s’ouvre pas.', 'Clic droit sur l’icône près de l’horloge → « Ouvrir Scriibe ». Si WebView2 manque, la même interface s’ouvre dans ton navigateur. Fermer la fenêtre ne quitte pas Scriibe : pour l’arrêter, « Quitter Scriibe ».')}
+      {@render question('Comment mettre à jour ?', 'Onglet « Mise à jour » : « Chercher une nouvelle version » montre la version, la taille et la source ; « Installer et redémarrer » demande confirmation, remplace le programme et le relance. L’ancienne version est gardée à côté.')}
+      <div class="links">{@render go('Installation', 'install')}{@render go('Journal et rapport', 'journal')}{@render go('Mise à jour', 'update')}</div>
     {/if}
   </section>
 </div>
 
 <style>
+  .lead { margin: 0 0 12px; }
   .layout { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
   .toc { list-style: none; margin: 0; padding: 0; width: 220px; flex: none; display: flex; flex-direction: column; gap: 2px; }
   .toc button { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .toc button:hover { background: var(--line); }
   .toc button.active { background: var(--accent); color: var(--accent-ink); }
   .body { flex: 1 1 360px; margin: 0; }
+  .body h3 { margin: 18px 0 6px; font-size: 1rem; }
+  .body p, .body li { line-height: 1.5; }
+  .body ul, .body ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 8px; }
+  .example { margin: 10px 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); }
+  .example .line { display: flex; gap: 10px; align-items: baseline; white-space: pre-line; }
+  .example .who { flex: none; width: 96px; font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+  .example .who.strong { color: var(--accent); }
+  .example .note { margin: 4px 0 0 106px; font-size: 0.85rem; color: var(--muted); }
+  .tip { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .q { margin: 12px 0; }
+  .q > div { margin-top: 2px; line-height: 1.5; }
+  .links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .go { font-size: 0.9rem; }
+  .samples { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+  .sample { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .stagebox { min-width: 150px; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #ececec; }
+  @media (prefers-color-scheme: dark) { .stagebox { background: #3a3a3a; } }
 </style>

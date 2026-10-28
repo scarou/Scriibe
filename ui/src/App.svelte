@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api } from './lib/api';
   import { status } from './lib/status.svelte';
+  import { nav } from './lib/nav.svelte';
   import { tabs, type TabId } from './lib/tabs';
   import Settings from './tabs/Settings.svelte';
   import Install from './tabs/Install.svelte';
@@ -14,21 +15,10 @@
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
 
-  const saved = (() => {
-    try {
-      return sessionStorage.getItem('tab');
-    } catch {
-      return null;
-    }
-  })();
-  let tab = $state<TabId>(tabs.some((t) => t.id === saved) ? (saved as TabId) : 'dashboard');
   let stopped = $state(false);
 
-  function choose(id: TabId) {
-    tab = id;
-    try {
-      sessionStorage.setItem('tab', id);
-    } catch {}
+  function choose(id: TabId, anchor?: string) {
+    void nav.go(id, anchor);
   }
 
   async function quit() {
@@ -47,7 +37,7 @@
     <nav>
       <div class="brand">Scriibe</div>
       {#each tabs as t (t.id)}
-        <button class="nav" class:active={tab === t.id} onclick={() => choose(t.id)}><span class="icon">{t.icon}</span>{t.label}</button>
+        <button class="nav" class:active={nav.tab === t.id} onclick={() => choose(t.id)}><span class="icon">{t.icon}</span>{t.label}</button>
       {/each}
       <div class="spacer"></div>
       <div class="muted version">{status.value ? 'version ' + status.value.version : ''}</div>
@@ -57,15 +47,15 @@
       {#if status.failed}
         <div class="card bad">Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.</div>
       {/if}
-      {#if tab === 'dashboard'}<Dashboard goto={choose} />
-      {:else if tab === 'history'}<History />
-      {:else if tab === 'modes'}<Modes />
-      {:else if tab === 'dictionary'}<Dictionary />
-      {:else if tab === 'help'}<Help />
-      {:else if tab === 'settings'}<Settings />
-      {:else if tab === 'install'}<Install />
-      {:else if tab === 'bench'}<Bench />
-      {:else if tab === 'update'}<Update />
+      {#if nav.tab === 'dashboard'}<Dashboard goto={choose} />
+      {:else if nav.tab === 'history'}<History />
+      {:else if nav.tab === 'modes'}<Modes />
+      {:else if nav.tab === 'dictionary'}<Dictionary />
+      {:else if nav.tab === 'help'}<Help />
+      {:else if nav.tab === 'settings'}<Settings />
+      {:else if nav.tab === 'install'}<Install />
+      {:else if nav.tab === 'bench'}<Bench />
+      {:else if nav.tab === 'update'}<Update />
       {:else}<Journal />{/if}
     </main>
   </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type CustomMode, type Modes } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
@@ -80,7 +81,7 @@
   {/each}
 
   <section class="card">
-    <h2>Mes modes</h2>
+    <h2>Mes modes <HelpButton section="modes" /></h2>
     {#each custom as m (m.id)}
       <div class="mode">
         <label class="pick">
