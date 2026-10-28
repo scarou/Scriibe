@@ -1,23 +1,19 @@
-//! Sons de début et de fin : les sons système de Windows (`MessageBeep`), sans attendre leur fin. Le volume des réglages n'est pas
-//! pris en compte (celui de Windows s'applique).
+//! Sons de début et de fin : synthétisés (`crate::sounds::synth`, volume compris) et joués par `PlaySoundW` depuis la mémoire, sur un fil
+//! à part (la lecture ne bloque ni la touche ni la dictée). Un nouveau son remplace celui qui joue encore.
 
-use crate::sounds::Sounds;
-use scriibe_core::settings::NO_SOUND;
-use windows_sys::Win32::System::Diagnostics::Debug::MessageBeep;
-use windows_sys::Win32::UI::WindowsAndMessaging::{MB_ICONASTERISK, MB_OK};
+use crate::sounds::{synth, Sounds};
+use windows_sys::Win32::Media::Audio::{PlaySoundW, SND_MEMORY, SND_NODEFAULT};
 
 pub struct WindowsSounds;
 
 impl Sounds for WindowsSounds {
-    fn play(&self, name: &str, _volume: f64) {
-        if name == NO_SOUND {
-            return;
-        }
-        // « Pop » (fin) et « Tink » (début) sont des sons du Mac : deux sons système différents les remplacent.
-        let kind = if name == "Pop" { MB_ICONASTERISK } else { MB_OK };
-        // SAFETY : MessageBeep ne prend qu'un entier.
-        unsafe {
-            MessageBeep(kind);
-        }
+    fn play(&self, name: &str, volume: f64) {
+        let Some(wav) = synth(name, volume) else { return };
+        let _ = std::thread::Builder::new().name("scriibe-son".into()).spawn(move || {
+            // SAFETY : sans SND_ASYNC, l'appel rend la main quand le son est fini ; `wav` reste donc valide pendant toute la lecture.
+            unsafe {
+                PlaySoundW(wav.as_ptr().cast(), std::ptr::null_mut(), SND_MEMORY | SND_NODEFAULT);
+            }
+        });
     }
 }

@@ -30,6 +30,8 @@ export interface Status {
   transcription_engine: 'whisper' | 'deepgram';
   cleanup: 'none' | 'llamaCpp' | 'openRouter' | 'lmStudio' | 'ollama';
   cleanup_model: string;
+  /** Les sons proposés pour le début et la fin de la dictée. */
+  sounds: string[];
   cleanup_label: string;
   llama_log: { bytes: number; hints: string[]; head: string[]; tail: string[] };
   llama_device: string;
@@ -53,6 +55,9 @@ export interface Settings {
   llamaDevice: string;
   llamaIdleMinutes: number;
   pauseMedia: boolean;
+  startSoundName: string;
+  endSoundName: string;
+  soundVolume: number;
   restoreClipboard: boolean;
   skipWhenClean: boolean;
   microphoneUID: string;

@@ -153,6 +153,11 @@ fn handle(ctx: &Context, mut request: Request) {
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
         (Method::Get, "api/phrases") => ok(request, phrases()),
+        (Method::Post, "api/sounds/play") => {
+            let volume = input["volume"].as_f64().unwrap_or(0.5);
+            ctx.app.platform.sounds.play(input["name"].as_str().unwrap_or(""), volume);
+            ok(request, json!({"ok": true}))
+        }
         (Method::Post, "api/local-models") => ok(request, local_models(ctx, input["engine"].as_str().unwrap_or(""))),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
@@ -462,6 +467,7 @@ fn status(ctx: &Context) -> Value {
             CleanupEngine::Ollama => "ollama",
         },
         "cleanup_model": settings.cleanup_model,
+        "sounds": scriibe_platform::sounds::NAMES,
         "llama_log": engine_hints(&folder.join("llama-server.log")),
         "llama_device": ctx.app.llama.launcher().device(),
         "llama_idle_minutes": settings.llama_idle_minutes,

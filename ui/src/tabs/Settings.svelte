@@ -61,6 +61,11 @@
     if (localId) untrack(() => void refreshLocal());
   });
 
+  /** Joue un son au volume des réglages (le serveur le fait jouer par le système). */
+  function playSound(name: string) {
+    if (name && name !== 'Aucun') void api('sounds/play', { name, volume: v?.soundVolume ?? 0.5 });
+  }
+
   async function saveKey(kind: 'deepgram' | 'openrouter') {
     const out = await api('keys', { kind, value: keyInput[kind] });
     keyInput[kind] = '';
@@ -188,6 +193,24 @@
         <select value={v.translationLanguage} onchange={(e) => settings.change({ translationLanguage: e.currentTarget.value as never })}>
           {#each translations as l (l.id)}<option value={l.id}>{l.label}</option>{/each}
         </select>
+      </label>
+    </div>
+    <div class="row">
+      {#each [{ key: 'startSoundName', label: 'Son au début' }, { key: 'endSoundName', label: 'Son à la fin' }] as snd (snd.key)}
+        {@const current = String(v[snd.key] ?? 'Aucun')}
+        <label>{snd.label} :
+          <select value={current} onchange={(e) => { void settings.change({ [snd.key]: e.currentTarget.value }); playSound(e.currentTarget.value); }}>
+            <option value="Aucun">Aucun</option>
+            {#each s.sounds as n (n)}<option value={n}>{n}</option>{/each}
+          </select>
+        </label>
+        <button onclick={() => playSound(current)} disabled={current === 'Aucun'} title="Écouter">▶</button>
+      {/each}
+    </div>
+    <div class="row">
+      <label>Volume des sons :
+        <input type="range" min="0.05" max="1" step="0.05" value={v.soundVolume} onchange={async (e) => { await settings.change({ soundVolume: Number(e.currentTarget.value) }); playSound(String(v.startSoundName)); }} />
+        {Math.round(v.soundVolume * 100)} %
       </label>
     </div>
     <div class="row">
