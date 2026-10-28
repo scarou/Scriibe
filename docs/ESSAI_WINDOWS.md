@@ -27,6 +27,12 @@ Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et 
 - **Journal et rapport** : le journal en direct (une ligne par étape, jamais le texte dicté) pendant une dictée avec la touche (**Ctrl droit** maintenu, **Maj** en plus : traduction, autre touche : annulation) ; « Copier le rapport » met dans le presse-papiers l'état, les résultats du banc et le journal : à coller dans la conversation.
 - **Aide** : huit sections.
 
+## Choisir ses touches (S05, à essayer)
+
+Onglet **Réglages**, carte **Dictée** : « Changer… » à côté de « Touche de dictée » ; appuyer sur la touche ou la combinaison voulue (jusqu'à trois touches, dont une seule ordinaire), tout relâcher, puis « Utiliser cette touche ». Même chose pour la touche tenue en plus pour traduire. « Tester ma touche » (15 s) vérifie que Scriibe passe en écoute ; « Rétablir » remet Ctrl droit et Maj.
+
+À essayer : la touche **Windows**, **Maj gauche**, la touche **« < > »** (à gauche de W), Ctrl gauche + une touche de fonction, une combinaison de touches de modification seules (il faut la tenir 0,3 s avant que l'écoute commence) ; vérifier qu'**Alt gauche** et **Windows** n'ouvrent ni menu ni Démarrer au relâchement, que le collage garde le focus, et que la touche ordinaire de la combinaison (F9, « < > ») n'écrit rien dans l'appli. **Fn** : probablement invisible pour Windows (la capture le dira).
+
 ## Cloud en dépannage (à comparer au local)
 
 Onglet Réglages, « Clés du cloud » : coller la clé Deepgram et/ou OpenRouter (champ masqué, « Enregistrer ») ; elles vont dans le Gestionnaire d'identifiants, jamais affichées ni journalisées. Puis, dans « Moteurs », choisir **Transcription : Deepgram (cloud)** et/ou **Mise au propre : OpenRouter (cloud)** (modèle par défaut de Scribe : `anthropic/claude-haiku-4.5`). Refaire les mêmes dictées qu'en local et comparer les temps du journal (« transcription N s », « mise au propre N s », « total après relâche N s »). Le local reste la priorité ; le cloud sert de dépannage quand la machine ne suit pas.
@@ -37,7 +43,7 @@ Onglet Réglages, « Clés du cloud » : coller la clé Deepgram et/ou OpenRoute
 - **Garder le modèle chargé** : 30 min (comme Scribe), 2 h, 8 h ou tant que Scriibe tourne. Après une libération, la dictée suivante coûte 15 à 45 s sur ce portable.
 - Les deux choix sont gardés dans les réglages (l'ancien `moteurs.json` est repris au premier lancement).
 
-## Pause des médias (essayée : marche avec Chrome)
+## Pause des médias (essayée : marche avec Chrome et, depuis S05, avec VLC ; appel non essayé)
 
 Cocher **« Mettre en pause la musique ou la vidéo pendant la dictée »** dans l'onglet Réglages (coupé par défaut, comme dans Scribe). Lancer une vidéo (YouTube) ou de la musique, puis dicter avec Ctrl droit : le son doit s'arrêter une fraction de seconde après l'appui, et reprendre au relâchement. Le journal (onglet Journal et rapport) note chaque étape (« médias: pause demandée … », « relance demandée »). Cas à vérifier : pas de pause si rien ne joue (la vidéo ne doit **pas** démarrer), pas de pause pendant un appel, un appui très bref ne fait pas clignoter la vidéo.
 
