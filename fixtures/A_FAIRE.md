@@ -7,7 +7,7 @@ Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. �
 | Fichier | Cas | Raison |
 |---|---|---|
 | `ui_logic.json` | 14 | **Rejoués en S04 par `ui/src/lib/logic.test.ts`** (Vitest) : les 11 cas avec paire entrée → sortie (position de l'indicateur, cartes repliables, zone du banc), le vumètre (`ui_logic-012`, test écrit à la main) et l'Aide (`ui_logic-014`, `tabs.test.ts`) ; `ui_logic-013` (Réglages en cinq rubriques) est écarté (`docs/ECARTS.md`). Le test échoue si un cas n'est ni rejoué ni écarté. |
-| `playful_schtroumpf.json` | 9 | Mode Amusant reporté (dépend de l'analyseur grammatical d'Apple). |
+| `playful_schtroumpf.json` | 9 | **Mode Amusant abandonné (S05)** : ces cas ne seront jamais rejoués (le fichier reste tel quel, ils sont déclarés « reporté » par le banc de test). |
 
 ## À reprendre avec l'interface complète (étape 6) — fait en S04 sauf mention
 

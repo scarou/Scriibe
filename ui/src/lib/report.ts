@@ -6,7 +6,7 @@ import { setupSummary } from './setup';
 /** Le rapport que Christophe copie et colle dans la conversation : état, résultats du banc, journal. */
 export function buildReport(s: Status, results: BenchResult[], devices: string[], log: string[]): string {
   let r = `Rapport Scriibe — version ${s.version}\n`;
-  r += `Touche : ${s.hotkey} ; transcription : ${s.transcription} ; mise au propre : ${s.cleanup_label}\n`;
+  r += `Touche : ${s.dictation_label ?? s.hotkey} (traduction : ${s.translate_label ?? 'Maj'}) ; transcription : ${s.transcription} ; mise au propre : ${s.cleanup_label}\n`;
   r += `whisper-server : ${s.whisper.binary ? 'oui' : 'non'} ; modèles Whisper : ${s.whisper.models.map(base).join(', ') || 'aucun'}\n`;
   r += `llama-server : ${s.llama.binary ? 'oui' : 'non'} ; modèles GGUF : ${s.llama.models.map(base).join(', ') || 'aucun'}\n`;
   r += `Micros : ${s.microphones.join(' | ') || 'aucun'}${s.keys_error ? '\nTouche globale : ' + s.keys_error : ''}\n`;

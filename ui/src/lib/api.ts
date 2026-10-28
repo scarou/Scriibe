@@ -19,6 +19,10 @@ export interface Status {
   busy: boolean;
   keys_error: string | null;
   hotkey: string;
+  /** « Ctrl gauche + F9 » : la dictée et la traduction en vigueur. */
+  dictation_label: string;
+  translate_label: string;
+  key_choices: { id: string; label: string; modifier: boolean }[];
   paths: { data: string; settings: string; models: string; log: string; engines: string | null };
   transcription: string;
   transcription_engine: 'whisper' | 'deepgram';
@@ -55,6 +59,9 @@ export interface Settings {
   typingWPM: number;
   setupDone: boolean;
   overlayEnabled: boolean;
+  /** Identifiants des touches de dictée (vide : Ctrl droit) et de la touche de traduction (vide : Maj). */
+  dictationKeys: string[];
+  translateKeys: string[];
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
   captureColor: 'scribe' | 'gray' | 'red' | 'blue' | 'black';

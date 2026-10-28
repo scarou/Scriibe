@@ -2,6 +2,7 @@
   import { api } from '../lib/api';
   import { base } from '../lib/format';
   import { onMount } from 'svelte';
+  import KeyPicker from '../components/KeyPicker.svelte';
   import { colors, positions, styles } from '../lib/appearance';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
@@ -123,7 +124,7 @@
 
   <section class="card">
     <h2>Dictée</h2>
-    <div class="row"><span>Touche : <b>Ctrl droit</b> (Maj en plus : traduire)</span></div>
+    <KeyPicker />
     <div class="row">
       <label>Langue dictée :
         <select value={v.language} onchange={(e) => settings.change({ language: e.currentTarget.value as never })}>
@@ -154,7 +155,7 @@
     </div>
     <div class="row">
       <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
-        Sauter la mise au propre quand Whisper rend déjà un texte propre (modes Simple et Amusant)</label>
+        Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)</label>
     </div>
   </section>
 

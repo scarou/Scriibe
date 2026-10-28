@@ -4,13 +4,13 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 
 1. ✔ **Fondations** : dépôt, licence, architecture, CLAUDE.md. *(S01)*
 2. ✔ **Cas de référence** : 399 cas tirés de `Checks.swift` dans `fixtures/` (365 en S01, 34 contrôles du banc en S02). Restent le déroulement du banc, le test de frappe et les messages complets des prompts (`fixtures/A_FAIRE.md`). *(S01, S02)*
-3. ✔ **Cœur Rust** (`crates/core`) : 337 cas rejoués (303 en S01 + 34 du banc) ; avec les 39 des moteurs, 376 des 399 passent ; 14 cas d'interface et 9 du mode Amusant attendent. Prompts identiques à Scribe 1.12.0 (empreinte). *(S01, S02)*
+3. ✔ **Cœur Rust** (`crates/core`) : 337 cas rejoués (303 en S01 + 34 du banc) ; avec les 39 des moteurs, 376 des 399 passent ; 14 cas d'interface (rejoués depuis S04) ; les 9 du mode Amusant sont abandonnés avec lui. Prompts identiques à Scribe 1.12.0 (empreinte). *(S01, S02)*
 4. ✔ **Moteurs** (`crates/engines`) : `whisper-server` et `llama-server`, clients Deepgram, OpenRouter, LM Studio, Ollama. Testés avec un monde simulé ; les vrais serveurs restent à essayer sur une machine. *(S01)*
 5. ✔ **MVP Windows** — essayé de bout en bout sur un vrai PC (S03) : touche, collage, icône, bips, annulation, traduction, pause des médias, cloud en dépannage, mise à jour intégrée. Restes : voir « Étape 5 en détail ». *(S02, S03)*
 6. ✔ **Interface complète** (parité avec Scribe) écrite en S04 : fenêtre Tauri 2, interface Svelte 5, Réglages, Dictionnaire, Modes, Historique, Tableau de bord, Aide, banc comparable, test de frappe, assistant de premier lancement, pastille (bêta) ; cas `ui_logic.json` rejoués. Essayés sur le PC en fin de S04 : la fenêtre, l'assistant, une dictée avec la pastille. **Reste à essayer** : la pastille sur plusieurs dictées et dans ses trois styles, la reprise d'un téléchargement (voir « Étape 6 en détail »). *(S04)*
 7. ○ **macOS**, puis **Linux X11**, puis **Linux Wayland** (bêta).
 8. ○ **Ouverture** : README anglais, CONTRIBUTING, vérification du nom (INPI/EUIPO, recherche web), passage du dépôt en public.
-9. ○ **Mode Amusant** (schtroumpf) : dépend de l'analyseur grammatical d'Apple ; trouver un équivalent portable ou l'abandonner.
+9. ✘ **Mode Amusant** (schtroumpf) : **abandonné** (décision de Christophe, S05).
 
 ## Étape 5 en détail
 

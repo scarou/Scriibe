@@ -6,10 +6,12 @@ use scriibe_core::modes::RewriteMode;
 use scriibe_core::settings::AppSettings;
 use serde_json::{json, Value};
 
-/// Les huit modes livrés, avec leur phrase de style d'origine et celle qui est réglée.
+/// Les sept modes livrés, avec leur phrase de style d'origine et celle qui est réglée. Le mode Amusant de Scribe (schtroumpf) n'est pas
+/// proposé : abandonné (`docs/ECARTS.md`) ; un fichier de réglages venu de Scribe qui le réclame retombe sur Simple.
 pub fn modes(settings: &AppSettings) -> Value {
     let built_in: Vec<Value> = RewriteMode::ALL
         .iter()
+        .filter(|mode| **mode != RewriteMode::Playful)
         .map(|mode| {
             json!({
                 "id": mode.raw(),
@@ -19,15 +21,18 @@ pub fn modes(settings: &AppSettings) -> Value {
                 "original_style": mode.style(),
                 "typed_style": settings.typed_style(*mode),
                 "modified": settings.is_style_modified(*mode),
-                // Le moteur schtroumpf n'est pas encore porté : Amusant se comporte comme Simple (docs/ECARTS.md).
-                "available": *mode != RewriteMode::Playful,
+                "available": true,
             })
         })
         .collect();
     json!({
         "built_in": built_in,
-        "groups": RewriteMode::MENU_GROUPS.iter().map(|g| g.iter().map(|m| m.raw()).collect::<Vec<_>>()).collect::<Vec<_>>(),
-        "choice": settings.mode_choice(),
+        "groups": RewriteMode::MENU_GROUPS
+            .iter()
+            .map(|g| g.iter().filter(|m| **m != RewriteMode::Playful).map(|m| m.raw()).collect::<Vec<_>>())
+            .filter(|g| !g.is_empty())
+            .collect::<Vec<_>>(),
+        "choice": if settings.mode_choice() == RewriteMode::Playful.raw() { RewriteMode::Simple.raw().to_string() } else { settings.mode_choice() },
         "active_label": settings.active_mode_label(),
     })
 }
@@ -111,12 +116,17 @@ mod tests {
     }
 
     #[test]
-    fn modes_lists_the_eight_built_in_modes_and_marks_the_playful_one_unavailable() {
+    fn modes_lists_the_seven_built_in_modes_without_the_abandoned_playful_one() {
         let mut settings = AppSettings::default();
         let view = modes(&settings);
-        assert_eq!(view["built_in"].as_array().unwrap().len(), 8);
+        assert_eq!(view["built_in"].as_array().unwrap().len(), 7);
+        assert!(view["built_in"].as_array().unwrap().iter().all(|m| m["id"] != "playful"));
+        assert_eq!(view["groups"].as_array().unwrap().len(), 2);
         assert_eq!(view["choice"], "simple");
-        assert_eq!(view["built_in"][7]["available"], false);
+        // Un fichier de réglages de Scribe qui réclame Amusant retombe sur Simple dans l'interface.
+        let mut playful = AppSettings::default();
+        playful.set_mode_choice("playful");
+        assert_eq!(modes(&playful)["choice"], "simple");
         settings.style_overrides.insert("formal".into(), "Écris comme un notaire".into());
         let view = modes(&settings);
         assert_eq!(view["built_in"][2]["modified"], true);

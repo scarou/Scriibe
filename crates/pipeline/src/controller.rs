@@ -87,11 +87,11 @@ fn seconds(duration: Duration) -> String {
 
 impl Controller {
     pub fn new(deps: Deps) -> Self {
-        let hotkey = deps.config.settings().hotkey;
+        let binding = scriibe_platform::keys::binding(&deps.config.settings());
         let indicator = Arc::clone(&deps.indicator);
         deps.recorder.set_level_listener(Some(Arc::new(move |level| indicator.set_level(level))));
         let state = State {
-            monitor: HotkeyMonitor::new(hotkey),
+            monitor: HotkeyMonitor::with_binding(binding),
             recording: false,
             busy: false,
             translating: false,
@@ -114,16 +114,15 @@ impl Controller {
 
     /// Un événement de clavier du système. Le crochet du système ne fait que les poster : cette méthode peut prendre son temps.
     pub fn handle_key(&self, event: KeyEvent) {
-        let events = match event {
-            KeyEvent::Modifier { changed, held } => {
-                let hotkey = self.inner.deps.config.settings().hotkey;
-                let mut state = lock(&self.inner.state);
-                if state.monitor.hotkey != hotkey {
-                    state.monitor = HotkeyMonitor::new(hotkey);
-                }
-                state.monitor.handle(changed, &held)
+        let KeyEvent::Changed { changed, down, held } = event;
+        let events = {
+            let mut state = lock(&self.inner.state);
+            // Les touches choisies se relisent à chaque événement (les réglages sont en cache : un contrôle de date de fichier).
+            let binding = scriibe_platform::keys::binding(&self.inner.deps.config.settings());
+            if state.monitor.binding != binding {
+                state.monitor = HotkeyMonitor::with_binding(binding);
             }
-            KeyEvent::Typed => lock(&self.inner.state).monitor.handle_key_down(),
+            state.monitor.handle_change(changed, down, &held)
         };
         for event in events {
             match event {

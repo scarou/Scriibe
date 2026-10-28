@@ -223,15 +223,19 @@ fn rig(heard: &'static str, cleaned: &'static str) -> Rig {
 
 impl Rig {
     fn key_down(&self) {
-        self.controller.handle_key(KeyEvent::Modifier { changed: Key::RightControl, held: vec![Key::RightControl] });
+        self.controller.handle_key(KeyEvent::Changed { changed: Key::RightControl, down: true, held: vec![Key::RightControl] });
     }
 
     fn key_up(&self) {
-        self.controller.handle_key(KeyEvent::Modifier { changed: Key::RightControl, held: vec![] });
+        self.controller.handle_key(KeyEvent::Changed { changed: Key::RightControl, down: false, held: vec![] });
     }
 
     fn shift_down(&self) {
-        self.controller.handle_key(KeyEvent::Modifier { changed: Key::LeftShift, held: vec![Key::RightControl, Key::LeftShift] });
+        self.controller.handle_key(KeyEvent::Changed {
+            changed: Key::LeftShift,
+            down: true,
+            held: vec![Key::RightControl, Key::LeftShift],
+        });
     }
 
     fn dictate(&self) {
@@ -314,7 +318,7 @@ fn french_typography_is_applied_after_the_model() {
 fn another_key_while_holding_cancels_without_a_trace() {
     let r = rig("jamais utilisé", "jamais utilisé");
     r.key_down();
-    r.controller.handle_key(KeyEvent::Typed);
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::Vk(0x41), down: true, held: vec![Key::RightControl, Key::Vk(0x41)] });
     r.key_up();
     assert!(!r.controller.is_recording());
     assert_eq!(r.recorder.stops(), 1);
@@ -327,7 +331,7 @@ fn another_key_while_holding_cancels_without_a_trace() {
 #[test]
 fn typing_without_holding_the_key_does_nothing() {
     let r = rig("x", "x");
-    r.controller.handle_key(KeyEvent::Typed);
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::Vk(0x41), down: true, held: vec![Key::RightControl, Key::Vk(0x41)] });
     assert!(r.indicator.states().is_empty() && r.recorder.starts().is_empty());
 }
 
@@ -554,10 +558,10 @@ fn shift_added_while_holding_translates_the_dictation() {
 #[test]
 fn shift_held_before_the_key_also_translates() {
     let r = rig("bonjour tout le monde on commence", "Hello everyone, let's get started.");
-    r.controller.handle_key(KeyEvent::Modifier { changed: Key::LeftShift, held: vec![Key::LeftShift] });
-    r.controller.handle_key(KeyEvent::Modifier { changed: Key::RightControl, held: vec![Key::LeftShift, Key::RightControl] });
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::LeftShift, down: true, held: vec![Key::LeftShift] });
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::RightControl, down: true, held: vec![Key::LeftShift, Key::RightControl] });
     assert_eq!(r.indicator.translations(), vec![Some("anglais".to_string())]);
-    r.controller.handle_key(KeyEvent::Modifier { changed: Key::RightControl, held: vec![Key::LeftShift] });
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::RightControl, down: false, held: vec![Key::LeftShift] });
     assert_eq!(r.history.items()[0].translation, Some(TranslationLanguage::En));
 }
 
@@ -612,7 +616,7 @@ fn a_shortcut_right_after_shift_never_loads_the_translation_model() {
     r.key_down();
     r.shift_down();
     let before = r.warm_up_requests().len();
-    r.controller.handle_key(KeyEvent::Typed);
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::Vk(0x41), down: true, held: vec![Key::RightControl, Key::Vk(0x41)] });
     r.clock.advance(Duration::from_secs(1));
     r.controller.tick();
     assert_eq!(r.warm_up_requests().len(), before);
@@ -709,7 +713,22 @@ fn a_hotkey_changed_in_the_settings_applies_to_the_next_event() {
     r.key_down();
     assert!(!r.controller.is_recording());
     // ⌘ droite (Mac) dicte.
-    r.controller.handle_key(KeyEvent::Modifier { changed: Key::RightCommand, held: vec![Key::RightCommand] });
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::RightCommand, down: true, held: vec![Key::RightCommand] });
+    assert!(r.controller.is_recording());
+}
+
+/// Les touches choisies dans les réglages ne s'appliquent que sous Windows (les identifiants sont ceux de ses codes de touche).
+#[cfg(windows)]
+#[test]
+fn a_chosen_key_combination_dictates_and_the_default_key_no_longer_does() {
+    let r = rig("x", "x");
+    r.config.change(|s| s.dictation_keys = vec!["left_control".into(), "f9".into()]);
+    r.key_down();
+    assert!(!r.controller.is_recording(), "Ctrl droit ne dicte plus");
+    let f9 = Key::Vk(0x78);
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::LeftControl, down: true, held: vec![Key::LeftControl] });
+    assert!(!r.controller.is_recording(), "Ctrl gauche seul non plus");
+    r.controller.handle_key(KeyEvent::Changed { changed: f9, down: true, held: vec![Key::LeftControl, f9] });
     assert!(r.controller.is_recording());
 }
 

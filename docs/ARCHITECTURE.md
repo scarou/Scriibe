@@ -69,7 +69,7 @@ La confiance dans le portage vient de là. Les cas de `Checks.swift` (typographi
 
 Le format complet, la liste des fonctions et les outils de vérification sont décrits dans [`fixtures/README.md`](../fixtures/README.md) ; ce qui reste à reprendre est dans [`fixtures/A_FAIRE.md`](../fixtures/A_FAIRE.md).
 
-Le cœur Rust doit les passer **à l'identique** (399 cas dans 17 fichiers : 376 sont rejoués par `cargo test`, 14 attendent l'interface, 9 le mode Amusant). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
+Le cœur Rust doit les passer **à l'identique** (399 cas dans 17 fichiers : 376 sont rejoués par `cargo test`, 14 attendaient l'interface, 9 concernent le mode Amusant, abandonné). Le Swift sert d'oracle ; un écart voulu se documente dans `docs/ECARTS.md`, jamais en modifiant un cas en silence. Les cas qui dépendent d'un modèle (`--cleantest`) ne sont pas des tests automatiques : ils servent de mesures, comme dans Scribe.
 
 ## 4. Interface
 
@@ -86,7 +86,7 @@ Le cœur Rust doit les passer **à l'identique** (399 cas dans 17 fichiers : 376
 - **Touche de dictée** : Option droite (macOS) est AltGr sur un clavier AZERTY sous Windows. Le choix de la touche par défaut est propre à chaque système, et les touches de modification seules demandent un hook maison.
 - **Collage** : bloqué dans les fenêtres lancées en administrateur sous Windows ; Wayland interdit l'injection de touches sur la plupart des compositeurs.
 - **Performances** : les temps de Scribe (0,3 à 0,6 s) viennent d'un M1 Max. Sans carte graphique, `large-v3-turbo` est lent : il faudra proposer des modèles par niveau de machine.
-- **Mode Amusant (schtroumpf)** : dépend de `NaturalLanguage` (Apple). Hors périmètre du premier jalon.
+- **Mode Amusant (schtroumpf)** : dépendait de `NaturalLanguage` (Apple) ; **abandonné** en S05 (décision de Christophe : fonctionnait mal, apportait peu).
 - **WebView** : WebKitGTK (Linux) se comporte différemment de WebView2 (Windows) et de WKWebView (macOS) ; tester l'interface sur les trois.
 
 ## 6. Décisions

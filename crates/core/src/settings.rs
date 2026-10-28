@@ -272,6 +272,13 @@ pub struct AppSettings {
     /// (essayée sur le PC de test : trois styles, traduction, focus conservé).
     #[serde(rename = "overlayEnabled")]
     pub overlay_enabled: bool,
+    /// Touche ou combinaison de dictée choisie (identifiants de `scriibe_platform::keys`, par exemple `["left_control", "f9"]`) ; vide : la
+    /// touche par défaut du système (`hotkey`). Propre à Scriibe.
+    #[serde(rename = "dictationKeys")]
+    pub dictation_keys: Vec<String>,
+    /// Touche tenue en plus pour traduire (une seule, ou « Maj, l'une ou l'autre ») ; vide : celle par défaut (Maj). Propre à Scriibe.
+    #[serde(rename = "translateKeys")]
+    pub translate_keys: Vec<String>,
 }
 
 impl Default for AppSettings {
@@ -321,6 +328,8 @@ impl Default for AppSettings {
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
             setup_done: false,
             overlay_enabled: true,
+            dictation_keys: Vec::new(),
+            translate_keys: Vec::new(),
         }
     }
 }
@@ -416,6 +425,8 @@ impl AppSettings {
             llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),
             setup_done: get(o, "setupDone").unwrap_or(d.setup_done),
             overlay_enabled: get(o, "overlayEnabled").unwrap_or(d.overlay_enabled),
+            dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
+            translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
         })
     }
 

@@ -385,6 +385,9 @@ fn status(ctx: &Context) -> Value {
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),
         "hotkey": format!("{:?}", settings.hotkey),
+        "dictation_label": if settings.dictation_keys.is_empty() { "Ctrl droit".to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
+        "translate_label": if settings.translate_keys.is_empty() { "Maj".to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
+        "key_choices": scriibe_platform::keys::CHOICES.iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "paths": {"data": folder.display().to_string(), "settings": app.config.settings_path().display().to_string(), "models": models.display().to_string(),
                   "log": app.log.path().display().to_string(), "engines": scriibe_engines::engines_folder().map(|p| p.display().to_string())},
         "transcription": format!("{:?}", settings.transcription_engine),
@@ -418,7 +421,9 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
     if changes.get("llamaDevice").and_then(Value::as_str).is_some_and(|d| !is_device_name(d)) {
         return Err("appareil invalide".into());
     }
-    AppSettings::from_value(&merged).ok_or_else(|| "réglages illisibles".to_string())
+    let merged = AppSettings::from_value(&merged).ok_or_else(|| "réglages illisibles".to_string())?;
+    scriibe_platform::keys::validate(&merged.dictation_keys, &merged.translate_keys)?;
+    Ok(merged)
 }
 
 /// Applique des changements aux réglages, puis fait tout de suite ce qu'il faut pour `llama-server` (appareil, durée de conservation).
@@ -800,5 +805,11 @@ mod tests {
         assert!(merge_settings(&before, &json!([1])).is_err());
         let kept = merge_settings(&before, &json!({"historyKeepDays": 30})).unwrap();
         assert_eq!(kept.history_keep_days, Some(30), "réglage facultatif absent du fichier tant qu'il n'a pas de valeur");
+        // Les touches de dictée : une combinaison valide passe, une touche inconnue ou dangereuse est refusée.
+        let keys = merge_settings(&before, &json!({"dictationKeys": ["left_control", "f9"], "translateKeys": ["left_alt"]})).unwrap();
+        assert_eq!((keys.dictation_keys.len(), keys.translate_keys.len()), (2, 1));
+        assert!(merge_settings(&before, &json!({"dictationKeys": ["a"]})).is_err());
+        assert!(merge_settings(&before, &json!({"dictationKeys": ["left_alt"]})).unwrap_err().contains("seule"));
+        assert!(merge_settings(&before, &json!({"dictationKeys": ["f9"], "translateKeys": ["f9"]})).is_err());
     }
 }
