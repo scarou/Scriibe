@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox, notice } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
@@ -37,9 +38,9 @@
 
   async function go(id: string) {
     const r = resolved[id];
-    if (!confirm(`Télécharger ${r.name} (${mo(r.size ?? 0)})\ndepuis ${r.url}\nvers ${r.dest} ?`)) return;
+    if (!(await confirmBox(`Télécharger ${r.name} (${mo(r.size ?? 0)})\ndepuis ${r.url}\nvers ${r.dest} ?`, { confirm: 'Télécharger' }))) return;
     const out = await api('downloads/start', { id, confirmed: true });
-    if (!out.ok) alert(out.error);
+    if (!out.ok) await notice(out.error);
     delete resolved[id];
     await load();
     await status.refresh();

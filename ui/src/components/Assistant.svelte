@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { notice } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { missing, needLabels, type Assistant } from '../lib/assistant';
@@ -17,7 +18,7 @@
   async function apply() {
     const out = await api('assistant/apply', { chain: choice });
     if (!out.ok) {
-      alert(out.error);
+      await notice(out.error);
       return;
     }
     applied = true;

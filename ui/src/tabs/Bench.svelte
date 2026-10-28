@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { notice } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type ModelVersion, type Phrase, type Take, type Transcribed } from '../lib/api';
@@ -67,7 +68,7 @@
     if (!recording) {
       const started = await api('record/start', {});
       if (!started.ok) {
-        alert(started.error);
+        await notice(started.error);
         return;
       }
       recording = true;

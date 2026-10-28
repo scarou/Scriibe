@@ -41,7 +41,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 **Reste** :
 1. **Langue de l'interface** au-delà du français (choix à faire avec Christophe).
 2. ✔ **Comparaison « avec / sans modèle »** du banc et réglages du banc selon les modes personnels (S07 : le nom et l'empreinte de la consigne d'un mode personnel étaient déjà dans les réglages d'un passage ; test ajouté).
-3. Titre des boîtes de confirmation (« 127.0.0.1:… indique », boîte standard du navigateur).
+3. ✔ Boîtes de confirmation et d'avertissement dessinées par la page (titre « Scriibe », bouton qui dit ce qu'il fait ; S07 ; à essayer sur le PC).
 4. Menu de l'icône, sons, choix de fichier et capture des touches hors de Windows (étape 7).
 5. Écartés : autorisations macOS (sans objet), mode Amusant (abandonné), mode par application (idée de Scribe, après la parité).
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox, notice } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { mo, percent } from '../lib/format';
@@ -34,7 +35,7 @@
   async function saveToken() {
     const out = await api('update/token', { token });
     token = '';
-    if (!out.ok) alert(out.error);
+    if (!out.ok) await notice(out.error);
     await load();
   }
 
@@ -46,9 +47,9 @@
 
   async function install() {
     if (!found) return;
-    if (!confirm(`Installer la version ${found.sha} (${mo(found.size)})\ndepuis ${found.source} ?\n\nScriibe va redémarrer.`)) return;
+    if (!(await confirmBox(`Installer la version ${found.sha} (${mo(found.size)})\ndepuis ${found.source} ?\n\nScriibe va redémarrer.`, { confirm: 'Installer et redémarrer' }))) return;
     const out = await api('update/install', { confirmed: true });
-    if (!out.ok) alert(out.error);
+    if (!out.ok) await notice(out.error);
     found = null;
     await load();
   }

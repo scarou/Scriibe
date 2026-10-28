@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from './lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api } from './lib/api';
   import { status } from './lib/status.svelte';
@@ -15,6 +16,7 @@
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
   import Logo from './components/Logo.svelte';
+  import Dialog from './components/Dialog.svelte';
 
   let stopped = $state(false);
 
@@ -23,13 +25,15 @@
   }
 
   async function quit() {
-    if (!confirm('Quitter Scriibe ?')) return;
+    if (!(await confirmBox('Quitter Scriibe ?', { confirm: 'Quitter' }))) return;
     await api('quit', {});
     stopped = true;
   }
 
   onMount(() => status.start());
 </script>
+
+<Dialog />
 
 {#if stopped}
   <main class="stopped"><p>Scriibe est arrêté. Vous pouvez fermer cette page.</p></main>

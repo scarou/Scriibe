@@ -1,3 +1,4 @@
+import { notice } from './dialog.svelte';
 import { api, type Settings } from './api';
 import { status } from './status.svelte';
 
@@ -17,7 +18,7 @@ class SettingsStore {
       this.error = '';
     } else {
       this.error = out.error ?? 'réglage refusé';
-      alert(this.error);
+      void notice(this.error);
     }
     await status.refresh();
     return !!out.ok;

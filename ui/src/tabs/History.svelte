@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type HistoryItem } from '../lib/api';
@@ -42,7 +43,7 @@
   }
 
   async function clearAll() {
-    if (!confirm('Effacer tout l’historique, y compris les chiffres du tableau de bord ? C’est définitif.')) return;
+    if (!(await confirmBox('Effacer tout l’historique, y compris les chiffres du tableau de bord ? C’est définitif.', { confirm: 'Tout effacer', danger: true }))) return;
     await api('history/clear', { confirmed: true });
     await load();
   }
@@ -57,7 +58,7 @@
 
   async function applyChange() {
     await previewChange();
-    if (!confirm(`${preview}\n\nAppliquer ces réglages ? C’est définitif.`)) return;
+    if (!(await confirmBox(`${preview}\n\nAppliquer ces réglages ? C’est définitif.`, { confirm: 'Appliquer', danger: true }))) return;
     await api('history/apply', { keep_text: keepText, keep_days: keepDays, confirmed: true });
     await settings.load();
     await load();

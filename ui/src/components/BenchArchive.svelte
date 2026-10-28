@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api, type Comparison, type RunSummary } from '../lib/api';
   import { bench } from '../lib/bench.svelte';
@@ -37,7 +38,7 @@
   }
 
   async function remove(run: RunSummary) {
-    if (!confirm(`Supprimer ce passage ?\n${run.summary}`)) return;
+    if (!(await confirmBox(`Supprimer ce passage ?\n${run.summary}`, { confirm: 'Supprimer', danger: true }))) return;
     await api('bench/delete', { id: run.id });
     await load();
   }

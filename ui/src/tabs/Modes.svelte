@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { confirmBox } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type CustomMode, type Modes } from '../lib/api';
@@ -54,7 +55,7 @@
   }
 
   async function removeCustom(mode: CustomMode) {
-    if (!confirm(`Supprimer le mode « ${mode.name || 'sans nom'} » ?`)) return;
+    if (!(await confirmBox(`Supprimer le mode « ${mode.name || 'sans nom'} » ?`, { confirm: 'Supprimer', danger: true }))) return;
     await settings.change({ customModes: custom.filter((m) => m.id !== mode.id) });
     await load();
   }

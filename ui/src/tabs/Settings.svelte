@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { notice } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { api } from '../lib/api';
   import { base } from '../lib/format';
@@ -69,14 +70,14 @@
   /** « Choisir un fichier… » : la boîte d'ouverture de Windows, pour un modèle Whisper rangé ailleurs. */
   async function chooseWhisperFile() {
     const out = await api<{ ok: boolean; path?: string | null; error?: string }>('pick-file', { kind: 'whisper' });
-    if (!out.ok) alert(out.error);
+    if (!out.ok) void notice(out.error ?? 'réglage refusé');
     else if (out.path) await settings.change({ whisperModelPath: out.path });
   }
 
   async function saveKey(kind: 'deepgram' | 'openrouter') {
     const out = await api('keys', { kind, value: keyInput[kind] });
     keyInput[kind] = '';
-    if (!out.ok) alert(out.error);
+    if (!out.ok) void notice(out.error ?? 'réglage refusé');
     await status.refresh();
   }
 
