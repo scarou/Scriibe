@@ -27,11 +27,19 @@ Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et 
 - **Journal et rapport** : le journal en direct (une ligne par étape, jamais le texte dicté) pendant une dictée avec la touche (**Ctrl droit** maintenu, **Maj** en plus : traduction, autre touche : annulation) ; « Copier le rapport » met dans le presse-papiers l'état, les résultats du banc et le journal : à coller dans la conversation.
 - **Aide** : huit sections.
 
-## Choisir ses touches (S05, à essayer)
+## Choisir ses touches (essayé en S06)
 
 Onglet **Réglages**, carte **Dictée** : « Changer… » à côté de « Touche de dictée » ; appuyer sur la touche ou la combinaison voulue (jusqu'à trois touches, dont une seule ordinaire), tout relâcher, puis « Utiliser cette touche ». Même chose pour la touche tenue en plus pour traduire. « Tester ma touche » (15 s) vérifie que Scriibe passe en écoute ; « Rétablir » remet Ctrl droit et Maj.
 
-À essayer : la touche **Windows**, **Maj gauche**, la touche **« < > »** (à gauche de W), Ctrl gauche + une touche de fonction, une combinaison de touches de modification seules (il faut la tenir 0,3 s avant que l'écoute commence) ; vérifier qu'**Alt gauche** et **Windows** n'ouvrent ni menu ni Démarrer au relâchement, que le collage garde le focus, et que la touche ordinaire de la combinaison (F9, « < > ») n'écrit rien dans l'appli. **Fn** : probablement invisible pour Windows (la capture le dira).
+Pendant la capture, la fenêtre de Scriibe transmet elle-même les touches qu'elle voit ; **Windows et Alt gauche** se captent depuis une autre fenêtre (appuyer dans le Bloc-notes, puis revenir). Dicter *dans* la fenêtre de Scriibe avec la touche ne marche pas (le crochet du système n'y reçoit rien) : « Tester ma touche » se fait dans une autre fenêtre. Essayé sur le PC : F9, « < > », Ctrl gauche + F10, **Windows**, **Alt gauche**, **Maj gauche**, traduction avec F9. Reste à essayer : Fn, « Tester ma touche », « Rétablir ». À essayer : la touche **Windows**, **Maj gauche**, la touche **« < > »** (à gauche de W), Ctrl gauche + une touche de fonction, une combinaison de touches de modification seules (il faut la tenir 0,3 s avant que l'écoute commence) ; vérifier qu'**Alt gauche** et **Windows** n'ouvrent ni menu ni Démarrer au relâchement, que le collage garde le focus, et que la touche ordinaire de la combinaison (F9, « < > ») n'écrit rien dans l'appli. **Fn** : probablement invisible pour Windows (la capture le dira).
+
+## Sons, menu de l'icône, moteurs (S06)
+
+- **Réglages → Dictée** : « Son au début », « Son à la fin » (douze sons + « Aucun », bouton ▶), volume des sons. Les sons sont synthétisés.
+- **Clic droit sur l'icône** : Ouvrir Scriibe, les touches, **Copier la dernière dictée**, sous-menu **Mode** (coché), version, dossier des données, journal, Quitter.
+- **Réglages → Moteurs** : mise au propre **LM Studio** ou **Ollama** (liste des modèles du serveur, « Actualiser », adresse), modèle Deepgram, « Choisir un fichier… » pour Whisper, « Libérer Whisper au repos ».
+- **Modes** : « Essayer sur les phrases types » (12 phrases, garde-fou et contrôles). **Banc d'essai** : « Banc d'essai de la mise au propre » (une phrase, plusieurs modèles).
+- **Historique** : chaque dictée indique son mode et le sort de la mise au propre.
 
 ## Cloud en dépannage (à comparer au local)
 
