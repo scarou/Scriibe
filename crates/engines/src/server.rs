@@ -45,6 +45,17 @@ pub trait Launcher: Send + Sync {
     fn missing_binary(&self) -> String;
     fn missing_model(&self) -> String;
     fn start_failed(&self) -> String;
+    /// Après un démarrage raté (le processus s'est arrêté), un seul autre essai avec un réglage de repli (llama.cpp : sans carte
+    /// graphique). Dit lequel, pour le journal ; `None` : pas de repli, ou déjà en cours pour ce modèle.
+    fn begin_fallback(&self, _model: &str) -> Option<&'static str> {
+        None
+    }
+    /// Ce modèle tourne-t-il avec le repli ?
+    fn in_fallback(&self, _model: &str) -> bool {
+        false
+    }
+    /// Le repli n'a pas aidé : on l'oublie, le choix de départ reste le bon pour la suite.
+    fn cancel_fallback(&self, _model: &str) {}
 }
 
 /// Ce que les moteurs demandent au système.
@@ -339,8 +350,19 @@ impl<L: Launcher> EngineServer<L> {
             if used_assistant {
                 self.log("nouvel essai sans assistant MTP");
                 let retry = self.launch(model, false, id);
-                if retry.is_ok() {
+                // Un démarrage rendu possible par le repli (et non par l'abandon de l'assistant) ne prouve rien sur l'assistant.
+                if retry.is_ok() && !self.launcher.in_fallback(model) {
                     self.lock().assistant_refused.insert(model.to_string());
+                }
+                return retry;
+            }
+            // Repli (llama.cpp : la carte graphique n'a pas assez de mémoire pour le modèle) : un autre essai, avec le même choix
+            // d'assistant. S'il démarre, le repli reste en vigueur pour ce modèle ; sinon il est oublié.
+            if let Some(what) = self.launcher.begin_fallback(model) {
+                self.log(&format!("nouvel essai {what}"));
+                let retry = self.launch(model, use_assistant, id);
+                if retry.is_err() {
+                    self.launcher.cancel_fallback(model);
                 }
                 return retry;
             }

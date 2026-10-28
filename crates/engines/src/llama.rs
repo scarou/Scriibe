@@ -202,6 +202,8 @@ pub struct LlamaLauncher {
     binary: Option<PathBuf>,
     /// Appareil imposé à `llama-server` (`--device Vulkan1`, ou `none` pour le processeur seul) ; vide : il choisit lui-même.
     device: std::sync::Mutex<String>,
+    /// Les modèles qui n'ont pas démarré avec le choix automatique de l'appareil et tournent sur le processeur seul (`--device none`).
+    cpu_fallback: std::sync::Mutex<std::collections::HashSet<String>>,
 }
 
 impl LlamaLauncher {
@@ -223,12 +225,19 @@ impl LlamaLauncher {
             fs,
             binary,
             device: std::sync::Mutex::new(String::new()),
+            cpu_fallback: std::sync::Mutex::new(std::collections::HashSet::new()),
         }
+    }
+
+    fn cpu_fallback(&self) -> std::sync::MutexGuard<'_, std::collections::HashSet<String>> {
+        self.cpu_fallback.lock().unwrap_or_else(|p| p.into_inner())
     }
 
     /// Impose un appareil au prochain démarrage du serveur (vide : choix automatique).
     pub fn set_device(&self, device: &str) {
         *self.device.lock().unwrap_or_else(|p| p.into_inner()) = device.trim().to_string();
+        // Un nouveau choix de la personne remplace le repli : l'appareil automatique est de nouveau essayé.
+        self.cpu_fallback().clear();
     }
 
     pub fn device(&self) -> String {
@@ -260,6 +269,8 @@ impl Launcher for LlamaLauncher {
         let device = self.device();
         if !device.is_empty() {
             args.extend(["--device".to_string(), device]);
+        } else if self.cpu_fallback().contains(model) {
+            args.extend(["--device".to_string(), "none".to_string()]);
         }
         (args, assistant.is_some())
     }
@@ -278,6 +289,23 @@ impl Launcher for LlamaLauncher {
 
     fn start_failed(&self) -> String {
         "llama.cpp n'a pas pu démarrer (modèle illisible ? voir llama-server.log)".into()
+    }
+
+    /// Écart avec Scribe : avec l'appareil automatique, une carte graphique trop juste en mémoire (2 Go pour un modèle de 2 Go) fait
+    /// échouer le chargement ; on retente une fois sur le processeur seul. Un appareil choisi à la main n'est jamais changé.
+    fn begin_fallback(&self, model: &str) -> Option<&'static str> {
+        if !self.device().is_empty() || !self.cpu_fallback().insert(model.to_string()) {
+            return None;
+        }
+        Some("sur le processeur seul (la carte graphique n'a peut-être pas assez de mémoire)")
+    }
+
+    fn in_fallback(&self, model: &str) -> bool {
+        self.cpu_fallback().contains(model)
+    }
+
+    fn cancel_fallback(&self, model: &str) {
+        self.cpu_fallback().remove(model);
     }
 }
 

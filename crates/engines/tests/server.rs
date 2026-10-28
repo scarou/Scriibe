@@ -160,6 +160,60 @@ fn llama_uses_the_assistant_then_remembers_it_was_refused() {
 }
 
 #[test]
+fn llama_falls_back_to_the_processor_when_the_automatic_device_cannot_load_the_model() {
+    let world = FakeWorld::new();
+    // La carte graphique n'a pas assez de mémoire : le serveur s'arrête, sauf sur le processeur seul.
+    world.set_script(|args| {
+        if args.windows(2).any(|w| w[0] == "--device" && w[1] == "none") {
+            Script::default()
+        } else {
+            Script { ready_after: Duration::ZERO, exit_with: Some(1) }
+        }
+    });
+    let model = "/m/chocolatine-3b-instruct-q4_k_m.gguf";
+    let server = llama_server(&world, files(&[model]));
+    server.ensure_running(model).unwrap();
+    let spawns = world.spawns();
+    assert_eq!(spawns.len(), 2, "un essai automatique, un autre sur le processeur");
+    assert!(!spawns[0].args.contains(&"--device".to_string()));
+    assert!(spawns[1].args.windows(2).any(|w| w[0] == "--device" && w[1] == "none"));
+    assert!(world.log.lines().iter().any(|l| l.contains("nouvel essai sur le processeur seul")));
+
+    // Après un rechargement, le premier essai se fait directement sur le processeur.
+    server.stop();
+    server.ensure_running(model).unwrap();
+    let spawns = world.spawns();
+    assert_eq!(spawns.len(), 3);
+    assert!(spawns[2].args.windows(2).any(|w| w[0] == "--device" && w[1] == "none"));
+
+    // Une carte choisie à la main redonne la main à l'appareil automatique.
+    server.launcher().set_device("");
+    server.stop();
+    server.ensure_running(model).unwrap();
+    let spawns = world.spawns();
+    assert_eq!(spawns.len(), 5, "automatique (échec), puis processeur");
+    assert!(!spawns[3].args.contains(&"--device".to_string()));
+}
+
+#[test]
+fn llama_forgets_the_fallback_when_the_processor_does_not_help_and_never_overrides_a_chosen_device() {
+    let world = FakeWorld::new();
+    world.set_script(|_| Script { ready_after: Duration::ZERO, exit_with: Some(1) });
+    let model = "/m/broken.gguf";
+    let server = llama_server(&world, files(&[model]));
+    assert!(server.ensure_running(model).is_err());
+    assert_eq!(world.spawns().len(), 2, "automatique puis processeur : pas d'autre essai");
+    // Le repli n'a pas aidé : l'essai suivant repart de l'appareil automatique.
+    assert!(server.ensure_running(model).is_err());
+    assert!(!world.spawns()[2].args.contains(&"--device".to_string()));
+
+    let before = world.spawns().len();
+    server.launcher().set_device("Vulkan1");
+    assert!(server.ensure_running(model).is_err());
+    assert_eq!(world.spawns().len(), before + 1, "appareil choisi : jamais de repli");
+}
+
+#[test]
 fn llama_without_an_assistant_file_starts_plain() {
     let world = FakeWorld::new();
     let model = "/m/Ministral-3-3B-Instruct-2512-Q4_K_M.gguf";
