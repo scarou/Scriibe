@@ -2,7 +2,7 @@
   import HelpButton from '../components/HelpButton.svelte';
   import { api } from '../lib/api';
   import { base } from '../lib/format';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import { colors, positions, styles } from '../lib/appearance';
   import { settings } from '../lib/settings.svelte';
@@ -14,6 +14,8 @@
   let listing = $state(false);
   let keyInput = $state({ deepgram: '', openrouter: '' });
   let modelDraft = $state<string | null>(null);
+  let urlDraft = $state<string | null>(null);
+  let local = $state<{ models: string[]; status: string }>({ models: [], status: '' });
 
   const languages = [
     { id: 'fr', label: 'Français' },
@@ -29,6 +31,35 @@
   ];
 
   onMount(() => void settings.load());
+
+  /** LM Studio et Ollama : le moteur du réglage, la clé de son modèle et celle de son adresse. */
+  let localEngine = $derived(
+    v?.cleanupEngine === 'lmStudio'
+      ? { id: 'lmStudio', name: 'LM Studio', model: 'lmStudioModel', url: 'lmStudioURL' }
+      : v?.cleanupEngine === 'ollama'
+        ? { id: 'ollama', name: 'Ollama', model: 'ollamaModel', url: 'ollamaURL' }
+        : null,
+  );
+  let localModel = $derived(localEngine && v ? String(v[localEngine.model] ?? '') : '');
+
+  /** La liste des modèles du serveur (réponse tardive d'un autre moteur : ignorée). */
+  async function refreshLocal() {
+    const engine = localEngine;
+    if (!engine) return;
+    local = { models: [], status: `Recherche du serveur ${engine.name}…` };
+    const out = await api<{ models: string[]; status: string }>('local-models', { engine: engine.id });
+    if (localEngine?.id !== engine.id) return;
+    local = { models: out.models, status: out.status };
+    if (!localModel && out.models.length) await settings.change({ [engine.model]: out.models[0] });
+  }
+
+  /** Relit la liste quand le moteur ou son adresse change (et seulement alors, pas à chaque réglage). */
+  let localId = $derived(localEngine?.id ?? '');
+  let localAddress = $derived(localEngine && v ? String(v[localEngine.url] ?? '') : '');
+  $effect(() => {
+    void localAddress;
+    if (localId) untrack(() => void refreshLocal());
+  });
 
   async function saveKey(kind: 'deepgram' | 'openrouter') {
     const out = await api('keys', { kind, value: keyInput[kind] });
@@ -78,9 +109,11 @@
     </div>
     <div class="row">
       <label>Mise au propre :
-        <select value={v.cleanupEngine === 'llamaCpp' || v.cleanupEngine === 'openRouter' ? v.cleanupEngine : 'none'} onchange={(e) => settings.change({ cleanupEngine: e.currentTarget.value as never })}>
+        <select value={v.cleanupEngine} onchange={(e) => settings.change({ cleanupEngine: e.currentTarget.value as never })}>
           <option value="none">Aucune (transcription littérale)</option>
           <option value="llamaCpp">llama.cpp (sur cet ordinateur)</option>
+          <option value="lmStudio">LM Studio (sur cet ordinateur)</option>
+          <option value="ollama">Ollama (sur cet ordinateur)</option>
           <option value="openRouter">OpenRouter (cloud)</option>
         </select>
       </label>
@@ -93,6 +126,25 @@
         </label>
       {/if}
     </div>
+    {#if localEngine}
+      <div class="row">
+        <label>Modèle {localEngine.name} :
+          <select value={localModel} onchange={(e) => settings.change({ [localEngine.model]: e.currentTarget.value })}>
+            {#if !localModel}<option value="">Choisir un modèle</option>
+            {:else if !local.models.includes(localModel)}<option value={localModel}>{localModel}</option>{/if}
+            {#each local.models as m (m)}<option value={m}>{m}</option>{/each}
+          </select>
+        </label>
+        <button onclick={refreshLocal}>Actualiser</button>
+      </div>
+      <p class="muted">{local.status}</p>
+      <div class="row">
+        <label>Adresse du serveur :
+          <input type="text" style="width: 18em" value={urlDraft ?? String(v[localEngine.url] ?? '')} oninput={(e) => (urlDraft = e.currentTarget.value)}
+            onchange={async (e) => { await settings.change({ [localEngine.url]: e.currentTarget.value.trim() }); urlDraft = null; }} />
+        </label>
+      </div>
+    {/if}
     {#if v.cleanupEngine === 'openRouter'}
       <div class="row">
         <label>Modèle OpenRouter :

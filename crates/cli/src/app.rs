@@ -23,6 +23,7 @@ pub struct App {
     pub platform: Platform,
     pub whisper: Arc<Whisper>,
     pub llama: Arc<EngineServer<LlamaLauncher>>,
+    pub cleaner: Arc<Cleaner>,
     pub config: Arc<FileConfig>,
     pub log: Arc<FileLog>,
 }
@@ -120,7 +121,7 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
         log: log_dyn,
         executor: Arc::new(ThreadExecutor),
     });
-    App { controller, platform, whisper, llama, config, log }
+    App { controller, platform, whisper, llama, cleaner, config, log }
 }
 
 /// Ce que `verifier` et `lancer` disent des réglages.

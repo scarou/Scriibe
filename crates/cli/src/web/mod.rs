@@ -153,6 +153,7 @@ fn handle(ctx: &Context, mut request: Request) {
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
         (Method::Get, "api/phrases") => ok(request, phrases()),
+        (Method::Post, "api/local-models") => ok(request, local_models(ctx, input["engine"].as_str().unwrap_or(""))),
         (Method::Get, "api/llama/devices") => ok(request, json!({"lines": llama_devices(ctx)})),
         (Method::Get, "api/log") => ok(request, json!({"lines": log_tail(ctx, 60)})),
         (Method::Get, "api/bench/runs") => {
@@ -394,6 +395,38 @@ fn verdict(level: f32) -> &'static str {
     }
 }
 
+/// Les modèles que LM Studio ou Ollama proposent, avec la phrase qui dit où on en est (les messages de Scribe).
+fn local_models(ctx: &Context, engine: &str) -> Value {
+    let engine = match engine {
+        "lmStudio" => CleanupEngine::LmStudio,
+        "ollama" => CleanupEngine::Ollama,
+        _ => return json!({"ok": false, "error": "moteur inconnu", "models": [], "status": ""}),
+    };
+    match ctx.app.cleaner.local_models(engine, &ctx.app.config.settings()) {
+        Ok(models) => {
+            let status = if models.is_empty() {
+                format!("{} répond, mais aucun modèle n'est installé", engine.name())
+            } else {
+                let plural = if models.len() > 1 { "s" } else { "" };
+                format!(
+                    "{} en marche · {} modèle{plural} · le premier appel charge le modèle (quelques secondes)",
+                    engine.name(),
+                    models.len()
+                )
+            };
+            json!({"ok": true, "models": models, "status": status})
+        }
+        Err(_) => {
+            let status = if engine == CleanupEngine::LmStudio {
+                "LM Studio ne répond pas : ouvre-le et démarre son serveur (onglet Developer)"
+            } else {
+                "Ollama ne répond pas : installe-le depuis ollama.com, puis lance-le"
+            };
+            json!({"ok": false, "models": [], "status": status})
+        }
+    }
+}
+
 fn status(ctx: &Context) -> Value {
     let app = &ctx.app;
     let settings = app.config.settings();
@@ -421,7 +454,13 @@ fn status(ctx: &Context) -> Value {
                   "log": app.log.path().display().to_string(), "engines": scriibe_engines::engines_folder().map(|p| p.display().to_string())},
         "transcription": format!("{:?}", settings.transcription_engine),
         "transcription_engine": match settings.transcription_engine { TranscriptionEngine::Whisper => "whisper", TranscriptionEngine::Deepgram => "deepgram" },
-        "cleanup": match settings.cleanup_engine { CleanupEngine::None => "none", CleanupEngine::LlamaCpp => "llamaCpp", CleanupEngine::OpenRouter => "openRouter", _ => "other" },
+        "cleanup": match settings.cleanup_engine {
+            CleanupEngine::None => "none",
+            CleanupEngine::LlamaCpp => "llamaCpp",
+            CleanupEngine::OpenRouter => "openRouter",
+            CleanupEngine::LmStudio => "lmStudio",
+            CleanupEngine::Ollama => "ollama",
+        },
         "cleanup_model": settings.cleanup_model,
         "llama_log": engine_hints(&folder.join("llama-server.log")),
         "llama_device": ctx.app.llama.launcher().device(),

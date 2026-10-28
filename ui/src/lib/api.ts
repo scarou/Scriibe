@@ -28,7 +28,7 @@ export interface Status {
   paths: { data: string; settings: string; models: string; log: string; engines: string | null };
   transcription: string;
   transcription_engine: 'whisper' | 'deepgram';
-  cleanup: 'none' | 'llamaCpp' | 'openRouter' | 'other';
+  cleanup: 'none' | 'llamaCpp' | 'openRouter' | 'lmStudio' | 'ollama';
   cleanup_model: string;
   cleanup_label: string;
   llama_log: { bytes: number; hints: string[]; head: string[]; tail: string[] };
