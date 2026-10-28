@@ -1,9 +1,19 @@
 name: CI
 
+# Économie de minutes (forfait GitHub des dépôts privés : Windows compte double, macOS dix fois) : à chaque envoi, Linux seulement, puis
+# l'exécutable Windows. Les trois systèmes complets se lancent à la main (onglet Actions → CI → Run workflow) avant une clôture de session.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -12,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest","windows-latest","macos-latest"]' || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
