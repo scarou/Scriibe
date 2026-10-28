@@ -75,6 +75,9 @@ pub struct Dictation {
     /// Temps après le relâchement (absent dans les anciennes dictées).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timing: Option<DictationTiming>,
+    /// Nom du mode de reformulation en cours à la dictée (absent : mise au propre coupée, ou ancienne dictée ; Scriibe seulement).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
 }
 
 impl Dictation {
@@ -91,6 +94,7 @@ impl Dictation {
             corrections,
             translation: None,
             timing: None,
+            mode: None,
         }
     }
 
@@ -126,6 +130,7 @@ impl Dictation {
             corrections: o.get("corrections").and_then(Value::as_i64).unwrap_or(0),
             translation: o.get("translation").and_then(|v| serde_json::from_value(v.clone()).ok()),
             timing: o.get("timing").and_then(|v| serde_json::from_value(v.clone()).ok()),
+            mode: s("mode"),
         })
     }
 }

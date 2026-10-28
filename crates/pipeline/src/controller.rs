@@ -682,6 +682,7 @@ impl Controller {
         dictation.bundle_id = job.target.id.clone();
         dictation.translation = translated;
         dictation.timing = Some(timing);
+        dictation.mode = settings.rewriting_on().then(|| settings.active_mode_label());
         deps.history.record(dictation);
 
         if let PasteOutcome::CopiedOnly(reason) = pasted {

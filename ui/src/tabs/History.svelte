@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { api, type HistoryItem } from '../lib/api';
   import { fmt, when } from '../lib/format';
+  import { outcomeLabels } from '../lib/timings';
   import { settings } from '../lib/settings.svelte';
 
   let items = $state<HistoryItem[]>([]);
@@ -96,7 +97,12 @@
       {:else}
         <div class="muted">Texte non gardé (réglage « Garder le texte des dictées »).</div>
       {/if}
-      {#if d.timing}<div class="muted">transcription {fmt(d.timing.transcription)} s · mise au propre {fmt(d.timing.cleanup)} s · total {fmt(d.timing.total)} s</div>{/if}
+      {#if d.mode || d.timing}
+        <div class="muted">
+          {#if d.mode}Mode : {d.mode}{#if d.timing} — {outcomeLabels[d.timing.outcome] ?? d.timing.outcome}{/if}{/if}
+          {#if d.timing}{d.mode ? ' · ' : ''}transcription {fmt(d.timing.transcription)} s · mise au propre {fmt(d.timing.cleanup)} s · total {fmt(d.timing.total)} s{/if}
+        </div>
+      {/if}
     </div>
   {:else}
     <p class="muted">Aucune dictée{items.length ? ' ne correspond' : ' pour l’instant'}.</p>

@@ -289,6 +289,7 @@ fn a_normal_dictation_is_transcribed_cleaned_pasted_and_recorded() {
     assert_eq!(d.raw_text, "euh bonjour tout le monde on se voit demain");
     assert_eq!(d.final_text, "Bonjour tout le monde, on se voit demain.");
     assert_eq!((d.app_name.as_str(), d.bundle_id.as_deref(), d.words, d.duration), ("notepad", Some("notepad.exe"), 8, 2.0));
+    assert_eq!(d.mode.as_deref(), Some("Simple"), "le mode en cours est gardé avec la dictée");
     let timing = d.timing.as_ref().unwrap();
     assert_eq!(timing.outcome, Cleanup::Model);
     assert!((timing.transcription - 0.3).abs() < 1e-6, "transcription {}", timing.transcription);

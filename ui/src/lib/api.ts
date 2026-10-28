@@ -237,6 +237,8 @@ export interface HistoryItem {
   corrections: number;
   translation: string | null;
   timing: { transcription: number; cleanup: number; total: number; outcome: string } | null;
+  /** Le mode de reformulation en cours à la dictée (absent : reformulation coupée ou ancienne dictée). */
+  mode?: string | null;
 }
 
 export interface Stats {
