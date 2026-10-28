@@ -1,7 +1,8 @@
 <script lang="ts">
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
-  import { api, type Stats } from '../lib/api';
+  import { api, type HistoryItem, type Stats } from '../lib/api';
+  import { status } from '../lib/status.svelte';
   import { spoken } from '../lib/format';
   import { settings } from '../lib/settings.svelte';
   import Assistant from '../components/Assistant.svelte';
@@ -12,13 +13,17 @@
   let showAssistant = $state(false);
 
   let s = $state<Stats | null>(null);
+  let recent = $state<HistoryItem[]>([]);
 
   let tallest = $derived(Math.max(1, ...(s?.last_days.map((d) => d.words) ?? [1])));
   const weekday = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' });
 
   onMount(() => {
     void settings.load();
-    const load = () => void api<Stats>('stats').then((r) => (s = r));
+    const load = () => {
+      void api<Stats>('stats').then((r) => (s = r));
+      void api<{ items: HistoryItem[] }>('history').then((r) => (recent = r.items.slice(0, 5)));
+    };
     load();
     const timer = setInterval(load, 5000);
     return () => clearInterval(timer);
@@ -54,6 +59,18 @@
   </section>
 
   <section class="card">
+    <div class="row head"><h2>Dernières dictées</h2><button onclick={() => goto('history')} disabled={!recent.length}>Tout voir</button></div>
+    {#each recent as d (d.id)}
+      <div class="recent">
+        <span class="muted time">{new Date(d.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+        <div><span class="muted">{d.app} · {d.words} mots</span><div class="text">{d.has_text ? d.text : 'Texte non gardé (réglage de confidentialité)'}</div></div>
+      </div>
+    {:else}
+      <p class="muted">Maintiens {status.value?.dictation_label ?? 'Ctrl droit'} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.</p>
+    {/each}
+  </section>
+
+  <section class="card">
     <h2>Où tu dictes</h2>
     {#each s.top_apps as a (a.name)}
       <div class="app"><span>{a.name}</span><div class="share"><div style="width: {Math.round(a.share * 100)}%"></div></div><span class="muted">{a.words} mots · {Math.round(a.share * 100)} %</span></div>
@@ -73,6 +90,12 @@
 {/if}
 
 <style>
+  .head { justify-content: space-between; margin: 0 0 6px; }
+  .head h2 { margin: 0; }
+  .recent { display: flex; gap: 14px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .recent:first-of-type { border-top: 0; }
+  .time { width: 46px; flex: none; font-variant-numeric: tabular-nums; }
+  .text { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 14px; }
   .big { margin: 0; }
   .n { font-size: 2rem; font-weight: 700; line-height: 1.1; }
