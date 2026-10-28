@@ -8,6 +8,7 @@ class StatusStore {
   async refresh(): Promise<void> {
     try {
       this.value = await api<Status>('status');
+      if (this.value.os) document.documentElement.dataset.os = this.value.os;
       this.failed = false;
     } catch {
       this.failed = true;

@@ -17,7 +17,8 @@ export const positions: { id: CapturePosition; label: string }[] = [
 
 /** Teinte claire puis foncée du dégradé. */
 export const colors: { id: CaptureColor; label: string; hex: [string, string] }[] = [
-  { id: 'scribe', label: 'Turquoise Scribe', hex: ['#00B8AD', '#009C93'] },
+  // La couleur de la marque : turquoise sur Mac (comme Scribe), bleu sur Windows, violet sur Linux (variables CSS `--brand*`, voir app.css).
+  { id: 'scribe', label: 'Couleur de Scriibe', hex: ['var(--brand)', 'var(--brand-deep)'] },
   { id: 'gray', label: 'Gris', hex: ['#8E8E93', '#6E6E73'] },
   { id: 'red', label: 'Rouge', hex: ['#E5484D', '#C62F35'] },
   { id: 'blue', label: 'Bleu', hex: ['#3B82F6', '#2563EB'] },

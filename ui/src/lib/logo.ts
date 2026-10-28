@@ -1,0 +1,3 @@
+/** Le symbole de Scriibe : la plume de Scribe percée d'une onde (carré de 100, y vers le bas ; même tracé que `logo/scriibe-symbole.svg`). */
+export const featherPath =
+  'M50 97 L29 63 C21 50 20 38 25 28 L29 18 Q32 10 40 10 L60 10 Q68 10 71 18 L75 28 C80 38 79 50 71 63 Z M34.5 39.5 A3.5 3.5 0 0 1 41.5 39.5 L41.5 54.5 A3.5 3.5 0 0 1 34.5 54.5 Z M46 28 A4 4 0 0 1 54 28 L54 66 A4 4 0 0 1 46 66 Z M58.5 39.5 A3.5 3.5 0 0 1 65.5 39.5 L65.5 54.5 A3.5 3.5 0 0 1 58.5 54.5 Z M48.4 77.6 A1.6 1.6 0 0 1 51.6 77.6 L51.6 88.4 A1.6 1.6 0 0 1 48.4 88.4 Z';

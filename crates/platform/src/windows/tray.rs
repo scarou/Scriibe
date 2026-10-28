@@ -67,6 +67,10 @@ pub struct TrayHost {
     translation: Option<String>,
 }
 
+/// Transparence de la plume du logo (32×32, un octet par point), tracée depuis `logo/scriibe-symbole.svg` par `tools/faire_icones.*`.
+const FEATHER: &[u8; 32 * 32] = include_bytes!("plume32.alpha");
+
+/// L'icône de la zone de notification : un disque de la couleur de l'état, avec la plume du logo en blanc.
 fn circle(color: [u8; 3]) -> Icon {
     const SIZE: u32 = 32;
     let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
@@ -76,7 +80,9 @@ fn circle(color: [u8; 3]) -> Icon {
             let distance = (dx * dx + dy * dy).sqrt();
             // Bord adouci sur un pixel.
             let alpha = (14.5 - distance).clamp(0.0, 1.0);
-            rgba.extend_from_slice(&[color[0], color[1], color[2], (alpha * 255.0) as u8]);
+            let feather = f32::from(FEATHER[(y * SIZE + x) as usize]) / 255.0;
+            let mix = |c: u8| (f32::from(c) * (1.0 - feather) + 255.0 * feather) as u8;
+            rgba.extend_from_slice(&[mix(color[0]), mix(color[1]), mix(color[2]), (alpha * 255.0) as u8]);
         }
     }
     Icon::from_rgba(rgba, SIZE, SIZE).expect("32×32 RGBA est un format valide")

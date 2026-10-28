@@ -381,6 +381,7 @@ fn status(ctx: &Context) -> Value {
     json!({
         "version": build_id(),
         "windows": cfg!(windows),
+        "os": std::env::consts::OS,
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),
@@ -450,6 +451,7 @@ const OPTIONAL_KEYS: [&str; 2] = ["historyKeepDays", "customModeID"];
 fn overlay_view(ctx: &Context) -> Value {
     let settings = ctx.app.config.settings();
     let mut view = ctx.overlay.snapshot().json();
+    view["os"] = json!(std::env::consts::OS);
     view["appearance"] = json!({
         "enabled": settings.overlay_enabled,
         "style": settings.capture_style,

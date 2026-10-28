@@ -14,6 +14,7 @@
   import History from './tabs/History.svelte';
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
+  import Logo from './components/Logo.svelte';
 
   let stopped = $state(false);
 
@@ -35,7 +36,7 @@
 {:else}
   <div class="shell">
     <nav>
-      <div class="brand">Scriibe</div>
+      <div class="brand"><Logo size={24} />Scriibe</div>
       {#each tabs as t (t.id)}
         <button class="nav" class:active={nav.tab === t.id} onclick={() => choose(t.id)}><span class="icon">{t.icon}</span>{t.label}</button>
       {/each}
@@ -64,7 +65,7 @@
 <style>
   .shell { display: flex; min-height: 100vh; }
   nav { width: 210px; flex: none; background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
-  .brand { font-weight: 700; font-size: 1.2rem; padding: 4px 10px 12px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.2rem; padding: 4px 10px 12px; color: var(--brand); }
   .nav { text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .nav:hover { background: var(--line); }
   .nav.active { background: var(--accent); color: var(--accent-ink); }

@@ -15,6 +15,8 @@ export async function api<T = any>(path: string, body?: unknown): Promise<T> {
 export interface Status {
   version: string;
   windows: boolean;
+  /** « windows », « macos » ou « linux » : choisit la couleur de la marque. */
+  os: string;
   recording: boolean;
   busy: boolean;
   keys_error: string | null;

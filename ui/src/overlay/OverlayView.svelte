@@ -8,6 +8,8 @@
     translation: string | null;
     mic: 'ok' | 'weak' | 'silent';
     level: number;
+    /** « windows », « macos » ou « linux » : la couleur de la marque (absent dans les illustrations de l'Aide). */
+    os?: string;
     appearance: { enabled: boolean; style: CaptureStyle; position: CapturePosition; color: CaptureColor; opacity: number };
   }
 </script>

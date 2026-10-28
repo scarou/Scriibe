@@ -13,6 +13,7 @@
   async function poll() {
     try {
       const next = await api<View>('overlay');
+      if (next.os) document.documentElement.dataset.os = next.os;
       if (next.state !== last) {
         meter.setListening(next.state === 'listening');
         last = next.state;
