@@ -227,6 +227,8 @@ impl Controller {
         state.monitor.reset();
         state.capture = Some(KeyCapture::default());
         drop(state);
+        // Pendant la capture, Alt gauche et Windows ne doivent rien ouvrir non plus, et aucune touche n'est retenue.
+        scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::HookRules { mask_menu: true, ..Default::default() });
         self.inner
             .deps
             .log
@@ -236,6 +238,8 @@ impl Controller {
     pub fn stop_capture(&self) {
         let was_active = lock(&self.inner.state).capture.take().is_some();
         if was_active {
+            let binding = scriibe_platform::keys::binding(&self.inner.deps.config.settings());
+            scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::hook_rules(&binding));
             self.inner.deps.log.write(&format!(
                 "capture des touches: arrêtée ({} événements du clavier reçus depuis le lancement)",
                 self.key_event_count()
