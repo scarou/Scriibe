@@ -88,6 +88,9 @@ pub struct Binding {
     pub dictation: Vec<Key>,
     /// L'une de ces touches tenue en plus : la traduction.
     pub translate: Vec<Key>,
+    /// Millisecondes à tenir la combinaison avant que l'écoute commence (0 : tout de suite). Pour une combinaison de touches de
+    /// modification seules (Maj gauche, Ctrl + Alt…), que les raccourcis clavier appuient aussi : un appui bref n'ouvre pas le micro.
+    pub hold_ms: u32,
 }
 
 impl Binding {
@@ -99,7 +102,7 @@ impl Binding {
         } else {
             vec![Key::LeftCommand, Key::RightCommand]
         };
-        Self { dictation: vec![hotkey.key()], translate }
+        Self { dictation: vec![hotkey.key()], translate, hold_ms: 0 }
     }
 
     pub fn is_down(&self, held: &[Key]) -> bool {
@@ -199,6 +202,11 @@ impl HotkeyMonitor {
         }
     }
 
+    /// La combinaison de dictée est tenue en ce moment.
+    pub fn is_down(&self) -> bool {
+        self.is_down
+    }
+
     /// Remet la machine à zéro (changement de touche, arrêt de la surveillance).
     pub fn reset(&mut self) {
         self.is_down = false;
@@ -251,7 +259,7 @@ mod tests {
     const A: Key = Key::Vk(0x41);
 
     fn control_f9() -> Binding {
-        Binding { dictation: vec![Key::LeftControl, F9], translate: vec![Key::LeftShift, Key::RightShift] }
+        Binding { dictation: vec![Key::LeftControl, F9], translate: vec![Key::LeftShift, Key::RightShift], hold_ms: 0 }
     }
 
     #[test]
@@ -294,7 +302,7 @@ mod tests {
     #[test]
     fn a_single_non_modifier_key_can_dictate_and_alt_is_a_normal_key_otherwise() {
         use Key::*;
-        let alt = Binding { dictation: vec![LEFT_ALT], translate: vec![LeftShift] };
+        let alt = Binding { dictation: vec![LEFT_ALT], translate: vec![LeftShift], hold_ms: 0 };
         assert_eq!(run_changes(alt.clone(), &[(LEFT_ALT, true, &[LEFT_ALT]), (LEFT_ALT, false, &[])]), "PR");
         // Alt gauche n'est pas la touche de dictée : avec Ctrl droit tenu, c'est un raccourci qui annule.
         let steps: [(Key, bool, &[Key]); 2] = [(RightControl, true, &[RightControl]), (LEFT_ALT, true, &[RightControl, LEFT_ALT])];

@@ -58,6 +58,8 @@ pub struct Context {
     keys_error: Mutex<Option<String>>,
     /// La machine, mesurée à la première demande de l'assistant (la recherche des cartes graphiques prend quelques secondes).
     machine: Mutex<Option<scriibe_platform::machine::MachineInfo>>,
+    /// Ce que la capture de touche en cours règle : « dictation » ou « translate ».
+    capture_kind: Mutex<String>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -97,6 +99,7 @@ pub fn start(
         recording_since: Mutex::new(None),
         keys_error: Mutex::new(keys_error),
         machine: Mutex::new(None),
+        capture_kind: Mutex::new("dictation".into()),
     });
     let shared = context.clone();
     std::thread::Builder::new()
@@ -179,6 +182,16 @@ fn handle(ctx: &Context, mut request: Request) {
                 None => fail(request, 404, "il faut deux passages pour comparer"),
             }
         }
+        (Method::Post, "api/keys/capture/start") => {
+            *lock(&ctx.capture_kind) = if input["kind"] == "translate" { "translate".into() } else { "dictation".into() };
+            ctx.app.controller.start_capture();
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/keys/capture/stop") => {
+            ctx.app.controller.stop_capture();
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Get, "api/keys/capture") => ok(request, capture_view(ctx)),
         (Method::Get, "api/overlay") => ok(request, overlay_view(ctx)),
         (Method::Post, "api/overlay/preview") => {
             ctx.overlay.preview();
@@ -442,6 +455,28 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
     }
     ctx.app.config.save_settings(&after).map_err(|e| e.to_string())?;
     serde_json::to_value(&after).map_err(|e| e.to_string())
+}
+
+/// Ce que la personne tient pendant la capture d'une touche : les touches, leur nom, et si la combinaison peut servir.
+fn capture_view(ctx: &Context) -> Value {
+    use scriibe_platform::keys;
+    let Some(capture) = ctx.app.controller.capture() else { return json!({"active": false}) };
+    let kind = lock(&ctx.capture_kind).clone();
+    let labels: Vec<String> = capture.keys.iter().map(|k| keys::label_of(*k)).collect();
+    let ids: Option<Vec<String>> = capture.keys.iter().map(|k| keys::id_of(*k).map(str::to_string)).collect();
+    let mut error = None;
+    if capture.finished {
+        let settings = ctx.app.config.settings();
+        error = match &ids {
+            None => Some(format!("{} ne peut pas servir de touche de dictée : elle sert à taper (ou à AltGr).", labels.join(" + "))),
+            Some(ids) if kind == "translate" => match ids.as_slice() {
+                [one] => keys::validate(&settings.dictation_keys, std::slice::from_ref(one)).err(),
+                _ => Some("une seule touche pour traduire".into()),
+            },
+            Some(ids) => keys::validate(ids, &settings.translate_keys).err(),
+        };
+    }
+    json!({"active": true, "kind": kind, "finished": capture.finished, "labels": labels, "ids": ids, "error": error})
 }
 
 /// Réglages facultatifs, absents du fichier tant qu'ils n'ont pas de valeur.
@@ -811,7 +846,10 @@ mod tests {
         let keys = merge_settings(&before, &json!({"dictationKeys": ["left_control", "f9"], "translateKeys": ["left_alt"]})).unwrap();
         assert_eq!((keys.dictation_keys.len(), keys.translate_keys.len()), (2, 1));
         assert!(merge_settings(&before, &json!({"dictationKeys": ["a"]})).is_err());
-        assert!(merge_settings(&before, &json!({"dictationKeys": ["left_alt"]})).unwrap_err().contains("seule"));
+        // Des touches de modification seules sont permises (l'écoute attend 0,3 s) ; Maj ne peut pas dicter et traduire à la fois.
+        assert!(merge_settings(&before, &json!({"dictationKeys": ["left_win"]})).is_ok());
+        assert!(merge_settings(&before, &json!({"dictationKeys": ["left_shift"]})).unwrap_err().contains("Maj"));
+        assert!(merge_settings(&before, &json!({"dictationKeys": ["a"]})).is_err(), "une lettre ne dicte pas");
         assert!(merge_settings(&before, &json!({"dictationKeys": ["f9"], "translateKeys": ["f9"]})).is_err());
     }
 }

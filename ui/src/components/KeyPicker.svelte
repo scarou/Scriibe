@@ -1,43 +1,80 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
+  import { api } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
+  interface Capture {
+    active: boolean;
+    kind?: 'dictation' | 'translate';
+    finished?: boolean;
+    labels?: string[];
+    ids?: string[] | null;
+    error?: string | null;
+  }
+
   let s = $derived(status.value);
   let v = $derived(settings.value);
-  /** Force les menus à reprendre la valeur enregistrée quand un choix est refusé. */
-  let version = $state(0);
+
+  let kind = $state<'dictation' | 'translate' | null>(null);
+  let capture = $state<Capture>({ active: false });
+  let waited = $state(0);
+  let timer: ReturnType<typeof setInterval> | null = null;
   let testing = $state(false);
   let detected = $state(false);
 
   const DEFAULT_KEYS = ['right_control'];
-  let current = $derived(v && v.dictationKeys.length ? v.dictationKeys : DEFAULT_KEYS);
-  let choices = $derived(s?.key_choices ?? []);
-  let modifiers = $derived(choices.filter((c) => c.modifier));
-  let others = $derived(choices.filter((c) => !c.modifier));
 
-  async function setKeys(index: number, id: string) {
-    const next = [...current];
-    if (id) next[index] = id;
-    else next.splice(index, 1);
-    const unique = next.filter((key, i) => key && next.indexOf(key) === i);
-    // Ctrl droit seul est la valeur d'origine : on n'écrit rien dans les réglages.
-    const keys = unique.length === 1 && unique[0] === DEFAULT_KEYS[0] ? [] : unique;
-    await settings.change({ dictationKeys: keys });
-    version++;
+  /** Les touches de modification seules (hors Ctrl droit) ne commencent à écouter qu'après une courte attente. */
+  let waitNote = $derived.by(() => {
+    const ids = capture.finished && !capture.error ? capture.ids : null;
+    if (!ids || kind !== 'dictation' || !s) return false;
+    const modifiers = new Set(s.key_choices.filter((c) => c.modifier).map((c) => c.id));
+    return ids.every((id) => modifiers.has(id)) && !(ids.length === 1 && ids[0] === DEFAULT_KEYS[0]);
+  });
+
+  async function begin(which: 'dictation' | 'translate') {
+    stop(false);
+    kind = which;
+    waited = 0;
+    capture = { active: true };
+    await api('keys/capture/start', { kind: which });
+    timer = setInterval(async () => {
+      capture = await api<Capture>('keys/capture');
+      waited += 0.15;
+      if (capture.finished && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    }, 150);
   }
 
-  async function setTranslate(id: string) {
-    await settings.change({ translateKeys: id ? [id] : [] });
-    version++;
+  function stop(callServer = true) {
+    if (timer) clearInterval(timer);
+    timer = null;
+    if (callServer) void api('keys/capture/stop', {});
+    kind = null;
+    capture = { active: false };
+  }
+
+  async function use() {
+    if (!capture.ids || !kind) return;
+    const ids = capture.ids;
+    const ok =
+      kind === 'dictation'
+        ? await settings.change({ dictationKeys: ids.length === 1 && ids[0] === DEFAULT_KEYS[0] ? [] : ids })
+        : await settings.change({ translateKeys: ids });
+    if (ok) stop();
   }
 
   async function reset() {
+    stop();
     await settings.change({ dictationKeys: [], translateKeys: [] });
-    version++;
   }
 
   /** Quinze secondes pendant lesquelles on relit l'état toutes les 0,3 s : la touche maintenue doit faire passer Scriibe en écoute. */
   async function test() {
+    stop();
     testing = true;
     detected = false;
     const end = Date.now() + 15000;
@@ -48,40 +85,60 @@
     }
     testing = false;
   }
+
+  onDestroy(() => {
+    if (timer) clearInterval(timer);
+    if (kind) void api('keys/capture/stop', {});
+  });
 </script>
 
 {#if s && v}
-  {#key version}
-    <div class="row">
-      <span>Touche de dictée :</span>
-      {#each [0, 1, 2] as index (index)}
-        {#if index === 0 || current[index - 1]}
-          <select value={current[index] ?? ''} onchange={(e) => void setKeys(index, e.currentTarget.value)} aria-label={`Touche ${index + 1} de la dictée`}>
-            {#if index > 0}<option value="">{index === 1 ? '+ une autre touche (facultatif)' : '+ une troisième touche (facultatif)'}</option>{/if}
-            <optgroup label="Ctrl, Alt, Maj">{#each modifiers as c (c.id)}<option value={c.id}>{c.label}</option>{/each}</optgroup>
-            <optgroup label="Autres touches">{#each others as c (c.id)}<option value={c.id}>{c.label}</option>{/each}</optgroup>
-          </select>
+  <div class="row">
+    <span>Touche de dictée : <b>{s.dictation_label}</b></span>
+    <button onclick={() => begin('dictation')} disabled={kind === 'dictation'}>Changer…</button>
+  </div>
+  <div class="row">
+    <span>Touche tenue en plus pour traduire : <b>{s.translate_label}</b></span>
+    <button onclick={() => begin('translate')} disabled={kind === 'translate'}>Changer…</button>
+  </div>
+
+  {#if kind}
+    <div class="capture" role="status">
+      {#if !capture.finished}
+        <b>{kind === 'dictation' ? 'Appuie sur la touche ou la combinaison voulue' : 'Appuie sur la touche à tenir en plus'}</b>, puis relâche tout.
+        {#if capture.labels?.length}<div class="live">{capture.labels.join(' + ')}</div>
+        {:else if waited > 6}
+          <div class="warn">Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une
+            autre touche (Windows, Ctrl gauche, une touche de fonction…).</div>
         {/if}
-      {/each}
+        <div class="row"><button onclick={() => stop()}>Annuler</button></div>
+      {:else if capture.error}
+        <div class="bad">{capture.labels?.join(' + ')} — {capture.error}</div>
+        <div class="row"><button onclick={() => begin(kind!)}>Réessayer</button><button onclick={() => stop()}>Annuler</button></div>
+      {:else}
+        <div>Nouvelle touche : <b>{capture.labels?.join(' + ')}</b></div>
+        {#if waitNote}
+          <p class="muted">Ce sont des touches de modification seules : il faudra les tenir une fraction de seconde (0,3 s) avant que l’écoute commence, pour qu’un
+            raccourci clavier (Ctrl+C, Maj+lettre…) n’ouvre pas le micro.</p>
+        {/if}
+        <div class="row"><button class="primary" onclick={use}>Utiliser cette touche</button><button onclick={() => begin(kind!)}>Recommencer</button><button onclick={() => stop()}>Annuler</button></div>
+      {/if}
     </div>
-    <div class="row">
-      <label>Touche tenue en plus pour traduire :
-        <select value={v.translateKeys[0] ?? ''} onchange={(e) => void setTranslate(e.currentTarget.value)}>
-          <option value="">Maj (gauche ou droite)</option>
-          {#each choices as c (c.id)}<option value={c.id}>{c.label}</option>{/each}
-        </select>
-      </label>
-    </div>
-    <div class="row">
-      <button onclick={test} disabled={testing}>{testing ? 'Maintiens ta touche…' : 'Tester ma touche'}</button>
-      <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>Rétablir Ctrl droit + Maj</button>
-      {#if detected}<span class="ok">✔ Touche reconnue : Scriibe écoute ({s.dictation_label}).</span>{:else if testing}<span class="muted">Maintiens {s.dictation_label}…</span>{/if}
-    </div>
-    <p class="muted">
-      Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Une touche seule doit être Ctrl droit ou une
-      touche qui ne sert pas à taper (F1 à F24, Pause…) : Ctrl gauche, Alt ou Maj seuls se déclencheraient à chaque raccourci (Ctrl+C, Alt+Tab…), qui
-      annule alors la dictée. AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) et la touche Windows ne sont pas proposés. Si Alt gauche fait
-      partie de la combinaison, Windows peut activer le menu de l’appli au relâchement : préfère Ctrl et une touche de fonction.
-    </p>
-  {/key}
+  {/if}
+
+  <div class="row">
+    <button onclick={test} disabled={testing || !!kind}>{testing ? 'Maintiens ta touche…' : 'Tester ma touche'}</button>
+    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>Rétablir Ctrl droit + Maj</button>
+    {#if detected}<span class="ok">✔ Touche reconnue : Scriibe écoute ({s.dictation_label}).</span>{:else if testing}<span class="muted">Maintiens {s.dictation_label}…</span>{/if}
+  </div>
+  <p class="muted">
+    Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl,
+    les touches de fonction, « &lt; &gt; » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € »
+    sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « &lt; &gt; ») n’écrit rien dans l’appli pendant la dictée.
+  </p>
 {/if}
+
+<style>
+  .capture { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: var(--bg); border: 1px dashed var(--line); }
+  .live { margin: 8px 0; font-size: 1.2rem; font-weight: 600; }
+</style>

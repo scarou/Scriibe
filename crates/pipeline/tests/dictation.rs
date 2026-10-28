@@ -733,6 +733,57 @@ fn a_chosen_key_combination_dictates_and_the_default_key_no_longer_does() {
 }
 
 #[test]
+fn a_capture_notes_the_keys_held_and_does_not_dictate() {
+    let r = rig("x", "x");
+    r.controller.start_capture();
+    assert_eq!(r.controller.capture().map(|c| (c.keys.len(), c.finished)), Some((0, false)));
+    // Ctrl droit (la touche par défaut) ne dicte pas pendant la capture.
+    r.key_down();
+    assert!(!r.controller.is_recording());
+    let f9 = Key::Vk(0x78);
+    r.controller.handle_key(KeyEvent::Changed { changed: f9, down: true, held: vec![Key::RightControl, f9] });
+    r.controller.handle_key(KeyEvent::Changed { changed: f9, down: false, held: vec![Key::RightControl] });
+    assert!(!r.controller.capture().unwrap().finished, "une touche est encore tenue");
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::RightControl, down: false, held: vec![] });
+    let capture = r.controller.capture().unwrap();
+    assert!(capture.finished);
+    assert_eq!(capture.keys, vec![Key::RightControl, f9]);
+    // Ce qui suit ne change plus le résultat, et rien n'a dicté.
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::LeftShift, down: true, held: vec![Key::LeftShift] });
+    assert_eq!(r.controller.capture().unwrap().keys.len(), 2);
+    assert!(!r.controller.is_recording());
+    r.controller.stop_capture();
+    assert!(r.controller.capture().is_none());
+    r.key_down();
+    assert!(r.controller.is_recording(), "la touche dicte de nouveau");
+}
+
+/// Une combinaison de touches de modification seules n'ouvre le micro qu'après une courte attente (Windows : les touches réglées).
+#[cfg(windows)]
+#[test]
+fn a_modifier_only_combination_waits_before_listening_and_a_shortcut_never_opens_the_microphone() {
+    let r = rig("x", "x");
+    r.config.change(|s| s.dictation_keys = vec!["left_control".into(), "left_win".into()]);
+    let (control, win) = (Key::LeftControl, Key::Vk(0x5B));
+    // Un raccourci : une autre touche arrive avant la fin de l'attente.
+    r.controller.handle_key(KeyEvent::Changed { changed: control, down: true, held: vec![control] });
+    r.controller.handle_key(KeyEvent::Changed { changed: win, down: true, held: vec![control, win] });
+    assert!(!r.controller.is_recording(), "pas tout de suite");
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::Vk(0x41), down: true, held: vec![control, win, Key::Vk(0x41)] });
+    std::thread::sleep(std::time::Duration::from_millis(900));
+    assert!(!r.controller.is_recording(), "raccourci : le micro ne s'est pas ouvert");
+    // Les touches sont relâchées, puis tenues assez longtemps : l'écoute commence.
+    r.controller.handle_key(KeyEvent::Changed { changed: control, down: false, held: vec![win] });
+    r.controller.handle_key(KeyEvent::Changed { changed: win, down: false, held: vec![] });
+    r.controller.handle_key(KeyEvent::Changed { changed: control, down: true, held: vec![control] });
+    r.controller.handle_key(KeyEvent::Changed { changed: win, down: true, held: vec![control, win] });
+    std::thread::sleep(std::time::Duration::from_millis(900));
+    assert!(r.controller.is_recording(), "tenue assez longtemps : l'écoute a commencé");
+    r.controller.handle_key(KeyEvent::Changed { changed: win, down: false, held: vec![control] });
+    assert!(!r.controller.is_recording());
+}
+
+#[test]
 fn a_recording_from_a_file_goes_through_the_same_chain() {
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
     let wav = scriibe_platform::audio::wav(&vec![1000i16; 32_000]);

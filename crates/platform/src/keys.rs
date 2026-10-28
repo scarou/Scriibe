@@ -30,7 +30,7 @@ pub mod vk {
     pub const LMENU: u32 = 0xA4;
 }
 
-fn key_of(vk: u32) -> Key {
+pub fn key_of(vk: u32) -> Key {
     match vk {
         vk::LSHIFT => Key::LeftShift,
         vk::RSHIFT => Key::RightShift,
@@ -62,13 +62,13 @@ pub fn translate_vk(held: &mut Vec<Key>, vk: u32, down: bool) -> Option<KeyEvent
 
 const MAX_HELD: usize = 24;
 
-/// Une touche proposée dans les réglages.
+/// Une touche qu'on peut utiliser pour dicter.
 pub struct KeyChoice {
     pub id: &'static str,
     pub label: &'static str,
     /// Code de touche virtuel de Windows.
     pub vk: u32,
-    /// Touche de modification : se tient avec une autre ; sinon, touche seule ou à tenir avec un modificateur.
+    /// Touche de modification (Ctrl, Alt, Maj, Windows) : se tient avec une autre ; sinon, une touche ordinaire qui ne sert pas à taper.
     pub modifier: bool,
 }
 
@@ -76,14 +76,21 @@ const fn choice(id: &'static str, label: &'static str, vk: u32, modifier: bool) 
     KeyChoice { id, label, vk, modifier }
 }
 
-/// Les touches qu'on peut choisir (Windows). AltGr (Alt droit) et la touche Windows n'y sont pas : AltGr sert à taper « @ » ou « € » en AZERTY,
-/// et la touche Windows ouvre le menu Démarrer à son relâchement.
-pub const CHOICES: [KeyChoice; 36] = [
+pub const VK_LMENU: u32 = 0xA4;
+pub const VK_LWIN: u32 = 0x5B;
+pub const VK_RWIN: u32 = 0x5C;
+
+/// Les touches qu'on peut utiliser (Windows). Ni lettres, chiffres, Espace, Entrée ou flèches (elles servent à taper), ni AltGr (Alt droit :
+/// nécessaire à « @ » et « € » sur un clavier AZERTY).
+pub const CHOICES: &[KeyChoice] = &[
     choice("right_control", "Ctrl droit", vk::RCONTROL, true),
     choice("left_control", "Ctrl gauche", vk::LCONTROL, true),
-    choice("left_alt", "Alt gauche", vk::LMENU, true),
+    choice("left_alt", "Alt gauche", VK_LMENU, true),
     choice("left_shift", "Maj gauche", vk::LSHIFT, true),
     choice("right_shift", "Maj droit", vk::RSHIFT, true),
+    choice("left_win", "Windows gauche", VK_LWIN, true),
+    choice("right_win", "Windows droite", VK_RWIN, true),
+    choice("oem_102", "< > (à gauche de W)", 0xE2, false),
     choice("f1", "F1", 0x70, false),
     choice("f2", "F2", 0x71, false),
     choice("f3", "F3", 0x72, false),
@@ -110,15 +117,20 @@ pub const CHOICES: [KeyChoice; 36] = [
     choice("f24", "F24", 0x87, false),
     choice("pause", "Pause", 0x13, false),
     choice("scroll_lock", "Verr. défil.", 0x91, false),
+    choice("print_screen", "Impr. écran", 0x2C, false),
     choice("menu", "Menu contextuel", 0x5D, false),
     choice("insert", "Inser", 0x2D, false),
     choice("home", "Début", 0x24, false),
     choice("end", "Fin", 0x23, false),
     choice("page_up", "Page préc.", 0x21, false),
+    choice("page_down", "Page suiv.", 0x22, false),
 ];
 
 /// La touche à tenir en plus pour traduire, quand elle n'est pas réglée : Maj, l'une ou l'autre.
 pub const BOTH_SHIFTS: &str = "shift";
+
+/// Le temps à tenir une combinaison de touches de modification seules avant que l'écoute commence.
+pub const HOLD_MS: u32 = 300;
 
 fn find(id: &str) -> Option<&'static KeyChoice> {
     CHOICES.iter().find(|c| c.id == id)
@@ -128,8 +140,26 @@ fn key_for(choice: &KeyChoice) -> Key {
     key_of(choice.vk)
 }
 
-/// Vérifie une combinaison de dictée et la touche de traduction. Une touche seule doit être Ctrl droit ou une touche qui ne sert pas à
-/// taper (touche de fonction…) : Ctrl gauche, Alt ou Maj seuls se déclencheraient à chaque raccourci clavier.
+/// Le code de touche de Windows d'une touche (rien pour les touches du Mac).
+pub fn vk_of(key: Key) -> Option<u32> {
+    match key {
+        Key::LeftShift => Some(vk::LSHIFT),
+        Key::RightShift => Some(vk::RSHIFT),
+        Key::LeftControl => Some(vk::LCONTROL),
+        Key::RightControl => Some(vk::RCONTROL),
+        Key::Vk(code) => Some(code),
+        _ => None,
+    }
+}
+
+/// L'identifiant d'une touche de la liste (`f9`, `left_win`…), si elle y est.
+pub fn id_of(key: Key) -> Option<&'static str> {
+    let code = vk_of(key)?;
+    CHOICES.iter().find(|c| c.vk == code).map(|c| c.id)
+}
+
+/// Vérifie une combinaison de dictée et la touche de traduction. Une combinaison de touches de modification seules (Maj gauche, Ctrl + Alt…)
+/// est permise : elle n'ouvre le micro qu'après `HOLD_MS` ms, pour qu'un raccourci clavier ne le déclenche pas.
 pub fn validate(dictation: &[String], translate: &[String]) -> Result<(), String> {
     if dictation.is_empty() {
         return if translate.is_empty() { Ok(()) } else { validate_translate(&[], translate) };
@@ -146,12 +176,7 @@ pub fn validate(dictation: &[String], translate: &[String]) -> Result<(), String
         chosen.push(choice);
     }
     if chosen.iter().filter(|c| !c.modifier).count() > 1 {
-        return Err("une seule touche autre que Ctrl, Alt ou Maj dans la combinaison".into());
-    }
-    if let [only] = chosen.as_slice() {
-        if only.modifier && only.id != "right_control" {
-            return Err(format!("{} seule se déclencherait à chaque raccourci : ajoute une touche (par exemple F9)", only.label));
-        }
+        return Err("une seule touche autre que Ctrl, Alt, Maj ou Windows dans la combinaison".into());
     }
     validate_translate(&chosen, translate)
 }
@@ -181,14 +206,18 @@ pub fn custom_binding(dictation: &[String], translate: &[String]) -> Option<Bind
     if dictation.is_empty() || validate(dictation, translate).is_err() {
         return None;
     }
-    let keys = dictation.iter().map(|id| find(id).map(key_for)).collect::<Option<Vec<_>>>()?;
+    let choices = dictation.iter().map(|id| find(id)).collect::<Option<Vec<_>>>()?;
+    let keys = choices.iter().map(|c| key_for(c)).collect();
     let translate = match translate {
         [] => vec![Key::LeftShift, Key::RightShift],
         [id] if id == BOTH_SHIFTS => vec![Key::LeftShift, Key::RightShift],
         [id] => vec![find(id).map(key_for)?],
         _ => return None,
     };
-    Some(Binding { dictation: keys, translate })
+    // Ctrl droit seul garde l'écoute immédiate (il ne sert presque jamais seul) ; les autres touches de modification seules attendent.
+    let only_modifiers = choices.iter().all(|c| c.modifier);
+    let hold_ms = if only_modifiers && !(choices.len() == 1 && choices[0].id == "right_control") { HOLD_MS } else { 0 };
+    Some(Binding { dictation: keys, translate, hold_ms })
 }
 
 /// Les touches en vigueur : celles des réglages (Windows) si elles sont valides, sinon celles par défaut du système (la touche de
@@ -200,6 +229,64 @@ pub fn binding(settings: &AppSettings) -> Binding {
     }
     let dictation = if settings.dictation_keys.is_empty() { vec!["right_control".to_string()] } else { settings.dictation_keys.clone() };
     custom_binding(&dictation, &settings.translate_keys).unwrap_or(default)
+}
+
+/// Ce que le crochet du clavier doit faire en plus de signaler les touches (calculé depuis les touches en vigueur).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct HookRules {
+    /// Alt gauche ou Windows font partie des touches : un appui sans autre touche ouvrirait le menu de l'appli ou le menu Démarrer, et
+    /// ferait perdre le focus au collage. Le crochet glisse alors une touche sans effet pendant l'appui, ce qui annule cette ouverture.
+    pub mask_menu: bool,
+    /// Les touches ordinaires de la combinaison (F9, « < > »…) : le crochet les retient quand le reste de la combinaison est tenu, pour
+    /// qu'elles n'écrivent rien dans l'appli.
+    pub swallow: Vec<u32>,
+    /// Les autres touches de la combinaison de dictée, tenues avant de retenir une touche ordinaire.
+    pub needs: Vec<u32>,
+}
+
+pub fn hook_rules(binding: &Binding) -> HookRules {
+    let codes: Vec<u32> = binding.dictation.iter().filter_map(|k| vk_of(*k)).collect();
+    let translate: Vec<u32> = binding.translate.iter().filter_map(|k| vk_of(*k)).collect();
+    let is_menu_key = |code: &u32| [VK_LMENU, VK_LWIN, VK_RWIN].contains(code);
+    let is_plain = |code: &u32| find_by_vk(*code).is_some_and(|c| !c.modifier);
+    let plain: Vec<u32> = codes.iter().copied().filter(is_plain).collect();
+    HookRules {
+        mask_menu: codes.iter().chain(translate.iter()).any(is_menu_key),
+        needs: if plain.is_empty() { Vec::new() } else { codes.iter().copied().filter(|c| !plain.contains(c)).collect() },
+        swallow: plain,
+    }
+}
+
+fn find_by_vk(code: u32) -> Option<&'static KeyChoice> {
+    CHOICES.iter().find(|c| c.vk == code)
+}
+
+static RULES: std::sync::Mutex<Option<HookRules>> = std::sync::Mutex::new(None);
+
+/// Les règles que le crochet applique (changées quand les touches changent).
+pub fn set_hook_rules(rules: HookRules) {
+    if let Ok(mut slot) = RULES.lock() {
+        *slot = Some(rules);
+    }
+}
+
+pub fn current_hook_rules() -> HookRules {
+    RULES.lock().ok().and_then(|slot| slot.clone()).unwrap_or_default()
+}
+
+/// Le nom d'une touche appuyée pendant la capture : celui de la liste, sinon la lettre ou le code (« touche 0x41 »).
+pub fn label_of(key: Key) -> String {
+    if let Some(choice) = vk_of(key).and_then(find_by_vk) {
+        return choice.label.to_string();
+    }
+    match vk_of(key) {
+        Some(code @ (0x30..=0x39 | 0x41..=0x5A)) => format!("la touche {}", char::from(code as u8)),
+        Some(0x20) => "Espace".to_string(),
+        Some(0x0D) => "Entrée".to_string(),
+        Some(0xA5) => "AltGr (Alt droit)".to_string(),
+        Some(code) => format!("la touche de code {code:#04x}"),
+        None => "une touche inconnue".to_string(),
+    }
 }
 
 /// « Ctrl gauche + F9 » : les touches d'une liste d'identifiants, pour l'affichage.
@@ -290,10 +377,12 @@ mod tests {
         assert!(validate(&ids(&["f9"]), &[]).is_ok());
         assert!(validate(&ids(&["left_control", "f9"]), &ids(&["left_shift"])).is_ok());
         assert!(validate(&ids(&["left_control", "left_alt"]), &[]).is_ok());
-        // Seules, ces touches se déclencheraient à chaque raccourci.
-        for id in ["left_control", "left_alt", "left_shift", "right_shift"] {
-            assert!(validate(&ids(&[id]), &[]).unwrap_err().contains("seule"), "{id}");
+        // Des touches de modification seules sont permises : l'écoute n'y commence qu'après une courte attente.
+        for id in ["left_control", "left_alt", "left_shift", "left_win", "right_win"] {
+            assert!(validate(&ids(&[id]), &[]).is_ok() || id == "left_shift", "{id}");
         }
+        assert!(validate(&ids(&["left_shift"]), &[]).unwrap_err().contains("Maj"), "Maj dicte : la traduction ne peut plus être Maj");
+        assert!(validate(&ids(&["left_shift"]), &ids(&["left_alt"])).is_ok());
         assert!(validate(&ids(&["f9", "f10"]), &[]).unwrap_err().contains("une seule touche"));
         assert!(validate(&ids(&["a"]), &[]).unwrap_err().contains("inconnue"));
         assert!(validate(&ids(&["left_control", "left_control"]), &[]).unwrap_err().contains("deux fois"));
@@ -316,6 +405,40 @@ mod tests {
         let effective = binding(&settings);
         // Sur Windows la combinaison s'applique ; ailleurs, la touche par défaut du système.
         assert_eq!(effective == Binding::from_hotkey(Hotkey::RightControl), !cfg!(windows));
+    }
+
+    #[test]
+    fn modifier_only_combinations_wait_before_listening_but_right_control_and_ordinary_keys_do_not() {
+        let hold = |list: &[&str]| custom_binding(&ids(list), &ids(&["left_alt"])).unwrap().hold_ms;
+        assert_eq!(custom_binding(&ids(&["right_control"]), &[]).unwrap().hold_ms, 0);
+        assert_eq!(hold(&["left_control"]), HOLD_MS);
+        assert_eq!(hold(&["left_shift", "left_control"]), HOLD_MS);
+        assert_eq!(hold(&["left_win"]), HOLD_MS);
+        assert_eq!(hold(&["f9"]), 0);
+        assert_eq!(hold(&["oem_102"]), 0);
+        assert_eq!(hold(&["left_control", "f9"]), 0);
+    }
+
+    #[test]
+    fn the_hook_masks_the_menu_keys_and_holds_back_ordinary_keys_of_the_combination() {
+        let rules = |dictation: &[&str], translate: &[&str]| hook_rules(&custom_binding(&ids(dictation), &ids(translate)).unwrap());
+        assert_eq!(rules(&["right_control"], &[]), HookRules::default());
+        assert!(rules(&["left_win"], &[]).mask_menu);
+        assert!(rules(&["left_control", "f9"], &["left_alt"]).mask_menu, "Alt gauche pour traduire compte aussi");
+        let combo = rules(&["left_control", "f9"], &[]);
+        assert_eq!((combo.swallow, combo.needs), (vec![0x78], vec![vk::LCONTROL]));
+        let alone = rules(&["oem_102"], &[]);
+        assert_eq!((alone.swallow, alone.needs.len()), (vec![0xE2], 0), "touche seule : retenue sans condition");
+        assert!(rules(&["left_shift", "left_control"], &["left_alt"]).swallow.is_empty(), "des modificateurs ne sont jamais retenus");
+    }
+
+    #[test]
+    fn a_pressed_key_is_named_from_the_list_or_not_at_all() {
+        assert_eq!(id_of(Key::Vk(0x78)), Some("f9"));
+        assert_eq!(id_of(Key::LeftControl), Some("left_control"));
+        assert_eq!(id_of(Key::Vk(0x41)), None, "une lettre ne peut pas dicter");
+        assert_eq!(id_of(Key::Vk(0xA5)), None, "AltGr non plus");
+        assert_eq!(id_of(Key::Fn), None);
     }
 
     #[test]

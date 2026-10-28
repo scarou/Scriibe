@@ -2,7 +2,7 @@
 //! Le crochet ne retient jamais une touche (il rend toujours la main) et ignore les touches envoyées par programme
 //! (notre propre Ctrl+V). Windows retire un crochet trop lent : le rappel ne fait que poster l'événement.
 
-use crate::keys::{translate_vk, KeyEvent, KeyListener, Subscription};
+use crate::keys::{current_hook_rules, key_of, translate_vk, KeyEvent, KeyListener, Subscription, VK_LMENU, VK_LWIN, VK_RWIN};
 use scriibe_core::hotkey::Key;
 use std::cell::RefCell;
 use std::sync::mpsc::{self, Sender};
@@ -11,6 +11,7 @@ use std::thread::JoinHandle;
 use windows_sys::Win32::Foundation::{GetLastError, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HC_ACTION,
     KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
@@ -19,8 +20,27 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 static SINK: Mutex<Option<Sender<KeyEvent>>> = Mutex::new(None);
 
 thread_local! {
-    /// Touches de modification tenues ; le crochet s'exécute toujours sur le fil qui l'a installé.
+    /// Touches tenues ; le crochet s'exécute toujours sur le fil qui l'a installé.
     static HELD: RefCell<Vec<Key>> = const { RefCell::new(Vec::new()) };
+    /// Les touches ordinaires de la combinaison dont l'appui a été retenu (leur relâchement l'est aussi).
+    static SWALLOWED: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Glisse une touche sans effet (code 0xE8, non attribué) entre l'appui et le relâchement d'Alt ou de Windows : sans autre touche entre les
+/// deux, Windows ouvre le menu de l'appli (Alt) ou le menu Démarrer (Windows), et le collage perd le focus.
+fn mask_menu_key() {
+    const UNASSIGNED: u16 = 0xE8;
+    let key = |up: bool| INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT { wVk: UNASSIGNED, wScan: 0, dwFlags: if up { KEYEVENTF_KEYUP } else { 0 }, time: 0, dwExtraInfo: 0 },
+        },
+    };
+    let inputs = [key(false), key(true)];
+    // SAFETY : tableau d'entrées valide pour la durée de l'appel ; les touches envoyées par programme sont ignorées par ce crochet.
+    unsafe {
+        SendInput(inputs.len() as u32, inputs.as_ptr(), std::mem::size_of::<INPUT>() as i32);
+    }
 }
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
@@ -32,13 +52,41 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
             let down = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
             let up = message == WM_KEYUP || message == WM_SYSKEYUP;
             if down || up {
-                let event = HELD.with(|held| translate_vk(&mut held.borrow_mut(), info.vkCode, down));
+                let code = info.vkCode;
+                let rules = current_hook_rules();
+                let mut swallow = false;
+                let event = HELD.with(|held| {
+                    let mut held = held.borrow_mut();
+                    if rules.swallow.contains(&code) {
+                        SWALLOWED.with(|taken| {
+                            let mut taken = taken.borrow_mut();
+                            if down {
+                                if taken.contains(&code) || rules.needs.iter().all(|need| held.contains(&key_of(*need))) {
+                                    if !taken.contains(&code) {
+                                        taken.push(code);
+                                    }
+                                    swallow = true;
+                                }
+                            } else if taken.contains(&code) {
+                                taken.retain(|c| *c != code);
+                                swallow = true;
+                            }
+                        });
+                    }
+                    translate_vk(&mut held, code, down)
+                });
+                if up && rules.mask_menu && [VK_LMENU, VK_LWIN, VK_RWIN].contains(&code) {
+                    mask_menu_key();
+                }
                 if let Some(event) = event {
                     if let Ok(sink) = SINK.lock() {
                         if let Some(sink) = sink.as_ref() {
                             let _ = sink.send(event);
                         }
                     }
+                }
+                if swallow {
+                    return 1;
                 }
             }
         }

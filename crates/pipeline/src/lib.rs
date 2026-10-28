@@ -7,5 +7,5 @@
 mod controller;
 mod executor;
 
-pub use controller::{Controller, Deps};
+pub use controller::{Controller, Deps, KeyCapture};
 pub use executor::{Executor, InlineExecutor, ThreadExecutor};

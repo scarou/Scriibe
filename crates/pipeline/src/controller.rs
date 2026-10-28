@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use scriibe_core::cleaner;
 use scriibe_core::dictionary;
 use scriibe_core::history::{Cleanup, Dictation, DictationTiming};
-use scriibe_core::hotkey::{HotkeyEvent, HotkeyMonitor};
+use scriibe_core::hotkey::{HotkeyEvent, HotkeyMonitor, Key};
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{AppSettings, TranscriptionEngine};
 use scriibe_core::text::{known_hallucination, word_count};
@@ -64,6 +64,22 @@ struct State {
     translation_warm_up_due: Option<Duration>,
     input_description: String,
     mic_warned: bool,
+    /// Combinaison de touches de modification seules : l'écoute attend `hold_ms` ; `hold_token` change à chaque appui et relâchement.
+    holding: bool,
+    hold_token: u64,
+    /// ⌘ ou Maj ajoutée pendant l'attente : la traduction sera demandée quand l'écoute commencera.
+    pending_translate: bool,
+    /// Capture d'une combinaison dans les réglages : les touches ne dictent plus, elles sont notées.
+    capture: Option<KeyCapture>,
+}
+
+/// La combinaison que la personne tient pendant qu'elle règle sa touche de dictée.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct KeyCapture {
+    /// Les touches dans l'ordre où elles ont été appuyées.
+    pub keys: Vec<Key>,
+    /// Tout a été relâché : la combinaison est complète.
+    pub finished: bool,
 }
 
 struct Inner {
@@ -100,7 +116,12 @@ impl Controller {
             translation_warm_up_due: None,
             input_description: String::new(),
             mic_warned: false,
+            holding: false,
+            hold_token: 0,
+            pending_translate: false,
+            capture: None,
         };
+        scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::hook_rules(&state.monitor.binding));
         Self { inner: Arc::new(Inner { deps, state: Mutex::new(state) }) }
     }
 
@@ -115,23 +136,118 @@ impl Controller {
     /// Un événement de clavier du système. Le crochet du système ne fait que les poster : cette méthode peut prendre son temps.
     pub fn handle_key(&self, event: KeyEvent) {
         let KeyEvent::Changed { changed, down, held } = event;
-        let events = {
+        if self.capture_key(changed, down, &held) {
+            return;
+        }
+        let (events, hold_ms) = {
             let mut state = lock(&self.inner.state);
             // Les touches choisies se relisent à chaque événement (les réglages sont en cache : un contrôle de date de fichier).
             let binding = scriibe_platform::keys::binding(&self.inner.deps.config.settings());
             if state.monitor.binding != binding {
+                scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::hook_rules(&binding));
                 state.monitor = HotkeyMonitor::with_binding(binding);
             }
-            state.monitor.handle_change(changed, down, &held)
+            (state.monitor.handle_change(changed, down, &held), state.monitor.binding.hold_ms)
         };
         for event in events {
             match event {
-                HotkeyEvent::Press => self.press(),
-                HotkeyEvent::Release => self.release(),
-                HotkeyEvent::Command => self.request_translation(),
-                HotkeyEvent::OtherKey => self.cancel(),
+                HotkeyEvent::Press if hold_ms == 0 => self.press(),
+                HotkeyEvent::Press => self.start_hold(hold_ms),
+                HotkeyEvent::Release => {
+                    self.end_hold();
+                    self.release();
+                }
+                HotkeyEvent::Command => {
+                    let waiting = {
+                        let mut state = lock(&self.inner.state);
+                        if state.holding {
+                            state.pending_translate = true;
+                        }
+                        state.holding
+                    };
+                    if !waiting {
+                        self.request_translation();
+                    }
+                }
+                HotkeyEvent::OtherKey => {
+                    self.end_hold();
+                    self.cancel();
+                }
             }
         }
+    }
+
+    /// Une combinaison de touches de modification seules est tenue : l'écoute ne commence qu'après `hold_ms` ms, sauf si la touche est
+    /// relâchée ou si une autre touche est tapée entre-temps (un raccourci clavier n'ouvre pas le micro).
+    fn start_hold(&self, hold_ms: u32) {
+        let token = {
+            let mut state = lock(&self.inner.state);
+            state.hold_token += 1;
+            state.holding = true;
+            state.pending_translate = false;
+            state.hold_token
+        };
+        let this = self.clone();
+        let spawned = std::thread::Builder::new().name("scriibe-appui-long".into()).spawn(move || {
+            std::thread::sleep(Duration::from_millis(u64::from(hold_ms)));
+            let translate = {
+                let mut state = lock(&this.inner.state);
+                if state.hold_token != token || !state.holding {
+                    return;
+                }
+                state.holding = false;
+                std::mem::take(&mut state.pending_translate)
+            };
+            this.press();
+            if translate {
+                this.request_translation();
+            }
+        });
+        if spawned.is_err() {
+            self.end_hold();
+            self.press();
+        }
+    }
+
+    fn end_hold(&self) {
+        let mut state = lock(&self.inner.state);
+        state.hold_token += 1;
+        state.holding = false;
+        state.pending_translate = false;
+    }
+
+    /// Commence à noter la combinaison que la personne tient (réglage de la touche de dictée) : tant que la capture dure, les touches ne
+    /// dictent pas.
+    pub fn start_capture(&self) {
+        self.end_hold();
+        let mut state = lock(&self.inner.state);
+        state.monitor.reset();
+        state.capture = Some(KeyCapture::default());
+    }
+
+    pub fn stop_capture(&self) {
+        lock(&self.inner.state).capture = None;
+    }
+
+    /// L'état de la capture : `None` si elle n'est pas en cours.
+    pub fn capture(&self) -> Option<KeyCapture> {
+        lock(&self.inner.state).capture.clone()
+    }
+
+    /// Note la touche si la capture est en cours (rend vrai : l'événement ne sert alors pas à dicter).
+    fn capture_key(&self, changed: Key, down: bool, held: &[Key]) -> bool {
+        let mut state = lock(&self.inner.state);
+        let Some(capture) = state.capture.as_mut() else { return false };
+        if capture.finished {
+            return true;
+        }
+        if down && !capture.keys.contains(&changed) {
+            capture.keys.push(changed);
+        }
+        if !down && held.is_empty() && !capture.keys.is_empty() {
+            capture.finished = true;
+        }
+        true
     }
 
     /// À appeler une à deux fois par seconde : alerte de micro muet pendant l'écoute, préchauffage de la traduction.

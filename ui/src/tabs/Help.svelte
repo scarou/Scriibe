@@ -106,7 +106,14 @@
       {@render example('tu peux me rappeler demain matin', 'Can you call me back tomorrow morning?', 'Ici en anglais.')}
       <p>La traduction passe toujours par le moteur de mise au propre, même en Littéral : avec OpenRouter, le texte part alors en ligne. Sans moteur (« Aucune »), {translate} ne traduit pas : le texte reste en français. <i>Pourquoi :</i> c’est le modèle qui traduit, en un seul appel avec la mise au propre ; sans modèle, rien ne peut le faire.</p>
       <h3>Choisir ses touches</h3>
-      <p>Par défaut : <b>Ctrl droit</b> pour dicter, <b>Maj</b> en plus pour traduire. Tu peux les changer, et même choisir une combinaison (par exemple Ctrl gauche + F9) : Réglages → Dictée → Touche de dictée, puis « Tester ma touche ». <i>Pourquoi ces limites :</i> une touche seule comme Ctrl gauche, Alt ou Maj se déclencherait à chaque raccourci (Ctrl+C, Alt+Tab) ; AltGr sert à taper « @ » ou « € » sur un clavier AZERTY, et la touche Windows ouvre le menu Démarrer.</p>
+      <p>Par défaut : <b>Ctrl droit</b> pour dicter, <b>Maj</b> en plus pour traduire. Pour changer : Réglages → Dictée → « Changer… », puis <b>appuie directement</b> sur la touche ou la combinaison voulue (par exemple Ctrl gauche + F9, ou la touche Windows) et relâche tout : Scriibe la retient, et « Tester ma touche » vérifie qu’elle est bien reconnue.</p>
+      <ul>
+        <li>Possibles : Ctrl, Alt gauche, Maj, la touche Windows, les touches de fonction, « &lt; &gt; » (à gauche de W), Pause, Inser… Pas possibles : les lettres, les chiffres, Espace, Entrée, et AltGr (il sert à taper « @ » ou « € » sur un clavier AZERTY).</li>
+        <li><b>Des touches de modification seules</b> (Maj gauche, Windows, Ctrl + Alt…) : il faut les tenir une fraction de seconde (0,3 s) avant que l’écoute commence. <i>Pourquoi :</i> les raccourcis clavier (Ctrl+C, Maj+lettre, Windows+E) les appuient aussi, et ne doivent pas ouvrir le micro.</li>
+        <li><b>Alt gauche et Windows</b> ouvriraient d’ordinaire le menu de l’appli ou le menu Démarrer au relâchement, et le collage perdrait le focus : Scriibe glisse une touche sans effet pendant l’appui pour l’éviter.</li>
+        <li>Une touche ordinaire de la combinaison (F9, « &lt; &gt; ») n’écrit rien dans l’appli pendant la dictée.</li>
+        <li><b>La touche Fn</b> n’est pas vue par Windows sur la plupart des portables : le clavier la gère lui-même. Si « Changer… » ne reçoit rien en l’appuyant, c’est le cas ; choisis une autre touche.</li>
+      </ul>
       <h3>Bon à savoir</h3>
       <ul>
         <li>Une <b>autre touche</b> pendant l’appui (par exemple {dictate} + une lettre) annule la dictée : c’est un raccourci, pas une dictée. <i>Pourquoi :</i> Ctrl+C ne doit pas ouvrir le micro pour rien.</li>
