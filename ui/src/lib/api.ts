@@ -58,6 +58,8 @@ export interface Settings {
   llamaIdleMinutes: number;
   pauseMedia: boolean;
   listBullet: 'dash' | 'dot' | 'star';
+  trialText: string;
+  trialCandidates: { id: string; engine: string; model: string }[];
   startSoundName: string;
   endSoundName: string;
   soundVolume: number;

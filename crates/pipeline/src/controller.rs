@@ -71,6 +71,34 @@ struct State {
     pending_translate: bool,
     /// Capture d'une combinaison dans les réglages : les touches ne dictent plus, elles sont notées.
     capture: Option<KeyCapture>,
+    /// Ce qui rend le préchargement caduc (moteur, modèle, mode…) tel qu'il a été préchargé, et un changement vu depuis quand.
+    preload_signature: Option<String>,
+    preload_pending: Option<(String, Duration)>,
+    preload_checked: Duration,
+}
+
+/// Un changement de moteur, de modèle ou de mode doit rester stable ce temps avant de relancer le préchargement (on parcourt une liste).
+const PRELOAD_SETTLE: Duration = Duration::from_millis(1500);
+const PRELOAD_CHECK_EVERY: Duration = Duration::from_millis(500);
+
+/// Les réglages dont dépendent les modèles chargés et les prompts lus : s'ils changent, ce qui était préchargé ne sert plus.
+fn preload_signature(settings: &AppSettings, words: &[String]) -> String {
+    format!(
+        "{:?}|{}|{}|{}|{:?}|{}|{}|{:?}|{}|{}|{:?}|{:?}|{:?}",
+        settings.cleanup_engine,
+        settings.active_cleanup_model(),
+        settings.lm_studio_url,
+        settings.ollama_url,
+        settings.transcription_engine,
+        settings.whisper_model_path,
+        settings.llama_device,
+        settings.translation_language,
+        settings.cleanup_enabled,
+        settings.skip_when_clean,
+        settings.active_profile(),
+        settings.language,
+        words,
+    )
 }
 
 /// La combinaison que la personne tient pendant qu'elle règle sa touche de dictée.
@@ -122,6 +150,9 @@ impl Controller {
             hold_token: 0,
             pending_translate: false,
             capture: None,
+            preload_signature: None,
+            preload_pending: None,
+            preload_checked: Duration::ZERO,
         };
         scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::hook_rules(&state.monitor.binding));
         Self { inner: Arc::new(Inner { deps, state: Mutex::new(state), key_events: std::sync::atomic::AtomicU64::new(0) }) }
@@ -292,10 +323,56 @@ impl Controller {
         true
     }
 
+    /// Quand le moteur, le modèle, le mode ou le dictionnaire changent (réglages, menu de l'icône, fichier modifié à la main), relance le
+    /// préchargement une fois le changement stable : la dictée suivante ne paie pas le chargement du modèle ni la lecture du prompt.
+    fn refresh_preload(&self, now: Duration) {
+        {
+            let mut state = lock(&self.inner.state);
+            if state.recording || state.busy || now.saturating_sub(state.preload_checked) < PRELOAD_CHECK_EVERY {
+                return;
+            }
+            state.preload_checked = now;
+        }
+        let deps = &self.inner.deps;
+        let signature = preload_signature(&deps.config.settings(), &deps.config.dictionary().words);
+        let reload = {
+            let mut state = lock(&self.inner.state);
+            if state.preload_signature.is_none() {
+                // Le premier relevé est celui du lancement, préchargé par `preload`.
+                state.preload_signature = Some(signature);
+                return;
+            }
+            if state.preload_signature.as_deref() == Some(signature.as_str()) {
+                state.preload_pending = None;
+                return;
+            }
+            match &state.preload_pending {
+                Some((seen, since)) if *seen == signature => {
+                    if now.saturating_sub(*since) >= PRELOAD_SETTLE {
+                        state.preload_pending = None;
+                        state.preload_signature = Some(signature);
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => {
+                    state.preload_pending = Some((signature, now));
+                    false
+                }
+            }
+        };
+        if reload {
+            deps.log.write("préchargement: réglages changés, modèles rechargés");
+            self.preload();
+        }
+    }
+
     /// À appeler une à deux fois par seconde : alerte de micro muet pendant l'écoute, préchauffage de la traduction.
     pub fn tick(&self) {
         let deps = &self.inner.deps;
         let now = deps.clock.now();
+        self.refresh_preload(now);
         let (warm_translation, watch_mic) = {
             let mut state = lock(&self.inner.state);
             if !state.recording {

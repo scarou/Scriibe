@@ -3,12 +3,21 @@
   import { onMount } from 'svelte';
   import { api, type CustomMode, type Modes } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
+  import ModeTrial from '../components/ModeTrial.svelte';
 
   let modes = $state<Modes | null>(null);
   let editing = $state<CustomMode | null>(null);
   let styleDrafts = $state<Record<string, string>>({});
+  /** L'essai sur les phrases types en cours ou fini : le mode essayé. */
+  let trial = $state<{ choice: string; label: string; key: number } | null>(null);
+  let trialKey = 0;
+
+  function startTrial(choice: string, label: string) {
+    trial = { choice, label, key: ++trialKey };
+  }
 
   let v = $derived(settings.value);
+  let usable = $derived(!!v && v.cleanupEngine !== 'none');
   let custom = $derived((v?.customModes as CustomMode[] | undefined) ?? []);
   let overrides = $derived((v?.styleOverrides as Record<string, string> | undefined) ?? {});
 
@@ -61,6 +70,10 @@
 {#if modes}
   <p class="muted">Le mode règle le ton de la mise au propre. Mode en cours : <b>{modes.active_label}</b>. La consigne de base (ne jamais répondre, garder les personnes) et le garde-fou ne changent pas.</p>
 
+  {#if trial}
+    {#key trial.key}<ModeTrial choice={trial.choice} label={trial.label} onclose={() => (trial = null)} />{/key}
+  {/if}
+
   {#each modes.groups as group (group.join())}
     <section class="card">
       {#each group as id (id)}
@@ -70,6 +83,9 @@
             <input type="radio" name="mode" checked={modes.choice === m.id} disabled={!m.available} onchange={() => choose(m.id)} />
             <span><b>{m.label}</b>{#if !m.available}<span class="tag">bientôt : traité comme Simple</span>{/if}<br /><span class="muted">{m.summary}</span></span>
           </label>
+          {#if m.id !== 'literal'}
+            <button onclick={() => startTrial(m.id, m.label)} disabled={!usable} title={usable ? '' : 'Choisis d’abord un moteur de mise au propre'}>Essayer sur les phrases types</button>
+          {/if}
           {#if m.has_style}
             <textarea rows="2" class="style" value={styleDrafts[m.id] ?? m.typed_style}
               oninput={(e) => (styleDrafts[m.id] = e.currentTarget.value)} onchange={(e) => saveStyle(m.id, e.currentTarget.value)}></textarea>
@@ -88,6 +104,7 @@
           <input type="radio" name="mode" checked={modes.choice === m.id} onchange={() => choose(m.id)} />
           <span><b>{m.name || 'Mode sans nom'}</b><br /><span class="muted">{m.rewrites ? 'Reformule' : 'Garde tes mots'} · {m.examples.length} exemple(s)</span></span>
         </label>
+        <button onclick={() => startTrial(m.id, m.name || 'Mode sans nom')} disabled={!usable}>Essayer sur les phrases types</button>
         <button onclick={() => (editing = structuredClone($state.snapshot(m)))}>Modifier</button>
         <button onclick={() => removeCustom(m)}>Supprimer</button>
       </div>

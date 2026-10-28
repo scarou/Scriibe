@@ -508,6 +508,32 @@ fn preload_reads_both_prompts_at_launch_without_any_key() {
 }
 
 #[test]
+fn a_changed_model_or_mode_reloads_the_preload_once_the_change_is_stable() {
+    let r = rig_with(local_settings(), "x", "x", true);
+    let tick = |millis: u64| {
+        r.clock.advance(Duration::from_millis(millis));
+        r.controller.tick();
+        r.executor.run_all("prechargement");
+    };
+    tick(600); // premier relevé : celui du lancement
+    tick(600);
+    assert!(r.warm_up_requests().is_empty(), "rien n'a changé : rien n'est relancé");
+    r.config.change(|s| s.rewrite_mode = scriibe_core::modes::RewriteMode::Formal);
+    tick(600); // vu pour la première fois
+    tick(600);
+    assert!(r.warm_up_requests().is_empty(), "le changement doit durer 1,5 s");
+    r.config.change(|s| s.rewrite_mode = scriibe_core::modes::RewriteMode::Tech);
+    tick(600); // un autre choix repart de zéro
+    tick(600);
+    assert!(r.warm_up_requests().is_empty(), "un autre choix repart de zéro");
+    tick(1000);
+    assert_eq!(r.warm_up_requests().len(), 2, "mise au propre puis traduction rechargées, une seule fois");
+    tick(600);
+    tick(1600);
+    assert_eq!(r.warm_up_requests().len(), 2, "plus de changement : plus de rechargement");
+}
+
+#[test]
 fn whisper_is_started_at_the_press_and_reused_for_the_transcription() {
     let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..local_settings() };
     let r = rig_with(settings, "x", "Bonjour tout le monde, on commence.", false);

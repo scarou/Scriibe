@@ -5,6 +5,7 @@
 
 pub mod bench;
 pub mod bench_archive;
+pub mod clean_test;
 pub mod cleaner;
 pub mod dictionary;
 pub mod history;

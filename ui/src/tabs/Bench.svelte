@@ -6,6 +6,7 @@
   import { fmt } from '../lib/format';
   import BenchArchive from '../components/BenchArchive.svelte';
   import TimingsCard from '../components/TimingsCard.svelte';
+  import TrialBench from '../components/TrialBench.svelte';
   import ProfileBars from '../components/ProfileBars.svelte';
 
   let recording = $state(false);
@@ -171,6 +172,8 @@
 <BenchArchive />
 
 <TimingsCard />
+
+<TrialBench />
 
 <style>
   .phrase { font-size: 1.25rem; font-weight: 600; margin: 8px 0; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px dashed var(--line); }

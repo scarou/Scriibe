@@ -7,6 +7,7 @@ mod bench_view;
 mod data;
 mod downloads;
 mod sinks;
+mod trial;
 mod update;
 
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
@@ -157,6 +158,9 @@ fn handle(ctx: &Context, mut request: Request) {
             request,
             json!({"signs": scriibe_core::spoken_signs::ALL.iter().map(|s| json!({"said": s.said, "written": s.written})).collect::<Vec<_>>()}),
         ),
+        (Method::Get, "api/trial/samples") => ok(request, json!({"samples": scriibe_core::clean_test::samples()})),
+        (Method::Post, "api/trial/sample") => ok(request, trial::sample(ctx, &input)),
+        (Method::Post, "api/trial/candidate") => ok(request, trial::candidate(ctx, &input)),
         (Method::Post, "api/pick-file") => ok(request, pick_file(input["kind"].as_str().unwrap_or(""))),
         (Method::Post, "api/sounds/play") => {
             let volume = input["volume"].as_f64().unwrap_or(0.5);
