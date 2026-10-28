@@ -13,7 +13,7 @@ impl Sounds for Silent {
 
 /// Les sons proposés, du plus discret au plus marqué : les noms de ceux de Scribe (macOS), pour que le fichier de réglages passe d'un
 /// système à l'autre. Les sons eux-mêmes sont synthétisés ici (`synth`), pas copiés.
-pub const NAMES: [&str; 12] = ["Tink", "Pop", "Purr", "Morse", "Bottle", "Frog", "Glass", "Ping", "Submarine", "Blow", "Funk", "Hero"];
+pub const NAMES: [&str; 11] = ["Tink", "Pop", "Purr", "Morse", "Bottle", "Frog", "Glass", "Ping", "Submarine", "Funk", "Hero"];
 
 const RATE: u32 = 44_100;
 
@@ -44,7 +44,6 @@ fn notes(name: &str) -> Option<Vec<Note>> {
         "Glass" => vec![note(0.0, 2093.0, 2093.0, 0.45, 9.0), note(0.0, 3136.0, 3136.0, 0.30, 14.0)],
         "Ping" => vec![note(0.0, 1318.0, 1318.0, 0.30, 14.0)],
         "Submarine" => vec![note(0.0, 330.0, 190.0, 0.40, 8.0)],
-        "Blow" => vec![Note { noise: 0.3, attack: 0.03, ..note(0.0, 330.0, 250.0, 0.24, 9.0) }],
         "Funk" => vec![note(0.0, 330.0, 330.0, 0.09, 18.0), note(0.10, 440.0, 440.0, 0.14, 14.0)],
         "Hero" => vec![note(0.0, 523.0, 523.0, 0.12, 12.0), note(0.11, 659.0, 659.0, 0.12, 12.0), note(0.22, 784.0, 784.0, 0.30, 8.0)],
         _ => return None,

@@ -29,11 +29,20 @@ pub fn data_folder() -> PathBuf {
 
 /// Réglages d'un premier lancement : tout sur cet ordinateur (Whisper et llama.cpp), sans clé ni compte, avec la touche du système.
 pub fn first_run_settings() -> AppSettings {
+    let defaults = AppSettings::default();
+    // Hors du Mac, des sons doux et discrets (Funk au début, Bottle à la fin : choix de Christophe, S06) ; Tink et Pop sont ceux de Scribe.
+    let (start_sound_name, end_sound_name) = if cfg!(target_os = "macos") {
+        (defaults.start_sound_name.clone(), defaults.end_sound_name.clone())
+    } else {
+        ("Funk".into(), "Bottle".into())
+    };
     AppSettings {
         hotkey: Hotkey::system_default(),
         transcription_engine: TranscriptionEngine::Whisper,
         cleanup_engine: CleanupEngine::LlamaCpp,
-        ..AppSettings::default()
+        start_sound_name,
+        end_sound_name,
+        ..defaults
     }
 }
 
@@ -273,6 +282,9 @@ mod tests {
         assert_eq!(settings.transcription_engine, TranscriptionEngine::Whisper);
         assert_eq!(settings.cleanup_engine, CleanupEngine::LlamaCpp);
         assert_eq!(settings.hotkey, Hotkey::system_default());
+        let (start, end) = if cfg!(target_os = "macos") { ("Tink", "Pop") } else { ("Funk", "Bottle") };
+        assert_eq!((settings.start_sound_name.as_str(), settings.end_sound_name.as_str()), (start, end), "sons doux hors du Mac");
+        assert!(crate::sounds::NAMES.contains(&start) && crate::sounds::NAMES.contains(&end));
         let _ = std::fs::remove_dir_all(dir);
     }
 

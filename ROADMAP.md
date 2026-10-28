@@ -30,7 +30,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 
 **Essayé en S06** : touches de dictée et de traduction réglables par capture directe (touche Windows, Maj gauche, « < > », Ctrl gauche + F10, Alt gauche ; Alt et Windows sans menu) ; le crochet ne reçoit rien dans la fenêtre de Scriibe : la capture passe par la page ; Aide complète et cartes « Dernières dictées » / « Temps des dictées » (relues par Christophe : pas de retour négatif).
 
-**Reste à essayer sur le PC** : la pause des médias pendant un appel (Meet, Teams) ; la reprise d'un téléchargement coupé ; la capture de **Fn** (probablement invisible pour Windows), « Tester ma touche » et « Rétablir » ; Purr et Blow corrigés ; LM Studio et Ollama avec un vrai serveur ; le préchargement relancé (temps de la première dictée après un changement de modèle) ; le banc avec un **micro correct** (USB ou casque : comparer au passage fait avec le micro du portable) et la lenteur de Whisper `base` vue en S06 (4 à 5 s) ; surveiller le collage perdu (la ligne « collage: » du journal). **Essayé en S06** : touches réglables (voir `CHANGELOG.md`), menu de l'icône, sons, signes dictés, boîte d'ouverture de fichier, phrases types et banc.
+**Reste à essayer sur le PC** : la pause des médias pendant un appel (Meet, Teams) ; la reprise d'un téléchargement coupé ; la capture de **Fn** (probablement invisible pour Windows), « Tester ma touche » et « Rétablir » ; Purr corrigé ; LM Studio et Ollama avec un vrai serveur ; le préchargement relancé (temps de la première dictée après un changement de modèle) ; le banc avec un **micro correct** (USB ou casque : comparer au passage fait avec le micro du portable) et la lenteur de Whisper `base` vue en S06 (4 à 5 s) ; surveiller le collage perdu (la ligne « collage: » du journal). **Essayé en S06** : touches réglables (voir `CHANGELOG.md`), menu de l'icône, sons, signes dictés, boîte d'ouverture de fichier, phrases types et banc.
 
 **Reste à faire (code)** : voir « Parité avec Scribe » ; langue de l'interface au-delà du français ; comparaison « avec / sans modèle » du banc (écart noté) ; « réglages du banc selon les modes personnels » ; zone de capture des essais de frappe plus stricte si besoin ; commandes Tauri (IPC) si une fonction l'exige.
 
@@ -44,7 +44,6 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 3. Titre des boîtes de confirmation (« 127.0.0.1:… indique », boîte standard du navigateur).
 4. Menu de l'icône, sons, choix de fichier et capture des touches hors de Windows (étape 7).
 5. Écartés : autorisations macOS (sans objet), mode Amusant (abandonné), mode par application (idée de Scribe, après la parité).
-6. Question en suspens : Funk et Bottle comme sons par défaut sous Windows (Tink et Pop aujourd'hui, comme Scribe).
 
 ## Plus tard, sans date
 
