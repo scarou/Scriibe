@@ -46,4 +46,4 @@ EN SUSPENS (pas pour cette session sauf demande)
 CLÔTURE DE SESSION : applique la section « Clôture de session » de CLAUDE.md (CHANGELOG, REPRISE, ROADMAP, README, ECARTS, A_FAIRE à jour ; fmt, clippy, tests, CI verte), puis renomme la session « S06 - jj/mm/aaaa - Titre résumant la session » (mcp__claude-code-remote__set_session_title, avec l'identifiant de get_session).
 ```
 
-**CI du dernier commit de S05** : à compléter après la fin de la CI (voir ci-dessous).
+**CI de S05** : verte sur Linux, Windows et macOS, avec l'exécutable Windows produit, pour `0dfc286` (code : touches par capture, Aide, logo) et pour `354d41e` (clôture). Le commit qui ajoute cette ligne ne change que ce fichier ; sa CI n'a pas été attendue. La mise à jour par la fenêtre prend la dernière exécution verte, donc la version `354d41e` au plus tard.
