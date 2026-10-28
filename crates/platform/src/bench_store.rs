@@ -133,6 +133,11 @@ mod tests {
             raw: "brut".into(),
             pasted: "collé".into(),
             timing: DictationTiming { transcription: 1.0, cleanup: 0.5, total: 1.6, outcome: Cleanup::Model },
+            would_skip: false,
+            without_model: String::new(),
+            model_text: None,
+            model_seconds: None,
+            model_error: None,
         };
         BenchRun::new(Utc.timestamp_opt(1_800_000_000 + minutes * 60, 0).unwrap(), BenchSetup::default(), (0..entries).map(entry).collect())
     }

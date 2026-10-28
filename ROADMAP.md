@@ -32,7 +32,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 
 **Reste à essayer sur le PC** : la pause des médias pendant un appel (Meet, Teams) ; la reprise d'un téléchargement coupé ; la capture de **Fn** (probablement invisible pour Windows), « Tester ma touche » et « Rétablir » ; Purr corrigé ; LM Studio et Ollama avec un vrai serveur ; le préchargement relancé (temps de la première dictée après un changement de modèle) ; le banc avec un **micro correct** (USB ou casque : comparer au passage fait avec le micro du portable) et la lenteur de Whisper `base` vue en S06 (4 à 5 s) ; surveiller le collage perdu (la ligne « collage: » du journal). **Essayé en S06** : touches réglables (voir `CHANGELOG.md`), menu de l'icône, sons, signes dictés, boîte d'ouverture de fichier, phrases types et banc.
 
-**Reste à faire (code)** : voir « Parité avec Scribe » ; langue de l'interface au-delà du français ; comparaison « avec / sans modèle » du banc (écart noté) ; « réglages du banc selon les modes personnels » ; zone de capture des essais de frappe plus stricte si besoin ; commandes Tauri (IPC) si une fonction l'exige.
+**Reste à faire (code)** : voir « Parité avec Scribe » ; langue de l'interface au-delà du français ; zone de capture des essais de frappe plus stricte si besoin ; commandes Tauri (IPC) si une fonction l'exige.
 
 ## Parité avec Scribe : ce qui reste (inventaire de S05, mis à jour en S06)
 
@@ -40,7 +40,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 
 **Reste** :
 1. **Langue de l'interface** au-delà du français (choix à faire avec Christophe).
-2. **Comparaison « avec / sans modèle »** du banc (`wouldSkip`, `withoutModel`, `modelText`) et « réglages du banc selon les modes personnels ».
+2. ✔ **Comparaison « avec / sans modèle »** du banc et réglages du banc selon les modes personnels (S07 : le nom et l'empreinte de la consigne d'un mode personnel étaient déjà dans les réglages d'un passage ; test ajouté).
 3. Titre des boîtes de confirmation (« 127.0.0.1:… indique », boîte standard du navigateur).
 4. Menu de l'icône, sons, choix de fichier et capture des touches hors de Windows (étape 7).
 5. Écartés : autorisations macOS (sans objet), mode Amusant (abandonné), mode par application (idée de Scribe, après la parité).

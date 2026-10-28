@@ -1,8 +1,11 @@
 //! Le banc de dictée côté serveur : les réglages d'un passage, les passages gardés (`bancs/`) et leur comparaison.
 
 use scriibe_core::bench_archive::{self, BenchRun, BenchSetup, ComparisonRow};
+use scriibe_core::cleaner;
+use scriibe_core::dictionary::{self, UserDictionary};
 use scriibe_core::history::Cleanup;
-use scriibe_core::settings::{AppSettings, TranscriptionEngine};
+use scriibe_core::settings::{AppSettings, DictationLanguage, TranscriptionEngine};
+use scriibe_core::typography::french_typography;
 use serde_json::{json, Value};
 
 /// Le nom d'un fichier de modèle sans dossier ni extension (« ggml-base »).
@@ -65,6 +68,32 @@ pub fn setup_for(settings: &AppSettings, version: &str, whisper_model: &str, lla
         } else {
             settings.microphone_name.clone()
         },
+    }
+}
+
+/// Ce que le banc note en plus de chaque phrase : le texte donné à la mise au propre, la décision qu'aurait prise l'option « Sauter si
+/// déjà propre » (activée avec ces réglages), et ce qui serait collé sans modèle. Port de ce que `DictationController` passe à
+/// `ReadingBench.record` (`wouldSkip`, `withoutModel`).
+pub struct Judgement {
+    pub cleanup_input: String,
+    pub would_skip: bool,
+    pub without_model: String,
+}
+
+pub fn judge(settings: &AppSettings, dictionary: &UserDictionary, raw: &str, translating: bool) -> Judgement {
+    let cleanup_input = dictionary::apply(dictionary, raw, settings.list_bullet, settings.lists_on()).text;
+    let with_option = AppSettings { skip_when_clean: true, ..settings.clone() };
+    let would_skip = cleaner::skips_cleanup(&cleanup_input, &with_option, translating);
+    let without_model = if settings.language == DictationLanguage::Fr { french_typography(&cleanup_input) } else { cleanup_input.clone() };
+    Judgement { cleanup_input, would_skip, without_model }
+}
+
+/// L'erreur d'une comparaison avec le modèle, dite comme chez Scribe.
+pub fn model_error(rejected: bool, message: &str) -> String {
+    if rejected {
+        "écarté par le garde-fou : sans l'option, le texte brut aurait été collé".into()
+    } else {
+        format!("échec ({message})")
     }
 }
 
@@ -166,6 +195,59 @@ mod tests {
         formal.style_overrides.insert("formal".into(), "Écris comme un notaire.".into());
         assert_ne!(setup_for(&formal, "v", "", "", "").mode_detail, before, "même nom de mode, consigne différente → réglages différents");
         assert_eq!(setup_for(&formal, "v", "", "", "").cleanup, "OpenRouter · anthropic/claude-haiku-4.5");
+    }
+
+    #[test]
+    fn a_personal_mode_names_the_run_and_a_new_instruction_makes_it_another_setup() {
+        let mut settings = AppSettings {
+            transcription_engine: TranscriptionEngine::Whisper,
+            cleanup_engine: CleanupEngine::OpenRouter,
+            ..AppSettings::default()
+        };
+        let mut mode = scriibe_core::modes::CustomMode::new("Mail au client", "Écris un mail poli.", true);
+        settings.custom_mode_id = Some(mode.id.clone());
+        settings.custom_modes.push(mode.clone());
+        let before = setup_for(&settings, "v", "", "", "");
+        assert_eq!(before.mode, "Mail au client");
+        assert!(!before.mode_detail.is_empty());
+        assert!(!before.skip_when_clean, "un mode qui reformule : l'option « sauter si propre » ne s'applique pas");
+        mode.style = "Écris un mail très court.".into();
+        settings.custom_modes[0] = mode;
+        let after = setup_for(&settings, "v", "", "", "");
+        assert_eq!(after.mode, before.mode, "même nom");
+        assert_ne!(after.mode_detail, before.mode_detail, "consigne différente → réglages différents");
+    }
+
+    #[test]
+    fn the_bench_judges_a_clean_sentence_even_when_the_option_is_off_and_gives_the_text_without_model() {
+        let settings = AppSettings {
+            transcription_engine: TranscriptionEngine::Whisper,
+            cleanup_engine: CleanupEngine::LlamaCpp,
+            skip_when_clean: false,
+            ..AppSettings::default()
+        };
+        assert!(settings.skip_applies(), "Simple + Whisper : l'option s'applique");
+        let dictionary = UserDictionary::default();
+        let clean = judge(&settings, &dictionary, "Je serai là demain matin vers dix heures.", false);
+        assert!(clean.would_skip, "propre : l'option l'aurait sautée, même désactivée");
+        assert_eq!(clean.without_model, "Je serai là demain matin vers dix heures.");
+        let hesitating = judge(&settings, &dictionary, "Euh je serai là demain matin euh vers dix heures", false);
+        assert!(!hesitating.would_skip, "« euh » demande le modèle");
+        assert!(!judge(&settings, &dictionary, "Je serai là demain matin vers dix heures.", true).would_skip, "jamais en traduction");
+    }
+
+    #[test]
+    fn without_the_model_the_french_typography_is_still_applied() {
+        let settings = AppSettings::default();
+        assert_eq!(settings.language, DictationLanguage::Fr);
+        let out = judge(&settings, &UserDictionary::default(), "Tu viens demain matin vers dix heures ?", false);
+        assert_eq!(out.without_model, "Tu viens demain matin vers dix heures\u{00A0}?");
+    }
+
+    #[test]
+    fn a_model_error_says_whether_the_guard_rejected_it() {
+        assert!(model_error(true, "x").starts_with("écarté par le garde-fou"));
+        assert_eq!(model_error(false, "délai dépassé"), "échec (délai dépassé)");
     }
 
     #[test]

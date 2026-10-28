@@ -61,9 +61,35 @@ pub struct RunEntry {
     pub raw: String,
     pub pasted: String,
     pub timing: DictationTiming,
+    /// L'option « Sauter si déjà propre », activée avec ces réglages, aurait-elle sauté le modèle ?
+    #[serde(rename = "wouldSkip")]
+    pub would_skip: bool,
+    /// Ce qui aurait été collé sans modèle (dictionnaire, signes dictés, typographie).
+    #[serde(rename = "withoutModel")]
+    pub without_model: String,
+    /// Ce que le modèle a écrit quand la phrase a été sautée (lancé à côté, sans rien coller).
+    #[serde(rename = "modelText", skip_serializing_if = "Option::is_none")]
+    pub model_text: Option<String>,
+    #[serde(rename = "modelSeconds", skip_serializing_if = "Option::is_none")]
+    pub model_seconds: Option<f64>,
+    #[serde(rename = "modelError", skip_serializing_if = "Option::is_none")]
+    pub model_error: Option<String>,
 }
 
 impl RunEntry {
+    /// Les deux versions d'une phrase jugée propre : (avec modèle, sans modèle) ; `None` si elle ne l'est pas, ou tant que la
+    /// comparaison n'est pas revenue. Port de `ReadingBench.Result.versions`.
+    pub fn versions(&self) -> Option<(&str, &str)> {
+        if !self.would_skip {
+            return None;
+        }
+        match self.timing.outcome {
+            crate::history::Cleanup::Skipped => self.model_text.as_deref().map(|m| (m, self.pasted.as_str())),
+            crate::history::Cleanup::Model => Some((self.pasted.as_str(), self.without_model.as_str())),
+            _ => None,
+        }
+    }
+
     /// Lecture tolérante : sans texte lu ni texte collé, la phrase n'a pas de sens et elle est écartée.
     pub fn from_value(v: &Value) -> Option<Self> {
         let s = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_string);
@@ -72,6 +98,11 @@ impl RunEntry {
             pasted: s("pasted")?,
             category: s("category").unwrap_or_default(),
             raw: s("raw").unwrap_or_default(),
+            would_skip: v.get("wouldSkip").and_then(Value::as_bool).unwrap_or(false),
+            without_model: s("withoutModel").unwrap_or_default(),
+            model_text: s("modelText"),
+            model_seconds: v.get("modelSeconds").and_then(Value::as_f64),
+            model_error: s("modelError"),
             timing: v.get("timing").and_then(|t| serde_json::from_value(t.clone()).ok()).unwrap_or(DictationTiming {
                 transcription: 0.0,
                 cleanup: 0.0,
@@ -155,6 +186,12 @@ impl BenchRun {
         let totals: Vec<f64> = self.entries.iter().filter(|e| e.timing.outcome == outcome).map(|e| e.timing.total).collect();
         (!totals.is_empty()).then(|| totals.iter().sum::<f64>() / totals.len() as f64)
     }
+}
+
+/// Les phrases jugées propres où le modèle écrit autre chose que le texte sans modèle (ponctuation et casse comprises, espaces
+/// insécables ignorés) : ce que l'option ferait perdre, ou gagner. Port de `ReadingBench.cleanButChanged`.
+pub fn clean_but_changed(entries: &[RunEntry]) -> usize {
+    entries.iter().filter_map(RunEntry::versions).filter(|(with, without)| normalized(with) != normalized(without)).count()
 }
 
 /// Le texte collé comparé sans les différences d'espaces (insécables, multiples) et d'apostrophes.
@@ -309,7 +346,18 @@ mod tests {
 
     fn entry(phrase: usize, pasted: &str) -> RunEntry {
         let p = &bench::phrases()[phrase];
-        RunEntry { category: p.category.clone(), text: p.text.clone(), raw: String::new(), pasted: pasted.into(), timing: timing() }
+        RunEntry {
+            category: p.category.clone(),
+            text: p.text.clone(),
+            raw: String::new(),
+            pasted: pasted.into(),
+            timing: timing(),
+            would_skip: false,
+            without_model: String::new(),
+            model_text: None,
+            model_seconds: None,
+            model_error: None,
+        }
     }
 
     fn run(setup: &BenchSetup, minutes: i64, entries: &[(usize, &str)]) -> BenchRun {
@@ -433,5 +481,50 @@ mod tests {
         assert_eq!(json["date"], "2027-01-15T08:00:00Z");
         assert_eq!(json["entries"][0]["timing"]["outcome"], "model");
         assert_eq!(BenchRun::from_value(&json).unwrap(), r, "écrit puis relu à l'identique");
+    }
+
+    #[test]
+    fn a_skipped_sentence_is_compared_with_what_the_model_wrote_and_a_modelled_one_with_the_text_without_model() {
+        let mut skipped = entry(0, "Je serai là.");
+        skipped.timing.outcome = Cleanup::Skipped;
+        skipped.would_skip = true;
+        assert_eq!(skipped.versions(), None, "la comparaison n'est pas revenue");
+        skipped.model_text = Some("Je serai là !".into());
+        assert_eq!(skipped.versions(), Some(("Je serai là !", "Je serai là.")));
+
+        let mut modelled = entry(1, "Texte corrigé.");
+        modelled.would_skip = true;
+        modelled.without_model = "Texte corigé.".into();
+        assert_eq!(modelled.versions(), Some(("Texte corrigé.", "Texte corigé.")));
+
+        let mut to_redo = entry(2, "x");
+        to_redo.without_model = "y".into();
+        assert_eq!(to_redo.versions(), None, "jugée à reprendre : rien à comparer");
+
+        assert_eq!(clean_but_changed(&[skipped, modelled, to_redo]), 2);
+    }
+
+    #[test]
+    fn spaces_and_apostrophes_do_not_count_as_a_change() {
+        let mut same = entry(0, "Tu viens\u{00A0}?");
+        same.would_skip = true;
+        same.without_model = "Tu  viens ?".into();
+        assert_eq!(clean_but_changed(&[same]), 0);
+    }
+
+    #[test]
+    fn the_comparison_with_the_model_is_written_and_read_in_the_format_of_scribe() {
+        let (a, _) = setups();
+        let mut r = run(&a, 0, &[(0, "Je serai là.")]);
+        r.entries[0].timing.outcome = Cleanup::Skipped;
+        r.entries[0].would_skip = true;
+        r.entries[0].without_model = "Je serai là.".into();
+        r.entries[0].model_text = Some("Je serai là !".into());
+        r.entries[0].model_seconds = Some(1.25);
+        let json = serde_json::to_value(&r).unwrap();
+        assert_eq!(json["entries"][0]["wouldSkip"], true);
+        assert_eq!(json["entries"][0]["modelText"], "Je serai là !");
+        assert!(json["entries"][0].get("modelError").is_none(), "absent quand il n'y en a pas, comme chez Scribe");
+        assert_eq!(BenchRun::from_value(&json).unwrap(), r);
     }
 }

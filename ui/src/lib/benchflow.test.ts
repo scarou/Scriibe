@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BenchSetup, Take, Transcribed } from './api';
-import { BenchFlow, isoSeconds, newRunId, type BenchResult } from './benchflow';
+import { BenchFlow, cleanButChanged, isoSeconds, newRunId, normalizedText, versions, type BenchResult } from './benchflow';
 
 const setup = (version = '1'): BenchSetup => ({ version, transcription: 'Whisper · ggml-base', cleanup: 'Sans modèle', mode: 'Simple', modeDetail: '', skipWhenClean: false, microphone: 'Micro' });
 
@@ -60,5 +60,51 @@ describe('déroulement du banc', () => {
     expect(flow.runId).toMatch(/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/);
     expect(newRunId()).toMatch(/^[0-9A-F-]{36}$/);
     expect(isoSeconds(new Date('2026-10-27T14:05:09.123Z'))).toBe('2026-10-27T14:05:09Z');
+  });
+
+  const skipped = (index: number, modelText?: string): BenchResult => ({
+    ...result(index),
+    out: {
+      raw: 'brut', text: 'Je serai là.', would_skip: true, without_model: 'Je serai là.', compare: true,
+      timing: { transcription: 2, cleanup: 0, total: 2.2, outcome: 'skipped' },
+    } as unknown as Transcribed,
+    ...(modelText === undefined ? {} : { modelText }),
+  });
+
+  it('une phrase sautée attend la version du modèle, qui rejoint le passage gardé', () => {
+    const flow = new BenchFlow(3);
+    flow.start();
+    expect(flow.record(skipped(0))).toBe(true);
+    expect(flow.comparing).toBe(true);
+    flow.redoLast(); // refusé pendant la comparaison
+    expect(flow.results.length).toBe(1);
+    expect(versions(flow.results[0])).toBeNull();
+    expect(flow.attachModel(0, 'Je serai là !', 1.25)).toBe(true);
+    expect(flow.comparing).toBe(false);
+    const entry = flow.toRun()!.entries[0];
+    expect(entry).toMatchObject({ wouldSkip: true, withoutModel: 'Je serai là.', modelText: 'Je serai là !', modelSeconds: 1.25 });
+    expect(entry).not.toHaveProperty('modelError');
+    expect(flow.attachModel(5, 'x', 1)).toBe(false);
+  });
+
+  it('un modèle qui n’a rien écrit garde son erreur, sans texte ni durée', () => {
+    const flow = new BenchFlow(2);
+    flow.start();
+    flow.record(skipped(0));
+    flow.attachModel(0, null, 0, 'écarté par le garde-fou');
+    expect(flow.toRun()!.entries[0]).toMatchObject({ modelError: 'écarté par le garde-fou' });
+    expect(flow.toRun()!.entries[0]).not.toHaveProperty('modelText');
+  });
+
+  it('on compte les phrases jugées propres où le modèle écrit autre chose (espaces et apostrophes ignorés)', () => {
+    const same = { ...skipped(0, 'Je  serai là.') };
+    const different = { ...skipped(1, 'Je serai là !') };
+    const modelled: BenchResult = {
+      ...result(2),
+      out: { text: 'Texte corrigé.', would_skip: true, without_model: 'Texte corigé.', timing: { transcription: 1, cleanup: 1, total: 2, outcome: 'model' } } as unknown as Transcribed,
+    };
+    const toRedo: BenchResult = { ...result(3), out: { text: 'x', would_skip: false, without_model: 'y', timing: { transcription: 1, cleanup: 1, total: 2, outcome: 'model' } } as unknown as Transcribed };
+    expect(cleanButChanged([same, different, modelled, toRedo])).toBe(2);
+    expect(normalizedText('l’été\u00A0 ?')).toBe("l'été ?");
   });
 });

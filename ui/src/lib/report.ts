@@ -1,5 +1,5 @@
 import type { Status } from './api';
-import type { BenchResult } from './benchflow';
+import { type BenchResult, normalizedText } from './benchflow';
 import { base, fmt } from './format';
 import { setupSummary } from './setup';
 
@@ -25,6 +25,10 @@ export function buildReport(s: Status, results: BenchResult[], devices: string[]
     }
     r += `  lue      : ${x.text}\n  entendu  : ${x.out.raw ?? '—'}\n  collé    : ${x.out.text ?? '—'}\n`;
     if (t) r += `  temps    : transcription ${fmt(t.transcription)} s, mise au propre ${fmt(t.cleanup)} s (${t.outcome}), total ${fmt(t.total)} s\n`;
+    if (x.out.would_skip && t?.outcome === 'model') r += `  sans modèle: ${(x.out.without_model ?? '').replace(/\n/g, ' ⏎ ')}\n`;
+    if (x.modelText != null && x.modelSeconds != null) {
+      r += `  le modèle aurait écrit (${fmt(x.modelSeconds)} s) : ${normalizedText(x.modelText) === normalizedText(x.out.text ?? '') ? 'comme le texte collé' : x.modelText.replace(/\n/g, ' ⏎ ')}\n`;
+    } else if (x.modelError) r += `  modèle   : ${x.modelError}\n`;
     if (x.out.messages.length) r += `  messages : ${x.out.messages.join(' / ')}\n`;
     r += `  contrôles: ${x.out.checks.length - failed.length}/${x.out.checks.length}${failed.length ? ' — échec : ' + failed.map((c) => c.label).join(' ; ') : ''}\n`;
   }

@@ -26,6 +26,7 @@ use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
 use scriibe_core::dictionary::{Correction, UserDictionary};
+use scriibe_core::history::Cleanup;
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
@@ -299,6 +300,7 @@ fn handle(ctx: &Context, mut request: Request) {
             }
             None => fail(request, 404, "aucune prise"),
         },
+        (Method::Post, "api/bench/model") => ok(request, bench_model(ctx, &input)),
         (Method::Post, "api/transcribe") => match transcribe(ctx, &input) {
             Ok(result) => ok(request, result),
             Err(e) => fail(request, 409, &e),
@@ -708,7 +710,17 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
         .map(|p| p.checks.iter().map(|c| json!({"label": c.label(), "passed": !pasted.is_empty() && c.passes(&pasted)})).collect())
         .unwrap_or_default();
     let timing = captured.dictation.as_ref().and_then(|d| d.timing.as_ref()).and_then(|t| serde_json::to_value(t).ok());
+    // Banc : ce que l'option « Sauter si déjà propre » aurait décidé, et ce qui serait collé sans modèle. Une phrase sautée est
+    // aussi demandée au modèle (`api/bench/model`), sans rien coller, pour voir ce qu'il aurait écrit.
+    let judgement = phrase
+        .and(captured.dictation.as_ref())
+        .map(|d| bench_view::judge(&ctx.app.config.settings(), &ctx.app.config.dictionary(), &d.raw_text, translate));
+    let skipped = captured.dictation.as_ref().and_then(|d| d.timing.as_ref()).is_some_and(|t| t.outcome == Cleanup::Skipped);
     Ok(json!({
+        "would_skip": judgement.as_ref().is_some_and(|j| j.would_skip),
+        "without_model": judgement.as_ref().map(|j| j.without_model.clone()).unwrap_or_default(),
+        "cleanup_input": judgement.as_ref().map(|j| j.cleanup_input.clone()),
+        "compare": judgement.is_some() && skipped,
         "ok": captured.pasted.is_some(),
         "raw": captured.dictation.as_ref().map(|d| d.raw_text.clone()),
         "text": captured.pasted,
@@ -722,6 +734,24 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
         "profile": profile_json(&recording),
         "setup": current_setup(ctx),
     }))
+}
+
+/// Ce que le modèle aurait écrit pour une phrase du banc collée sans lui (mêmes réglages, mêmes corrections, même typographie).
+fn bench_model(ctx: &Context, input: &Value) -> Value {
+    let settings = ctx.app.config.settings();
+    let dictionary = ctx.app.config.dictionary();
+    let text = input["text"].as_str().unwrap_or("");
+    let start = Instant::now();
+    match ctx.app.cleaner.cleanup(text, &settings, &dictionary.words) {
+        Ok(cleaned) => {
+            let mut out = scriibe_core::dictionary::apply(&dictionary, &cleaned, settings.list_bullet, settings.lists_on()).text;
+            if settings.language == scriibe_core::settings::DictationLanguage::Fr {
+                out = scriibe_core::typography::french_typography(&out);
+            }
+            json!({"text": out, "seconds": start.elapsed().as_secs_f64()})
+        }
+        Err(e) => json!({"error": bench_view::model_error(e.message == scriibe_core::cleaner::REWRITE_REJECTED, &e.to_string())}),
+    }
 }
 
 /// Les réglages d'un passage du banc, d'après les réglages d'aujourd'hui et ce que Scriibe utilise vraiment (modèles trouvés).

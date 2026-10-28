@@ -184,6 +184,21 @@ export interface Transcribed {
   verdict: 'muet' | 'faible' | 'correct';
   profile: Profile;
   setup: BenchSetup;
+  /** Banc seulement : l'option « Sauter si déjà propre » aurait-elle sauté le modèle ? */
+  would_skip?: boolean;
+  /** Banc seulement : ce qui serait collé sans modèle. */
+  without_model?: string;
+  /** Banc seulement : le texte donné à la mise au propre (pour la comparaison avec le modèle). */
+  cleanup_input?: string | null;
+  /** Banc seulement : la phrase a été sautée, le modèle doit écrire sa version à côté. */
+  compare?: boolean;
+}
+
+/** Ce que le modèle a écrit pour une phrase sautée (banc). */
+export interface ModelVersion {
+  text?: string;
+  seconds?: number;
+  error?: string;
 }
 
 export interface Correction {

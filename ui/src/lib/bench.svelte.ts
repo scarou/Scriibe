@@ -74,6 +74,19 @@ class BenchStore {
     return kept;
   }
 
+  /** Vrai tant que le modèle écrit sa version d'une phrase sautée. */
+  get comparing(): boolean {
+    this.tick;
+    return this.flow.comparing;
+  }
+
+  /** La version du modèle d'une phrase sautée rejoint son passage. */
+  async attachModel(index: number, text: string | null, seconds: number, error?: string): Promise<void> {
+    const kept = this.flow.attachModel(index, text, seconds, error);
+    this.touch();
+    if (kept) await this.persist();
+  }
+
   /** Garde le passage sur le disque ; un passage devenu vide (« Relire » jusqu'à la première phrase) disparaît de l'archive. */
   private async persist(): Promise<void> {
     if (this.deleted) return;
