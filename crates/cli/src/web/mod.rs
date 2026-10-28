@@ -69,7 +69,7 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 /// Version affichée dans la page : le commit de la CI, sinon « dev ».
-fn build_id() -> String {
+pub fn build_id() -> String {
     format!("{} ({})", env!("CARGO_PKG_VERSION"), option_env!("GITHUB_SHA").map_or("dev", |s| &s[..s.len().min(7)]))
 }
 

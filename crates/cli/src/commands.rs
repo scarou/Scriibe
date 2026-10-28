@@ -51,6 +51,9 @@ pub fn run() -> Result<(), String> {
 
     // L'adresse de la page d'essais n'est connue qu'une fois son serveur démarré ; l'icône la lit au moment du clic.
     let page_url: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    // Ce que le menu de l'icône montre et fait : connu une fois l'appli construite.
+    #[cfg(windows)]
+    let menu_source: Arc<Mutex<Option<Arc<dyn scriibe_platform::tray_menu::TrayMenuSource>>>> = Arc::new(Mutex::new(None));
     #[cfg(windows)]
     let (host, real_indicator): (_, Arc<dyn Indicator>) = {
         let tip = "Scriibe — maintiens Ctrl droit pour dicter (+ Maj : traduire)";
@@ -59,6 +62,7 @@ pub fn run() -> Result<(), String> {
             config.folder().to_path_buf(),
             log.path().to_path_buf(),
             page_url.clone(),
+            menu_source.clone(),
         )?;
         (host, Arc::new(indicator))
     };
@@ -78,6 +82,15 @@ pub fn run() -> Result<(), String> {
         indicator: Arc::new(TeeIndicator(sinks.clone())),
     };
     let app = Arc::new(build(config, log, platform, choices));
+    #[cfg(windows)]
+    if let Ok(mut slot) = menu_source.lock() {
+        *slot = Some(Arc::new(crate::tray_source::TraySource {
+            config: app.config.clone(),
+            history: history.clone(),
+            paster: app.platform.paster.clone(),
+            version: crate::web::build_id(),
+        }));
+    }
 
     let (sink, events) = std::sync::mpsc::channel();
     let keys = app.platform.keys.start(sink);

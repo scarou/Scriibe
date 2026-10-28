@@ -25,24 +25,26 @@ struct Note {
     length: f64,
     decay: f64,
     noise: f64,
+    /// Durée de la montée du son (s) : longue, le son est doux.
+    attack: f64,
 }
 
 const fn note(at: f64, from: f64, to: f64, length: f64, decay: f64) -> Note {
-    Note { at, from, to, length, decay, noise: 0.0 }
+    Note { at, from, to, length, decay, noise: 0.0, attack: 0.003 }
 }
 
 fn notes(name: &str) -> Option<Vec<Note>> {
     Some(match name {
         "Tink" => vec![note(0.0, 1760.0, 1760.0, 0.09, 45.0)],
         "Pop" => vec![note(0.0, 520.0, 260.0, 0.10, 38.0)],
-        "Purr" => vec![note(0.0, 150.0, 130.0, 0.20, 14.0)],
+        "Purr" => vec![note(0.0, 240.0, 200.0, 0.22, 11.0), note(0.0, 480.0, 400.0, 0.18, 14.0)],
         "Morse" => vec![note(0.0, 880.0, 880.0, 0.05, 20.0), note(0.09, 880.0, 880.0, 0.05, 20.0)],
         "Bottle" => vec![note(0.0, 420.0, 400.0, 0.22, 16.0)],
         "Frog" => vec![note(0.0, 300.0, 430.0, 0.07, 22.0), note(0.08, 330.0, 480.0, 0.09, 22.0)],
         "Glass" => vec![note(0.0, 2093.0, 2093.0, 0.45, 9.0), note(0.0, 3136.0, 3136.0, 0.30, 14.0)],
         "Ping" => vec![note(0.0, 1318.0, 1318.0, 0.30, 14.0)],
         "Submarine" => vec![note(0.0, 330.0, 190.0, 0.40, 8.0)],
-        "Blow" => vec![Note { noise: 0.9, ..note(0.0, 200.0, 140.0, 0.18, 12.0) }],
+        "Blow" => vec![Note { noise: 0.3, attack: 0.03, ..note(0.0, 330.0, 250.0, 0.24, 9.0) }],
         "Funk" => vec![note(0.0, 330.0, 330.0, 0.09, 18.0), note(0.10, 440.0, 440.0, 0.14, 14.0)],
         "Hero" => vec![note(0.0, 523.0, 523.0, 0.12, 12.0), note(0.11, 659.0, 659.0, 0.12, 12.0), note(0.22, 784.0, 784.0, 0.30, 8.0)],
         _ => return None,
@@ -65,7 +67,7 @@ pub fn synth(name: &str, volume: f64) -> Option<Vec<u8>> {
             let t = i as f64 / f64::from(RATE);
             let freq = n.from + (n.to - n.from) * (t / n.length);
             phase += 2.0 * std::f64::consts::PI * freq / f64::from(RATE);
-            let attack = (t / 0.003).min(1.0);
+            let attack = (t / n.attack).min(1.0);
             let release = ((n.length - t) / 0.01).clamp(0.0, 1.0);
             let envelope = attack * release * (-n.decay * t).exp();
             seed ^= seed << 13;

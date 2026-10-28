@@ -3,12 +3,14 @@
 //! lui poste des ordres par un canal.
 
 use crate::indicator::{Indicator, IndicatorState};
+use crate::tray_menu::{MenuView, TrayMenuSource};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tray_icon::menu::{Menu, MenuEvent, MenuItem};
+use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem, Submenu};
 use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
 use windows_sys::Win32::UI::WindowsAndMessaging::{DispatchMessageW, PeekMessageW, TranslateMessage, MSG, PM_REMOVE};
 
@@ -59,6 +61,16 @@ pub struct TrayHost {
     open_data: MenuItem,
     open_log: MenuItem,
     open_page: MenuItem,
+    dictation_hint: MenuItem,
+    translate_hint: MenuItem,
+    copy_last: MenuItem,
+    mode_menu: Submenu,
+    version_item: MenuItem,
+    /// Les modes du sous-menu (identifiant du mode, case) ; refait quand la liste change.
+    mode_items: Vec<(String, CheckMenuItem)>,
+    mode_ids: HashMap<MenuId, String>,
+    shown: Option<MenuView>,
+    source: Arc<Mutex<Option<Arc<dyn TrayMenuSource>>>>,
     /// Adresse de la page d'essais, connue une fois son serveur démarré.
     page_url: Arc<Mutex<Option<String>>>,
     data_folder: PathBuf,
@@ -105,15 +117,33 @@ impl TrayHost {
         data_folder: PathBuf,
         log_file: PathBuf,
         page_url: Arc<Mutex<Option<String>>>,
+        source: Arc<Mutex<Option<Arc<dyn TrayMenuSource>>>>,
     ) -> Result<(Self, TrayIndicator), String> {
         let menu = Menu::new();
         let open_page = MenuItem::new("Ouvrir Scriibe", true, None);
+        let dictation_hint = MenuItem::new("", false, None);
+        let translate_hint = MenuItem::new("", false, None);
+        let copy_last = MenuItem::new("Copier la dernière dictée", true, None);
+        let mode_menu = Submenu::new("Mode", true);
+        let version_item = MenuItem::new("", false, None);
         let open_data = MenuItem::new("Ouvrir le dossier des données", true, None);
         let open_log = MenuItem::new("Ouvrir le journal", true, None);
         let quit = MenuItem::new("Quitter Scriibe", true, None);
-        for item in [&open_page, &open_data, &open_log, &quit] {
-            menu.append(item).map_err(|e| format!("menu de l'icône : {e}"))?;
-        }
+        let separator = || PredefinedMenuItem::separator();
+        let error = |e| format!("menu de l'icône : {e}");
+        menu.append(&open_page).map_err(error)?;
+        menu.append(&separator()).map_err(error)?;
+        menu.append(&dictation_hint).map_err(error)?;
+        menu.append(&translate_hint).map_err(error)?;
+        menu.append(&copy_last).map_err(error)?;
+        menu.append(&separator()).map_err(error)?;
+        menu.append(&mode_menu).map_err(error)?;
+        menu.append(&separator()).map_err(error)?;
+        menu.append(&version_item).map_err(error)?;
+        menu.append(&open_data).map_err(error)?;
+        menu.append(&open_log).map_err(error)?;
+        menu.append(&separator()).map_err(error)?;
+        menu.append(&quit).map_err(error)?;
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
             .with_tooltip(idle_tip)
@@ -129,6 +159,15 @@ impl TrayHost {
             open_data,
             open_log,
             open_page,
+            dictation_hint,
+            translate_hint,
+            copy_last,
+            mode_menu,
+            version_item,
+            mode_items: Vec::new(),
+            mode_ids: HashMap::new(),
+            shown: None,
+            source,
             page_url,
             data_folder,
             log_file,
@@ -160,9 +199,54 @@ impl TrayHost {
         }
     }
 
+    /// Remet le menu d'accord avec les réglages (texte des touches, mode coché, liste des modes) : seulement ce qui a changé.
+    fn refresh_menu(&mut self) {
+        let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) else { return };
+        let view = source.view();
+        if self.shown.as_ref() == Some(&view) {
+            return;
+        }
+        let before = self.shown.as_ref();
+        let same_modes = before.is_some_and(|b| {
+            b.groups.iter().flatten().map(|m| (&m.id, &m.label)).eq(view.groups.iter().flatten().map(|m| (&m.id, &m.label)))
+        });
+        self.dictation_hint.set_text(&view.dictation_hint);
+        self.translate_hint.set_text(&view.translate_hint);
+        self.version_item.set_text(&view.version);
+        self.mode_menu.set_text(&view.mode_title);
+        self.mode_menu.set_enabled(view.modes_enabled);
+        if !same_modes {
+            while self.mode_menu.remove_at(0).is_some() {}
+            self.mode_items.clear();
+            self.mode_ids.clear();
+            for (index, group) in view.groups.iter().enumerate() {
+                if index > 0 {
+                    let _ = self.mode_menu.append(&PredefinedMenuItem::separator());
+                }
+                for mode in group {
+                    let item = CheckMenuItem::new(&mode.label, view.modes_enabled, mode.checked, None);
+                    let _ = self.mode_menu.append(&item);
+                    self.mode_ids.insert(item.id().clone(), mode.id.clone());
+                    self.mode_items.push((mode.id.clone(), item));
+                }
+            }
+        } else {
+            for (group, shown) in view.groups.iter().flatten().zip(&self.mode_items) {
+                shown.1.set_checked(group.checked);
+                shown.1.set_enabled(view.modes_enabled);
+            }
+        }
+        self.shown = Some(view);
+    }
+
     /// Boucle du fil principal : messages de Windows, ordres de l'indicateur, menu. Rend la main quand on choisit « Quitter ».
     pub fn run(mut self) {
+        let mut last_refresh = std::time::Instant::now() - Duration::from_secs(10);
         loop {
+            if last_refresh.elapsed() >= Duration::from_millis(500) {
+                last_refresh = std::time::Instant::now();
+                self.refresh_menu();
+            }
             // SAFETY : pompe les messages de ce fil (obligatoire pour que l'icône et son menu répondent).
             unsafe {
                 let mut message: MSG = std::mem::zeroed();
@@ -183,6 +267,17 @@ impl TrayHost {
                     if let Some(url) = url {
                         crate::open::open(&url);
                     }
+                } else if event.id == *self.copy_last.id() {
+                    if let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) {
+                        source.copy_last_dictation();
+                    }
+                } else if let Some(mode) = self.mode_ids.get(&event.id).cloned() {
+                    if let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) {
+                        source.choose_mode(&mode);
+                    }
+                    // Le clic a coché la case : le menu se remet tout de suite d'accord avec les réglages.
+                    self.shown = None;
+                    last_refresh = std::time::Instant::now() - Duration::from_secs(10);
                 } else if event.id == *self.open_data.id() {
                     crate::open::open(&self.data_folder.display().to_string());
                 } else if event.id == *self.open_log.id() {

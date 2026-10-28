@@ -148,6 +148,10 @@ fn send_ctrl_v() -> Result<(), String> {
 }
 
 impl Paster for WindowsPaster {
+    fn copy(&self, text: &str) -> bool {
+        write_text(text, false).is_ok()
+    }
+
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
         let saved = if restore_clipboard { read_text() } else { None };
         if let Err(e) = write_text(text, restore_clipboard) {

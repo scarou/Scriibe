@@ -12,6 +12,7 @@ mod app;
 mod assistant;
 mod commands;
 mod overlay;
+mod tray_source;
 mod web;
 #[cfg(windows)]
 mod window;

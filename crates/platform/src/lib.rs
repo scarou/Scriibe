@@ -17,6 +17,7 @@ pub mod secrets;
 pub mod sounds;
 pub mod storage;
 pub mod testing;
+pub mod tray_menu;
 mod unsupported;
 
 #[cfg(windows)]
