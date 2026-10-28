@@ -85,6 +85,8 @@ pub struct KeyCapture {
 struct Inner {
     deps: Deps,
     state: Mutex<State>,
+    /// Événements du clavier reçus depuis le lancement (diagnostic : le journal les compte à la fin d'une capture).
+    key_events: std::sync::atomic::AtomicU64,
 }
 
 /// Le chef d'orchestre. Les appels (`handle_key`, `tick`) viennent d'un seul fil ; le traitement d'une dictée s'exécute à part.
@@ -122,7 +124,7 @@ impl Controller {
             capture: None,
         };
         scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::hook_rules(&state.monitor.binding));
-        Self { inner: Arc::new(Inner { deps, state: Mutex::new(state) }) }
+        Self { inner: Arc::new(Inner { deps, state: Mutex::new(state), key_events: std::sync::atomic::AtomicU64::new(0) }) }
     }
 
     pub fn is_recording(&self) -> bool {
@@ -136,6 +138,7 @@ impl Controller {
     /// Un événement de clavier du système. Le crochet du système ne fait que les poster : cette méthode peut prendre son temps.
     pub fn handle_key(&self, event: KeyEvent) {
         let KeyEvent::Changed { changed, down, held } = event;
+        self.inner.key_events.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if self.capture_key(changed, down, &held) {
             return;
         }
@@ -223,10 +226,25 @@ impl Controller {
         let mut state = lock(&self.inner.state);
         state.monitor.reset();
         state.capture = Some(KeyCapture::default());
+        drop(state);
+        self.inner
+            .deps
+            .log
+            .write(&format!("capture des touches: commencée ({} événements du clavier reçus depuis le lancement)", self.key_event_count()));
     }
 
     pub fn stop_capture(&self) {
-        lock(&self.inner.state).capture = None;
+        let was_active = lock(&self.inner.state).capture.take().is_some();
+        if was_active {
+            self.inner.deps.log.write(&format!(
+                "capture des touches: arrêtée ({} événements du clavier reçus depuis le lancement)",
+                self.key_event_count()
+            ));
+        }
+    }
+
+    fn key_event_count(&self) -> u64 {
+        self.inner.key_events.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// L'état de la capture : `None` si elle n'est pas en cours.
@@ -241,11 +259,20 @@ impl Controller {
         if capture.finished {
             return true;
         }
-        if down && !capture.keys.contains(&changed) {
+        let first = down && !capture.keys.contains(&changed);
+        if first {
             capture.keys.push(changed);
         }
-        if !down && held.is_empty() && !capture.keys.is_empty() {
+        let finished_now = !down && held.is_empty() && !capture.keys.is_empty();
+        if finished_now {
             capture.finished = true;
+        }
+        let count = capture.keys.len();
+        drop(state);
+        // Seulement le nombre de touches : le journal ne dit jamais ce qui est tapé.
+        if first || finished_now {
+            let note = if finished_now { "combinaison complète" } else { "touche notée" };
+            self.inner.deps.log.write(&format!("capture des touches: {note} ({count} touche(s) dans la combinaison)"));
         }
         true
     }
