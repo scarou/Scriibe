@@ -7,6 +7,7 @@
   import KeyPicker from '../components/KeyPicker.svelte';
   import { colors, positions, styles } from '../lib/appearance';
   import { nav } from '../lib/nav.svelte';
+  import { t } from '../lib/i18n.svelte';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
@@ -99,9 +100,21 @@
   });
 </script>
 
-<h1>Réglages</h1>
+<h1>{t('Réglages')}</h1>
 
 {#if s && v}
+  <section class="card" id="langue">
+    <h2>{t('Langue de l’interface')}</h2>
+    <p class="muted">{t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}</p>
+    <label>{t('Langue :')}
+      <select value={v.uiLanguage} onchange={(e) => settings.change({ uiLanguage: e.currentTarget.value as never })}>
+        <option value="auto">{t('Automatique (celle du système)')}</option>
+        <option value="fr">Français</option>
+        <option value="en">English</option>
+      </select>
+    </label>
+  </section>
+
   <section class="card" id="moteurs">
     <h2>Moteurs <HelpButton section="privacy" /></h2>
     <p class="muted">Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.</p>

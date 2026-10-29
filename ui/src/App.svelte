@@ -5,6 +5,8 @@
   import { status } from './lib/status.svelte';
   import { createKeyRelay } from './lib/keyrelay';
   import { nav } from './lib/nav.svelte';
+  import { i18n, t } from './lib/i18n.svelte';
+  import { settings } from './lib/settings.svelte';
   import { tabs, type TabId } from './lib/tabs';
   import Settings from './tabs/Settings.svelte';
   import Install from './tabs/Install.svelte';
@@ -26,7 +28,7 @@
   }
 
   async function quit() {
-    if (!(await confirmBox('Quitter Scriibe ?', { confirm: 'Quitter' }))) return;
+    if (!(await confirmBox(t('Quitter Scriibe ?'), { confirm: t('Quitter') }))) return;
     await api('quit', {});
     stopped = true;
   }
@@ -37,8 +39,13 @@
   const onKeyUp = (e: KeyboardEvent) => relay.up(e);
   const onBlur = () => relay.blur();
 
+  $effect(() => {
+    document.documentElement.lang = i18n.lang;
+  });
+
   onMount(() => {
     status.start();
+    void settings.load();
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
@@ -53,21 +60,21 @@
 <Dialog />
 
 {#if stopped}
-  <main class="stopped"><p>Scriibe est arrêté. Vous pouvez fermer cette page.</p></main>
+  <main class="stopped"><p>{t('Scriibe est arrêté. Vous pouvez fermer cette page.')}</p></main>
 {:else}
   <div class="shell">
     <nav>
       <div class="brand"><Logo size={24} />Scriibe</div>
-      {#each tabs as t (t.id)}
-        <button class="nav" class:active={nav.tab === t.id} onclick={() => choose(t.id)}><span class="icon">{t.icon}</span>{t.label}</button>
+      {#each tabs as tab (tab.id)}
+        <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}</button>
       {/each}
       <div class="spacer"></div>
-      <div class="muted version">{status.value ? 'version ' + status.value.version : ''}</div>
-      <button class="nav" onclick={quit}>Quitter Scriibe</button>
+      <div class="muted version">{status.value ? t('version {version}', { version: status.value.version }) : ''}</div>
+      <button class="nav" onclick={quit}>{t('Quitter Scriibe')}</button>
     </nav>
     <main>
       {#if status.failed}
-        <div class="card bad">Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.</div>
+        <div class="card bad">{t('Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.')}</div>
       {/if}
       {#if nav.tab === 'dashboard'}<Dashboard goto={choose} />
       {:else if nav.tab === 'history'}<History />

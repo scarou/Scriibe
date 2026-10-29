@@ -6,6 +6,7 @@
   import { status } from '../lib/status.svelte';
   import { spoken } from '../lib/format';
   import { settings } from '../lib/settings.svelte';
+  import { i18n, t } from '../lib/i18n.svelte';
   import Assistant from '../components/Assistant.svelte';
   import TypingTest from '../components/TypingTest.svelte';
   import type { TabId } from '../lib/tabs';
@@ -17,7 +18,7 @@
   let recent = $state<HistoryItem[]>([]);
 
   let tallest = $derived(Math.max(1, ...(s?.last_days.map((d) => d.words) ?? [1])));
-  const weekday = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' });
+  const weekday = (iso: string) => new Date(iso).toLocaleDateString(i18n.locale, { weekday: 'narrow' });
 
   /** Montre l'assistant et le met en vue : la demande vient aussi des Réglages et de l'Aide. */
   async function openAssistant() {
@@ -45,7 +46,7 @@
   });
 </script>
 
-<div class="row head"><h1>Tableau de bord</h1><button onclick={openAssistant} title="Mesure l’ordinateur et propose les moteurs qui lui conviennent">Relancer l’assistant de premier lancement</button></div>
+<div class="row head"><h1>{t('Tableau de bord')}</h1><button onclick={openAssistant} title={t('Mesure l’ordinateur et propose les moteurs qui lui conviennent')}>{t('Relancer l’assistant de premier lancement')}</button></div>
 
 {#if showAssistant || (settings.value && !settings.value.setupDone)}
   <div id="assistant">
@@ -55,19 +56,19 @@
 
 {#if s}
   <div class="grid">
-    <div class="card big"><div class="n">{s.today_words}</div><div class="muted">mots aujourd’hui{#if s.today_change !== null}<br />{s.today_change >= 0 ? '+' : ''}{s.today_change} % par rapport à hier à la même heure{/if}</div></div>
-    <div class="card big"><div class="n">{s.total_words}</div><div class="muted">mots dictés au total, en {s.dictations} dictée(s)</div></div>
-    <div class="card big"><div class="n">{s.average_wpm}</div><div class="muted">mots par minute en moyenne (au clavier : {s.typing_wpm})</div></div>
-    <div class="card big"><div class="n">{spoken(s.time_saved)}</div><div class="muted">gagnées par rapport à la frappe</div></div>
-    <div class="card big"><div class="n">{s.streak}</div><div class="muted">jour(s) d’affilée avec une dictée</div></div>
-    <div class="card big"><div class="n">{s.corrections_this_week}</div><div class="muted">corrections du dictionnaire cette semaine</div></div>
+    <div class="card big"><div class="n">{s.today_words}</div><div class="muted">{t('mots aujourd’hui')}{#if s.today_change !== null}<br />{t('{change} % par rapport à hier à la même heure', { change: (s.today_change >= 0 ? '+' : '') + s.today_change })}{/if}</div></div>
+    <div class="card big"><div class="n">{s.total_words}</div><div class="muted">{t('mots dictés au total, en {n} dictée(s)', { n: s.dictations })}</div></div>
+    <div class="card big"><div class="n">{s.average_wpm}</div><div class="muted">{t('mots par minute en moyenne (au clavier : {n})', { n: s.typing_wpm })}</div></div>
+    <div class="card big"><div class="n">{spoken(s.time_saved)}</div><div class="muted">{t('gagnées par rapport à la frappe')}</div></div>
+    <div class="card big"><div class="n">{s.streak}</div><div class="muted">{t('jour(s) d’affilée avec une dictée')}</div></div>
+    <div class="card big"><div class="n">{s.corrections_this_week}</div><div class="muted">{t('corrections du dictionnaire cette semaine')}</div></div>
   </div>
 
   <section class="card">
-    <h2>14 derniers jours</h2>
+    <h2>{t('14 derniers jours')}</h2>
     <div class="chart">
       {#each s.last_days as d (d.day)}
-        <div class="col" title="{d.words} mots">
+        <div class="col" title={t('{n} mots', { n: d.words })}>
           <div class="bar-v" style="height: {Math.round((d.words / tallest) * 100)}%"></div>
           <div class="muted day">{weekday(d.day)}</div>
         </div>
@@ -76,33 +77,33 @@
   </section>
 
   <section class="card">
-    <div class="row head"><h2>Dernières dictées</h2><button onclick={() => goto('history')} disabled={!recent.length}>Tout voir</button></div>
+    <div class="row head"><h2>{t('Dernières dictées')}</h2><button onclick={() => goto('history')} disabled={!recent.length}>{t('Tout voir')}</button></div>
     {#each recent as d (d.id)}
       <div class="recent">
-        <span class="muted time">{new Date(d.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-        <div><span class="muted">{d.app} · {d.words} mots</span><div class="text">{d.has_text ? d.text : 'Texte non gardé (réglage de confidentialité)'}</div></div>
+        <span class="muted time">{new Date(d.date).toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' })}</span>
+        <div><span class="muted">{t('{app} · {n} mots', { app: d.app, n: d.words })}</span><div class="text">{d.has_text ? d.text : t('Texte non gardé (réglage de confidentialité)')}</div></div>
       </div>
     {:else}
-      <p class="muted">Maintiens {status.value?.dictation_label ?? 'Ctrl droit'} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.</p>
+      <p class="muted">{t('Maintiens {key} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.', { key: status.value?.dictation_label ?? 'Ctrl droit' })}</p>
     {/each}
   </section>
 
   <section class="card">
-    <h2>Où tu dictes</h2>
+    <h2>{t('Où tu dictes')}</h2>
     {#each s.top_apps as a (a.name)}
-      <div class="app"><span>{a.name}</span><div class="share"><div style="width: {Math.round(a.share * 100)}%"></div></div><span class="muted">{a.words} mots · {Math.round(a.share * 100)} %</span></div>
+      <div class="app"><span>{a.name}</span><div class="share"><div style="width: {Math.round(a.share * 100)}%"></div></div><span class="muted">{t('{n} mots · {share} %', { n: a.words, share: Math.round(a.share * 100) })}</span></div>
     {:else}
-      <p class="muted">Pas encore de dictée.</p>
+      <p class="muted">{t('Pas encore de dictée.')}</p>
     {/each}
   </section>
 
   <section class="card">
-    <h2>Ma vitesse au clavier <HelpButton section="measures" /></h2>
-    <p class="muted">Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.</p>
+    <h2>{t('Ma vitesse au clavier')} <HelpButton section="measures" /></h2>
+    <p class="muted">{t('Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.')}</p>
     <TypingTest />
   </section>
 {:else}
-  <p class="muted">Chargement…</p>
+  <p class="muted">{t('Chargement…')}</p>
 {/if}
 
 <style>

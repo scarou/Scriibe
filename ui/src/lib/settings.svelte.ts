@@ -1,6 +1,7 @@
 import { notice } from './dialog.svelte';
 import { api, type Settings } from './api';
 import { status } from './status.svelte';
+import { i18n } from './i18n.svelte';
 
 /** Les réglages du fichier de réglages : lus au démarrage, changés par petits morceaux (le serveur fusionne et enregistre). */
 class SettingsStore {
@@ -9,12 +10,14 @@ class SettingsStore {
 
   async load(): Promise<void> {
     this.value = (await api<{ settings: Settings }>('settings')).settings;
+    i18n.use(this.value.uiLanguage);
   }
 
   async change(changes: Partial<Settings>): Promise<boolean> {
     const out = await api<{ ok: boolean; error?: string; settings?: Settings }>('settings', changes);
     if (out.ok && out.settings) {
       this.value = out.settings;
+      i18n.use(out.settings.uiLanguage);
       this.error = '';
     } else {
       this.error = out.error ?? 'réglage refusé';

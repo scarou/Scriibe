@@ -74,6 +74,8 @@ export interface Settings {
   /** Identifiants des touches de dictée (vide : Ctrl droit) et de la touche de traduction (vide : Maj). */
   dictationKeys: string[];
   translateKeys: string[];
+  /** Langue de l'interface : automatique (celle du système), français ou anglais. */
+  uiLanguage: 'auto' | 'fr' | 'en';
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
   captureColor: 'scribe' | 'gray' | 'red' | 'blue' | 'black';

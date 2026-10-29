@@ -148,6 +148,16 @@ pub enum CaptureColor {
     Black,
 }
 
+/// La langue des textes de l'interface (pas celle de la dictée ni de la traduction). `Auto` suit celle du système, décidée par la page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UiLanguage {
+    #[default]
+    Auto,
+    Fr,
+    En,
+}
+
 /// Un modèle à comparer dans le banc d'essai de la mise au propre.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrialCandidate {
@@ -279,6 +289,9 @@ pub struct AppSettings {
     /// Touche tenue en plus pour traduire (une seule, ou « Maj, l'une ou l'autre ») ; vide : celle par défaut (Maj). Propre à Scriibe.
     #[serde(rename = "translateKeys")]
     pub translate_keys: Vec<String>,
+    /// Langue de l'interface (S08) : automatique (celle du système), français ou anglais. Propre à Scriibe.
+    #[serde(rename = "uiLanguage")]
+    pub ui_language: UiLanguage,
 }
 
 impl Default for AppSettings {
@@ -330,6 +343,7 @@ impl Default for AppSettings {
             overlay_enabled: true,
             dictation_keys: Vec::new(),
             translate_keys: Vec::new(),
+            ui_language: UiLanguage::default(),
         }
     }
 }
@@ -427,6 +441,7 @@ impl AppSettings {
             overlay_enabled: get(o, "overlayEnabled").unwrap_or(d.overlay_enabled),
             dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
             translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
+            ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
         })
     }
 
