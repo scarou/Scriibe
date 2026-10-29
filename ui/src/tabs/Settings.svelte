@@ -6,6 +6,7 @@
   import { onMount, untrack } from 'svelte';
   import KeyPicker from '../components/KeyPicker.svelte';
   import { colors, positions, styles } from '../lib/appearance';
+  import { nav } from '../lib/nav.svelte';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
@@ -104,6 +105,10 @@
   <section class="card" id="moteurs">
     <h2>Moteurs <HelpButton section="privacy" /></h2>
     <p class="muted">Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.</p>
+    <div class="row">
+      <button onclick={() => nav.openAssistant()} title="Mesure l’ordinateur et propose les moteurs qui lui conviennent">Relancer l’assistant</button>
+      <button onclick={() => nav.openHelp('start')}>À quoi servent ces choix ?</button>
+    </div>
     <div class="row">
       <label>Transcription :
         <select value={v.transcriptionEngine} onchange={(e) => settings.change({ transcriptionEngine: e.currentTarget.value as never })}>

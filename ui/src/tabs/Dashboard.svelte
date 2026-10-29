@@ -1,6 +1,7 @@
 <script lang="ts">
   import HelpButton from '../components/HelpButton.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import { nav } from '../lib/nav.svelte';
   import { api, type HistoryItem, type Stats } from '../lib/api';
   import { status } from '../lib/status.svelte';
   import { spoken } from '../lib/format';
@@ -18,6 +19,20 @@
   let tallest = $derived(Math.max(1, ...(s?.last_days.map((d) => d.words) ?? [1])));
   const weekday = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'narrow' });
 
+  /** Montre l'assistant et le met en vue : la demande vient aussi des Réglages et de l'Aide. */
+  async function openAssistant() {
+    showAssistant = true;
+    await tick();
+    document.getElementById('assistant')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  $effect(() => {
+    if (nav.assistantRequested) {
+      nav.assistantRequested = false;
+      void openAssistant();
+    }
+  });
+
   onMount(() => {
     void settings.load();
     const load = () => {
@@ -30,10 +45,12 @@
   });
 </script>
 
-<h1>Tableau de bord</h1>
+<div class="row head"><h1>Tableau de bord</h1><button onclick={openAssistant} title="Mesure l’ordinateur et propose les moteurs qui lui conviennent">Relancer l’assistant de premier lancement</button></div>
 
 {#if showAssistant || (settings.value && !settings.value.setupDone)}
-  <Assistant onclose={() => { showAssistant = false; void settings.load(); }} ongoto={(tab) => goto(tab)} />
+  <div id="assistant">
+    <Assistant onclose={() => { showAssistant = false; void settings.load(); }} ongoto={(tab) => goto(tab)} />
+  </div>
 {/if}
 
 {#if s}
@@ -78,7 +95,6 @@
       <p class="muted">Pas encore de dictée.</p>
     {/each}
   </section>
-  <div class="row"><button onclick={() => (showAssistant = true)}>Relancer l’assistant de premier lancement</button></div>
 
   <section class="card">
     <h2>Ma vitesse au clavier <HelpButton section="measures" /></h2>

@@ -95,6 +95,34 @@
         {@render go('Tableau de bord', 'dashboard')}
       </div>
       {@render tip('Pour vérifier le micro et voir ce que Whisper entend, lis une phrase dans le Banc d’essai : elle montre le niveau du micro avant d’aller dicter dans une vraie appli.')}
+      <div class="links"><button class="go" onclick={() => nav.openAssistant()} title="Ouvrir l’assistant sur le Tableau de bord">→ Relancer l’assistant de premier lancement</button></div>
+
+      <h3>Ce qui se passe entre ta voix et le texte</h3>
+      <p>Quand tu relâches la touche, ta phrase passe par plusieurs étapes, chacune faite par quelqu’un (ou quelque chose) de différent :</p>
+      <ol class="steps">
+        <li><b>Le micro</b> enregistre ce que tu dis pendant que tu maintiens la touche. Rien d’autre : c’est un simple fichier de son.</li>
+        <li><b>La transcription</b> (Whisper, ou Deepgram en ligne) écoute ce son et écrit les mots. C’est comme un sous-titreur : il entend, il n’interprète pas. Il écrit ce qu’il croit entendre, avec une ponctuation approximative, et il peut se tromper sur un nom propre ou un mot rare.</li>
+        <li><b>Les corrections de texte</b> appliquent des règles fixes, sans modèle et sans attente : les signes dictés (« point à la ligne », « ouvrez la parenthèse »), les listes, et ton dictionnaire (« cloud code » → « Claude Code »).</li>
+        <li><b>La mise au propre</b> est faite par un <b>modèle de langage</b> (llama.cpp sur cet ordinateur, ou OpenRouter en ligne). Lui comprend le sens : il retire les « euh » et les reprises, corrige la ponctuation, reformule si le mode le demande, et traduit si tu tiens la touche de traduction. Il suit la consigne du mode choisi, et un garde-fou vérifie qu’il n’a pas répondu à ta place ou inventé du texte.</li>
+        <li><b>La typographie française</b> met les espaces avant « ? » ou « : », les « » et les apostrophes comme il faut, puis Scriibe <b>colle</b> le résultat là où est ton curseur.</li>
+      </ol>
+      {@render tip('Deux modèles différents travaillent donc l’un après l’autre : celui qui écoute (Whisper) et celui qui rédige (le modèle de mise au propre). Ils ne servent pas à la même chose, et on peut choisir l’un en local et l’autre en ligne.')}
+
+      <h3>Un programme, un modèle : à quoi sert le choix ?</h3>
+      <p>Chaque étape a deux morceaux. Le <b>programme</b> (<i>whisper-server</i>, <i>llama-server</i>) est le moteur : petit, il sait faire tourner un modèle. Le <b>modèle</b> est un gros fichier qui contient tout ce que l’intelligence artificielle a appris : c’est lui qui fait la qualité. Un même programme peut faire tourner des modèles très différents, d’où le choix.</p>
+      <p>Choisir un modèle, c’est choisir un compromis entre quatre choses :</p>
+      <ul>
+        <li><b>La qualité.</b> Un gros modèle entend mieux (Whisper « small » plus que « base ») ou rédige mieux (un modèle de 3 milliards de paramètres plus qu’un de 0,5 milliard). Un petit modèle se trompe plus : un mot mal entendu, une phrase mal reformulée, une reprise « non pardon » non corrigée.</li>
+        <li><b>La vitesse.</b> Un gros modèle fait plus de calculs, donc il met plus longtemps. Sur un portable sans vraie carte graphique, Whisper « small » prend plusieurs fois plus de temps que « base », et un modèle de rédaction de 3 milliards de paramètres met une dizaine de secondes par phrase. Un service en ligne répond en deux secondes environ, parce qu’il tourne sur des machines puissantes.</li>
+        <li><b>La place et la mémoire.</b> Un modèle prend de quelques centaines de Mo à plusieurs Go sur le disque, et autant en mémoire quand il travaille. Une carte graphique de 2 Go ne tient pas un modèle de 2 Go : Scriibe bascule alors tout seul sur le processeur.</li>
+        <li><b>La confidentialité et le coût.</b> En local, rien ne quitte l’ordinateur et c’est gratuit. En ligne (Deepgram, OpenRouter), c’est rapide, mais ta voix ou ton texte part chez le service, et il faut une clé (souvent payante).</li>
+      </ul>
+      <p>Sans idée précise, laisse l’assistant choisir : il mesure ton ordinateur et propose la combinaison qui convient, avec les temps qu’on a vraiment mesurés. Tu peux le <b>relancer quand tu veux</b> (bouton ci-dessus, en haut du Tableau de bord ou dans Réglages → Moteurs) si tu changes d’ordinateur, de carte graphique ou d’avis.</p>
+      <div class="links">
+        {@render go('Choisir les moteurs', 'settings', 'moteurs')}
+        {@render go('Installer un modèle', 'install')}
+        {@render go('Comparer avec le Banc d’essai', 'bench')}
+      </div>
 
     {:else if open === 'dictate'}
       <h2>Dicter et traduire</h2>
@@ -218,6 +246,7 @@
       {@render question('Il manque un programme ou un modèle.', 'Onglet Installation : whisper-server, un modèle Whisper (ggml-base.bin pour commencer), et pour une mise au propre locale llama-server et un modèle GGUF. Chaque téléchargement montre sa taille et sa source avant de demander ton accord ; une connexion coupée reprend là où elle s’était arrêtée.')}
       {@render question('Avec llama.cpp, la mise au propre ne démarre pas.', 'Il faut llama-server et un fichier modèle .gguf (onglet Installation, qui dit ce qui manque). Si le journal du moteur parle de mémoire, essaie « Processeur seulement » dans Réglages → Moteurs → Carte graphique : sur une carte de 2 Go, le modèle ne tient pas toujours.')}
       {@render question('Ma question a reçu une réponse au lieu d’être écrite.', 'Le garde-fou écarte la plupart de ces sorties : un mode qui reformule réessaie en Simple, sinon le texte est collé sans mise au propre. S’il en laisse passer une avec un mode personnel, ajoute à ce mode un exemple de question.')}
+      {@render question('Whisper écrit « Mardi » ou « Vendredi » avec une majuscule.', 'En français les jours s’écrivent sans majuscule, mais Whisper les écrit parfois à l’anglaise. Ce n’est qu’une question de présentation : le sens ne change pas. Quand un modèle de mise au propre est actif, il corrige ce défaut ; sans lui (mode Littéral, mise au propre « Aucune »), la majuscule reste. Pour l’éviter, ajoute dans le Dictionnaire une correction automatique « mardi » → « mardi » (une par jour) : elle remplace toute écriture par la tienne, majuscule comprise. Attention, elle met aussi le jour en minuscule en début de phrase.')}
       {@render question('Un mot est toujours mal écrit.', 'Ajoute-le dans « Mes mots », ou une correction automatique (ce que Whisper entend → ce qu’il doit écrire). Un modèle Whisper plus gros entend mieux mais prend plus de temps : le Banc d’essai permet de le mesurer sur tes phrases.')}
       {@render question('La musique ou la vidéo ne s’arrête pas.', 'Vérifie que « Mettre en pause la musique ou la vidéo » est cochée (Réglages → Dictée). Le journal dit ce que Windows voit : « rien ne joue » liste les applis audio et leur niveau, « pause demandée » dit à qui la commande est partie. Pendant un appel, rien n’est mis en pause, exprès.')}
       {@render question('La fenêtre est vide ou ne s’ouvre pas.', 'Clic droit sur l’icône près de l’horloge → « Ouvrir Scriibe ». Si WebView2 manque, la même interface s’ouvre dans ton navigateur. Fermer la fenêtre ne quitte pas Scriibe : pour l’arrêter, « Quitter Scriibe ».')}

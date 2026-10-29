@@ -31,6 +31,15 @@ class Nav {
     else window.scrollTo(0, 0);
   }
 
+  /** Demande l'ouverture de l'assistant de premier lancement ; le Tableau de bord la prend en compte à son affichage. */
+  assistantRequested = $state(false);
+
+  /** Relance l'assistant de premier lancement (bouton du Tableau de bord, des Réglages et de l'Aide). */
+  openAssistant(): void {
+    this.assistantRequested = true;
+    void this.go('dashboard');
+  }
+
   /** Ouvre une section de l'Aide (bouton « ? » d'une carte). */
   openHelp(section: HelpId): void {
     this.helpSection = section;
