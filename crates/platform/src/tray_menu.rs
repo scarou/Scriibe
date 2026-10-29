@@ -11,8 +11,22 @@ pub struct ModeEntry {
     pub checked: bool,
 }
 
+/// Les textes fixes du menu, dans la langue de l'interface.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MenuLabels {
+    pub open_page: String,
+    pub copy_last: String,
+    pub mode: String,
+    pub open_data: String,
+    pub open_log: String,
+    pub quit: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MenuView {
+    /// L'interface est en anglais (pour l'infobulle de l'icône).
+    pub english: bool,
+    pub labels: MenuLabels,
     /// « Maintiens Ctrl droit pour dicter ».
     pub dictation_hint: String,
     pub translate_hint: String,

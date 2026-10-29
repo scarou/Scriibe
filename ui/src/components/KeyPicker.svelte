@@ -3,6 +3,7 @@
   import { api } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
+  import { keyName, t } from '../lib/i18n.svelte';
 
   interface Capture {
     active: boolean;
@@ -128,48 +129,43 @@
 
 {#if s && v}
   <div class="row">
-    <span>Touche de dictée : <b>{s.dictation_label}</b></span>
-    <button onclick={() => begin('dictation')} disabled={kind === 'dictation'}>Changer…</button>
+    <span>{t('Touche de dictée :')} <b>{keyName(s.dictation_label)}</b></span>
+    <button onclick={() => begin('dictation')} disabled={kind === 'dictation'}>{t('Changer…')}</button>
   </div>
   <div class="row">
-    <span>Touche tenue en plus pour traduire : <b>{s.translate_label}</b></span>
-    <button onclick={() => begin('translate')} disabled={kind === 'translate'}>Changer…</button>
+    <span>{t('Touche tenue en plus pour traduire :')} <b>{keyName(s.translate_label)}</b></span>
+    <button onclick={() => begin('translate')} disabled={kind === 'translate'}>{t('Changer…')}</button>
   </div>
 
   {#if kind}
     <div class="capture" role="status">
       {#if !capture.finished}
-        <b>{kind === 'dictation' ? 'Appuie sur la touche ou la combinaison voulue' : 'Appuie sur la touche à tenir en plus'}</b>, puis relâche tout.
-        {#if capture.labels?.length}<div class="live">{capture.labels.join(' + ')}</div>
+        <b>{kind === 'dictation' ? t('Appuie sur la touche ou la combinaison voulue, puis relâche tout.') : t('Appuie sur la touche à tenir en plus, puis relâche tout.')}</b>
+        {#if capture.labels?.length}<div class="live">{capture.labels.map(keyName).join(' + ')}</div>
         {:else if waited > 6}
-          <div class="warn">Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une
-            autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre :
-            passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.</div>
+          <div class="warn">{t('Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre : passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.')}</div>
         {/if}
-        <div class="row"><button onclick={() => stop()}>Annuler</button></div>
+        <div class="row"><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else if capture.error}
-        <div class="bad">{capture.labels?.join(' + ')} — {capture.error}</div>
-        <div class="row"><button onclick={() => begin(kind!)}>Réessayer</button><button onclick={() => stop()}>Annuler</button></div>
+        <div class="bad">{capture.labels?.map(keyName).join(' + ')} — {t(capture.error)}</div>
+        <div class="row"><button onclick={() => begin(kind!)}>{t('Réessayer')}</button><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else}
-        <div>Nouvelle touche : <b>{capture.labels?.join(' + ')}</b></div>
+        <div>{t('Nouvelle touche :')} <b>{capture.labels?.map(keyName).join(' + ')}</b></div>
         {#if waitNote}
-          <p class="muted">Ce sont des touches de modification seules : il faudra les tenir une fraction de seconde (0,3 s) avant que l’écoute commence, pour qu’un
-            raccourci clavier (Ctrl+C, Maj+lettre…) n’ouvre pas le micro.</p>
+          <p class="muted">{t('Ce sont des touches de modification seules : il faudra les tenir une fraction de seconde (0,3 s) avant que l’écoute commence, pour qu’un raccourci clavier (Ctrl+C, Maj+lettre…) n’ouvre pas le micro.')}</p>
         {/if}
-        <div class="row"><button class="primary" onclick={use}>Utiliser cette touche</button><button onclick={() => begin(kind!)}>Recommencer</button><button onclick={() => stop()}>Annuler</button></div>
+        <div class="row"><button class="primary" onclick={use}>{t('Utiliser cette touche')}</button><button onclick={() => begin(kind!)}>{t('Recommencer')}</button><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {/if}
     </div>
   {/if}
 
   <div class="row">
-    <button onclick={test} disabled={testing || !!kind}>{testing ? 'Maintiens ta touche…' : 'Tester ma touche'}</button>
-    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>Rétablir Ctrl droit + Maj</button>
-    {#if detected}<span class="ok">✔ Touche reconnue : Scriibe écoute ({s.dictation_label}).</span>{:else if testing}<span class="muted">Passe dans le Bloc-notes (ou une autre appli), puis maintiens {s.dictation_label}…</span>{/if}
+    <button onclick={test} disabled={testing || !!kind}>{testing ? t('Maintiens ta touche…') : t('Tester ma touche')}</button>
+    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>{t('Rétablir Ctrl droit + Maj')}</button>
+    {#if detected}<span class="ok">{t('✔ Touche reconnue : Scriibe écoute ({key}).', { key: keyName(s.dictation_label) })}</span>{:else if testing}<span class="muted">{t('Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) })}</span>{/if}
   </div>
   <p class="muted">
-    Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl,
-    les touches de fonction, « &lt; &gt; » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € »
-    sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « &lt; &gt; ») n’écrit rien dans l’appli pendant la dictée.
+    {t('Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.')}
   </p>
 {/if}
 

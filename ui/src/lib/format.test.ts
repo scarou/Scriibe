@@ -43,3 +43,20 @@ describe('tailles et nombres courts', () => {
     expect([compte(950), compte(1200), compte(12_345), compte(1_200_000), compte(3_000_000)]).toEqual(['950', '1,2 k', '12 k', '1,2 M', '3 M']);
   });
 });
+
+describe('formats en anglais', () => {
+  it('met un point aux décimales et les unités en anglais', () => {
+    expect(fmt(3.456, 'en')).toBe('3.46');
+    expect(mo(465 * 1048576, 'en')).toBe('465 MB');
+    expect(taille(2_490_000_000, 'en')).toBe('2.3 GB');
+    expect(taille(147_951_465, 'en')).toBe('141 MB');
+    expect(compte(12_300, 'en')).toBe('12 k');
+    expect(compte(1_200_000, 'en')).toBe('1.2 M');
+    expect(compte(2_000, 'en')).toBe('2 k');
+    expect(compte(2_000)).toBe('2 k');
+    expect(compte(1_250)).toBe('1,3 k');
+  });
+  it('écrit les dates avec « at »', () => {
+    expect(when('2026-10-27T14:05:00', 'en')).toBe('27/10/2026 at 14:05');
+  });
+});

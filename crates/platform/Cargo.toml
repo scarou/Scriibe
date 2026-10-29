@@ -35,6 +35,7 @@ windows = { version = "0.57", features = [
 tray-icon = "0.19"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
+    "Win32_Globalization",
     "Win32_Media",
     "Win32_Media_Audio",
     "Win32_Security_Credentials",

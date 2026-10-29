@@ -1,4 +1,6 @@
 import texts from './typing-texts.json';
+import textsEn from './typing-texts-en.json';
+import { tx } from './i18n';
 
 /** Test de vitesse de frappe : port de `TypingTest.swift` (Scribe). La vitesse mesurée peut remplacer le réglage « Ma vitesse au clavier »
  * (`typingWPM`) qui sert au temps gagné du tableau de bord. */
@@ -6,6 +8,9 @@ import texts from './typing-texts.json';
 /** Textes courts, sans chiffres ni majuscules rares, avec des accents et quelques apostrophes comme en vraie rédaction.
  * Extraits de `TypingTest.swift` par `tools/extraire_frappe.py`, jamais retapés. */
 export const typingTexts: string[] = texts;
+
+/** Les textes en anglais, pour l'interface en anglais : le test de frappe ne passe pas par Whisper, il suit la langue de l'interface (écart voulu, `docs/ECARTS.md`). */
+export const typingTextsEn: string[] = textsEn;
 
 /** Sous ce taux de caractères justes, la vitesse n'est pas retenue : taper n'importe quoi vite ne mesure rien. */
 export const MINIMUM_ACCURACY = 0.9;
@@ -100,13 +105,13 @@ export function percent(correct: number, total: number): number {
 export function rejectionText(r: Rejection): string {
   switch (r) {
     case 'incomplete':
-      return 'texte pas tapé jusqu’au bout';
+      return tx('texte pas tapé jusqu’au bout');
     case 'inaccurate':
       return 'trop de fautes (il faut au moins 90 % de lettres justes)';
     case 'tooShort':
-      return 'trop court pour être mesuré';
+      return tx('trop court pour être mesuré');
     case 'tooLong':
-      return 'trop long : essai oublié ouvert ?';
+      return tx('trop long : essai oublié ouvert ?');
     case 'tooFast':
       return 'plus de 200 mots par minute : ce n’est pas de la frappe';
   }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Comparison, DiffWord } from '../lib/api';
-  import { fmt, when } from '../lib/format';
+  import { fmt, when } from '../lib/display.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let { comparison }: { comparison: Comparison } = $props();
 
@@ -14,33 +15,33 @@
 {/snippet}
 
 <div class="head">
-  <div><b>Ancien</b> · {when(comparison.older.date)}<br /><span class="muted">{comparison.older.summary}</span></div>
-  <div><b>Récent</b> · {when(comparison.newer.date)}<br /><span class="muted">{comparison.newer.summary}</span></div>
+  <div><b>{t('Ancien')}</b> · {when(comparison.older.date)}<br /><span class="muted">{comparison.older.summary}</span></div>
+  <div><b>{t('Récent')}</b> · {when(comparison.newer.date)}<br /><span class="muted">{comparison.newer.summary}</span></div>
 </div>
 <div class="muted">
-  {comparison.common} phrase(s) lue(s) dans les deux passages ·
-  <span class="ok">{comparison.improved} améliorée(s)</span> · <span class={comparison.regressed ? 'bad' : ''}>{comparison.regressed} dégradée(s)</span>
+  {t('{n} phrase(s) lue(s) dans les deux passages', { n: comparison.common })} ·
+  <span class="ok">{t('{n} améliorée(s)', { n: comparison.improved })}</span> · <span class={comparison.regressed ? 'bad' : ''}>{t('{n} dégradée(s)', { n: comparison.regressed })}</span>
   {#if comparison.older.average_total !== null && comparison.newer.average_total !== null}
-    · temps moyen après le relâchement : {fmt(comparison.older.average_total)} s → <b>{fmt(comparison.newer.average_total)} s</b>
+    · {t('temps moyen après le relâchement :')} {fmt(comparison.older.average_total)} s → <b>{fmt(comparison.newer.average_total)} s</b>
   {/if}
-  · contrôles : {comparison.older.checks_passed}/{comparison.older.checks_total} → <b>{comparison.newer.checks_passed}/{comparison.newer.checks_total}</b>
+  · {t('contrôles :')} {comparison.older.checks_passed}/{comparison.older.checks_total} → <b>{comparison.newer.checks_passed}/{comparison.newer.checks_total}</b>
 </div>
 
 {#each comparison.rows as row (row.text)}
   <div class="row-cmp" class:changed={row.in_both && row.changed}>
-    <div class="cat"><span class="tag">{row.category}</span> <span class="muted">{row.text}</span></div>
+    <div class="cat"><span class="tag">{t(row.category)}</span> <span class="muted">{row.text}</span></div>
     {#if !row.in_both}
-      <div class="muted">Lue seulement dans le passage {row.older ? 'ancien' : 'récent'}.</div>
+      <div class="muted">{row.older ? t('Lue seulement dans le passage ancien.') : t('Lue seulement dans le passage récent.')}</div>
     {:else}
       <div class="cols">
         <div>{@render words(row.older_words, row.older?.pasted ?? '', 'old')}</div>
         <div>{@render words(row.newer_words, row.newer?.pasted ?? '', 'new')}</div>
       </div>
-      {#each row.improvements as label (label)}<div class="ok">✔ gagné : {label}</div>{/each}
-      {#each row.regressions as label (label)}<div class="bad">✘ perdu : {label}</div>{/each}
-      {#if !row.changed}<div class="muted">texte identique</div>{/if}
+      {#each row.improvements as label (label)}<div class="ok">{t('✔ gagné : {label}', { label: t(label) })}</div>{/each}
+      {#each row.regressions as label (label)}<div class="bad">{t('✘ perdu : {label}', { label: t(label) })}</div>{/each}
+      {#if !row.changed}<div class="muted">{t('texte identique')}</div>{/if}
       <div class="muted">
-        total {fmt(row.older?.timing.total ?? 0)} s → {fmt(row.newer?.timing.total ?? 0)} s
+        {t('total {a} s → {b} s', { a: fmt(row.older?.timing.total ?? 0), b: fmt(row.newer?.timing.total ?? 0) })}
       </div>
     {/if}
   </div>

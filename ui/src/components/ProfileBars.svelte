@@ -1,14 +1,15 @@
 <script lang="ts">
   import type { Profile } from '../lib/api';
-  import { fmt } from '../lib/format';
+  import { fmt } from '../lib/display.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let { profile }: { profile: Profile | undefined } = $props();
 </script>
 
 {#if profile && profile.levels.length}
   <div class="muted">
-    Profil du son (un trait = ¼ de seconde) — pic {fmt(profile.peak)}
-    {#if profile.clipped > 0.005}— <span class="bad">saturation : {fmt(profile.clipped * 100)} % des échantillons</span>{/if}
+    {t('Profil du son (un trait = ¼ de seconde) — pic {peak}', { peak: fmt(profile.peak) })}
+    {#if profile.clipped > 0.005}— <span class="bad">{t('saturation : {x} % des échantillons', { x: fmt(profile.clipped * 100) })}</span>{/if}
   </div>
   <div class="profile">
     {#each profile.levels as l, i (i)}

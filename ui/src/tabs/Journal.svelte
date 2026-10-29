@@ -5,9 +5,10 @@
   import { bench } from '../lib/bench.svelte';
   import { buildReport } from '../lib/report';
   import { status } from '../lib/status.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let lines = $state<string[]>([]);
-  let report = $state('Faites quelques essais, puis cliquez sur « Copier le rapport ».');
+  let report = $state('');
   let copied = $state('');
   let logBox: HTMLPreElement | undefined = $state();
 
@@ -27,9 +28,9 @@
     report = buildReport(s, bench.results, devices, log);
     try {
       await navigator.clipboard.writeText(report);
-      copied = 'Copié : collez-le dans la conversation.';
+      copied = t('Copié : collez-le dans la conversation.');
     } catch {
-      copied = 'Copie refusée : sélectionnez le texte ci-dessous.';
+      copied = t('Copie refusée : sélectionnez le texte ci-dessous.');
     }
   }
 
@@ -40,17 +41,17 @@
   });
 </script>
 
-<h1>Journal et rapport</h1>
+<h1>{t('Journal et rapport')}</h1>
 
 <section class="card">
-  <h2>Dictée avec la touche, dans une vraie appli</h2>
-  <p>Ouvrez le Bloc-notes, <b>maintenez Ctrl droit</b>, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.</p>
-  <div class="muted">Journal en direct (une ligne par étape, jamais le texte dicté) :</div>
-  <pre bind:this={logBox}>{lines.join('\n') || '(vide)'}</pre>
+  <h2>{t('Dictée avec la touche, dans une vraie appli')}</h2>
+  <p>{t('Ouvrez le Bloc-notes, maintenez Ctrl droit, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.')}</p>
+  <div class="muted">{t('Journal en direct (une ligne par étape, jamais le texte dicté) :')}</div>
+  <pre bind:this={logBox}>{lines.join('\n') || t('(vide)')}</pre>
 </section>
 
 <section class="card">
-  <h2>Rapport à me coller <HelpButton section="measures" /></h2>
-  <div class="row"><button class="primary" onclick={copy}>Copier le rapport</button><span class="muted">{copied}</span></div>
-  <pre>{report}</pre>
+  <h2>{t('Rapport à me coller')} <HelpButton section="measures" /></h2>
+  <div class="row"><button class="primary" onclick={copy}>{t('Copier le rapport')}</button><span class="muted">{copied}</span></div>
+  <pre>{report || t('Faites quelques essais, puis cliquez sur « Copier le rapport ».')}</pre>
 </section>

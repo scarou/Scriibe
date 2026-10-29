@@ -6,7 +6,7 @@
   import { status } from '../lib/status.svelte';
   import { spoken } from '../lib/format';
   import { settings } from '../lib/settings.svelte';
-  import { i18n, t } from '../lib/i18n.svelte';
+  import { i18n, keyName, t } from '../lib/i18n.svelte';
   import Assistant from '../components/Assistant.svelte';
   import TypingTest from '../components/TypingTest.svelte';
   import type { TabId } from '../lib/tabs';
@@ -84,7 +84,7 @@
         <div><span class="muted">{t('{app} · {n} mots', { app: d.app, n: d.words })}</span><div class="text">{d.has_text ? d.text : t('Texte non gardé (réglage de confidentialité)')}</div></div>
       </div>
     {:else}
-      <p class="muted">{t('Maintiens {key} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.', { key: status.value?.dictation_label ?? 'Ctrl droit' })}</p>
+      <p class="muted">{t('Maintiens {key} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.', { key: keyName(status.value?.dictation_label ?? 'Ctrl droit') })}</p>
     {/each}
   </section>
 

@@ -2,7 +2,9 @@
   import { confirmBox, notice } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
-  import { mo, percent } from '../lib/format';
+  import { percent } from '../lib/format';
+  import { mo } from '../lib/display.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   interface UpdateState {
     windows: boolean;
@@ -47,7 +49,10 @@
 
   async function install() {
     if (!found) return;
-    if (!(await confirmBox(`Installer la version ${found.sha} (${mo(found.size)})\ndepuis ${found.source} ?\n\nScriibe va redémarrer.`, { confirm: 'Installer et redémarrer' }))) return;
+    if (!(await confirmBox(
+        [t('Installer la version {sha} ({size})', { sha: found.sha, size: mo(found.size) }), t('depuis {source} ?', { source: found.source }), '', t('Scriibe va redémarrer.')].join('\n'),
+        { confirm: t('Installer et redémarrer') },
+      ))) return;
     const out = await api('update/install', { confirmed: true });
     if (!out.ok) await notice(out.error);
     found = null;
@@ -61,41 +66,40 @@
   });
 </script>
 
-<h1>Mise à jour de Scriibe</h1>
+<h1>{t('Mise à jour de Scriibe')}</h1>
 
 {#if u}
   <section class="card">
     <div class="muted">
-      Version installée : {u.current ?? 'compilée à la main (inconnue)'}{u.windows ? '' : ' — la mise à jour ne marche que sous Windows'}
+      {t('Version installée : {version}', { version: u.current ?? t('compilée à la main (inconnue)') })}{u.windows ? '' : t(' — la mise à jour ne marche que sous Windows')}
     </div>
 
     {#if u.windows && !u.has_token}
       <p class="muted">
-        Pour récupérer les nouvelles versions sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le
-        Gestionnaire d’identifiants de Windows, jamais affiché ni écrit dans le journal.
+        {t('Pour récupérer les nouvelles versions sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le Gestionnaire d’identifiants de Windows, jamais affiché ni écrit dans le journal.')}
       </p>
       <div class="row">
-        <input type="password" class="grow" placeholder="Colle le jeton GitHub ici" autocomplete="off" bind:value={token} />
-        <button onclick={saveToken} disabled={!token}>Enregistrer le jeton</button>
+        <input type="password" class="grow" placeholder={t('Colle le jeton GitHub ici')} autocomplete="off" bind:value={token} />
+        <button onclick={saveToken} disabled={!token}>{t('Enregistrer le jeton')}</button>
       </div>
     {/if}
 
     {#if u.windows && u.has_token}
-      <div class="row"><button onclick={check} disabled={searching}>Chercher une nouvelle version</button></div>
-      {#if searching}<span class="muted">Recherche…</span>{/if}
+      <div class="row"><button onclick={check} disabled={searching}>{t('Chercher une nouvelle version')}</button></div>
+      {#if searching}<span class="muted">{t('Recherche…')}</span>{/if}
       {#if found}
         {#if !found.ok}
           <div class="bad">{found.error}</div>
         {:else}
           <div class="muted">
-            Dernière version : <b>{found.sha}</b> — « {found.title} »<br />
-            Construite le {found.date} · <b>{mo(found.size)}</b><br />
-            Source : {found.source} (exécution n° {found.run})
+            {t('Dernière version :')} <b>{found.sha}</b> — « {found.title} »<br />
+            {t('Construite le {date} ·', { date: found.date })} <b>{mo(found.size)}</b><br />
+            {t('Source : {source} (exécution n° {run})', { source: found.source, run: found.run })}
           </div>
           {#if found.up_to_date}
-            <div class="ok">✔ Vous avez déjà cette version.</div>
+            <div class="ok">{t('✔ Vous avez déjà cette version.')}</div>
           {:else}
-            <div class="row"><button class="primary" onclick={install}>Installer et redémarrer</button></div>
+            <div class="row"><button class="primary" onclick={install}>{t('Installer et redémarrer')}</button></div>
           {/if}
         {/if}
       {/if}
@@ -103,11 +107,11 @@
 
     {#if u.progress.state === 'running'}
       <div class="bar"><div style="width: {percent(u.progress.done ?? 0, u.progress.total ?? 0)}%"></div></div>
-      <span class="muted">Téléchargement {mo(u.progress.done ?? 0)} / {mo(u.progress.total ?? 0)} ({percent(u.progress.done ?? 0, u.progress.total ?? 0)} %)</span>
+      <span class="muted">{t('Téléchargement {done} / {total} ({percent} %)', { done: mo(u.progress.done ?? 0), total: mo(u.progress.total ?? 0), percent: percent(u.progress.done ?? 0, u.progress.total ?? 0) })}</span>
     {:else if u.progress.state === 'installed'}
-      <div class="ok">✔ Nouvelle version installée. Scriibe redémarre : une nouvelle fenêtre s’ouvre dans quelques secondes (celle-ci peut être fermée).</div>
+      <div class="ok">{t('✔ Nouvelle version installée. Scriibe redémarre : une nouvelle fenêtre s’ouvre dans quelques secondes (celle-ci peut être fermée).')}</div>
     {:else if u.progress.state === 'failed'}
-      <div class="bad">Échec : {u.progress.error}</div>
+      <div class="bad">{t('Échec : {error}', { error: u.progress.error ?? '' })}</div>
     {/if}
   </section>
 {/if}

@@ -166,8 +166,10 @@ impl BenchRun {
 
     /// Contrôles d'une phrase lue, d'après la liste actuelle du banc (aucun si la phrase n'y est plus).
     pub fn checks_for(entry: &RunEntry) -> Vec<CheckResult> {
+        // Un passage garde ses phrases par leur texte : celles du banc français comme celles du banc anglais.
         bench::phrases()
             .iter()
+            .chain(bench::phrases_en())
             .find(|p| p.text == entry.text)
             .map(|p| {
                 p.checks.iter().map(|c: &Check| CheckResult { label: c.label().to_string(), passed: c.passes(&entry.pasted) }).collect()
@@ -274,7 +276,7 @@ impl ComparisonRow {
 
 /// Dans l'ordre du banc actuel, puis les phrases qui n'y sont plus.
 pub fn compare(older: &BenchRun, newer: &BenchRun) -> Vec<ComparisonRow> {
-    let mut texts: Vec<String> = bench::phrases().iter().map(|p| p.text.clone()).collect();
+    let mut texts: Vec<String> = bench::phrases().iter().chain(bench::phrases_en()).map(|p| p.text.clone()).collect();
     for e in older.entries.iter().chain(&newer.entries) {
         if !texts.contains(&e.text) {
             texts.push(e.text.clone());

@@ -9,6 +9,7 @@ pub mod audio;
 pub mod bench_store;
 pub mod indicator;
 pub mod keys;
+pub mod locale;
 pub mod machine;
 pub mod media;
 pub mod open;

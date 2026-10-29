@@ -1,15 +1,16 @@
 import type { HistoryItem } from './api';
+import { tx } from './i18n';
 
 /** Ce qu'il est advenu de la mise au propre d'une dictée (mêmes libellés que Scribe, `DictationTiming.Cleanup`). */
 export const outcomeLabels: Record<string, string> = {
-  model: 'Modèle',
-  skipped: 'Sautée (déjà propre)',
-  short: 'Courte, sans modèle',
-  none: 'Sans modèle',
-  translated: 'Traduite',
-  fallback: 'Traduction écartée',
-  rejected: 'Écartée par le garde-fou',
-  failed: 'Échec du modèle',
+  model: tx('Modèle'),
+  skipped: tx('Sautée (déjà propre)'),
+  short: tx('Courte, sans modèle'),
+  none: tx('Sans modèle'),
+  translated: tx('Traduite'),
+  fallback: tx('Traduction écartée'),
+  rejected: tx('Écartée par le garde-fou'),
+  failed: tx('Échec du modèle'),
 };
 
 export function average(values: number[]): number | null {

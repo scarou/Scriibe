@@ -1,7 +1,7 @@
 import { notice } from './dialog.svelte';
 import { api, type Settings } from './api';
 import { status } from './status.svelte';
-import { i18n } from './i18n.svelte';
+import { i18n, t } from './i18n.svelte';
 
 /** Les réglages du fichier de réglages : lus au démarrage, changés par petits morceaux (le serveur fusionne et enregistre). */
 class SettingsStore {
@@ -20,7 +20,7 @@ class SettingsStore {
       i18n.use(out.settings.uiLanguage);
       this.error = '';
     } else {
-      this.error = out.error ?? 'réglage refusé';
+      this.error = out.error ?? t('réglage refusé');
       void notice(this.error);
     }
     await status.refresh();

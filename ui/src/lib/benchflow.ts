@@ -1,4 +1,5 @@
 import type { BenchSetup, Take, Timing, Transcribed } from './api';
+import { tx } from './i18n';
 
 /** Une phrase lue pendant un passage, avec ce que la chaîne en a fait. */
 export interface BenchResult {
@@ -133,7 +134,7 @@ export class BenchFlow {
     const i = this.results.findIndex((r) => r.index === index && r.comparing);
     if (i < 0) return false;
     const next = [...this.results];
-    next[i] = { ...next[i], comparing: false, modelError: 'pas attendue : le modèle n’avait pas fini (sa version est ajoutée si elle arrive)' };
+    next[i] = { ...next[i], comparing: false, modelError: tx('pas attendue : le modèle n’avait pas fini (sa version est ajoutée si elle arrive)') };
     this.results = next;
     return true;
   }

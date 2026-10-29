@@ -19,7 +19,8 @@ fn fixed(ctx: &Context, settings: &AppSettings, text: &str) -> (String, Vec<Stri
 
 /// Une phrase type passée au mode `mode` (le mode en cours si absent) : sortie, temps, mots en commun, verdict du garde-fou et contrôles.
 pub fn sample(ctx: &Context, input: &Value) -> Value {
-    let samples = scriibe_core::clean_test::samples();
+    let language = ctx.app.config.settings().language;
+    let samples = scriibe_core::clean_test::samples_for(language);
     let Some(index) = input["index"].as_u64().map(|i| i as usize).filter(|i| *i < samples.len()) else {
         return json!({"ok": false, "error": "phrase inconnue"});
     };
@@ -60,8 +61,10 @@ pub fn sample(ctx: &Context, input: &Value) -> Value {
         out = french_typography(&out);
     }
     // Les contrôles jugent le texte tel qu'il serait collé (typographie comprise : « 11h » → « 11 h »).
-    let checks: Vec<Value> =
-        scriibe_core::clean_test::checks_for_sample(index).iter().map(|c| json!({"label": c.label(), "ok": c.passes(&out)})).collect();
+    let checks: Vec<Value> = scriibe_core::clean_test::checks_for_sample_in(index, language)
+        .iter()
+        .map(|c| json!({"label": c.label(), "ok": c.passes(&out)}))
+        .collect();
     json!({
         "ok": true,
         "output": out,

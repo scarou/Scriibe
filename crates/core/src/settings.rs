@@ -158,6 +158,26 @@ pub enum UiLanguage {
     En,
 }
 
+impl UiLanguage {
+    /// La langue réellement affichée : le choix, ou (en automatique) celle du système si c'est le français, sinon l'anglais.
+    /// `system` : le nom de la langue du système (« fr-FR », « en_US.UTF-8 »…).
+    pub fn resolve(self, system: &str) -> UiLang {
+        match self {
+            Self::Fr => UiLang::Fr,
+            Self::En => UiLang::En,
+            Self::Auto if system.trim().to_lowercase().starts_with("fr") => UiLang::Fr,
+            Self::Auto => UiLang::En,
+        }
+    }
+}
+
+/// La langue des textes de l'interface, une fois le choix « automatique » résolu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UiLang {
+    Fr,
+    En,
+}
+
 /// Un modèle à comparer dans le banc d'essai de la mise au propre.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TrialCandidate {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { dialog } from '../lib/dialog.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   let cancel = $state<HTMLButtonElement | undefined>();
   let accept = $state<HTMLButtonElement | undefined>();
@@ -27,10 +28,10 @@
       <div id="dialog-text" class="text">{d.message}</div>
       <div class="actions">
         {#if d.confirm !== null}
-          <button bind:this={cancel} onclick={() => dialog.answer(false)}>Annuler</button>
+          <button bind:this={cancel} onclick={() => dialog.answer(false)}>{t('Annuler')}</button>
           <button bind:this={accept} class:danger={d.danger} class:primary={!d.danger} onclick={() => dialog.answer(true)}>{d.confirm}</button>
         {:else}
-          <button bind:this={accept} class="primary" onclick={() => dialog.answer(true)}>OK</button>
+          <button bind:this={accept} class="primary" onclick={() => dialog.answer(true)}>{t('OK')}</button>
         {/if}
       </div>
     </div>

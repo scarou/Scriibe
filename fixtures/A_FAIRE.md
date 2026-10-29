@@ -32,6 +32,10 @@ Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. �
 - La **logique de minuteries de la pause des médias** (`MediaPause.swift`, hors de la partie pure déjà reprise) n'a pas de cas dans `Checks.swift` : elle est vérifiée par des tests écrits à la main (`crates/platform/src/media.rs`, `media::tests`, avec une fausse source audio) et à la main sur un PC.
 - Rien d'autre n'a été ajouté ni retiré : les cas en attente (`ui_logic.json`, mode Amusant, prompts complets, banc, test de frappe) sont inchangés.
 
+## Noté en S08 (aucun cas de `Checks.swift` en plus)
+
+- Les phrases du **banc anglais** (17) et les **phrases types anglaises** (12) n'existent pas dans Scribe : écrites pour Scriibe (`crates/core/data/bench_phrases_en.json`, `clean_samples_en.json`), vérifiées par des tests écrits à la main (`bench::tests`, `clean_test::tests`), écart noté dans `docs/ECARTS.md`. Les cas de `fixtures/` ne les concernent pas.
+
 ## Sans objet pour le cœur
 
 Sélecteur de fichiers, `llama-server --help` (cas `invariant` : à vérifier à l'exécution), cartes et rubriques de l'interface (reprises dans `ui_logic.json` quand elles ont une logique testable).

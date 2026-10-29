@@ -1,0 +1,155 @@
+[
+ {
+  "category": "Clean",
+  "text": "I will be home around seven o'clock, so we can have dinner together.",
+  "expect": "Whisper returns it clean: skipped if the option is on.",
+  "checks": [
+   {"kind": "has", "label": "time kept", "forms": ["seven o'clock", "7 o'clock", "7:00", "7 p.m.", "7 pm", "7pm"]},
+   {"kind": "has", "label": "“dinner together” kept", "forms": ["dinner together"]}
+  ]
+ },
+ {
+  "category": "Clean, long",
+  "text": "I read through the minutes of Tuesday's meeting, and the only things missing are the list of attendees and the date of the next session.",
+  "expect": "Clean too, and longer: this is where skipping the model saves the most.",
+  "checks": [
+   {"kind": "has", "label": "attendees kept", "forms": ["attendees"]},
+   {"kind": "has", "label": "“next session” kept", "forms": ["next session"]}
+  ]
+ },
+ {
+  "category": "Question",
+  "text": "Can you send me the quote before Friday noon?",
+  "expect": "Read it as a question: it must stay a question.",
+  "checks": [
+   {"kind": "question"},
+   {"kind": "has", "label": "“quote” kept", "forms": ["quote"]}
+  ]
+ },
+ {
+  "category": "Hesitations",
+  "text": "Um, I think we could, uh, move the session to Thursday.",
+  "expect": "Say the “um” and “uh”: if they stay in what Whisper heard, the model has to be called.",
+  "checks": [
+   {"kind": "lacks", "label": "“um” and “uh” removed", "forms": ["um", "uh", "umm", "uhm"]},
+   {"kind": "has", "label": "“Thursday” kept", "forms": ["thursday"]}
+  ]
+ },
+ {
+  "category": "Hesitation at the start",
+  "text": "So, yeah, I will call you back tomorrow morning to talk about it.",
+  "expect": "“So, yeah” needs the model.",
+  "checks": [
+   {"kind": "lacks", "label": "“so, yeah” removed", "forms": ["so yeah", "yeah"]},
+   {"kind": "has", "label": "“tomorrow morning” kept", "forms": ["tomorrow morning"]}
+  ]
+ },
+ {
+  "category": "Self-correction",
+  "text": "The meeting is at ten o'clock, no sorry, at eleven o'clock.",
+  "expect": "The pasted text must keep only eleven o'clock.",
+  "checks": [
+   {"kind": "has", "label": "eleven o'clock kept", "forms": ["eleven o'clock", "11 o'clock", "11:00", "11 a.m.", "11 am"]},
+   {"kind": "lacks", "label": "ten o'clock removed", "forms": ["ten o'clock", "10 o'clock", "10:00", "10 a.m.", "10 am"]},
+   {"kind": "lacks", "label": "“no sorry” removed", "forms": ["sorry"]}
+  ]
+ },
+ {
+  "category": "Self-correction in one go",
+  "text": "The meeting is at ten o'clock no at eleven o'clock.",
+  "expect": "Read it in one go, without a pause: if it is skipped and “ten o'clock” stays, that is a wrong skip.",
+  "checks": [
+   {"kind": "has", "label": "eleven o'clock kept", "forms": ["eleven o'clock", "11 o'clock", "11:00", "11 a.m.", "11 am"]},
+   {"kind": "lacks", "label": "ten o'clock removed", "forms": ["ten o'clock", "10 o'clock", "10:00", "10 a.m.", "10 am"]}
+  ]
+ },
+ {
+  "category": "Short self-correction",
+  "text": "We leave on Monday, I mean Tuesday, depending on the weather.",
+  "expect": "The pasted text must keep only Tuesday.",
+  "checks": [
+   {"kind": "has", "label": "Tuesday kept", "forms": ["tuesday"]},
+   {"kind": "lacks", "label": "Monday removed", "forms": ["monday"]}
+  ]
+ },
+ {
+  "category": "Short self-correction in one go",
+  "text": "We leave on Monday I mean Tuesday depending on the weather.",
+  "expect": "In one go: the pasted text must keep only Tuesday.",
+  "checks": [
+   {"kind": "has", "label": "Tuesday kept", "forms": ["tuesday"]},
+   {"kind": "lacks", "label": "Monday removed", "forms": ["monday"]}
+  ]
+ },
+ {
+  "category": "Repetition",
+  "text": "I, I wanted to tell you that the package has arrived.",
+  "expect": "The repeated “I” must disappear.",
+  "checks": [
+   {"kind": "lacks", "label": "repeated “I” removed", "forms": ["i i"]},
+   {"kind": "has", "label": "“package” kept", "forms": ["package"]}
+  ]
+ },
+ {
+  "category": "Proper names",
+  "text": "I forwarded the invoice to Sarah Mitchell at Brightwater Logistics.",
+  "expect": "Names are hard to hear: if they come out wrong, add them to the dictionary.",
+  "checks": [
+   {"kind": "exact", "label": "“Sarah Mitchell” written like this", "form": "Sarah Mitchell"},
+   {"kind": "exact", "label": "“Brightwater Logistics” written like this", "form": "Brightwater Logistics"}
+  ]
+ },
+ {
+  "category": "Flat question",
+  "text": "Why has the server stopped responding since this morning",
+  "expect": "Read it without intonation: the “?” must appear.",
+  "checks": [
+   {"kind": "question"}
+  ]
+ },
+ {
+  "category": "Question without inversion",
+  "text": "You are sending me the quote before Friday",
+  "expect": "Read it as a question: if it is skipped without a “?”, that is a wrong skip.",
+  "checks": [
+   {"kind": "question"}
+  ]
+ },
+ {
+  "category": "Dictionary",
+  "text": "I added a skill in Claude Code to tidy the inbox of the Vault.",
+  "expect": "“Claude Code” must be written like this: if it is not, add it to the dictionary (like your other words).",
+  "checks": [
+   {"kind": "exact", "label": "“Claude Code” written like this", "form": "Claude Code"},
+   {"kind": "has", "label": "“skill” kept", "forms": ["skill"]}
+  ]
+ },
+ {
+  "category": "Numbers",
+  "text": "The invoice comes to one thousand two hundred and fifty dollars, to be paid before November fifteenth.",
+  "expect": "Amount and date right, in digits or in words.",
+  "checks": [
+   {"kind": "has", "label": "amount right", "forms": ["1,250", "1250", "one thousand two hundred and fifty", "one thousand two hundred fifty"]},
+   {"kind": "has", "label": "date right", "forms": ["november 15", "november 15th", "november fifteenth", "15 november", "15th of november", "fifteenth of november"]}
+  ]
+ },
+ {
+  "category": "Casual speech",
+  "text": "You know, the thing is, we don't have time this week.",
+  "expect": "Casual tone: “the thing” must stay. The model removes “you know” (a verbal tic); when skipped, the phrase keeps it.",
+  "checks": [
+   {"kind": "has", "label": "“the thing” kept", "forms": ["the thing"]},
+   {"kind": "has", "label": "“don't have time” kept", "forms": ["don't have time", "do not have time"]}
+  ]
+ },
+ {
+  "category": "Long",
+  "text": "For tomorrow's session, I suggest we start with five minutes of abdominal breathing, then a visualisation of the safe place, and finish with some time to share what everyone felt during the week.",
+  "expect": "About twenty seconds: look mostly at the total time.",
+  "checks": [
+   {"kind": "has", "label": "“abdominal breathing” kept", "forms": ["abdominal breathing"]},
+   {"kind": "has", "label": "“safe place” kept", "forms": ["safe place"]},
+   {"kind": "has", "label": "five minutes kept", "forms": ["five minutes", "5 minutes", "5 min"]}
+  ]
+ }
+]

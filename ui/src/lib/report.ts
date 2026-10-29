@@ -21,7 +21,7 @@ export function buildReport(s: Status, results: BenchResult[], devices: string[]
     const failed = x.out.checks.filter((c) => !c.passed);
     r += `Phrase ${x.index + 1} (${x.category})${x.translated ? ' [traduction]' : ''} : ${fmt(x.take.duration)} s, micro ${x.take.verdict} (${fmt(x.take.level)})${x.take.gain > 1.05 ? ' gain ×' + fmt(x.take.gain) : ''}\n`;
     if (x.out.profile) {
-      r += `  profil   : pic ${fmt(x.out.profile.peak)}, saturation ${fmt(x.out.profile.clipped * 100)} %, niveaux/¼ s : ${x.out.profile.levels.slice(0, 16).map(fmt).join(' ')}\n`;
+      r += `  profil   : pic ${fmt(x.out.profile.peak)}, saturation ${fmt(x.out.profile.clipped * 100)} %, niveaux/¼ s : ${x.out.profile.levels.slice(0, 16).map((n) => fmt(n)).join(' ')}\n`;
     }
     r += `  lue      : ${x.text}\n  entendu  : ${x.out.raw ?? '—'}\n  collé    : ${x.out.text ?? '—'}\n`;
     if (t) r += `  temps    : transcription ${fmt(t.transcription)} s, mise au propre ${fmt(t.cleanup)} s (${t.outcome}), total ${fmt(t.total)} s\n`;

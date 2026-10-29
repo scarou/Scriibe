@@ -62,6 +62,20 @@ impl RewriteMode {
         }
     }
 
+    /// Le nom du mode pour l'interface en anglais (le menu de l'icône ; la page a sa propre traduction, `ui/src/lib/locales/en-server.ts`).
+    pub fn label_en(self) -> &'static str {
+        match self {
+            Self::Literal => "Literal",
+            Self::Simple => "Simple",
+            Self::Formal => "Formal",
+            Self::Wellness => "Pro · Sophrology and wellbeing",
+            Self::Tech => "Pro · IT and AI",
+            Self::Letter => "Pro · Official letters",
+            Self::Sales => "Pro · Sales",
+            Self::Playful => "Playful (Smurf)",
+        }
+    }
+
     pub fn summary(self) -> &'static str {
         match self {
             Self::Literal => "Aucune reformulation : signes dictés, dictionnaire et typographie seulement",

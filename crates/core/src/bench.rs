@@ -58,10 +58,26 @@ impl Phrase {
     }
 }
 
-/// Les 17 phrases du banc de Scribe.
+/// Les 17 phrases du banc de Scribe (en français).
 pub fn phrases() -> &'static [Phrase] {
     static PHRASES: OnceLock<Vec<Phrase>> = OnceLock::new();
     PHRASES.get_or_init(|| serde_json::from_str(include_str!("../data/bench_phrases.json")).expect("bench_phrases.json est valide"))
+}
+
+/// Les 17 phrases du banc pour une dictée en anglais (écart voulu, `docs/ECARTS.md`) : écrites pour Scriibe, pas extraites de Scribe, avec les mêmes
+/// catégories de cas ; les signes dictés, propres au français, y sont remplacés par des noms propres.
+pub fn phrases_en() -> &'static [Phrase] {
+    static PHRASES: OnceLock<Vec<Phrase>> = OnceLock::new();
+    PHRASES.get_or_init(|| serde_json::from_str(include_str!("../data/bench_phrases_en.json")).expect("bench_phrases_en.json est valide"))
+}
+
+/// Les phrases à lire pour cette langue dictée : l'anglais pour une dictée en anglais, le français sinon (aussi pour « plusieurs langues »).
+pub fn phrases_for(language: crate::settings::DictationLanguage) -> &'static [Phrase] {
+    if language == crate::settings::DictationLanguage::En {
+        phrases_en()
+    } else {
+        phrases()
+    }
 }
 
 /// Minuscules (sauf `lowercase: false`), apostrophe droite, espaces de toute sorte réduits à un seul.
@@ -99,6 +115,36 @@ mod tests {
         assert_eq!(phrases().len(), 17);
         assert!(phrases().iter().all(|p| !p.checks.is_empty() && !p.text.is_empty()));
         assert_eq!(phrases().iter().map(|p| p.checks.len()).sum::<usize>(), 35);
+    }
+
+    #[test]
+    fn the_english_bench_mirrors_the_french_one_and_its_checks_tell_good_from_bad() {
+        use crate::settings::DictationLanguage;
+        let english = phrases_en();
+        assert_eq!(english.len(), 17);
+        assert!(english.iter().all(|p| !p.checks.is_empty() && !p.text.is_empty() && !p.expect.is_empty()));
+        assert!(english.iter().map(|p| &p.category).collect::<std::collections::HashSet<_>>().len() == 17, "17 catégories différentes");
+        assert_eq!(phrases_for(DictationLanguage::En)[0].text, english[0].text);
+        assert_eq!(phrases_for(DictationLanguage::Fr)[0].text, phrases()[0].text);
+        assert_eq!(phrases_for(DictationLanguage::Multi)[0].text, phrases()[0].text, "plusieurs langues : le banc français");
+        let pasted = |i: usize, text: &str| english[i].failures(text).is_empty();
+        // Une phrase propre passe telle qu'elle est lue ; une reprise non corrigée échoue, corrigée passe.
+        assert!(pasted(0, english[0].text.as_str()));
+        assert!(pasted(5, "The meeting is at 11 o'clock."));
+        assert!(!pasted(5, "The meeting is at ten o'clock, no sorry, at eleven o'clock."));
+        assert!(pasted(7, "We leave on Tuesday, depending on the weather."));
+        assert!(!pasted(7, "We leave on Monday, I mean Tuesday, depending on the weather."));
+        // Les hésitations, un « ? » qui manque, un nom mal écrit.
+        assert!(!pasted(3, "Um, I think we could, uh, move the session to Thursday."));
+        assert!(pasted(3, "I think we could move the session to Thursday."));
+        assert!(!pasted(11, "Why has the server stopped responding since this morning"));
+        assert!(pasted(11, "Why has the server stopped responding since this morning?"));
+        assert!(!pasted(10, "I forwarded the invoice to Sara Mitchel at Bright Water Logistics."));
+        assert!(pasted(10, "I forwarded the invoice to Sarah Mitchell at Brightwater Logistics."));
+        // Les nombres, en chiffres ou en lettres.
+        assert!(pasted(14, "The invoice comes to $1,250, to be paid before November 15th."));
+        assert!(pasted(14, "The invoice is one thousand two hundred and fifty dollars, due before November fifteenth."));
+        assert!(!pasted(14, "The invoice comes to $1,520, to be paid before November 5th."));
     }
 
     #[test]

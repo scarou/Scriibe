@@ -45,11 +45,20 @@ impl Indicator for ConsoleIndicator {
 }
 
 pub fn describe(state: &IndicatorState) -> String {
-    match state {
-        IndicatorState::Hidden => "repos".into(),
-        IndicatorState::Listening => "à l'écoute".into(),
-        IndicatorState::Working => "traitement…".into(),
-        IndicatorState::Done => "collé".into(),
-        IndicatorState::Message(m) => m.clone(),
+    describe_in(state, false)
+}
+
+/// L'état en deux langues (l'infobulle de l'icône) ; un message du chef d'orchestre reste tel qu'il a été écrit.
+pub fn describe_in(state: &IndicatorState, english: bool) -> String {
+    match (state, english) {
+        (IndicatorState::Hidden, false) => "repos".into(),
+        (IndicatorState::Hidden, true) => "idle".into(),
+        (IndicatorState::Listening, false) => "à l'écoute".into(),
+        (IndicatorState::Listening, true) => "listening".into(),
+        (IndicatorState::Working, false) => "traitement…".into(),
+        (IndicatorState::Working, true) => "working…".into(),
+        (IndicatorState::Done, false) => "collé".into(),
+        (IndicatorState::Done, true) => "pasted".into(),
+        (IndicatorState::Message(m), _) => m.clone(),
     }
 }

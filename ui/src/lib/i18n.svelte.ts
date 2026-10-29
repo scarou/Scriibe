@@ -1,4 +1,4 @@
-import { resolveLanguage, translate, type Lang, type UiLanguage, type Vars } from './i18n';
+import { resolveLanguage, translate, tx, type Lang, type UiLanguage, type Vars } from './i18n';
 
 const STORAGE_KEY = 'uiLanguage';
 
@@ -37,6 +37,16 @@ class I18n {
 }
 
 export const i18n = new I18n();
+
+export { tx };
+
+/** Le nom d'une touche ou d'une combinaison du programme (« Ctrl gauche + F9 ») dans la langue de l'interface. */
+export function keyName(label: string): string {
+  return label
+    .split(' + ')
+    .map((part) => translate(part, i18n.lang))
+    .join(' + ');
+}
 
 /** Le texte dans la langue de l'interface ; `{nom}` est remplacé par la valeur de `vars`. Se relit tout seul quand la langue change. */
 export function t(text: string, vars?: Vars): string {

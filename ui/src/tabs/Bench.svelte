@@ -5,12 +5,15 @@
   import { api, type ModelVersion, type Phrase, type Take, type Transcribed } from '../lib/api';
   import { bench } from '../lib/bench.svelte';
   import { cleanButChanged, normalizedText, versions } from '../lib/benchflow';
-  import { fmt } from '../lib/format';
+  import { fmt } from '../lib/display.svelte';
+  import { t } from '../lib/i18n.svelte';
   import BenchArchive from '../components/BenchArchive.svelte';
   import TimingsCard from '../components/TimingsCard.svelte';
   import TrialBench from '../components/TrialBench.svelte';
   import ProfileBars from '../components/ProfileBars.svelte';
   import { outcomeLabels } from '../lib/timings';
+  import { settings } from '../lib/settings.svelte';
+  import { nav } from '../lib/nav.svelte';
 
   let recording = $state(false);
   let working = $state(false);
@@ -49,14 +52,14 @@
     const skipped = results.filter((r) => r.out.timing?.outcome === 'skipped');
     const avg = (list: typeof results) => (list.length ? list.reduce((n, r) => n + (r.out.timing?.total ?? 0), 0) / list.length : null);
     const lines: string[] = [];
-    if (results[0]?.setup.skipWhenClean) lines.push(`${skipped.length} phrase(s) sautée(s) sur ${results.length}.`);
-    else if (judged.length) lines.push(`Option « Sauter si déjà propre » désactivée ou sans effet : ${judged.length} phrase(s) sur ${results.length} auraient été sautées.`);
-    if (judged.length) lines.push(`Sur les ${judged.length} jugée(s) propre(s), le modèle écrit autre chose pour ${cleanButChanged(results)}.`);
+    if (results[0]?.setup.skipWhenClean) lines.push(t('{n} phrase(s) sautée(s) sur {total}.', { n: skipped.length, total: results.length }));
+    else if (judged.length) lines.push(t('Option « Sauter si déjà propre » désactivée ou sans effet : {n} phrase(s) sur {total} auraient été sautées.', { n: judged.length, total: results.length }));
+    if (judged.length) lines.push(t('Sur les {n} jugée(s) propre(s), le modèle écrit autre chose pour {changed}.', { n: judged.length, changed: cleanButChanged(results) }));
     const totals = [
-      avg(skipped) !== null ? `${fmt(avg(skipped)!)} s sans modèle` : '',
-      avg(results.filter((r) => r.out.timing?.outcome === 'model')) !== null ? `${fmt(avg(results.filter((r) => r.out.timing?.outcome === 'model'))!)} s avec modèle` : '',
+      avg(skipped) !== null ? t('{s} s sans modèle', { s: fmt(avg(skipped)!) }) : '',
+      avg(results.filter((r) => r.out.timing?.outcome === 'model')) !== null ? t('{s} s avec modèle', { s: fmt(avg(results.filter((r) => r.out.timing?.outcome === 'model'))!) }) : '',
     ].filter(Boolean);
-    if (totals.length) lines.push(`Total moyen du relâchement au collage : ${totals.join(' · ')}.`);
+    if (totals.length) lines.push(t('Total moyen du relâchement au collage : {totals}.', { totals: totals.join(' · ') }));
     return lines.join(' ');
   });
   let finished = $derived(!bench.running && bench.results.length > 0);
@@ -122,58 +125,68 @@
     }
   }
 
+  // Les phrases à lire suivent la langue dictée (français ou anglais) : on les relit quand elle change, jamais pendant un passage.
+  $effect(() => {
+    void settings.value?.language;
+    if (!bench.running) void api<{ phrases: Phrase[] }>('phrases').then((r) => bench.setPhrases(r.phrases));
+  });
+
   onMount(() => {
-    if (!bench.phrases.length) void api<{ phrases: Phrase[] }>('phrases').then((r) => bench.setPhrases(r.phrases));
+    void settings.load();
     return () => clearInterval(poll);
   });
 </script>
 
-<h1>Banc d’essai</h1>
+<h1>{t('Banc d’essai')}</h1>
 
 <section class="card">
-  <h2>Banc de dictée (les 17 phrases de Scribe) <HelpButton section="measures" /></h2>
+  <h2>{t('Banc de dictée (les 17 phrases de Scribe)')} <HelpButton section="measures" /></h2>
   <p class="muted">
-    Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles
-    et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.
+    {t('Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.')}
   </p>
 
   <div class="row">
+    <span class="muted">{t('Les phrases à lire suivent la langue dictée : {language}.', { language: t(({ fr: 'Français', en: 'Anglais', multi: 'Plusieurs langues' } as Record<string, string>)[settings.value?.language ?? 'fr'] ?? 'Français') })}</span>
+    <button onclick={() => nav.go('settings', 'dictee')} disabled={bench.running}>{t('Changer la langue dictée')}</button>
+  </div>
+
+  <div class="row">
     <label><input type="checkbox" checked={compareOn} onchange={(e) => setCompare(e.currentTarget.checked)} disabled={bench.running} />
-      Comparer avec le modèle les phrases sautées (plus long : la phrase suivante attend la réponse du modèle)</label>
+      {t('Comparer avec le modèle les phrases sautées (plus long : la phrase suivante attend la réponse du modèle)')}</label>
   </div>
 
   {#if !bench.running && !finished}
-    <div class="row"><button class="primary" onclick={start} disabled={!bench.phrases.length}>Commencer un passage</button></div>
+    <div class="row"><button class="primary" onclick={start} disabled={!bench.phrases.length}>{t('Commencer un passage')}</button></div>
   {:else if bench.running && bench.comparing}
-    <p class="muted">Le modèle écrit sa version de la phrase sautée, pour comparer ; la phrase suivante arrive juste après… Avec un modèle lent (processeur), cela peut durer une minute ou plus.</p>
-    <div class="row"><button onclick={() => bench.giveUpComparing(bench.results.find((r) => r.comparing)?.index ?? -1)}>Ne pas attendre</button></div>
+    <p class="muted">{t('Le modèle écrit sa version de la phrase sautée, pour comparer ; la phrase suivante arrive juste après… Avec un modèle lent (processeur), cela peut durer une minute ou plus.')}</p>
+    <div class="row"><button onclick={() => bench.giveUpComparing(bench.results.find((r) => r.comparing)?.index ?? -1)}>{t('Ne pas attendre')}</button></div>
   {:else if phrase && bench.running}
     <div class="row">
       <span class="tag">{index + 1} / {bench.phrases.length}</span>
-      <span class="tag">{phrase.category}</span>
+      <span class="tag">{t(phrase.category)}</span>
     </div>
     <div class="phrase">{phrase.text}</div>
-    <div class="muted">{phrase.expect}</div>
+    <div class="muted">{t(phrase.expect)}</div>
     <div class="row">
       <button class:primary={!recording} class:rec={recording} onclick={toggle} disabled={working}>
-        {working ? 'Traitement…' : recording ? '■ Terminer' : '● Enregistrer'}
+        {working ? t('Traitement…') : recording ? t('■ Terminer') : t('● Enregistrer')}
       </button>
       <div class="meter"><div style="width: {Math.round(level * 100)}%"></div></div>
       <span class="muted">{fmt(seconds)} s</span>
     </div>
     <div class="row">
-      <label><input type="checkbox" bind:checked={translate} /> Traduire (comme Ctrl + Maj)</label>
-      <button onclick={skip} disabled={recording || working}>Passer</button>
-      <button onclick={redo} disabled={recording || working || !bench.results.length}>Relire la dernière</button>
-      <button onclick={() => { clearTake(); bench.stop(); }} disabled={recording || working}>Arrêter</button>
+      <label><input type="checkbox" bind:checked={translate} /> {t('Traduire (comme Ctrl + Maj)')}</label>
+      <button onclick={skip} disabled={recording || working}>{t('Passer')}</button>
+      <button onclick={redo} disabled={recording || working || !bench.results.length}>{t('Relire la dernière')}</button>
+      <button onclick={() => { clearTake(); bench.stop(); }} disabled={recording || working}>{t('Arrêter')}</button>
     </div>
   {:else}
     {#if bench.comparing}
-      <p class="muted">Le modèle écrit sa version de la dernière phrase sautée…</p>
-      <div class="row"><button onclick={() => bench.giveUpComparing(bench.results.find((r) => r.comparing)?.index ?? -1)}>Ne pas attendre</button></div>
+      <p class="muted">{t('Le modèle écrit sa version de la dernière phrase sautée…')}</p>
+      <div class="row"><button onclick={() => bench.giveUpComparing(bench.results.find((r) => r.comparing)?.index ?? -1)}>{t('Ne pas attendre')}</button></div>
     {/if}
-    <p class="ok">✔ Passage fini : {bench.results.length} phrase(s) lue(s).</p>
-    <div class="row"><button class="primary" onclick={start} disabled={bench.comparing}>Recommencer un passage</button></div>
+    <p class="ok">{t('✔ Passage fini : {n} phrase(s) lue(s).', { n: bench.results.length })}</p>
+    <div class="row"><button class="primary" onclick={start} disabled={bench.comparing}>{t('Recommencer un passage')}</button></div>
   {/if}
 
   {#if audio}<audio controls src={audio}></audio>{/if}
@@ -184,23 +197,23 @@
       {:else}
         <div class="muted">
           {fmt(take.duration)} s —
-          {#if take.verdict === 'correct'}<span class="ok">niveau correct</span>{:else}<span class={take.verdict === 'muet' ? 'bad' : 'warn'}>micro {take.verdict}</span>{/if}
-          ({fmt(take.level)}){take.gain > 1.05 ? ` — amplifié ×${fmt(take.gain)}` : ''}
+          {#if take.verdict === 'correct'}<span class="ok">{t('niveau correct')}</span>{:else}<span class={take.verdict === 'muet' ? 'bad' : 'warn'}>{t('micro {verdict}', { verdict: t(take.verdict) })}</span>{/if}
+          ({fmt(take.level)}){take.gain > 1.05 ? t(' — amplifié ×{gain}', { gain: fmt(take.gain) }) : ''}
         </div>
         <ProfileBars profile={out.profile} />
         {#if out.ok}
-          <div><b>Whisper a entendu :</b> {out.raw}</div>
-          <div><b>Serait collé :</b> {out.text}</div>
+          <div><b>{t('Whisper a entendu :')}</b> {out.raw}</div>
+          <div><b>{t('Serait collé :')}</b> {out.text}</div>
         {:else}
-          <div class="bad"><b>Rien n’a été collé</b> : la phrase reste à lire.</div>
+          <div class="bad"><b>{t('Rien n’a été collé : la phrase reste à lire.')}</b></div>
         {/if}
         {#if out.messages.length}<div class="warn">{#each out.messages as m}{m}<br />{/each}</div>{/if}
         {#if out.timing}
           <div class="muted">
-            transcription {fmt(out.timing.transcription)} s — mise au propre {fmt(out.timing.cleanup)} s ({out.timing.outcome}) — total après relâche {fmt(out.timing.total)} s
+            {t('transcription {a} s — mise au propre {b} s ({outcome}) — total après relâche {c} s', { a: fmt(out.timing.transcription), b: fmt(out.timing.cleanup), outcome: out.timing.outcome, c: fmt(out.timing.total) })}
           </div>
         {/if}
-        {#each out.checks as c (c.label)}<div class={c.passed ? 'ok' : 'bad'}>{c.passed ? '✔' : '✘'} {c.label}</div>{/each}
+        {#each out.checks as c (c.label)}<div class={c.passed ? 'ok' : 'bad'}>{c.passed ? '✔' : '✘'} {t(c.label)}</div>{/each}
       {/if}
     </div>
   {/if}
@@ -208,35 +221,35 @@
 
 {#if bench.results.length}
   <section class="card">
-    <h2>Ce passage</h2>
+    <h2>{t('Ce passage')}</h2>
     <div class="muted">{bench.results[0].setup.transcription} · {bench.results[0].setup.cleanup} · {bench.results[0].setup.mode}</div>
     <p class="muted">{summary}</p>
     {#each bench.results as r (r.index)}
       {@const failed = r.out.checks.filter((c) => !c.passed)}
-      {@const t = r.out.timing}
+      {@const tm = r.out.timing}
       <div class="line">
         <div>
-          <b>{r.index + 1}. {r.category}</b>
-          {#if t}<span class="tag">{outcomeLabels[t.outcome] ?? t.outcome}</span>{/if}
-          {#if r.out.would_skip && t?.outcome === 'model'}<span class="tag">aurait été sautée</span>{/if}
-          <span class={failed.length ? 'bad' : 'ok'}>{r.out.checks.length - failed.length}/{r.out.checks.length}{failed.length ? ' — ' + failed.map((c) => c.label).join(' ; ') : ''}</span>
-          {#if t}<span class="muted"> · transcription {fmt(t.transcription)} s · mise au propre {fmt(t.cleanup)} s · total {fmt(t.total)} s</span>{/if}
+          <b>{r.index + 1}. {t(r.category)}</b>
+          {#if tm}<span class="tag">{t(outcomeLabels[tm.outcome] ?? tm.outcome)}</span>{/if}
+          {#if r.out.would_skip && tm?.outcome === 'model'}<span class="tag">{t('aurait été sautée')}</span>{/if}
+          <span class={failed.length ? 'bad' : 'ok'}>{r.out.checks.length - failed.length}/{r.out.checks.length}{failed.length ? ' — ' + failed.map((c) => t(c.label)).join(' ; ') : ''}</span>
+          {#if tm}<span class="muted"> · {t('transcription {a} s · mise au propre {b} s · total {c} s', { a: fmt(tm.transcription), b: fmt(tm.cleanup), c: fmt(tm.total) })}</span>{/if}
         </div>
-        <div class="muted">Whisper : {r.out.raw ?? '—'}</div>
-        <div class="muted">Collé : {r.out.text ?? '—'}</div>
-        {#if r.out.would_skip && t?.outcome === 'model'}
-          <div class="muted">Sans modèle : {normalizedText(r.out.without_model ?? '') === normalizedText(r.out.text ?? '') ? 'identique au texte collé' : r.out.without_model}</div>
+        <div class="muted">{t('Whisper : {text}', { text: r.out.raw ?? '—' })}</div>
+        <div class="muted">{t('Collé : {text}', { text: r.out.text ?? '—' })}</div>
+        {#if r.out.would_skip && tm?.outcome === 'model'}
+          <div class="muted">{t('Sans modèle : {text}', { text: normalizedText(r.out.without_model ?? '') === normalizedText(r.out.text ?? '') ? t('identique au texte collé') : (r.out.without_model ?? '') })}</div>
         {/if}
         {#if r.comparing}
-          <div class="muted">Modèle : en cours…</div>
+          <div class="muted">{t('Modèle : en cours…')}</div>
         {:else if r.modelText != null && r.modelSeconds != null}
-          <div class="muted">Modèle ({fmt(r.modelSeconds)} s) : {normalizedText(r.modelText) === normalizedText(r.out.text ?? '') ? 'identique au texte collé' : r.modelText}</div>
+          <div class="muted">{t('Modèle ({s} s) : {text}', { s: fmt(r.modelSeconds), text: normalizedText(r.modelText) === normalizedText(r.out.text ?? '') ? t('identique au texte collé') : r.modelText })}</div>
         {:else if r.modelError}
-          <div class="muted">Modèle : {r.modelError}</div>
+          <div class="muted">{t('Modèle : {error}', { error: t(r.modelError) })}</div>
         {/if}
       </div>
     {/each}
-    <p class="muted">Le rapport à copier (onglet « Journal et rapport ») reprend ces résultats.</p>
+    <p class="muted">{t('Le rapport à copier (onglet « Journal et rapport ») reprend ces résultats.')}</p>
   </section>
 {/if}
 

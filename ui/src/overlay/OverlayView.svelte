@@ -16,13 +16,14 @@
 
 <script lang="ts">
   import { caption, gradient, listeningOpacity, listeningText } from '../lib/appearance';
+  import { t } from '../lib/i18n.svelte';
 
   /** `inline` : posé dans une page (illustration de l'Aide) au lieu de remplir la fenêtre de la pastille. */
   let { view, levels = [], inline = false }: { view: View; levels?: number[]; inline?: boolean } = $props();
 
   let v = $derived(view);
   let fill = $derived(gradient(v.appearance.color));
-  let note = $derived(caption(v.mic, v.translation));
+  let note = $derived(caption(v.mic, v.translation, t));
   let align = $derived(v.appearance.position === 'left' ? 'flex-start' : v.appearance.position === 'right' ? 'flex-end' : 'center');
   let opacity = $derived(v.state === 'listening' ? listeningOpacity(v.mic, v.appearance.opacity) : v.state === 'message' ? 1 : v.appearance.opacity);
   let bars = [0.45, 0.8, 1, 0.7, 0.4];
@@ -34,18 +35,18 @@
     <div class="wrap" style="align-items: {align}; opacity: {opacity}">
       {#if v.state === 'message'}
         <div class="capsule" style="background: {fill}">
-          <span class="icon">!</span><span class="text">{v.message}</span>
+          <span class="icon">!</span><span class="text">{v.message ? t(v.message) : ''}</span>
         </div>
       {:else if v.appearance.style === 'pill'}
         <div class="capsule" style="background: {fill}">
           {#if v.state === 'listening'}
             <span class="bars">{#each bars as b, i (i)}<i style="height: {5 + 15 * b * Math.max(0.15, v.level)}px"></i>{/each}</span>
-            <span class="text">{listeningText(v.mic)}</span>
-            {#if v.translation}<span class="text soft">→ {v.translation}</span>{/if}
+            <span class="text">{listeningText(v.mic, t)}</span>
+            {#if v.translation}<span class="text soft">→ {t(v.translation)}</span>{/if}
           {:else if v.state === 'working'}
-            <span class="spinner"></span><span class="text">{v.translation ? `Traduction en ${v.translation}…` : 'Mise au propre…'}</span>
+            <span class="spinner"></span><span class="text">{v.translation ? t('Traduction en {language}…', { language: t(v.translation) }) : t('Mise au propre…')}</span>
           {:else}
-            <span class="icon">✓</span><span class="text">{v.translation ? `Collé en ${v.translation}` : 'Collé'}</span>
+            <span class="icon">✓</span><span class="text">{v.translation ? t('Collé en {language}', { language: t(v.translation) }) : t('Collé')}</span>
           {/if}
         </div>
       {:else if v.appearance.style === 'dot'}

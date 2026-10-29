@@ -1,0 +1,37 @@
+# Pièges déjà rencontrés
+
+À consulter quand quelque chose résiste, pas à lire à chaque reprise (sorti de `REPRISE.md` en S08). Les règles de travail sont dans `CLAUDE.md`.
+
+## Compilation, tests et outils
+
+- `"/a/b"` et `Path::new("/a").join("b")` ne sont pas égaux sous Windows : construire les fausses listes de fichiers avec `join`.
+- Programmes en `.exe` sous Windows. Python n'est **pas installé** sur le PC de Christophe : modifier les fichiers avec les outils de l'éditeur ou avec Node (les scripts `tools/*.py` se lancent depuis une session cloud).
+- Les fichiers du dépôt sont en fins de ligne CRLF sous Windows : un remplacement de texte sur plusieurs lignes doit en tenir compte (un script qui remplace `\n` échoue sans bruit).
+- PowerShell 5.1 écrit un BOM avec `Set-Content -Encoding utf8` : `settings.json` écrit ainsi n'est pas lu (le programme repart des réglages par défaut). Écrire sans BOM (`[System.IO.File]::WriteAllText` avec `UTF8Encoding($false)`).
+- Un `scriibe.exe` qui tourne verrouille `target\release\scriibe.exe` : l'arrêter avant `cargo build --release` (`Get-Process scriibe | Stop-Process`). Ne jamais lancer deux versions en même temps.
+- Pas de `pkill` (sysinfo), pas de `pkill -f` ni de `pgrep -f` avec un motif présent dans la commande (le shell se tue) : `pgrep -x nom | xargs -r kill` ; `pkill -x` refuse un nom de plus de 15 caractères.
+- Un `sleep` long en avant-plan est refusé : lancer en arrière-plan ou attendre avec un moniteur. `cmd &` dans un sous-shell détaché fait notifier la fin du lanceur, pas du travail.
+- Les tests avec des délais courts attendent large. Les tests de moteurs passent par `FakeWorld` (le temps ne passe que quand on dort).
+- `AppSettings::default()` change d'identifiants à chaque appel : ne pas comparer deux défauts.
+- `fancy-regex` : pas d'assertions arrière de longueur variable.
+- `windows-sys` 0.59 : les poignées sont des pointeurs ; crate `windows` 0.57 pour COM (HRESULT brut : `IsSystemSoundsSession().is_ok()` vaut vrai pour S_OK **et** S_FALSE, comparer à 0).
+- `x11rb` : un message envoyé avec `send_event` doit être attendu (`.check()`) avant de fermer la connexion, sinon l'écoute ne s'arrête pas. Un processus enfant lancé sans être attendu reste zombie.
+- Depuis le cloud : `gh run view --log-failed` et la recherche GitHub sont refusés ; `gh api` sur d'autres dépôts, kyutai.org, Hugging Face et le stockage des pièces jointes de GitHub ne sont pas joignables. La recherche et les listes de fichiers Hugging Face ne s'essaient que sur le PC.
+
+## Comportement de Scriibe
+
+- **Le crochet clavier de Windows ne reçoit rien quand la fenêtre de Scriibe a le focus** (S06, cause inconnue). Depuis S08 la page relaie ses touches (`api/keys/page`, `Controller::handle_page_key`, ignorées tant que le crochet parle) ; la capture des touches (Réglages) passe par la page (`api/keys/capture/key`). Corollaire : **la pastille ne doit jamais s'activer** (`show()` l'activait quand Scriibe était au premier plan, la fenêtre perdait le focus et la touche tenue était relâchée aussitôt) ; elle s'affiche par `show_without_activating` (`SW_SHOWNA`).
+- Le crochet clavier remonte toutes les touches (`KeyEvent::Changed`) ; la machine à états est dans `scriibe_core::hotkey`.
+- La touche Lecture/Pause du clavier va au dernier lecteur inscrit (Chrome), pas à celui qui joue.
+- Avec « Automatique », `llama-server` choisit la Radeon (2 Go) et s'arrête : le repli sur le processeur est automatique depuis S07.
+- Une version du modèle qui arrive après un « Recommencer » du banc ne doit pas rejoindre le nouveau passage (identifiant du passage).
+- Le prompt envoyé au modèle doit rester identique d'une dictée à l'autre jusqu'à la dictée elle-même (mémoire du serveur) : rien de variable avant elle.
+
+## Interface en deux langues (S08)
+
+- Un texte de la page sans `t('…')` reste en français quelle que soit la langue ; `i18n.test.ts` échoue pour un `t('…')` sans traduction, une traduction orpheline ou des `{valeurs}` qui diffèrent. Il ne voit pas les textes construits à la volée (`t(variable)`) : les marquer par `tx('…')` à leur définition.
+- Un texte envoyé par Rust se traduit dans `locales/en-server.ts` ; un message à valeur (`Aucun son capté — vérifie le micro (Realtek)`) se traduit d'après son modèle (`{name}`), les valeurs connues (« anglais », « Ctrl gauche »…) étant traduites aussi. Les modèles les plus précis doivent venir avant les plus généraux.
+- `format.ts` reste en français (le rapport l'utilise) ; la page importe `display.svelte.ts` pour les nombres, tailles et dates.
+- Ne pas passer `fmt` à `.map` directement (`.map(fmt)` donne l'indice comme langue).
+- `Help.svelte` et `HelpEn.svelte` sont deux fichiers : toute modification de l'un se reporte dans l'autre (le test compare leur structure, pas leur texte).
+- Le banc et l'essai d'un mode suivent la **langue dictée** (réglage « Langue dictée »), pas la langue de l'interface : une interface en anglais avec une dictée en français lit des phrases françaises, c'est voulu. Le test de frappe suit la langue de l'interface.

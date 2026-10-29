@@ -5,18 +5,28 @@
 //! cours (changé en un clic), « Copier la dernière dictée ».
 
 use scriibe_core::modes::RewriteMode;
-use scriibe_core::settings::AppSettings;
+use scriibe_core::settings::{AppSettings, UiLang};
 use scriibe_platform::paste::Paster;
 use scriibe_platform::storage::{FileConfig, FileHistory};
-use scriibe_platform::tray_menu::{MenuView, ModeEntry, TrayMenuSource};
+use scriibe_platform::tray_menu::{MenuLabels, MenuView, ModeEntry, TrayMenuSource};
 use std::sync::Arc;
 
-/// Le menu pour ces réglages. Hors Windows, la touche par défaut est celle du système (voir `docs/ECARTS.md`).
+/// Le menu pour ces réglages, dans la langue de l'interface (le choix, ou celle du système).
 pub fn menu_view(settings: &AppSettings, version: &str) -> MenuView {
-    let dictation =
-        if settings.dictation_keys.is_empty() { "Ctrl droit".to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) };
+    menu_view_in(settings, version, settings.ui_language.resolve(&scriibe_platform::locale::system_language()))
+}
+
+/// Le menu pour ces réglages et cette langue. Hors Windows, la touche par défaut est celle du système (voir `docs/ECARTS.md`).
+pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> MenuView {
+    let english = lang == UiLang::En;
+    let name = |label: String| if english { scriibe_platform::keys::english_label(&label) } else { label };
+    let dictation = name(if settings.dictation_keys.is_empty() {
+        "Ctrl droit".to_string()
+    } else {
+        scriibe_platform::keys::label(&settings.dictation_keys)
+    });
     let translate =
-        if settings.translate_keys.is_empty() { "Maj".to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) };
+        name(if settings.translate_keys.is_empty() { "Maj".to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) });
     let has_engine = settings.has_cleanup_engine();
     // Reformulation coupée : aucun mode coché ; en choisir un la rallume.
     let current = settings.rewriting_on().then(|| settings.mode_choice());
@@ -30,28 +40,84 @@ pub fn menu_view(settings: &AppSettings, version: &str) -> MenuView {
             group
                 .iter()
                 .filter(|mode| **mode != RewriteMode::Playful)
-                .map(|mode| entry(mode.raw().to_string(), mode.label().to_string(), mode.summary().to_string()))
+                .map(|mode| {
+                    entry(
+                        mode.raw().to_string(),
+                        (if english { mode.label_en() } else { mode.label() }).to_string(),
+                        mode.summary().to_string(),
+                    )
+                })
                 .collect::<Vec<_>>()
         })
         .filter(|group| !group.is_empty())
         .collect();
     if !settings.custom_modes.is_empty() {
-        groups.push(settings.custom_modes.iter().map(|m| entry(m.id.clone(), m.label(), "Mode personnel".to_string())).collect());
+        groups.push(
+            settings
+                .custom_modes
+                .iter()
+                .map(|m| entry(m.id.clone(), m.label(), (if english { "Custom mode" } else { "Mode personnel" }).to_string()))
+                .collect(),
+        );
     }
+    let mode_label = RewriteMode::from_raw(&settings.mode_choice())
+        .filter(|_| english)
+        .map_or_else(|| settings.active_mode_label(), |m| m.label_en().to_string());
+    let (dictation_hint, translate_hint, mode_title, labels) = if english {
+        (
+            format!("Hold {dictation} to dictate"),
+            if has_engine {
+                format!("Hold {dictation} + {translate} to translate into {}", settings.translation_language.name_en())
+            } else {
+                "Translation unavailable: no cleanup engine".to_string()
+            },
+            if !has_engine {
+                "Mode: no engine (literal transcription)".to_string()
+            } else if settings.rewriting_on() {
+                format!("Mode: {mode_label}")
+            } else {
+                "Mode: rewriting off".to_string()
+            },
+            MenuLabels {
+                open_page: "Open Scriibe".into(),
+                copy_last: "Copy the last dictation".into(),
+                mode: "Mode".into(),
+                open_data: "Open the data folder".into(),
+                open_log: "Open the log".into(),
+                quit: "Quit Scriibe".into(),
+            },
+        )
+    } else {
+        (
+            format!("Maintiens {dictation} pour dicter"),
+            if has_engine {
+                format!("Maintiens {dictation} + {translate} pour traduire en {}", settings.translation_language.name())
+            } else {
+                "Traduction indisponible : aucun moteur de mise au propre".to_string()
+            },
+            if !has_engine {
+                "Mode : aucun moteur (transcription littérale)".to_string()
+            } else if settings.rewriting_on() {
+                format!("Mode : {}", settings.active_mode_label())
+            } else {
+                "Mode : reformulation coupée".to_string()
+            },
+            MenuLabels {
+                open_page: "Ouvrir Scriibe".into(),
+                copy_last: "Copier la dernière dictée".into(),
+                mode: "Mode".into(),
+                open_data: "Ouvrir le dossier des données".into(),
+                open_log: "Ouvrir le journal".into(),
+                quit: "Quitter Scriibe".into(),
+            },
+        )
+    };
     MenuView {
-        dictation_hint: format!("Maintiens {dictation} pour dicter"),
-        translate_hint: if has_engine {
-            format!("Maintiens {dictation} + {translate} pour traduire en {}", settings.translation_language.name())
-        } else {
-            "Traduction indisponible : aucun moteur de mise au propre".to_string()
-        },
-        mode_title: if !has_engine {
-            "Mode : aucun moteur (transcription littérale)".to_string()
-        } else if settings.rewriting_on() {
-            format!("Mode : {}", settings.active_mode_label())
-        } else {
-            "Mode : reformulation coupée".to_string()
-        },
+        english,
+        labels,
+        dictation_hint,
+        translate_hint,
+        mode_title,
         modes_enabled: has_engine,
         groups,
         version: format!("Scriibe {version}"),
@@ -105,7 +171,7 @@ mod tests {
 
     #[test]
     fn the_menu_lists_the_seven_modes_in_groups_and_checks_the_current_one() {
-        let view = menu_view(&settings(CleanupEngine::LlamaCpp), "0.1.0");
+        let view = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr);
         let ids: Vec<Vec<&str>> = view.groups.iter().map(|g| g.iter().map(|m| m.id.as_str()).collect()).collect();
         assert_eq!(ids, vec![vec!["literal", "simple", "formal"], vec!["wellness", "tech", "letter", "sales"]]);
         let checked: Vec<&str> = view.groups.iter().flatten().filter(|m| m.checked).map(|m| m.id.as_str()).collect();
@@ -118,7 +184,7 @@ mod tests {
 
     #[test]
     fn without_an_engine_the_modes_are_off_and_translation_is_unavailable() {
-        let view = menu_view(&settings(CleanupEngine::None), "0.1.0");
+        let view = menu_view_in(&settings(CleanupEngine::None), "0.1.0", UiLang::Fr);
         assert!(!view.modes_enabled);
         assert_eq!(view.mode_title, "Mode : aucun moteur (transcription littérale)");
         assert_eq!(view.translate_hint, "Traduction indisponible : aucun moteur de mise au propre");
@@ -129,7 +195,7 @@ mod tests {
     fn a_switched_off_rewrite_checks_no_mode() {
         let mut s = settings(CleanupEngine::OpenRouter);
         s.cleanup_enabled = false;
-        let view = menu_view(&s, "0.1.0");
+        let view = menu_view_in(&s, "0.1.0", UiLang::Fr);
         assert_eq!(view.mode_title, "Mode : reformulation coupée");
         assert!(view.groups.iter().flatten().all(|m| !m.checked));
     }
@@ -139,8 +205,38 @@ mod tests {
         let mut s = settings(CleanupEngine::OpenRouter);
         s.dictation_keys = vec!["left_control".into(), "f9".into()];
         s.translate_keys = vec!["left_shift".into()];
-        let view = menu_view(&s, "0.1.0");
+        let view = menu_view_in(&s, "0.1.0", UiLang::Fr);
         assert_eq!(view.dictation_hint, "Maintiens Ctrl gauche + F9 pour dicter");
         assert_eq!(view.translate_hint, "Maintiens Ctrl gauche + F9 + Maj gauche pour traduire en anglais");
+    }
+
+    #[test]
+    fn the_menu_speaks_english_when_the_interface_does() {
+        let mut s = settings(CleanupEngine::LlamaCpp);
+        let view = menu_view_in(&s, "0.1.0", UiLang::En);
+        assert!(view.english);
+        assert_eq!(view.mode_title, "Mode: Simple");
+        assert_eq!(view.dictation_hint, "Hold Right Ctrl to dictate");
+        assert_eq!(view.translate_hint, "Hold Right Ctrl + Shift to translate into English");
+        assert_eq!((view.labels.open_page.as_str(), view.labels.quit.as_str()), ("Open Scriibe", "Quit Scriibe"));
+        let labels: Vec<&str> = view.groups.iter().flatten().map(|m| m.label.as_str()).collect();
+        assert_eq!(labels[..3], ["Literal", "Simple", "Formal"]);
+        s.cleanup_engine = CleanupEngine::None;
+        assert_eq!(menu_view_in(&s, "0.1.0", UiLang::En).mode_title, "Mode: no engine (literal transcription)");
+        let french = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr);
+        assert!(!french.english);
+        assert_eq!(french.labels.quit, "Quitter Scriibe");
+    }
+
+    #[test]
+    fn automatic_follows_the_system_language_and_defaults_to_english() {
+        use scriibe_core::settings::UiLanguage;
+        assert_eq!(UiLanguage::Auto.resolve("fr-FR"), UiLang::Fr);
+        assert_eq!(UiLanguage::Auto.resolve("fr_FR.UTF-8"), UiLang::Fr);
+        assert_eq!(UiLanguage::Auto.resolve("en-US"), UiLang::En);
+        assert_eq!(UiLanguage::Auto.resolve("de-DE"), UiLang::En);
+        assert_eq!(UiLanguage::Auto.resolve(""), UiLang::En);
+        assert_eq!(UiLanguage::Fr.resolve("en-US"), UiLang::Fr);
+        assert_eq!(UiLanguage::En.resolve("fr-FR"), UiLang::En);
     }
 }

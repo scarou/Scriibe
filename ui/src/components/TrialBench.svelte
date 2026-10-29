@@ -4,6 +4,7 @@
   import { api, type Settings } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
+  import { t } from '../lib/i18n.svelte';
 
   interface Candidate {
     id: string;
@@ -93,16 +94,16 @@
 {#if v && s}
   <section class="card">
     <div class="row">
-      <h2>Banc d’essai de la mise au propre <HelpButton section="measures" /></h2>
+      <h2>{t('Banc d’essai de la mise au propre')} <HelpButton section="measures" /></h2>
       <span class="grow"></span>
       <button class="primary" onclick={runAll} disabled={running !== null || !candidates.length || !(text ?? v.trialText).trim()}>
-        {running ? 'Essais en cours…' : 'Lancer les essais'}
+        {running ? t('Essais en cours…') : t('Lancer les essais')}
       </button>
     </div>
-    <p class="muted">Écris une phrase comme tu la dirais, puis compare plusieurs modèles (mode en cours : {v.rewriteMode === 'literal' ? 'Simple' : v.rewriteMode}). Pour choisir le modèle de mise au propre : même phrase, textes et temps côte à côte.</p>
+    <p class="muted">{t('Écris une phrase comme tu la dirais, puis compare plusieurs modèles (mode en cours : {mode}). Pour choisir le modèle de mise au propre : même phrase, textes et temps côte à côte.', { mode: v.rewriteMode === 'literal' ? t('Simple') : String(v.rewriteMode) })}</p>
     <textarea rows="3" style="width: 100%" value={text ?? String(v.trialText)} oninput={(e) => (text = e.currentTarget.value)}
       onchange={(e) => settings.change({ trialText: e.currentTarget.value })}></textarea>
-    <div class="row"><button onclick={() => { text = null; void settings.change({ trialText: 'euh donc je voulais te dire que euh le rendez-vous avec le client c’est à 5h non pardon à 6h et faudrait que tu prépares le devis' }); }}>Rétablir l’exemple</button></div>
+    <div class="row"><button onclick={() => { text = null; void settings.change({ trialText: 'euh donc je voulais te dire que euh le rendez-vous avec le client c’est à 5h non pardon à 6h et faudrait que tu prépares le devis' }); }}>{t('Rétablir l’exemple')}</button></div>
 
     {#each candidates as c (c.id)}
       <div class="cand">
@@ -111,17 +112,17 @@
             {#each ENGINES as e (e.id)}<option value={e.id}>{e.label}</option>{/each}
           </select>
           {#if c.engine === 'openRouter'}
-            <input type="text" list="suggested" style="width: 18em" placeholder="fournisseur/modèle" value={c.model} onchange={(e) => update(c.id, { model: e.currentTarget.value })} />
+            <input type="text" list="suggested" style="width: 18em" placeholder={t('fournisseur/modèle')} value={c.model} onchange={(e) => update(c.id, { model: e.currentTarget.value })} />
             <datalist id="suggested">{#each SUGGESTED as m (m)}<option value={m}></option>{/each}</datalist>
           {:else}
             <select value={c.model} onchange={(e) => update(c.id, { model: e.currentTarget.value })}>
-              {#if !listFor(c.engine).includes(c.model)}<option value={c.model}>{c.model ? base(c.model) : 'Choisir un modèle'}</option>{/if}
+              {#if !listFor(c.engine).includes(c.model)}<option value={c.model}>{c.model ? base(c.model) : t('Choisir un modèle')}</option>{/if}
               {#each listFor(c.engine) as m (m)}<option value={m}>{base(m)}</option>{/each}
             </select>
           {/if}
           {#if running === c.id}<span class="muted">…</span>{/if}
           <span class="grow"></span>
-          <button onclick={() => remove(c.id)} title="Retirer de la comparaison">🗑</button>
+          <button onclick={() => remove(c.id)} title={t('Retirer de la comparaison')}>🗑</button>
         </div>
         {#if results[c.id]}
           {@const r = results[c.id]}
@@ -131,16 +132,16 @@
               <div class="row">
                 <b>{r.seconds.toFixed(1)} s</b>
                 <span class="grow"></span>
-                {#if isActive(c)}<span class="muted">Modèle utilisé</span>{:else}<button onclick={() => use(c)}>Utiliser ce modèle</button>{/if}
+                {#if isActive(c)}<span class="muted">{t('Modèle utilisé')}</span>{:else}<button onclick={() => use(c)}>{t('Utiliser ce modèle')}</button>{/if}
               </div>
             </div>
           {:else}
-            <div class="bad">Échec : {r.error}</div>
+            <div class="bad">{t('Échec : {error}', { error: r.error })}</div>
           {/if}
         {/if}
       </div>
     {/each}
-    <div class="row"><button onclick={add}>+ Ajouter un modèle</button></div>
+    <div class="row"><button onclick={add}>{t('+ Ajouter un modèle')}</button></div>
   </section>
 {/if}
 

@@ -1,4 +1,5 @@
 import type { Status } from './api';
+import { tx } from './i18n';
 
 /** Ce que l'assistant de premier lancement demande à l'API : la machine mesurée et les chaînes proposées. */
 export interface AssistantChain {
@@ -29,13 +30,13 @@ export interface Assistant {
 /** Les éléments de la page Installation, avec ce qui prouve qu'ils sont là. */
 export const needLabels: Record<string, string> = {
   'whisper-server': 'whisper-server',
-  'whisper-base': 'Modèle Whisper « base »',
-  'whisper-small': 'Modèle Whisper « small »',
+  'whisper-base': tx('Modèle Whisper « base »'),
+  'whisper-small': tx('Modèle Whisper « small »'),
   'llama-server': 'llama-server',
-  'llama-vulkan': 'llama-server (Vulkan)',
-  'qwen-0.5b': 'Modèle Qwen 2.5 0,5 B',
-  'qwen-1.5b': 'Modèle Qwen 2.5 1,5 B',
-  'qwen-3b': 'Modèle Qwen 2.5 3 B',
+  'llama-vulkan': tx('llama-server (Vulkan)'),
+  'qwen-0.5b': tx('Modèle Qwen 2.5 0,5 B'),
+  'qwen-1.5b': tx('Modèle Qwen 2.5 1,5 B'),
+  'qwen-3b': tx('Modèle Qwen 2.5 3 B'),
 };
 
 const has = (paths: string[], part: string) => paths.some((p) => p.toLowerCase().includes(part));

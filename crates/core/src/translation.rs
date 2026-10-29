@@ -26,6 +26,17 @@ impl TranslationLanguage {
         }
     }
 
+    /// Le nom de la langue en anglais (« English »), pour l'interface en anglais.
+    pub fn name_en(self) -> &'static str {
+        match self {
+            Self::En => "English",
+            Self::Es => "Spanish",
+            Self::De => "German",
+            Self::It => "Italian",
+            Self::Pt => "Portuguese",
+        }
+    }
+
     /// Nom court (« Collé en anglais »).
     pub fn name(self) -> &'static str {
         match self {

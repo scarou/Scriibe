@@ -77,6 +77,7 @@ pub struct TrayHost {
     log_file: PathBuf,
     idle_tip: String,
     translation: Option<String>,
+    english: bool,
 }
 
 /// Transparence de la plume du logo (32×32, un octet par point), tracée depuis `logo/scriibe-symbole.svg` par `tools/faire_icones.*`.
@@ -173,6 +174,7 @@ impl TrayHost {
             log_file,
             idle_tip: idle_tip.to_string(),
             translation: None,
+            english: false,
         };
         Ok((host, indicator))
     }
@@ -183,11 +185,13 @@ impl TrayHost {
             Command::State(state) => {
                 let tip = match &state {
                     IndicatorState::Hidden => self.idle_tip.clone(),
-                    IndicatorState::Listening => match &self.translation {
-                        Some(language) => format!("Scriibe — à l'écoute (traduction : {language})"),
-                        None => "Scriibe — à l'écoute…".to_string(),
+                    IndicatorState::Listening => match (&self.translation, self.english) {
+                        (Some(language), false) => format!("Scriibe — à l'écoute (traduction : {language})"),
+                        (Some(language), true) => format!("Scriibe — listening (translation: {language})"),
+                        (None, false) => "Scriibe — à l'écoute…".to_string(),
+                        (None, true) => "Scriibe — listening…".to_string(),
                     },
-                    other => format!("Scriibe — {}", crate::indicator::describe(other)),
+                    other => format!("Scriibe — {}", crate::indicator::describe_in(other, self.english)),
                 };
                 if state == IndicatorState::Hidden || state == IndicatorState::Done {
                     self.translation = None;
@@ -210,6 +214,12 @@ impl TrayHost {
         let same_modes = before.is_some_and(|b| {
             b.groups.iter().flatten().map(|m| (&m.id, &m.label)).eq(view.groups.iter().flatten().map(|m| (&m.id, &m.label)))
         });
+        self.english = view.english;
+        self.open_page.set_text(&view.labels.open_page);
+        self.copy_last.set_text(&view.labels.copy_last);
+        self.open_data.set_text(&view.labels.open_data);
+        self.open_log.set_text(&view.labels.open_log);
+        self.quit.set_text(&view.labels.quit);
         self.dictation_hint.set_text(&view.dictation_hint);
         self.translate_hint.set_text(&view.translate_hint);
         self.version_item.set_text(&view.version);

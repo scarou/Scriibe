@@ -3,7 +3,8 @@
   import { onMount } from 'svelte';
   import { api, type Comparison, type RunSummary } from '../lib/api';
   import { bench } from '../lib/bench.svelte';
-  import { fmt, when } from '../lib/format';
+  import { fmt, when } from '../lib/display.svelte';
+  import { t } from '../lib/i18n.svelte';
   import BenchCompare from './BenchCompare.svelte';
 
   let runs = $state<RunSummary[]>([]);
@@ -38,7 +39,7 @@
   }
 
   async function remove(run: RunSummary) {
-    if (!(await confirmBox(`Supprimer ce passage ?\n${run.summary}`, { confirm: 'Supprimer', danger: true }))) return;
+    if (!(await confirmBox(`${t('Supprimer ce passage ?')}\n${run.summary}`, { confirm: t('Supprimer'), danger: true }))) return;
     await api('bench/delete', { id: run.id });
     await load();
   }
@@ -52,32 +53,32 @@
 </script>
 
 <section class="card">
-  <h2>Passages gardés</h2>
-  <p class="muted">Chaque passage est gardé avec ses réglages (version, moteurs, mode, micro) : on compare deux passages phrase par phrase, avant et après un changement.</p>
+  <h2>{t('Passages gardés')}</h2>
+  <p class="muted">{t('Chaque passage est gardé avec ses réglages (version, moteurs, mode, micro) : on compare deux passages phrase par phrase, avant et après un changement.')}</p>
   {#each runs as r (r.id)}
     <div class="run">
       <div>
-        <b>{when(r.date)}</b> · {r.phrases} phrase(s)
-        {#if r.checks_total}· contrôles {r.checks_passed}/{r.checks_total}{/if}
-        {#if r.average_total !== null}· {fmt(r.average_total)} s en moyenne{/if}
-        {#if r.settings_changed}<span class="tag warn">réglages changés pendant le passage</span>{/if}
+        <b>{when(r.date)}</b> · {t('{n} phrase(s)', { n: r.phrases })}
+        {#if r.checks_total}· {t('contrôles {passed}/{total}', { passed: r.checks_passed, total: r.checks_total })}{/if}
+        {#if r.average_total !== null}· {t('{s} s en moyenne', { s: fmt(r.average_total) })}{/if}
+        {#if r.settings_changed}<span class="tag warn">{t('réglages changés pendant le passage')}</span>{/if}
         <br /><span class="muted">{r.summary}</span>
       </div>
-      <button onclick={() => remove(r)}>Supprimer</button>
+      <button onclick={() => remove(r)}>{t('Supprimer')}</button>
     </div>
   {:else}
-    <p class="muted">Aucun passage gardé : lisez quelques phrases ci-dessus.</p>
+    <p class="muted">{t('Aucun passage gardé : lisez quelques phrases ci-dessus.')}</p>
   {/each}
 </section>
 
 {#if runs.length >= 2}
   <section class="card">
-    <h2>Comparer deux passages</h2>
+    <h2>{t('Comparer deux passages')}</h2>
     <div class="row">
-      <label>Ancien :
+      <label>{t('Ancien :')}
         <select bind:value={older} onchange={() => compare(older, newer)}>{#each runs as r (r.id)}<option value={r.id}>{when(r.date)} · {r.summary}</option>{/each}</select>
       </label>
-      <label>Récent :
+      <label>{t('Récent :')}
         <select bind:value={newer} onchange={() => compare(older, newer)}>{#each runs as r (r.id)}<option value={r.id}>{when(r.date)} · {r.summary}</option>{/each}</select>
       </label>
     </div>

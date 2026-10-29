@@ -18,6 +18,7 @@
   import History from './tabs/History.svelte';
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
+  import HelpEn from './tabs/HelpEn.svelte';
   import Logo from './components/Logo.svelte';
   import Dialog from './components/Dialog.svelte';
 
@@ -80,7 +81,7 @@
       {:else if nav.tab === 'history'}<History />
       {:else if nav.tab === 'modes'}<Modes />
       {:else if nav.tab === 'dictionary'}<Dictionary />
-      {:else if nav.tab === 'help'}<Help />
+      {:else if nav.tab === 'help'}{#if i18n.lang === 'en'}<HelpEn />{:else}<Help />{/if}
       {:else if nav.tab === 'settings'}<Settings />
       {:else if nav.tab === 'install'}<Install />
       {:else if nav.tab === 'bench'}<Bench />

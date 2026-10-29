@@ -155,12 +155,14 @@ fn handle(ctx: &Context, mut request: Request) {
     let input: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
-        (Method::Get, "api/phrases") => ok(request, phrases()),
+        (Method::Get, "api/phrases") => ok(request, phrases(ctx.app.config.settings().language)),
         (Method::Get, "api/signs") => ok(
             request,
             json!({"signs": scriibe_core::spoken_signs::ALL.iter().map(|s| json!({"said": s.said, "written": s.written})).collect::<Vec<_>>()}),
         ),
-        (Method::Get, "api/trial/samples") => ok(request, json!({"samples": scriibe_core::clean_test::samples()})),
+        (Method::Get, "api/trial/samples") => {
+            ok(request, json!({"samples": scriibe_core::clean_test::samples_for(ctx.app.config.settings().language)}))
+        }
         (Method::Post, "api/trial/sample") => ok(request, trial::sample(ctx, &input)),
         (Method::Post, "api/trial/candidate") => ok(request, trial::candidate(ctx, &input)),
         (Method::Post, "api/pick-file") => ok(request, pick_file(input["kind"].as_str().unwrap_or(""))),
@@ -409,8 +411,8 @@ fn handle(ctx: &Context, mut request: Request) {
     }
 }
 
-fn phrases() -> Value {
-    let list: Vec<Value> = bench::phrases()
+fn phrases(language: scriibe_core::settings::DictationLanguage) -> Value {
+    let list: Vec<Value> = bench::phrases_for(language)
         .iter()
         .map(|p| json!({"category": p.category, "text": p.text, "expect": p.expect, "checks": p.checks.iter().map(|c| c.label()).collect::<Vec<_>>()}))
         .collect();
@@ -729,7 +731,7 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
     ctx.sinks.begin();
     ctx.app.controller.process_recording(recording.clone(), translate, "banc d'essai");
     let captured = ctx.sinks.finish();
-    let phrase = input["phrase"].as_u64().and_then(|i| bench::phrases().get(i as usize));
+    let phrase = input["phrase"].as_u64().and_then(|i| bench::phrases_for(ctx.app.config.settings().language).get(i as usize));
     let pasted = captured.pasted.clone().unwrap_or_default();
     let checks: Vec<Value> = phrase
         .map(|p| p.checks.iter().map(|c| json!({"label": c.label(), "passed": !pasted.is_empty() && c.passes(&pasted)})).collect())

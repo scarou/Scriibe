@@ -336,6 +336,35 @@ pub fn label_of(key: Key) -> String {
     }
 }
 
+/// Le nom d'une touche ou d'une combinaison (« Ctrl gauche + F9 ») en anglais, pour le menu de l'icône ; la page a sa propre liste
+/// (`ui/src/lib/locales/en-server.ts`). Un nom inconnu reste tel quel.
+pub fn english_label(french: &str) -> String {
+    french
+        .split(" + ")
+        .map(|part| match part {
+            "Ctrl droit" => "Right Ctrl",
+            "Ctrl gauche" => "Left Ctrl",
+            "Alt gauche" => "Left Alt",
+            "Maj gauche" => "Left Shift",
+            "Maj droit" => "Right Shift",
+            "Maj" => "Shift",
+            "Windows gauche" => "Left Windows",
+            "Windows droite" => "Right Windows",
+            "< > (à gauche de W)" => "< > (left of W)",
+            "Verr. défil." => "Scroll Lock",
+            "Impr. écran" => "Print Screen",
+            "Menu contextuel" => "Context menu",
+            "Inser" => "Insert",
+            "Début" => "Home",
+            "Fin" => "End",
+            "Page préc." => "Page Up",
+            "Page suiv." => "Page Down",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join(" + ")
+}
+
 /// « Ctrl gauche + F9 » : les touches d'une liste d'identifiants, pour l'affichage.
 pub fn label(ids: &[String]) -> String {
     ids.iter().map(|id| find(id).map_or(id.as_str(), |c| c.label)).collect::<Vec<_>>().join(" + ")
@@ -500,6 +529,23 @@ mod tests {
         assert_eq!(id_of(Key::Vk(0x41)), None, "une lettre ne peut pas dicter");
         assert_eq!(id_of(Key::Vk(0xA5)), None, "AltGr non plus");
         assert_eq!(id_of(Key::Fn), None);
+    }
+
+    #[test]
+    fn labels_have_an_english_form() {
+        assert_eq!(english_label("Ctrl gauche + F9"), "Left Ctrl + F9");
+        assert_eq!(english_label("Ctrl droit"), "Right Ctrl");
+        assert_eq!(english_label("Maj"), "Shift");
+        assert_eq!(english_label("Truc"), "Truc");
+        // Chaque nom de la liste a sa forme anglaise (ou n'a pas de mot français : F1…F24, Pause).
+        for choice in CHOICES {
+            let english = english_label(choice.label);
+            assert!(
+                english != choice.label || choice.label.chars().all(|c| c.is_ascii_alphanumeric()),
+                "{} sans forme anglaise",
+                choice.label
+            );
+        }
     }
 
     #[test]

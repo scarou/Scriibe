@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { api, type Dictionary } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
+  import { t, tx } from '../lib/i18n.svelte';
 
   let words = $state<string[]>([]);
   let corrections = $state<{ heard: string; written: string }[]>([]);
@@ -15,9 +16,9 @@
   let v = $derived(settings.value);
 
   const bullets = [
-    { id: 'dash', symbol: '-', label: 'Tiret  -' },
-    { id: 'dot', symbol: '•', label: 'Pastille  •' },
-    { id: 'star', symbol: '*', label: 'Étoile  *' },
+    { id: 'dash', symbol: '-', label: tx('Tiret  -') },
+    { id: 'dot', symbol: '•', label: tx('Pastille  •') },
+    { id: 'star', symbol: '*', label: tx('Étoile  *') },
   ];
   let symbol = $derived(bullets.find((b) => b.id === v?.listBullet)?.symbol ?? '-');
   let listSayings = $derived([
@@ -47,7 +48,7 @@
     clearTimeout(timer);
     timer = setTimeout(async () => {
       apply(await api<Dictionary>('dictionary', { words, corrections }));
-      saved = 'Enregistré ✔';
+      saved = t('Enregistré ✔');
     }, 500);
   }
 
@@ -78,33 +79,33 @@
   });
 </script>
 
-<h1>Dictionnaire</h1>
-<p class="muted">Ce que Scriibe écrit exactement, même quand Whisper l’entend autrement. {saved}</p>
+<h1>{t('Dictionnaire')}</h1>
+<p class="muted">{t('Ce que Scriibe écrit exactement, même quand Whisper l’entend autrement.')} {saved}</p>
 
 <section class="card">
-  <h2>Mots à écrire exactement <HelpButton section="dictionary" /></h2>
-  <p class="muted">Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.</p>
+  <h2>{t('Mots à écrire exactement')} <HelpButton section="dictionary" /></h2>
+  <p class="muted">{t('Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.')}</p>
   <div class="row">
-    <input type="text" class="grow" placeholder="Ajouter un mot ou une expression" bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
-    <button onclick={addWord} disabled={!newWord.trim()}>Ajouter</button>
+    <input type="text" class="grow" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
+    <button onclick={addWord} disabled={!newWord.trim()}>{t('Ajouter')}</button>
   </div>
   <div class="chips">
     {#each words as w, i (w + i)}
-      <span class="chip">{w}<button class="x" title="Retirer" onclick={() => { words = words.filter((_, j) => j !== i); changed(); }}>×</button></span>
+      <span class="chip">{w}<button class="x" title={t('Retirer')} onclick={() => { words = words.filter((_, j) => j !== i); changed(); }}>×</button></span>
     {:else}
-      <span class="muted">Aucun mot pour l’instant.</span>
+      <span class="muted">{t('Aucun mot pour l’instant.')}</span>
     {/each}
   </div>
 </section>
 
 <section class="card">
-  <h2>Corrections « entendu → écrit » <HelpButton section="dictionary" /></h2>
-  <p class="muted">Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.</p>
+  <h2>{t('Corrections « entendu → écrit »')} <HelpButton section="dictionary" /></h2>
+  <p class="muted">{t('Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.')}</p>
   <div class="row">
-    <input type="text" class="grow" placeholder="Entendu" bind:value={heard} />
+    <input type="text" class="grow" placeholder={t('Entendu')} bind:value={heard} />
     <span>→</span>
-    <input type="text" class="grow" placeholder="Écrit" bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
-    <button onclick={addCorrection} disabled={!heard.trim() || !written.trim()}>Ajouter</button>
+    <input type="text" class="grow" placeholder={t('Écrit')} bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
+    <button onclick={addCorrection} disabled={!heard.trim() || !written.trim()}>{t('Ajouter')}</button>
   </div>
   {#if corrections.length}
     <table>
@@ -112,26 +113,26 @@
         {#each corrections as c, i (c.heard + '→' + c.written + i)}
           <tr>
             <td>{c.heard}</td><td>→</td><td><b>{c.written}</b></td>
-            <td style="text-align: right"><button class="x" title="Retirer" onclick={() => { corrections = corrections.filter((_, j) => j !== i); changed(); }}>×</button></td>
+            <td style="text-align: right"><button class="x" title={t('Retirer')} onclick={() => { corrections = corrections.filter((_, j) => j !== i); changed(); }}>×</button></td>
           </tr>
         {/each}
       </tbody>
     </table>
   {:else}
-    <span class="muted">Aucune correction pour l’instant.</span>
+    <span class="muted">{t('Aucune correction pour l’instant.')}</span>
   {/if}
 </section>
 
 <section class="card">
-  <h2>Signes dictés <HelpButton section="dictionary" /></h2>
-  <p class="muted">Toujours reconnus, avec leurs variantes (« ouvre » ou « ouvrez », « ferme » ou « fermez la parenthèse », « retour » ou « passe à la ligne »…). Pour un signe à toi, ajoute une correction : « trois points d’exclamation » → !!!</p>
+  <h2>{t('Signes dictés')} <HelpButton section="dictionary" /></h2>
+  <p class="muted">{t('Toujours reconnus, avec leurs variantes (« ouvre » ou « ouvrez », « ferme » ou « fermez la parenthèse », « retour » ou « passe à la ligne »…). Pour un signe à toi, ajoute une correction : « trois points d’exclamation » → !!!')}</p>
   <div class="chips">
     {#each signs as sign (sign.said)}
       <span class="sign">{sign.said} → <b>{shown(sign.written)}</b></span>
     {/each}
   </div>
-  <h3>Listes</h3>
-  <p class="muted">Pour dicter une liste : dis « retour à la ligne », puis « tiret » ou « puce » devant chaque élément, ou « point un », « numéro suivant »… Reconnus seulement en début de ligne : « un tiret entre les deux mots » reste du texte.</p>
+  <h3>{t('Listes')}</h3>
+  <p class="muted">{t('Pour dicter une liste : dis « retour à la ligne », puis « tiret » ou « puce » devant chaque élément, ou « point un », « numéro suivant »… Reconnus seulement en début de ligne : « un tiret entre les deux mots » reste du texte.')}</p>
   <div class="chips">
     {#each listSayings as saying (saying.said)}
       <span class="sign">{saying.said} → <b>{saying.example}</b></span>
@@ -139,9 +140,9 @@
   </div>
   {#if v}
     <div class="row">
-      <label>Caractère devant chaque élément :
+      <label>{t('Caractère devant chaque élément :')}
         <select value={v.listBullet} onchange={(e) => settings.change({ listBullet: e.currentTarget.value as never })}>
-          {#each bullets as b (b.id)}<option value={b.id}>{b.label}</option>{/each}
+          {#each bullets as b (b.id)}<option value={b.id}>{t(b.label)}</option>{/each}
         </select>
       </label>
     </div>

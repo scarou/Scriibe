@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  averageWpm, isComplete, isExact, marks, MINIMUM_SECONDS, percent, typingResult, typingTexts, wordCount,
+  averageWpm, isComplete, isExact, marks, MINIMUM_SECONDS, percent, typingResult, typingTexts, typingTextsEn, wordCount,
 } from './typing';
 
 /** Les contrôles de frappe de `Checks.swift` (lignes 786 à 839 de Scribe). */
@@ -69,5 +69,10 @@ describe('test de frappe', () => {
     expect(new Set(typingTexts).size).toBe(typingTexts.length);
     for (const t of typingTexts) expect(wordCount(t)).toBeGreaterThanOrEqual(35);
     for (const t of typingTexts) expect(wordCount(t)).toBeLessThanOrEqual(70);
+    // Les textes anglais : mêmes bornes, même nombre.
+    expect(typingTextsEn.length).toBe(typingTexts.length);
+    expect(new Set(typingTextsEn).size).toBe(typingTextsEn.length);
+    for (const t of typingTextsEn) expect(wordCount(t)).toBeGreaterThanOrEqual(35);
+    for (const t of typingTextsEn) expect(wordCount(t)).toBeLessThanOrEqual(70);
   });
 });

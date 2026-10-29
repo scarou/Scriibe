@@ -56,7 +56,12 @@ pub fn run() -> Result<(), String> {
     let menu_source: Arc<Mutex<Option<Arc<dyn scriibe_platform::tray_menu::TrayMenuSource>>>> = Arc::new(Mutex::new(None));
     #[cfg(windows)]
     let (host, real_indicator): (_, Arc<dyn Indicator>) = {
-        let tip = "Scriibe — maintiens Ctrl droit pour dicter (+ Maj : traduire)";
+        let english = settings.ui_language.resolve(&scriibe_platform::locale::system_language()) == scriibe_core::settings::UiLang::En;
+        let tip = if english {
+            "Scriibe — hold Right Ctrl to dictate (+ Shift: translate)"
+        } else {
+            "Scriibe — maintiens Ctrl droit pour dicter (+ Maj : traduire)"
+        };
         let (host, indicator) = scriibe_platform::windows::tray::TrayHost::create(
             tip,
             config.folder().to_path_buf(),
