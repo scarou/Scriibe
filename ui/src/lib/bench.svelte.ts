@@ -80,9 +80,22 @@ class BenchStore {
     return this.flow.comparing;
   }
 
+  /** Le passage en cours : une version du modèle qui arrive après un « Recommencer » ne lui appartient pas. */
+  get runId(): string {
+    return this.flow.runId;
+  }
+
+  /** « Ne pas attendre » : la phrase suivante est libre sans la version du modèle. */
+  async giveUpComparing(index: number): Promise<void> {
+    if (this.flow.giveUpComparing(index)) {
+      this.touch();
+      await this.persist();
+    }
+  }
+
   /** La version du modèle d'une phrase sautée rejoint son passage. */
-  async attachModel(index: number, text: string | null, seconds: number, error?: string): Promise<void> {
-    const kept = this.flow.attachModel(index, text, seconds, error);
+  async attachModel(index: number, text: string | null, seconds: number, error?: string, runId = this.flow.runId): Promise<void> {
+    const kept = this.flow.attachModel(index, text, seconds, error, runId);
     this.touch();
     if (kept) await this.persist();
   }

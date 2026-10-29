@@ -22,6 +22,25 @@
   let audio = $state('');
   let poll: ReturnType<typeof setInterval> | undefined;
 
+  // Comparer les phrases sautées avec le modèle : utile pour juger l'option, mais long avec un modèle lent (processeur) : à choisir.
+  const COMPARE_KEY = 'scriibe.bench.compare';
+  const savedCompare = (() => {
+    try {
+      return localStorage.getItem(COMPARE_KEY) !== 'off';
+    } catch {
+      return true;
+    }
+  })();
+  let compareOn = $state(savedCompare);
+  function setCompare(on: boolean) {
+    compareOn = on;
+    try {
+      localStorage.setItem(COMPARE_KEY, on ? 'on' : 'off');
+    } catch {
+      // Sans stockage du navigateur, le choix ne survit pas au prochain lancement : sans importance.
+    }
+  }
+
   let index = $derived(bench.current);
   let phrase = $derived<Phrase | undefined>(bench.phrases[index]);
   let summary = $derived.by(() => {
@@ -90,11 +109,14 @@
       working = false;
       const p = bench.phrases[phraseIndex];
       if (p && take && out && !out.error && out.ok && out.timing) {
-        const kept = await bench.record({ index: phraseIndex, category: p.category, text: p.text, out, take, translated: translate, setup: out.setup });
-        // Phrase sautée : le modèle écrit sa version à côté (rien n'est collé), la phrase suivante attend son retour.
-        if (kept && out.compare && out.cleanup_input) {
+        // Phrase sautée : le modèle écrit sa version à côté (rien n'est collé), la phrase suivante attend son retour (sauf si la
+        // comparaison est coupée ou si on choisit de ne pas l'attendre).
+        const compare = compareOn && out.compare === true && !!out.cleanup_input;
+        const runId = bench.runId;
+        const kept = await bench.record({ index: phraseIndex, category: p.category, text: p.text, out: { ...out, compare }, take, translated: translate, setup: out.setup });
+        if (kept && compare) {
           const m = await api<ModelVersion>('bench/model', { text: out.cleanup_input });
-          await bench.attachModel(phraseIndex, m.text ?? null, m.seconds ?? 0, m.error);
+          await bench.attachModel(phraseIndex, m.text ?? null, m.seconds ?? 0, m.error, runId);
         }
       }
     }
@@ -115,10 +137,16 @@
     et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.
   </p>
 
+  <div class="row">
+    <label><input type="checkbox" checked={compareOn} onchange={(e) => setCompare(e.currentTarget.checked)} disabled={bench.running} />
+      Comparer avec le modèle les phrases sautées (plus long : la phrase suivante attend la réponse du modèle)</label>
+  </div>
+
   {#if !bench.running && !finished}
     <div class="row"><button class="primary" onclick={start} disabled={!bench.phrases.length}>Commencer un passage</button></div>
   {:else if bench.running && bench.comparing}
-    <p class="muted">Le modèle écrit sa version de la phrase sautée, pour comparer ; la phrase suivante arrive juste après…</p>
+    <p class="muted">Le modèle écrit sa version de la phrase sautée, pour comparer ; la phrase suivante arrive juste après… Avec un modèle lent (processeur), cela peut durer une minute ou plus.</p>
+    <div class="row"><button onclick={() => bench.giveUpComparing(bench.results.find((r) => r.comparing)?.index ?? -1)}>Ne pas attendre</button></div>
   {:else if phrase && bench.running}
     <div class="row">
       <span class="tag">{index + 1} / {bench.phrases.length}</span>
@@ -140,7 +168,10 @@
       <button onclick={() => { clearTake(); bench.stop(); }} disabled={recording || working}>Arrêter</button>
     </div>
   {:else}
-    {#if bench.comparing}<p class="muted">Le modèle écrit sa version de la dernière phrase sautée…</p>{/if}
+    {#if bench.comparing}
+      <p class="muted">Le modèle écrit sa version de la dernière phrase sautée…</p>
+      <div class="row"><button onclick={() => bench.giveUpComparing(bench.results.find((r) => r.comparing)?.index ?? -1)}>Ne pas attendre</button></div>
+    {/if}
     <p class="ok">✔ Passage fini : {bench.results.length} phrase(s) lue(s).</p>
     <div class="row"><button class="primary" onclick={start} disabled={bench.comparing}>Recommencer un passage</button></div>
   {/if}

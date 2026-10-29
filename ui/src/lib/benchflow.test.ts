@@ -107,4 +107,23 @@ describe('déroulement du banc', () => {
     expect(cleanButChanged([same, different, modelled, toRedo])).toBe(2);
     expect(normalizedText('l’été\u00A0 ?')).toBe("l'été ?");
   });
+
+  it('« Ne pas attendre » libère la phrase suivante, et une version tardive rejoint son passage mais pas un autre', () => {
+    const flow = new BenchFlow(3);
+    flow.start();
+    const run = flow.runId;
+    flow.record(skipped(0));
+    expect(flow.comparing).toBe(true);
+    expect(flow.giveUpComparing(0)).toBe(true);
+    expect(flow.comparing).toBe(false);
+    expect(flow.giveUpComparing(0)).toBe(false);
+    expect(flow.toRun()!.entries[0]).toHaveProperty('modelError');
+    expect(flow.attachModel(0, 'Je serai là !', 30, undefined, run)).toBe(true);
+    expect(flow.toRun()!.entries[0]).toMatchObject({ modelText: 'Je serai là !' });
+
+    flow.start(); // nouveau passage : la réponse d'un ancien passage est ignorée
+    flow.record(skipped(0));
+    expect(flow.attachModel(0, 'ancien', 1, undefined, run)).toBe(false);
+    expect(flow.comparing).toBe(true);
+  });
 });

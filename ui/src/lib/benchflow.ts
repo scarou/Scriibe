@@ -128,8 +128,19 @@ export class BenchFlow {
     return this.results.some((r) => r.comparing);
   }
 
-  /** Ce que le modèle a écrit pour la phrase `index` (ou pourquoi il n'a rien écrit). */
-  attachModel(index: number, text: string | null, seconds: number, error?: string): boolean {
+  /** On ne veut plus attendre le modèle : la phrase suivante est libre. Sa version, si elle arrive plus tard, rejoindra quand même le passage. */
+  giveUpComparing(index: number): boolean {
+    const i = this.results.findIndex((r) => r.index === index && r.comparing);
+    if (i < 0) return false;
+    const next = [...this.results];
+    next[i] = { ...next[i], comparing: false, modelError: 'pas attendue : le modèle n’avait pas fini (sa version est ajoutée si elle arrive)' };
+    this.results = next;
+    return true;
+  }
+
+  /** Ce que le modèle a écrit pour la phrase `index` du passage `runId` (ou pourquoi il n'a rien écrit). Un passage recommencé entre-temps l'ignore. */
+  attachModel(index: number, text: string | null, seconds: number, error?: string, runId = this.runId): boolean {
+    if (runId !== this.runId) return false;
     const i = this.results.findIndex((r) => r.index === index);
     if (i < 0) return false;
     const next = [...this.results];
