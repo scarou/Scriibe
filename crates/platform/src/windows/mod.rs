@@ -34,3 +34,13 @@ pub fn platform() -> Platform {
 pub(crate) fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
+
+/// Montre une fenêtre sans l'activer (`SW_SHOWNA`) : la pastille ne doit jamais prendre le focus, même quand Scriibe est déjà au premier plan
+/// (Windows laisse alors un processus s'activer lui-même, et la fenêtre de l'interface perdrait la touche tenue).
+pub fn show_without_activating(hwnd: isize) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNA};
+    // SAFETY: `hwnd` vient d'une fenêtre vivante de ce processus ; `ShowWindow` n'a pas d'autre condition.
+    unsafe {
+        ShowWindow(hwnd as _, SW_SHOWNA);
+    }
+}

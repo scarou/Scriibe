@@ -219,6 +219,15 @@ fn handle(ctx: &Context, mut request: Request) {
             }
             ok(request, json!({"ok": true}))
         }
+        // Le clavier de la fenêtre de Scriibe, relayé par la page : le crochet du système n'y reçoit rien.
+        (Method::Post, "api/keys/page") => {
+            if input["release"].as_bool() == Some(true) {
+                ctx.app.controller.release_page_keys();
+            } else if let Some(vk) = input["code"].as_str().and_then(scriibe_platform::keys::vk_of_web_code) {
+                ctx.app.controller.handle_page_key(vk, input["down"].as_bool().unwrap_or(false));
+            }
+            ok(request, json!({"ok": true}))
+        }
         (Method::Post, "api/keys/capture/stop") => {
             ctx.app.controller.stop_capture();
             ok(request, json!({"ok": true}))

@@ -164,7 +164,13 @@ pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConf
             };
             if want {
                 place_overlay(&app, &window, settings.capture_position);
-                let _ = window.show();
+                // Sans l'activer : `show()` prendrait le focus quand Scriibe est au premier plan, et la fenêtre perdrait la touche tenue.
+                match window.hwnd() {
+                    Ok(hwnd) => scriibe_platform::windows::show_without_activating(hwnd.0 as isize),
+                    Err(_) => {
+                        let _ = window.show();
+                    }
+                }
             } else {
                 let _ = window.hide();
             }

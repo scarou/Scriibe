@@ -115,7 +115,16 @@ struct Inner {
     state: Mutex<State>,
     /// Événements du clavier reçus depuis le lancement (diagnostic : le journal les compte à la fin d'une capture).
     key_events: std::sync::atomic::AtomicU64,
+    /// Quand le crochet du système a envoyé un événement pour la dernière fois (les touches relayées par la page ne servent que s'il se tait).
+    last_hook_event: Mutex<Option<Duration>>,
+    /// Les touches tenues d'après la page, quand elle relaie le clavier de la fenêtre de Scriibe.
+    page_held: Mutex<Vec<Key>>,
+    /// Le journal dit une fois que la page relaie les touches.
+    page_announced: std::sync::atomic::AtomicBool,
 }
+
+/// Un événement du crochet vu depuis moins de ce temps : une touche relayée par la page serait un doublon.
+const HOOK_ECHO_WINDOW: Duration = Duration::from_millis(1000);
 
 /// Le chef d'orchestre. Les appels (`handle_key`, `tick`) viennent d'un seul fil ; le traitement d'une dictée s'exécute à part.
 #[derive(Clone)]
@@ -155,7 +164,16 @@ impl Controller {
             preload_checked: Duration::ZERO,
         };
         scriibe_platform::keys::set_hook_rules(scriibe_platform::keys::hook_rules(&state.monitor.binding));
-        Self { inner: Arc::new(Inner { deps, state: Mutex::new(state), key_events: std::sync::atomic::AtomicU64::new(0) }) }
+        Self {
+            inner: Arc::new(Inner {
+                deps,
+                state: Mutex::new(state),
+                key_events: std::sync::atomic::AtomicU64::new(0),
+                last_hook_event: Mutex::new(None),
+                page_held: Mutex::new(Vec::new()),
+                page_announced: std::sync::atomic::AtomicBool::new(false),
+            }),
+        }
     }
 
     pub fn is_recording(&self) -> bool {
@@ -168,8 +186,55 @@ impl Controller {
 
     /// Un événement de clavier du système. Le crochet du système ne fait que les poster : cette méthode peut prendre son temps.
     pub fn handle_key(&self, event: KeyEvent) {
-        let KeyEvent::Changed { changed, down, held } = event;
+        *lock(&self.inner.last_hook_event) = Some(self.inner.deps.clock.now());
         self.inner.key_events.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.dispatch_key(event);
+    }
+
+    /// Une touche vue par la page : quand la fenêtre de Scriibe a le focus, le crochet du système ne reçoit rien (S06, cause inconnue),
+    /// et la page relaie alors le clavier (`vk` : code de touche virtuel de Windows). Ignorée pendant la capture d'une combinaison (la
+    /// capture a son propre relais) et tant que le crochet parle encore (doublon). Rend vrai si la touche a servi.
+    pub fn handle_page_key(&self, vk: u32, down: bool) -> bool {
+        if self.capture().is_some() || self.hook_spoke_recently() {
+            return false;
+        }
+        let event = scriibe_platform::keys::translate_vk(&mut lock(&self.inner.page_held), vk, down);
+        let Some(event) = event else { return false };
+        self.announce_page_keys();
+        self.dispatch_key(event);
+        true
+    }
+
+    /// La fenêtre perd le focus avec des touches tenues : on ne verra pas leur relâchement, donc on le fait ici.
+    pub fn release_page_keys(&self) {
+        let held = std::mem::take(&mut *lock(&self.inner.page_held));
+        if held.is_empty() || self.capture().is_some() {
+            return;
+        }
+        self.inner.deps.log.write("touches: la fenêtre de Scriibe a perdu le focus, touches tenues relâchées");
+        let mut remaining = held.clone();
+        for key in held.into_iter().rev() {
+            remaining.retain(|k| *k != key);
+            self.dispatch_key(KeyEvent::Changed { changed: key, down: false, held: remaining.clone() });
+        }
+    }
+
+    fn hook_spoke_recently(&self) -> bool {
+        let last = *lock(&self.inner.last_hook_event);
+        last.is_some_and(|at| self.inner.deps.clock.now().saturating_sub(at) < HOOK_ECHO_WINDOW)
+    }
+
+    fn announce_page_keys(&self) {
+        if !self.inner.page_announced.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            let events = self.key_event_count();
+            self.inner.deps.log.write(&format!(
+                "touches: relayées par la page (la fenêtre de Scriibe a le focus ; {events} événements du clavier reçus du système depuis le lancement)"
+            ));
+        }
+    }
+
+    fn dispatch_key(&self, event: KeyEvent) {
+        let KeyEvent::Changed { changed, down, held } = event;
         if self.capture_key(changed, down, &held) {
             return;
         }

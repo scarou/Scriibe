@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { api } from './lib/api';
   import { status } from './lib/status.svelte';
+  import { createKeyRelay } from './lib/keyrelay';
   import { nav } from './lib/nav.svelte';
   import { tabs, type TabId } from './lib/tabs';
   import Settings from './tabs/Settings.svelte';
@@ -30,7 +31,23 @@
     stopped = true;
   }
 
-  onMount(() => status.start());
+  // Le crochet clavier du système ne reçoit rien quand cette fenêtre a le focus : la page relaie ses touches (dicter dans le Dictionnaire…).
+  const relay = createKeyRelay((body) => api('keys/page', body));
+  const onKeyDown = (e: KeyboardEvent) => relay.down(e);
+  const onKeyUp = (e: KeyboardEvent) => relay.up(e);
+  const onBlur = () => relay.blur();
+
+  onMount(() => {
+    status.start();
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
+  });
 </script>
 
 <Dialog />

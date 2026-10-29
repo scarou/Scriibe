@@ -821,3 +821,57 @@ fn a_recording_from_a_file_goes_through_the_same_chain() {
     assert!(r.recorder.starts().is_empty(), "le micro n'est pas ouvert");
     assert!(r.world.log.lines().join("\n").contains("micro : fichier"));
 }
+
+/// Code de touche virtuel de Ctrl droit (la touche par défaut), tel que la page le relaie.
+const RIGHT_CONTROL_VK: u32 = 0xA3;
+
+/// Dans la fenêtre de Scriibe, le crochet du système ne reçoit rien : la page relaie les touches et elles dictent.
+#[test]
+fn keys_relayed_by_the_page_dictate_when_the_system_hook_is_silent() {
+    let r = rig("x", "x");
+    assert!(r.controller.handle_page_key(RIGHT_CONTROL_VK, true));
+    assert!(r.controller.is_recording());
+    // Une répétition de la touche tenue ne change rien.
+    assert!(!r.controller.handle_page_key(RIGHT_CONTROL_VK, true));
+    assert!(r.controller.handle_page_key(RIGHT_CONTROL_VK, false));
+    assert!(!r.controller.is_recording());
+    let log = r.world.log.lines().join("\n");
+    assert_eq!(log.matches("touches: relayées par la page").count(), 1, "le journal le dit une seule fois");
+}
+
+/// Quand le crochet parle (autre fenêtre, ou page ouverte dans un navigateur), la page ne double pas les événements.
+#[test]
+fn keys_relayed_by_the_page_are_ignored_while_the_system_hook_speaks() {
+    let r = rig("x", "x");
+    r.key_down();
+    assert!(r.controller.is_recording());
+    assert!(!r.controller.handle_page_key(RIGHT_CONTROL_VK, true), "doublon du crochet");
+    r.key_up();
+    assert!(!r.controller.handle_page_key(RIGHT_CONTROL_VK, false));
+    assert!(!r.controller.is_recording());
+    // Le crochet se tait depuis plus d'une seconde (la personne a changé de fenêtre) : la page reprend.
+    r.clock.advance(Duration::from_millis(1100));
+    assert!(r.controller.handle_page_key(RIGHT_CONTROL_VK, true));
+    assert!(r.controller.is_recording());
+}
+
+#[test]
+fn keys_relayed_by_the_page_do_not_dictate_during_a_capture() {
+    let r = rig("x", "x");
+    r.controller.start_capture();
+    assert!(!r.controller.handle_page_key(RIGHT_CONTROL_VK, true));
+    assert_eq!(r.controller.capture().map(|c| c.keys.len()), Some(0), "la capture a son propre relais");
+    assert!(!r.controller.is_recording());
+}
+
+/// La fenêtre perd le focus pendant l'appui : le relâchement ne sera jamais vu, la dictée doit se terminer.
+#[test]
+fn losing_the_focus_releases_the_keys_relayed_by_the_page() {
+    let r = rig("x", "x");
+    assert!(r.controller.handle_page_key(RIGHT_CONTROL_VK, true));
+    assert!(r.controller.is_recording());
+    r.controller.release_page_keys();
+    assert!(!r.controller.is_recording());
+    // Sans touche tenue, ne fait rien.
+    r.controller.release_page_keys();
+}
