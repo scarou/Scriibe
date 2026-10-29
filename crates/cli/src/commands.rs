@@ -119,7 +119,11 @@ pub fn run() -> Result<(), String> {
         open_interface(&url, &app, &overlay);
     }
     app.controller.preload();
-    eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
+    if cfg!(windows) {
+        eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
+    } else {
+        eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
+    }
 
     #[cfg(windows)]
     host.run();

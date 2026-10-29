@@ -1,7 +1,7 @@
-//! Micro : `cpal` (WASAPI). Le flux vit sur un fil à lui (`Stream` n'est pas `Send` sur tous les systèmes) et verse ses tampons dans
+//! Micro : `cpal` (WASAPI sous Windows, ALSA sous Linux). Le flux vit sur un fil à lui (`Stream` n'est pas `Send` sur tous les systèmes) et verse ses tampons dans
 //! un `Capture`, qui mélange les canaux, passe à 16 kHz et mesure le niveau.
 
-use crate::audio::{Capture, LevelListener, Recorder, Recording, StartInfo, SKIPPED_SECONDS_WINDOWS};
+use crate::audio::{Capture, LevelListener, Recorder, Recording, StartInfo, SKIPPED_SECONDS, SKIPPED_SECONDS_WINDOWS};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, SampleFormat, Stream};
 use scriibe_core::microphone::Microphone;
@@ -58,7 +58,9 @@ fn open(device: &Device, shared: &Arc<Shared>) -> Result<(Stream, String), Strin
     let config = device.default_input_config().map_err(|e| format!("format du micro illisible ({e})"))?;
     let channels = usize::from(config.channels());
     let rate = config.sample_rate().0;
-    *lock(&shared.capture) = Some(Capture::with_skip(rate, SKIPPED_SECONDS_WINDOWS));
+    // Windows : le « bang » de certains pilotes à l'ouverture du flux (voir `audio.rs`) ; ailleurs, le seuil de Scribe.
+    let skip = if cfg!(windows) { SKIPPED_SECONDS_WINDOWS } else { SKIPPED_SECONDS };
+    *lock(&shared.capture) = Some(Capture::with_skip(rate, skip));
     let on_error = |e| eprintln!("micro : erreur du flux ({e})");
     let target = Arc::clone(shared);
     let stream = match config.sample_format() {
@@ -85,7 +87,7 @@ fn open(device: &Device, shared: &Arc<Shared>) -> Result<(Stream, String), Strin
         ),
         other => return Err(format!("format audio non pris en charge ({other:?})")),
     }
-    .map_err(|e| format!("micro refusé par Windows ({e})"))?;
+    .map_err(|e| format!("micro refusé par le système ({e})"))?;
     stream.play().map_err(|e| format!("démarrage du micro refusé ({e})"))?;
     Ok((stream, format!("{}, {rate} Hz, {channels} canal(aux)", device_name(device))))
 }

@@ -64,7 +64,7 @@ impl ForegroundApp for NoApp {
     }
 }
 
-#[cfg_attr(windows, allow(dead_code))]
+#[cfg_attr(any(windows, target_os = "linux"), allow(dead_code))]
 pub fn platform() -> Platform {
     Platform {
         keys: Arc::new(NoKeys),

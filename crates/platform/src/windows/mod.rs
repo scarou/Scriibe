@@ -8,7 +8,6 @@ pub mod file_dialog;
 mod foreground;
 mod keyboard;
 mod paste;
-mod recorder;
 mod sounds;
 pub mod tray;
 
@@ -22,7 +21,7 @@ use std::sync::Arc;
 pub fn platform() -> Platform {
     Platform {
         keys: Arc::new(keyboard::WindowsKeys),
-        recorder: Arc::new(recorder::CpalRecorder::default()),
+        recorder: Arc::new(crate::recorder::CpalRecorder::default()),
         paster: Arc::new(paste::WindowsPaster),
         media: Arc::new(MediaPauser::new(audio_sessions::WasapiSessions)),
         apps: Arc::new(foreground::WindowsForeground),

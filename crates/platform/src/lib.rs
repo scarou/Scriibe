@@ -13,6 +13,8 @@ pub mod machine;
 pub mod media;
 pub mod open;
 pub mod paste;
+#[cfg(any(windows, target_os = "linux"))]
+mod recorder;
 pub mod secrets;
 pub mod sounds;
 pub mod storage;
@@ -20,6 +22,8 @@ pub mod testing;
 pub mod tray_menu;
 mod unsupported;
 
+#[cfg(target_os = "linux")]
+pub mod linux;
 #[cfg(windows)]
 pub mod windows;
 
@@ -42,7 +46,11 @@ pub fn system() -> Platform {
     {
         windows::platform()
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    {
+        linux::platform()
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
     {
         unsupported::platform()
     }

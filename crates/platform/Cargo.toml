@@ -14,9 +14,16 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 serde_json = "1"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 
-[target.'cfg(windows)'.dependencies]
-# Micro (WASAPI).
+# Micro : WASAPI sous Windows, ALSA (donc PulseAudio ou PipeWire) sous Linux.
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
 cpal = "0.15"
+
+# Linux (X11) : touche globale (XInput2), collage (XTest), fenêtre active ; X11 par le protocole seul, sans bibliothèque système.
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", default-features = false, features = ["xinput", "xtest"] }
+arboard = { version = "3", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
 # Sessions audio (quelles applis jouent du son ou captent le micro) pour la pause des médias : les interfaces COM de WASAPI.
 windows = { version = "0.57", features = [
     "Win32_Foundation",
