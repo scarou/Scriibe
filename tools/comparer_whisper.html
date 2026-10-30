@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparer des modèles Whisper</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #fff; --text: #1d1d1b; --muted: #6b6b66; --line: #dcdcd6;
+    --accent: #2f6fdb; --good: #1f8f4d; --bad: #c0392b; --warn: #b9770e; --mark: #fff3c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161616; --card: #222; --text: #eee; --muted: #a0a09a; --line: #3a3a38;
+      --accent: #6aa0ff; --good: #4cc27d; --bad: #ff7a6b; --warn: #e5b04a; --mark: #4a4220;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.rec { background: var(--bad); border-color: var(--bad); color: #fff; font-size: 1.15rem; padding: 14px 26px; }
+  select, input[type=text], textarea { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .sentence { font-size: 1.6rem; line-height: 1.3; margin: 8px 0 14px; font-weight: 600; }
+  .meter { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-top: 10px; }
+  .meter > div { height: 100%; width: 0; background: var(--good); transition: width .06s linear; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--muted); margin-right: 6px; }
+  .dot.up { background: var(--good); } .dot.down { background: var(--bad); }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .ok { color: var(--good); } .ko { color: var(--bad); } .cap { color: var(--warn); }
+  .text { white-space: pre-wrap; }
+  details summary { cursor: pointer; font-weight: 600; }
+  .cand { display: grid; grid-template-columns: 1.1fr 1.5fr 1.6fr auto; gap: 6px; align-items: center; margin: 6px 0; }
+  @media (max-width: 700px) { .cand { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Comparer des modèles Whisper</h1>
+  <p class="muted">Tu lis une phrase, l'enregistrement part vers chaque modèle, et la page vérifie les jours et les heures. Rien n'est envoyé hors de cet ordinateur : les modèles tournent sur <code>127.0.0.1</code>.</p>
+
+  <div class="card" id="servers">
+    <h2>1. Les modèles</h2>
+    <div id="candidates"></div>
+    <div class="row" style="margin-top:8px">
+      <button id="check">Vérifier les serveurs</button>
+      <button id="addCandidate">Ajouter une variante</button>
+      <button id="stopServers" title="Arrête les modèles lancés par le script">Arrêter les serveurs</button>
+      <span class="muted" id="serverHint"></span>
+    </div>
+  </div>
+
+  <div class="card" id="mic">
+    <h2>2. Le micro</h2>
+    <div class="row">
+      <button id="allowMic">Autoriser le micro</button>
+      <select id="micSelect" disabled><option>(autorise d'abord le micro)</option></select>
+      <span class="muted" id="micHint"></span>
+    </div>
+  </div>
+
+  <div class="card" id="stage">
+    <h2>3. Lire les phrases <span class="muted" id="progress"></span></h2>
+    <div class="sentence" id="sentence"></div>
+    <div class="row">
+      <button class="rec" id="recBtn">● Enregistrer</button>
+      <button id="redo" disabled>Refaire cette phrase</button>
+      <button id="skip">Passer</button>
+      <label class="muted">ou <input type="file" id="importFile" accept="audio/*"></label>
+    </div>
+    <div class="meter"><div id="level"></div></div>
+    <p class="muted" id="status">Clique sur « Enregistrer », attends un instant, lis la phrase, puis clique sur « Arrêter ».</p>
+  </div>
+
+  <div class="card">
+    <h2>4. Résultats</h2>
+    <div id="summary"></div>
+    <div class="row" style="margin:10px 0">
+      <button id="retest" disabled>Retester toutes les prises</button>
+      <button id="copy" disabled>Copier le rapport</button>
+      <button id="reset">Tout effacer</button>
+    </div>
+    <div id="details"></div>
+  </div>
+
+  <details class="card">
+    <summary>Les phrases (modifiables)</summary>
+    <p class="muted">Une phrase par ligne. Après <code>|</code> : les mots attendus, séparés par <code>;</code> (un mot, ou deux écritures possibles séparées par <code>/</code>, par exemple <code>10 h/10 heures/dix heures</code>).</p>
+    <textarea id="phraseBox" rows="8" style="width:100%"></textarea>
+    <div class="row" style="margin-top:8px"><button id="applyPhrases">Appliquer</button></div>
+  </details>
+</main>
+
+<script>
+'use strict';
+
+const DEFAULT_PHRASES = [
+  'La réunion est reportée à mardi. | mardi',
+  'On se voit mercredi à dix heures. | mercredi; 10 h/10 heures/dix heures',
+  'Le rendez-vous est jeudi matin vers huit heures trente. | jeudi; 8 h 30/8 heures 30/huit heures trente',
+  'Je suis disponible vendredi après-midi, ou samedi. | vendredi; samedi',
+  'Lundi, mardi, mercredi : je suis en déplacement. | lundi; mardi; mercredi; déplacement',
+  'Rendez-vous dimanche à dix-sept heures quinze. | dimanche; 17 h 15/17 heures 15/dix-sept heures quinze',
+  // Parole spontanée (hésitation, correction) : c'est là que Whisper `base` s'est trompé en dictée réelle.
+  "Alors je pense que non, en fait, je voulais dire qu'on devrait se voir mercredi, enfin plutôt jeudi matin, vers dix heures, si ça te va. | mercredi; jeudi; 10 h/10 heures/dix heures; si ça te va",
+  'Bon, euh, on se retrouve mardi, non pardon, mercredi à quatorze heures trente, si ça te convient. | mardi; mercredi; 14 h 30/14 heures 30/quatorze heures trente; convient',
+];
+const DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+const DEFAULT_CANDIDATES = [
+  { id: 'base', label: 'base', url: 'http://127.0.0.1:8191', prompt: '' },
+  { id: 'small', label: 'small', url: 'http://127.0.0.1:8192', prompt: '' },
+  { id: 'small-amorce', label: 'small + amorce des jours', url: 'http://127.0.0.1:8192', prompt: 'lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche' },
+];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function store(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* page utilisable sans mémoire */ } }
+function recall(key, fallback) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; } }
+
+let phraseLines = recall('phrases', DEFAULT_PHRASES);
+let candidates = recall('candidates', DEFAULT_CANDIDATES);
+let takes = [];            // { id, round, idx, blob, url, results: { [candidateId]: { text, sec, error } } }
+let round = 1, idx = 0;
+let busy = false;
+
+// ---------- phrases et mots attendus ----------
+
+// « 10 h » accepte « 10h » comme « 10 h » (les espaces sont facultatifs) ; « - » accepte aussi une espace.
+function keyPattern(variant) {
+  const parts = variant.trim().split(/\s+/).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  let source = parts.join('\\s*');
+  source = source.replace(/-/g, '[-\\s]');
+  return new RegExp('(^|[^\\p{L}\\d])(' + source + ')(?![\\p{L}\\d])', 'iu');
+}
+
+function parsePhrases() {
+  return phraseLines.map((line) => {
+    const [text, keys = ''] = line.split('|');
+    const expected = keys.split(';').map((k) => k.trim()).filter(Boolean).map((k) => {
+      const variants = k.split('/').map((v) => v.trim()).filter(Boolean);
+      return { label: variants[0], patterns: variants.map(keyPattern) };
+    });
+    return { text: text.trim(), expected };
+  }).filter((p) => p.text);
+}
+let phrases = parsePhrases();
+
+function normalize(text) { return text.replace(/[  ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+// Les jours écrits avec une majuscule au milieu d'une phrase (défaut de Whisper `base`).
+function capitalDays(text) {
+  const found = [];
+  const re = new RegExp('(^|[^\\p{L}])(' + DAYS.map((d) => d[0].toUpperCase() + d.slice(1)).join('|') + ')(?![\\p{L}])', 'gu');
+  let m;
+  while ((m = re.exec(text))) {
+    const before = text.slice(0, m.index + m[1].length).trimEnd();
+    if (before !== '' && !/[.!?…]$/.test(before)) found.push(m[2]);
+  }
+  return found;
+}
+
+function score(phrase, text) {
+  const t = normalize(text);
+  const hits = phrase.expected.map((k) => ({ label: k.label, ok: k.patterns.some((p) => p.test(t)) }));
+  return { hits, capitals: capitalDays(t) };
+}
+
+// ---------- micro et enregistrement ----------
+
+let stream = null, recorder = null, chunks = [], meterTimer = null, audioCtx = null;
+
+async function listMics() {
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+  const select = $('micSelect');
+  const keep = recall('mic', '');
+  select.innerHTML = devices.map((d) => `<option value="${esc(d.deviceId)}"${d.deviceId === keep ? ' selected' : ''}>${esc(d.label || 'micro')}</option>`).join('');
+  select.disabled = false;
+}
+
+$('allowMic').onclick = async () => {
+  try {
+    const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+    probe.getTracks().forEach((t) => t.stop());
+    await listMics();
+    $('micHint').textContent = 'Micro autorisé. Choisis celui que Scriibe utilise.';
+  } catch (e) {
+    $('micHint').textContent = 'Micro refusé ou introuvable (' + e.name + '). Tu peux quand même importer un fichier audio.';
+  }
+};
+$('micSelect').onchange = () => store('mic', $('micSelect').value);
+
+async function startRecording() {
+  const deviceId = $('micSelect').disabled ? undefined : $('micSelect').value;
+  // Sans traitement du navigateur : Scriibe reçoit le son brut du micro.
+  stream = await navigator.mediaDevices.getUserMedia({
+    audio: { deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+  });
+  recorder = new MediaRecorder(stream);
+  chunks = [];
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  recorder.start();
+  audioCtx = new AudioContext();
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  audioCtx.createMediaStreamSource(stream).connect(analyser);
+  const data = new Uint8Array(analyser.fftSize);
+  meterTimer = setInterval(() => {
+    analyser.getByteTimeDomainData(data);
+    let peak = 0;
+    for (const v of data) peak = Math.max(peak, Math.abs(v - 128) / 128);
+    $('level').style.width = Math.min(100, peak * 160) + '%';
+  }, 60);
+}
+
+function stopRecording() {
+  return new Promise((resolve) => {
+    recorder.onstop = () => {
+      clearInterval(meterTimer);
+      $('level').style.width = '0';
+      stream.getTracks().forEach((t) => t.stop());
+      audioCtx.close();
+      resolve(new Blob(chunks, { type: recorder.mimeType }));
+    };
+    recorder.stop();
+  });
+}
+
+// N'importe quel audio → WAV 16 kHz mono 16 bits, ce que reçoit whisper-server dans Scriibe.
+async function toWav(blob) {
+  const decoded = await new AudioContext().decodeAudioData(await blob.arrayBuffer());
+  const length = Math.max(1, Math.ceil(decoded.duration * 16000));
+  const offline = new OfflineAudioContext(1, length, 16000);
+  const source = offline.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offline.destination);
+  source.start();
+  const samples = (await offline.startRendering()).getChannelData(0);
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const text = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  text(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); text(8, 'WAVE'); text(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, 16000, true); view.setUint32(28, 32000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  text(36, 'data'); view.setUint32(40, samples.length * 2, true);
+  let peak = 0;
+  samples.forEach((s, i) => { const c = Math.max(-1, Math.min(1, s)); peak = Math.max(peak, Math.abs(c)); view.setInt16(44 + i * 2, c < 0 ? c * 0x8000 : c * 0x7fff, true); });
+  return { blob: new Blob([buffer], { type: 'audio/wav' }), peak, seconds: decoded.duration };
+}
+
+// ---------- serveurs ----------
+
+async function ping(url) {
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 2500);
+    const r = await fetch(url + '/', { signal: ctl.signal });
+    clearTimeout(timer);
+    return r.ok;
+  } catch (e) { return false; }
+}
+
+async function transcribe(candidate, wav) {
+  const form = new FormData();
+  form.append('file', wav, 'prise.wav');
+  form.append('response_format', 'json');
+  form.append('temperature', '0.0');
+  form.append('language', 'fr');
+  if (candidate.prompt) form.append('prompt', candidate.prompt);
+  const started = performance.now();
+  try {
+    const r = await fetch(candidate.url.replace(/\/$/, '') + '/inference', { method: 'POST', body: form });
+    if (!r.ok) throw new Error('réponse ' + r.status);
+    const json = await r.json();
+    const text = (json.text || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
+    return { text, sec: (performance.now() - started) / 1000 };
+  } catch (e) {
+    return { text: '', sec: 0, error: e.message || String(e) };
+  }
+}
+
+async function runCandidates(take) {
+  for (const c of candidates) {
+    take.results[c.id] = { text: '…', sec: 0, pending: true };
+    render();
+    take.results[c.id] = await transcribe(c, take.blob);   // l'un après l'autre : les durées restent comparables
+    render();
+  }
+}
+
+// ---------- déroulement ----------
+
+function setStatus(text) { $('status').textContent = text; }
+
+async function addTake(blob, seconds, peak) {
+  const take = { id: crypto.randomUUID(), round, idx, blob, url: URL.createObjectURL(blob), seconds, peak, results: {} };
+  takes = takes.filter((t) => !(t.round === round && t.idx === idx));
+  takes.push(take);
+  const warn = peak < 0.02 ? ' Attention : le son est très faible, vérifie le micro choisi.' : '';
+  setStatus('Transcription en cours (' + candidates.length + ' modèle(s)).' + warn);
+  busy = true; render();
+  await runCandidates(take);
+  busy = false;
+  next();
+}
+
+function next() {
+  idx += 1;
+  if (idx >= phrases.length) { idx = 0; round += 1; }
+  setStatus('Prise enregistrée. Phrase suivante : clique sur « Enregistrer ».');
+  render();
+}
+
+$('recBtn').onclick = async () => {
+  if (busy) return;
+  if (recorder && recorder.state === 'recording') {
+    $('recBtn').disabled = true;
+    try {
+      const raw = await stopRecording();
+      const wav = await toWav(raw);
+      $('recBtn').disabled = false;
+      $('recBtn').textContent = '● Enregistrer';
+      $('recBtn').classList.add('rec');
+      await addTake(wav.blob, wav.seconds, wav.peak);
+    } catch (e) { setStatus('Erreur : ' + e.message); $('recBtn').disabled = false; }
+    return;
+  }
+  try {
+    await startRecording();
+    $('recBtn').textContent = '■ Arrêter';
+    setStatus('Enregistrement… attends un instant, lis la phrase, puis clique sur « Arrêter ».');
+  } catch (e) { setStatus('Le micro ne démarre pas (' + e.name + '). Clique d\'abord sur « Autoriser le micro » ou importe un fichier.'); }
+};
+
+$('importFile').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file || busy) return;
+  try { const wav = await toWav(file); await addTake(wav.blob, wav.seconds, wav.peak); }
+  catch (err) { setStatus('Fichier illisible : ' + err.message); }
+  e.target.value = '';
+};
+
+$('skip').onclick = () => { if (!busy) next(); };
+$('redo').onclick = () => {
+  if (busy) return;
+  idx -= 1;
+  if (idx < 0) { idx = phrases.length - 1; round = Math.max(1, round - 1); }
+  render();
+};
+
+$('check').onclick = checkServers;
+async function checkServers() {
+  const urls = [...new Set(candidates.map((c) => c.url))];
+  const state = {};
+  await Promise.all(urls.map(async (u) => { state[u] = await ping(u); }));
+  document.querySelectorAll('[data-dot]').forEach((dot) => {
+    const up = state[dot.dataset.dot];
+    dot.className = 'dot ' + (up ? 'up' : 'down');
+    dot.title = up ? 'répond' : 'ne répond pas';
+  });
+  const down = urls.filter((u) => !state[u]);
+  $('serverHint').textContent = down.length ? 'Ne répond pas : ' + down.join(', ') + ' (lance le script de lancement).' : 'Tous les serveurs répondent.';
+}
+
+$('stopServers').onclick = async () => {
+  try { await fetch('/fin', { method: 'POST' }); $('serverHint').textContent = 'Serveurs arrêtés : tu peux fermer cet onglet.'; }
+  catch (e) { $('serverHint').textContent = 'Cette page n\'a pas été ouverte par le script : rien à arrêter ici.'; }
+};
+
+$('retest').onclick = async () => {
+  if (busy) return;
+  busy = true;
+  for (const t of takes) { t.results = {}; await runCandidates(t); }
+  busy = false; render();
+};
+
+$('reset').onclick = () => { if (!busy) { takes = []; round = 1; idx = 0; setStatus('Résultats effacés.'); render(); } };
+
+$('addCandidate').onclick = () => {
+  candidates.push({ id: 'c' + Date.now(), label: 'variante', url: 'http://127.0.0.1:8192', prompt: '' });
+  store('candidates', candidates); renderCandidates();
+};
+
+$('applyPhrases').onclick = () => {
+  phraseLines = $('phraseBox').value.split('\n').map((l) => l.trim()).filter(Boolean);
+  store('phrases', phraseLines);
+  phrases = parsePhrases(); idx = 0; round = 1; takes = []; render();
+};
+
+// ---------- affichage ----------
+
+function renderCandidates() {
+  $('candidates').innerHTML = candidates.map((c, i) => `
+    <div class="cand">
+      <span><span class="dot" data-dot="${esc(c.url)}"></span><input type="text" data-f="label" data-i="${i}" value="${esc(c.label)}" aria-label="Nom"></span>
+      <input type="text" data-f="url" data-i="${i}" value="${esc(c.url)}" aria-label="Adresse du serveur">
+      <input type="text" data-f="prompt" data-i="${i}" value="${esc(c.prompt)}" placeholder="amorce (facultatif)" aria-label="Amorce">
+      <button data-del="${i}" title="Retirer">✕</button>
+    </div>`).join('');
+  $('candidates').querySelectorAll('input').forEach((el) => {
+    el.onchange = () => { candidates[el.dataset.i][el.dataset.f] = el.value; store('candidates', candidates); };
+  });
+  $('candidates').querySelectorAll('[data-del]').forEach((b) => {
+    b.onclick = () => { candidates.splice(Number(b.dataset.del), 1); store('candidates', candidates); renderCandidates(); render(); };
+  });
+}
+
+function stats() {
+  return candidates.map((c) => {
+    let hits = 0, total = 0, capitals = 0, secs = 0, n = 0, errors = 0;
+    for (const t of takes) {
+      const r = t.results[c.id];
+      if (!r || r.pending) continue;
+      if (r.error) { errors += 1; continue; }
+      const s = score(phrases[t.idx] || { expected: [] }, r.text);
+      s.hits.forEach((h) => { total += 1; if (h.ok) hits += 1; });
+      capitals += s.capitals.length; secs += r.sec; n += 1;
+    }
+    return { c, hits, total, capitals, avg: n ? secs / n : 0, n, errors };
+  });
+}
+
+function render() {
+  const phrase = phrases[idx];
+  $('sentence').textContent = phrase ? phrase.text : '(aucune phrase)';
+  $('progress').textContent = phrase ? `— tour ${round}, phrase ${idx + 1} sur ${phrases.length}` : '';
+  $('recBtn').disabled = busy;
+  $('redo').disabled = busy || takes.length === 0;
+  $('retest').disabled = busy || takes.length === 0;
+  $('copy').disabled = takes.length === 0;
+  document.querySelectorAll('#stage button, #importFile').forEach((el) => { if (el.id !== 'recBtn' && el.id !== 'redo') el.disabled = busy; });
+
+  const rows = stats();
+  $('summary').innerHTML = takes.length === 0 ? '<p class="muted">Aucune prise pour l\'instant.</p>' : `
+    <table><thead><tr><th>Modèle</th><th>Mots attendus trouvés</th><th>Jours avec majuscule</th><th>Durée moyenne</th><th>Prises</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td>${esc(r.c.label)}</td>
+      <td class="${r.total && r.hits === r.total ? 'ok' : ''}">${r.hits} / ${r.total}${r.total ? ' (' + Math.round(100 * r.hits / r.total) + ' %)' : ''}</td>
+      <td class="${r.capitals ? 'cap' : 'ok'}">${r.capitals}</td>
+      <td>${r.n ? r.avg.toFixed(1) + ' s' : '—'}</td>
+      <td>${r.n}${r.errors ? ' <span class="ko">(' + r.errors + ' en erreur)</span>' : ''}</td></tr>`).join('')}
+    </tbody></table>`;
+
+  $('details').innerHTML = [...takes].sort((a, b) => a.round - b.round || a.idx - b.idx).map((t) => {
+    const p = phrases[t.idx] || { text: '?', expected: [] };
+    const cells = candidates.map((c) => {
+      const r = t.results[c.id];
+      if (!r) return `<tr><td>${esc(c.label)}</td><td class="muted">en attente</td></tr>`;
+      if (r.pending) return `<tr><td>${esc(c.label)}</td><td class="muted">en cours…</td></tr>`;
+      if (r.error) return `<tr><td>${esc(c.label)}</td><td class="ko">erreur : ${esc(r.error)}</td></tr>`;
+      const s = score(p, r.text);
+      const marks = s.hits.map((h) => `<span class="${h.ok ? 'ok' : 'ko'}">${h.ok ? '✔' : '✘'} ${esc(h.label)}</span>`).join(' · ')
+        + s.capitals.map((d) => ` · <span class="cap">majuscule : ${esc(d)}</span>`).join('');
+      return `<tr><td>${esc(c.label)}<div class="muted">${r.sec.toFixed(1)} s</div></td><td><div class="text">${esc(r.text) || '<span class="muted">(rien)</span>'}</div><div>${marks}</div></td></tr>`;
+    }).join('');
+    return `<details style="margin:6px 0"><summary>Tour ${t.round} · ${esc(p.text)}</summary>
+      <audio controls src="${t.url}" style="width:100%;margin:6px 0"></audio>
+      <table><tbody>${cells}</tbody></table></details>`;
+  }).join('');
+}
+
+$('copy').onclick = async () => {
+  const lines = ['Comparaison Whisper — ' + new Date().toLocaleString('fr-FR')];
+  stats().forEach((r) => lines.push(`${r.c.label}${r.c.prompt ? ' (amorce : ' + r.c.prompt + ')' : ''} : ${r.hits}/${r.total} mots attendus, ${r.capitals} jour(s) avec majuscule, ${r.avg.toFixed(1)} s en moyenne sur ${r.n} prise(s)`));
+  lines.push('');
+  [...takes].sort((a, b) => a.round - b.round || a.idx - b.idx).forEach((t) => {
+    const p = phrases[t.idx] || { text: '?', expected: [] };
+    lines.push(`Tour ${t.round}, phrase ${t.idx + 1} : ${p.text}`);
+    candidates.forEach((c) => {
+      const r = t.results[c.id];
+      if (!r || r.pending) return;
+      if (r.error) { lines.push(`  ${c.label} : erreur ${r.error}`); return; }
+      const s = score(p, r.text);
+      lines.push(`  ${c.label} (${r.sec.toFixed(1)} s) : ${r.text}  [${s.hits.map((h) => (h.ok ? '✔' : '✘') + h.label).join(' ')}${s.capitals.length ? ' ; majuscule ' + s.capitals.join(', ') : ''}]`);
+    });
+  });
+  try { await navigator.clipboard.writeText(lines.join('\n')); setStatus('Rapport copié : colle-le dans la conversation.'); }
+  catch (e) { prompt('Copie ce rapport (Ctrl+C) :', lines.join('\n')); }
+};
+
+$('phraseBox').value = phraseLines.join('\n');
+renderCandidates();
+render();
+checkServers();
+</script>
+</body>
+</html>
