@@ -1,4 +1,8 @@
-# Reprise — 29/10/2026 (fin de S08, pour S09)
+# Reprise — 30/10/2026 (fin de S09, pour S10)
+
+**S09 en bref** (détail : `CHANGELOG.md`) : pause des médias muette = Chrome mis à jour non relancé (pas Scriibe) ; **verrou d'instance** ajouté (`crates/platform/src/instance.rs`, Windows seulement, remise au premier plan de la fenêtre à confirmer) ; essayés sur le PC : reprise d'un téléchargement coupé, suppression d'un modèle, LM Studio (Llama 3B : 13,5 s de mise au propre) ; Whisper `small`/`base` commencé, pas conclu. **Pour la session suivante, remplacer dans le prompt ci-dessous « S08 » par « S09 » et la liste de la PROCHAINE TÂCHE par : (a) CI si la date ≥ 01/11/2026 ; (b) confirmer la remise au premier plan (lancer Scriibe deux fois) ; (c) comparer Whisper `small` et `base` (jours, heures) par le banc de l'interface, pas par des commandes ; (d) messages visibles et journal pendant les reprises de téléchargement ; (e) Ollama (non installé), banc avec un meilleur micro ; (f) moteurs à comparer : Parakeet (sherpa-onnx), Faster-Whisper, Vosk ; (g) Linux, macOS, Wayland.**
+
+(Prompt écrit en fin de S08 :)
 
 Le texte ci-dessous est le prompt à coller au début de la session suivante. Il est court exprès : le reste se lit **à la demande** (liste à la fin).
 
