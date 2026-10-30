@@ -34,6 +34,8 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         None | Some("lancer") => commands::run(),
+        // Relance après une mise à jour d'un programme lancé sans commande.
+        Some(flag) if flag == commands::RESTARTED => commands::run(),
         Some("verifier") => commands::check(),
         Some("micro") => commands::microphone(args.get(1).and_then(|s| s.parse().ok()).unwrap_or(3.0)),
         Some("essai") => commands::trial(&args[1..]),

@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
 
+## S09 — 2026-10-30 · Essais sur le PC, une seule Scriibe à la fois
+
+Session **locale** sur le portable Windows de Christophe, `scarou/scribe` non modifié ; commits `[skip ci]` (quota GitHub Actions épuisé jusqu'au 01/11/2026).
+
+- **Pause des médias muette avec Chrome** : le journal disait « pause demandée » mais la vidéo continuait ; ni la touche Lecture/Pause, ni l'API des sessions multimédias, ni le panneau du volume de Windows n'agissaient. Cause : Chrome venait de se mettre à jour sans être relancé. Relancé, tout marche (piège noté dans `docs/PIEGES.md`).
+- **Deux Scriibe en même temps** : Whisper ne répondait plus. **Verrou d'instance** (`crates/platform/src/instance.rs`, Windows seulement pour l'instant) : fichier ouvert sans partage dans le dossier de données, adresse annoncée dans `instance.url` ; une deuxième Scriibe demande à la première de montrer sa fenêtre (`api/instance/show`) puis s'arrête. La relance après une mise à jour passe `--relance` et attend l'ancienne instance (15 s au plus). Mesuré : 1 seul processus après deux lancements ; clippy et `cargo test --workspace` sans erreur. Remise au premier plan à confirmer par Christophe.
+- Constaté : un texte peut être collé dans une autre appli si la fenêtre active change pendant la transcription (8 à 12 s avec Whisper `small` sur processeur).
+- **Non fait** : comparaison de moteurs (Parakeet par sherpa-onnx, Faster-Whisper, Vosk) et de modèles Whisper quantifiés, à passer par le banc ; les autres essais de la liste de REPRISE.md.
+
 ## S08 — 2026-10-29 · Aide pour novices, dicter dans la fenêtre de Scriibe, interface en français et en anglais, documentation de reprise allégée
 
 Session **locale** sur le portable Windows de Christophe (application Claude pour ordinateur, dossier `C:\scriibe-dev`), du début à la fin ; le dépôt `scarou/scribe` n'a pas été modifié.

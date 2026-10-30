@@ -8,6 +8,7 @@ pub mod apps;
 pub mod audio;
 pub mod bench_store;
 pub mod indicator;
+pub mod instance;
 pub mod keys;
 pub mod locale;
 pub mod machine;

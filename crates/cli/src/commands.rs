@@ -8,11 +8,12 @@ use scriibe_engines::llama;
 use scriibe_engines::runtime::{KeyKind, Log};
 use scriibe_engines::server::Launcher;
 use scriibe_platform::indicator::{ConsoleIndicator, Indicator};
+use scriibe_platform::instance::{self, Instance, InstanceLock};
 use scriibe_platform::paste::{PasteOutcome, Paster};
 use scriibe_platform::storage::{FileHistory, FileLog, HistorySink};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn setup(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
     let config = app::open_config();
@@ -41,9 +42,37 @@ impl HistorySink for NoHistory {
     fn record(&self, _: scriibe_core::history::Dictation) {}
 }
 
+/// Ajouté par la mise à jour au programme qu'elle relance : l'ancien n'a peut-être pas encore libéré le verrou d'instance.
+pub const RESTARTED: &str = "--relance";
+
+/// Prend le verrou d'instance. `None` : une autre Scriibe tourne déjà sur ce dossier de données, elle a été priée de montrer sa fenêtre.
+fn single_instance(folder: &std::path::Path) -> Option<InstanceLock> {
+    let wait = if std::env::args().any(|a| a == RESTARTED) { Duration::from_secs(15) } else { Duration::ZERO };
+    let deadline = Instant::now() + wait;
+    loop {
+        match instance::acquire(folder) {
+            Instance::First(lock) => return Some(lock),
+            Instance::Running if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(200)),
+            Instance::Running => break,
+        }
+    }
+    eprintln!("Scriibe tourne déjà : sa fenêtre est remise au premier plan.");
+    instance::allow_foreground();
+    match instance::running_url(folder, Duration::from_secs(5)) {
+        Some(url) => {
+            if let Err(e) = ureq::post(&format!("{url}api/instance/show")).timeout(Duration::from_secs(5)).send_string("{}") {
+                eprintln!("L'autre Scriibe n'a pas répondu ({e}) : ferme-la depuis l'icône de la zone de notification.");
+            }
+        }
+        None => eprintln!("L'autre Scriibe n'a pas annoncé son adresse : ferme-la depuis l'icône de la zone de notification."),
+    }
+    None
+}
+
 pub fn run() -> Result<(), String> {
     crate::web::remove_update_leftovers();
     let (config, log) = setup(true)?;
+    let Some(instance_lock) = single_instance(config.folder()) else { return Ok(()) };
     let platform = scriibe_platform::system();
     let settings = config.settings();
     eprintln!("Scriibe — {}", describe_engines(&settings));
@@ -119,6 +148,7 @@ pub fn run() -> Result<(), String> {
     if let Ok(mut slot) = page_url.lock() {
         *slot = Some(url.clone());
     }
+    instance_lock.publish(&url);
     eprintln!("Interface : {url}");
     if !std::env::args().any(|a| a == "--sans-navigateur") {
         open_interface(&url, &app, &overlay);

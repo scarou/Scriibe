@@ -155,6 +155,11 @@ fn handle(ctx: &Context, mut request: Request) {
     let input: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
+        // Une deuxième Scriibe lancée par l'utilisateur demande de montrer cette fenêtre, puis s'arrête.
+        (Method::Post, "api/instance/show") => {
+            scriibe_platform::open::open(&format!("http://127.0.0.1:{}/{}/", ctx.port, ctx.token));
+            ok(request, json!({"ok": true}));
+        }
         (Method::Get, "api/phrases") => ok(request, phrases(ctx.app.config.settings().language)),
         (Method::Get, "api/signs") => ok(
             request,
@@ -948,7 +953,9 @@ fn install_update(ctx: &Context) -> Result<(), String> {
 fn restart(app: &App) {
     app.whisper.server.stop();
     app.llama.stop();
-    match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(std::env::args().skip(1)).spawn()) {
+    let mut args: Vec<String> = std::env::args().skip(1).filter(|a| a != crate::commands::RESTARTED).collect();
+    args.push(crate::commands::RESTARTED.into());
+    match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(args).spawn()) {
         Ok(_) => app.log.write("mise à jour: nouvelle version lancée"),
         Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance scriibe.exe à la main")),
     }
