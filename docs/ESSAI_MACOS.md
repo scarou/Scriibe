@@ -1,4 +1,4 @@
-# Essai de Scriibe sur macOS — étape 7, premier jalon (S09), essayé en S10
+# Essai de Scriibe sur macOS — étape 7 (S09 à S11)
 
 **Écrit sans Mac sous la main** (sur le PC Windows de Christophe, le 31/10/2026), puis **essayé le jour même sur son Mac Studio** : compilation, touche, dictée en ligne et collage marchent (détail dans `CHANGELOG.md`, S09). **S10 : appli active, son de fin, traduction, annulation, plusieurs dictées de suite et Whisper local (`small`, 1,6 s pour 11,5 s de parole) marchent aussi.** Lancer Scriibe **depuis son propre Terminal** : voir `docs/PIEGES.md` (autorisations). Une étape à la fois, et on note ce qui résiste dans `docs/PIEGES.md`.
 
@@ -13,9 +13,12 @@
 ## Pas encore fait
 
 - **Pause des médias** : faite en S10 (`macos/media.rs`), essayée avec Chrome seulement ; l'écriture de Scriibe au journal (« médias: … ») dit ce qu'elle voit.
-- **Icône de la barre des menus** et **fenêtre de Scriibe** : l'interface s'ouvre dans le navigateur (`open`). La fenêtre Tauri (WKWebView) et l'icône sont à porter.
-- **Verrou d'instance** (une seule Scriibe à la fois) : Windows seulement ; **détection de la carte graphique** : à écrire (`system_profiler`) ; **mise à jour intégrée** et **téléchargement des moteurs** par la page : Windows seulement (sur Mac, passer par Homebrew).
-- Pas de `.app` : Scriibe se lance depuis un terminal, et c'est **le terminal** qui reçoit les autorisations ci-dessous.
+- **Fait en S11** : fenêtre Tauri (WKWebView), icône de la barre des menus et son menu, pastille, verrou d'instance (`flock`), Scriibe.app (voir ci-dessous).
+- **Pas fait** : touches réglables (Option, ⌘, Fn) ; **détection de la carte graphique** : à écrire (`system_profiler`) ; **mise à jour intégrée** et **téléchargement des moteurs** par la page : Windows seulement (sur Mac, passer par Homebrew).
+
+## Scriibe.app (S11)
+
+`tools/faire_app_macos.sh` (après `cd ui && npm run build` et `cargo build --release`) fabrique `Scriibe.app`, la signe (« Scribe Dev », identifiant `fr.scriibe.app`) et l'installe dans `~/Applications`. Double-clic : la fenêtre s'ouvre, l'icône apparaît dans la barre des menus (pas d'icône dans le Dock). Les autorisations (Surveillance de l'entrée, Micro, Contrôle de l'appareil et accès aux données pour ⌘V) se donnent **à Scriibe.app**, une fois, puis relancer ; elles tiennent d'une compilation à l'autre. Fermer la fenêtre ne quitte pas ; un second double-clic la remontre ; « Quitter Scriibe » est dans le menu de l'icône. Fermer d'abord un ancien Scriibe lancé depuis un Terminal. Les étapes ci-dessous valent pour un lancement depuis un terminal (`target/release/scriibe lancer`) ; dans ce cas c'est le terminal qui reçoit les autorisations.
 
 ## Avant de commencer
 

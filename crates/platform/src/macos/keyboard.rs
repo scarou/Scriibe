@@ -73,13 +73,15 @@ fn run_tap(sink: Sender<KeyEvent>, stop: Arc<AtomicBool>, ready: Sender<Result<O
     let user = &*context as *const Context as *mut c_void;
     // SAFETY : `on_event` suit la signature de CGEventTapCallBack et `user` reste valable jusqu'à la fin de cette fonction.
     let tap = unsafe { ffi::CGEventTapCreate(ffi::TAP_HID, ffi::TAP_HEAD_INSERT, ffi::TAP_LISTEN_ONLY, EVENTS, on_event, user) };
-    if tap.is_null() {
+    // macOS 27 crée le tap sans erreur même sans l'autorisation, mais il ne reçoit alors rien : l'autorisation se lit à part.
+    // SAFETY : fonction sans paramètre.
+    let allowed = !tap.is_null() && unsafe { ffi::CGPreflightListenEventAccess() };
+    if !allowed {
         // Fait apparaître la demande d'autorisation de macOS (une seule fois), puis dit quoi faire.
-        // SAFETY : fonctions sans paramètre.
-        unsafe {
-            if !ffi::CGPreflightListenEventAccess() {
-                ffi::CGRequestListenEventAccess();
-            }
+        // SAFETY : fonction sans paramètre ; le tap éventuel est vivant et libéré par `Owned`.
+        unsafe { ffi::CGRequestListenEventAccess() };
+        if !tap.is_null() {
+            drop(Owned(tap));
         }
         let _ = ready.send(Err(MESSAGE_DENIED.into()));
         return;

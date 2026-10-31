@@ -20,7 +20,7 @@ Le symbole est celui de Scribe : **une plume de stylo percée d'une onde sonore*
 
 - **L'interface** : variables CSS `--brand`, `--brand-deep`, `--brand-bright` et `--accent` dans `ui/src/app.css`, choisies par `data-os` (que le serveur local renseigne : `windows`, `macos` ou `linux`). Un seul jeu de fichiers pour les trois systèmes : rien n'alourdit l'exécutable.
 - **La pastille à l'écran** : la couleur « Couleur de Scriibe » suit la marque du système.
-- **L'icône de l'exécutable Windows** : `crates/cli/icons/icon.ico` et `icon.png` (bleu). Les icônes macOS et Linux seront fabriquées à l'étape 7, avec le même outil.
+- **L'icône de l'exécutable Windows** : `crates/cli/icons/icon.ico` et `icon.png` (bleu). L'icône de **Scriibe.app** (macOS) : `crates/cli/icons/icon-macos.png` (1024 px, tiré de `scriibe-icone-macos.svg` par Chrome sans fenêtre : `--headless=new --screenshot --default-background-color=00000000 --window-size=1024,1024`), converti en `.icns` par `tools/faire_app_macos.sh`. Celle de Linux viendra avec son étape.
 - **L'icône près de l'horloge** (Windows) : un disque de la couleur de l'état (gris, rouge, orange, vert, bleu) avec la plume en blanc (`crates/platform/src/windows/plume32.alpha`, un masque de 32×32 octets).
 
 ## Le logotype

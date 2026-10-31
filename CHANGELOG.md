@@ -2,6 +2,21 @@
 
 Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
 
+## S11 — 2026-10-31 · Vraie application Mac : fenêtre, icône de la barre des menus, verrou d'instance, Scriibe.app
+
+Session **locale** sur le Mac Studio de Christophe ; `scarou/scribe` non modifié ; commits `[skip ci]` (quota GitHub Actions épuisé jusqu'au 01/11/2026).
+
+- **Démarrage remanié pour le Mac** (`crates/cli/src/commands.rs`, `window.rs`) : Tauri (WKWebView) et l'icône exigent le fil principal ; sous macOS il le garde (`window::run_main`), tout le reste (touche, serveur local, moteurs) tourne dans des fils comme avant. Si la fenêtre ne peut pas démarrer, repli sur le navigateur. Windows inchangé (fil à part, `any_thread`). Appli « accessoire » (`ActivationPolicy::Accessory`) : pas d'icône dans le Dock, comme Scribe ; menu d'appli invisible avec Édition (⌘C, ⌘V, ⌘A) et ⌘Q qui quitte pour de bon.
+- **Icône de la barre des menus** (`crates/cli/src/mac_tray.rs`, API d'icône de Tauri) : disque dont la couleur dit l'état, infobulle, même menu que sous Windows (`tray_source`), relu deux fois par seconde par un fil. Le dessin de l'icône et l'infobulle sont maintenant partagés avec Windows (`platform::tray_menu::status_icon_rgba`, `state_tooltip` ; `plume32.alpha` déplacé dans `crates/platform/src/`).
+- **Pastille** : même fenêtre transparente qu'au PC, montrée sans activer l'appli (`orderFrontRegardless`, `macos::order_front_without_activating`) pour ne pas voler le focus au collage. Essayée : elle s'affiche.
+- **Verrou d'instance** (`platform/src/instance.rs`) : `flock` sur macOS et Linux (dépendance `libc`), `File` ouvert sans partage sous Windows. Un second lancement du programme demande `api/instance/show` ; un second double-clic sur Scriibe.app (événement « Reopen ») remontre la fenêtre.
+- **Scriibe.app** : `tools/faire_app_macos.sh` assemble le paquet (`packaging/macos/Info.plist` : identifiant `fr.scriibe.app`, `LSUIElement`, textes du micro et d'Automation ; icône `crates/cli/icons/icon-macos.png` tirée de `logo/scriibe-icone-macos.svg`), signe avec « Scribe Dev » et installe dans `~/Applications`. Les autorisations vont à l'appli elle-même (vérifié dans `tccd` : `responsible=fr.scriibe.app`), même lancée par `open` depuis la session : **le piège du processus responsable de S10 disparaît** avec le `.app`.
+- **Piège trouvé** : sans « Surveillance de l'entrée », macOS 27 crée quand même le tap et la page ne montrait aucune erreur. Corrigé : `CGPreflightListenEventAccess` est lu à part (`macos/keyboard.rs`), la demande de macOS est déclenchée et la page affiche le message.
+- **Réglage de construction** : Tauri est maintenant une dépendance de `cfg(any(windows, macos))` avec `tray-icon` et `macos-private-api` (fenêtre transparente), `tauri-build` exigeant l'accord de `tauri.conf.json` (`macOSPrivateApi`) dans chaque section ; `build.rs` génère le contexte aussi pour macOS. **Non compilé pour Windows dans cette session** (aucune CI, pas de PC) : à vérifier au prochain build sur le PC.
+- **Essayé avec Christophe sur le Mac** : double-clic sur Scriibe.app (fenêtre + icône), autorisations demandées à Scriibe.app, dictées dans TextEdit et Claude (transcription 0,2 s, total 1 à 1,5 s après le relâchement), pastille visible, fermer la fenêtre ne quitte pas (dictée et pastille continuent), second lancement remontre la fenêtre, « Quitter Scriibe » du menu de l'icône arrête tout (plus de processus Scriibe ni de `whisper-server`).
+- **Mesuré** : 270 tests Rust et 74 tests d'interface, 0 échec ; clippy et `cargo fmt` propres sur le Mac.
+- **Pas fait** : touches réglables sur Mac (`keys::CHOICES` est celle de Windows), détection de la carte graphique, démarrage avec la session, Musique/Spotify/appel (pause des médias), mise à jour intégrée et téléchargement des moteurs par la page (Windows seulement), CI complète (Windows et macOS n'ont pas tourné depuis `2103dc9`), menu de l'icône : clics sur les modes non essayés.
+
 ## S10 — 2026-10-31 · Essai de la couche macOS sur le Mac (touche, traduction, annulation, Whisper local)
 
 Session **locale** sur le Mac Studio de Christophe (application Claude pour ordinateur) ; `scarou/scribe` non modifié ; commits `[skip ci]` (quota GitHub Actions épuisé jusqu'au 01/11/2026).
