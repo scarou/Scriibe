@@ -24,6 +24,8 @@ use scriibe_platform::storage::{ConfigSource, HistorySink};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
+/// Le raccourci de collage de l'ordinateur, tel qu'on le lit dans un message de la pastille.
+const PASTE_SHORTCUT: &str = if cfg!(target_os = "macos") { "⌘V" } else { "Ctrl+V" };
 /// Une dictée plus courte est ignorée (effleurement de la touche).
 const MIN_DURATION: f64 = 0.3;
 /// Après l'ajout de la touche de traduction, on attend avant de charger le modèle de traduction : Ctrl+Maj+lettre est un raccourci,
@@ -605,6 +607,7 @@ impl Controller {
             state.recording = false;
             state.translation_warm_up_due = None;
         }
+        deps.log.write("dictée: annulée (une autre touche a été tapée)");
         deps.recorder.stop();
         deps.media.resume_if_paused();
         deps.indicator.show(IndicatorState::Hidden);
@@ -829,7 +832,7 @@ impl Controller {
 
         if let PasteOutcome::CopiedOnly(reason) = pasted {
             deps.log.write(&format!("collage: {reason}"));
-            deps.indicator.flash(IndicatorState::Message(format!("Copié, à coller avec Ctrl+V — {reason}")), 4.0);
+            deps.indicator.flash(IndicatorState::Message(format!("Copié, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
         } else if let Some(note) = note {
             deps.indicator.flash(IndicatorState::Message(note), 3.0);
         } else if weak {

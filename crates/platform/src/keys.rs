@@ -347,6 +347,7 @@ pub fn english_label(french: &str) -> String {
         .split(" + ")
         .map(|part| match part {
             "Ctrl droit" => "Right Ctrl",
+            "Option droite" => "Right Option",
             "Ctrl gauche" => "Left Ctrl",
             "Alt gauche" => "Left Alt",
             "Maj gauche" => "Left Shift",
@@ -367,6 +368,24 @@ pub fn english_label(french: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" + ")
+}
+
+/// La touche de dictée par défaut du système, pour l'affichage tant qu'aucune touche n'est choisie.
+pub fn default_dictation_label() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "Option droite"
+    } else {
+        "Ctrl droit"
+    }
+}
+
+/// La touche de traduction par défaut du système (Commande, à gauche ou à droite, sur Mac), pour l'affichage.
+pub fn default_translate_label() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "⌘"
+    } else {
+        "Maj"
+    }
 }
 
 /// « Ctrl gauche + F9 » : les touches d'une liste d'identifiants, pour l'affichage.

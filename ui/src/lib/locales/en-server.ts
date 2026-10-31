@@ -85,6 +85,7 @@ export const enServer: Record<string, string> = {
   'Rien entendu — micro faible : rapproche-toi': 'Nothing heard — weak microphone: move closer',
   'Rien entendu': 'Nothing heard',
   'Copié, à coller avec Ctrl+V — {reason}': 'Copied, paste it with Ctrl+V — {reason}',
+  'Copié, à coller avec ⌘V — {reason}': 'Copied, paste it with ⌘V — {reason}',
   'Collé — micro faible : rapproche-toi ou monte le volume d\'entrée': 'Pasted — weak microphone: move closer or raise the input volume',
   'Collé en {language} — micro faible : rapproche-toi ou monte le volume d\'entrée':
     'Pasted in {language} — weak microphone: move closer or raise the input volume',

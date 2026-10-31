@@ -708,7 +708,8 @@ fn a_paste_that_cannot_be_done_keeps_the_text_in_the_clipboard_and_says_so() {
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
     r.paster.set_outcome(PasteOutcome::CopiedOnly("fenêtre en administrateur".into()));
     r.dictate();
-    assert_eq!(r.indicator.last(), Some(message("Copié, à coller avec Ctrl+V — fenêtre en administrateur")));
+    let shortcut = if cfg!(target_os = "macos") { "⌘V" } else { "Ctrl+V" };
+    assert_eq!(r.indicator.last(), Some(message(&format!("Copié, à coller avec {shortcut} — fenêtre en administrateur"))));
     assert_eq!(r.history.items().len(), 1, "la dictée est gardée même si le collage a échoué");
 }
 

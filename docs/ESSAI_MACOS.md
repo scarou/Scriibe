@@ -1,6 +1,6 @@
-# Essai de Scriibe sur macOS — étape 7, premier jalon (S09)
+# Essai de Scriibe sur macOS — étape 7, premier jalon (S09), essayé en S10
 
-**Écrit sans Mac sous la main** (sur le PC Windows de Christophe, le 31/10/2026), puis **essayé le jour même sur son Mac Studio** : compilation, touche, dictée en ligne et collage marchent (détail dans `CHANGELOG.md`, S09). Le reste (traduction, Whisper local…) n'est pas encore essayé : on s'attend encore à corriger des choses. Une étape à la fois, et on note ce qui résiste dans `docs/PIEGES.md`.
+**Écrit sans Mac sous la main** (sur le PC Windows de Christophe, le 31/10/2026), puis **essayé le jour même sur son Mac Studio** : compilation, touche, dictée en ligne et collage marchent (détail dans `CHANGELOG.md`, S09). **S10 : appli active, son de fin, traduction, annulation, plusieurs dictées de suite et Whisper local (`small`, 1,6 s pour 11,5 s de parole) marchent aussi.** Lancer Scriibe **depuis son propre Terminal** : voir `docs/PIEGES.md` (autorisations). Une étape à la fois, et on note ce qui résiste dans `docs/PIEGES.md`.
 
 ## Ce qui est écrit (`crates/platform/src/macos/`)
 

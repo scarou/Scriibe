@@ -2,6 +2,16 @@
 
 Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
 
+## S10 — 2026-10-31 · Essai de la couche macOS sur le Mac (touche, traduction, annulation, Whisper local)
+
+Session **locale** sur le Mac Studio de Christophe (application Claude pour ordinateur) ; `scarou/scribe` non modifié ; commits `[skip ci]` (quota GitHub Actions épuisé jusqu'au 01/11/2026).
+
+- **Autorisations : piège trouvé** (environ une heure perdue). Un programme lancé par l'outil Bash de Claude, **même via `osascript … tell Terminal to do script`**, a pour processus responsable `com.anthropic.claude-code` (le `claude.app` rangé sous `~/Library/Application Support/Claude/claude-code/<version>/`), ni Claude.app ni Terminal (lu dans `log show`, `tccd`, `AUTHREQ_ATTRIBUTION`). Résultat sur macOS 27 : le tap CoreGraphics se crée **sans erreur** mais ne reçoit rien, `CGPreflightListenEventAccess` renvoie faux et aucune demande ne s'affiche ; activer Claude ou Terminal dans « Surveillance de l'entrée » n'y change rien. **Solution** : Christophe lance lui-même Scriibe dans son Terminal (quitter, rouvrir Terminal à la main, coller la commande) ; Terminal avait été retiré puis rajouté à la liste (`tccutil reset ListenEvent com.apple.Terminal`, puis bouton « + »). Noté dans `docs/PIEGES.md`.
+- **Essayé sur le Mac** : (1) appli active lue (`appli : TextEdit`, le correctif `lsappinfo` de S09 est confirmé) ; (2) son de fin entendu ; (3) **traduction** (⌘ gauche + Option droite) : « traduction anglais », 60 signes collés, 2,84 s après le relâchement ; (4) **annulation** (autre touche pendant l'appui) : aucun collage ; (5) **trois dictées de suite** : trois collages (10, 9 et 9 signes), les trois phrases dans TextEdit dans l'ordre ; (6) **Whisper local** : `ggml-small.bin` (487 601 967 octets, Hugging Face, téléchargé avec l'accord de Christophe) ; première dictée de 11,5 s : serveur normal démarré en 0,8 s, **transcription 1,60 s**, mise au propre OpenRouter 1,44 s, total 3,14 s ; deux `whisper-server` (court `-ac 512` sur 8177, normal sur 8178) ; (7) texte du repli « Copié, à coller avec ⌘V » sur Mac (`PASTE_SHORTCUT` dans `controller.rs`, `locales/en-server.ts`, `tests/dictation.rs` d'accord).
+- **Corrigé** : l'interface et le menu annonçaient « Ctrl droit » / « Maj » sur Mac (`keys::default_dictation_label` et `default_translate_label` : « Option droite » / « ⌘ » ; `Right Option` en anglais) ; une annulation laisse maintenant une ligne au journal (« dictée: annulée »).
+- **Mesuré** : 269 tests Rust et 74 tests d'interface, 0 échec ; `cargo clippy --all-targets -- -D warnings`, `cargo fmt`, `npm run check` propres sur le Mac.
+- **Pas fait** : pause des médias, icône de la barre des menus, fenêtre Tauri et pastille, verrou d'instance, carte graphique, `.app` ; **les touches réglables sur Mac** (la liste `keys::CHOICES` est celle de Windows : Ctrl droit, Windows gauche…, sans Option, ⌘ ni Fn).
+
 ## S09 — 2026-10-30 · Essais sur le PC, une seule Scriibe à la fois
 
 Session **locale** sur le portable Windows de Christophe, `scarou/scribe` non modifié ; commits `[skip ci]` (quota GitHub Actions épuisé jusqu'au 01/11/2026).

@@ -21,12 +21,15 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
     let english = lang == UiLang::En;
     let name = |label: String| if english { scriibe_platform::keys::english_label(&label) } else { label };
     let dictation = name(if settings.dictation_keys.is_empty() {
-        "Ctrl droit".to_string()
+        scriibe_platform::keys::default_dictation_label().to_string()
     } else {
         scriibe_platform::keys::label(&settings.dictation_keys)
     });
-    let translate =
-        name(if settings.translate_keys.is_empty() { "Maj".to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) });
+    let translate = name(if settings.translate_keys.is_empty() {
+        scriibe_platform::keys::default_translate_label().to_string()
+    } else {
+        scriibe_platform::keys::label(&settings.translate_keys)
+    });
     let has_engine = settings.has_cleanup_engine();
     // Reformulation coupée : aucun mode coché ; en choisir un la rallume.
     let current = settings.rewriting_on().then(|| settings.mode_choice());
@@ -178,8 +181,9 @@ mod tests {
         assert_eq!(checked, vec!["simple"]);
         assert!(view.modes_enabled);
         assert_eq!(view.mode_title, "Mode : Simple");
-        assert_eq!(view.dictation_hint, "Maintiens Ctrl droit pour dicter");
-        assert_eq!(view.translate_hint, "Maintiens Ctrl droit + Maj pour traduire en anglais");
+        let (key, translate) = (scriibe_platform::keys::default_dictation_label(), scriibe_platform::keys::default_translate_label());
+        assert_eq!(view.dictation_hint, format!("Maintiens {key} pour dicter"));
+        assert_eq!(view.translate_hint, format!("Maintiens {key} + {translate} pour traduire en anglais"));
     }
 
     #[test]
@@ -216,8 +220,9 @@ mod tests {
         let view = menu_view_in(&s, "0.1.0", UiLang::En);
         assert!(view.english);
         assert_eq!(view.mode_title, "Mode: Simple");
-        assert_eq!(view.dictation_hint, "Hold Right Ctrl to dictate");
-        assert_eq!(view.translate_hint, "Hold Right Ctrl + Shift to translate into English");
+        let (key, translate) = if cfg!(target_os = "macos") { ("Right Option", "⌘") } else { ("Right Ctrl", "Shift") };
+        assert_eq!(view.dictation_hint, format!("Hold {key} to dictate"));
+        assert_eq!(view.translate_hint, format!("Hold {key} + {translate} to translate into English"));
         assert_eq!((view.labels.open_page.as_str(), view.labels.quit.as_str()), ("Open Scriibe", "Quit Scriibe"));
         let labels: Vec<&str> = view.groups.iter().flatten().map(|m| m.label.as_str()).collect();
         assert_eq!(labels[..3], ["Literal", "Simple", "Formal"]);

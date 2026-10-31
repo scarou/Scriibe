@@ -36,3 +36,9 @@
 - Ne pas passer `fmt` à `.map` directement (`.map(fmt)` donne l'indice comme langue).
 - `Help.svelte` et `HelpEn.svelte` sont deux fichiers : toute modification de l'un se reporte dans l'autre (le test compare leur structure, pas leur texte).
 - Le banc et l'essai d'un mode suivent la **langue dictée** (réglage « Langue dictée »), pas la langue de l'interface : une interface en anglais avec une dictée en français lit des phrases françaises, c'est voulu. Le test de frappe suit la langue de l'interface.
+
+## macOS
+
+- **La touche ne réagit pas, aucune demande d'autorisation (macOS 27)** : le tap CoreGraphics se crée sans erreur mais ne reçoit rien tant que l'autorisation « Surveillance de l'entrée » manque ; `CGPreflightListenEventAccess()` renvoie faux. L'autorisation va au **processus responsable**, pas à l'appli qu'on croit : un Scriibe lancé par l'outil Bash de Claude (même via `osascript` et Terminal) est rattaché à `com.anthropic.claude-code`, sans droits. À faire : que Christophe lance Scriibe **lui-même dans son Terminal** (le quitter et le rouvrir à la main). Diagnostic : `/usr/bin/log show --last 10m --predicate 'process == "tccd"'` et lire `AUTHREQ_ATTRIBUTION` (`responsible=`). Si Terminal est coincé : `tccutil reset ListenEvent com.apple.Terminal`, puis le rajouter avec « + » (Applications → Utilitaires → Terminal). Ne pas modifier les réglages de sécurité depuis la session (refusé).
+- `cargo` est dans `~/.cargo/bin`, hors du PATH du shell de Claude : `export PATH="$HOME/.cargo/bin:$PATH"`.
+- Lire TextEdit par `osascript` depuis la session bloque (demande d'automatisation invisible) : lire le journal de Scriibe à la place.
