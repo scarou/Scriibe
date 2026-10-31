@@ -30,6 +30,10 @@ security-framework = "2"
 # La touche Lecture/Pause du clavier est un `NSEvent` système (pause des médias).
 objc2 = "0.5"
 
+# Verrou d'instance (`flock`).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [target.'cfg(windows)'.dependencies]
 # Sessions audio (quelles applis jouent du son ou captent le micro) pour la pause des médias : les interfaces COM de WASAPI.
 windows = { version = "0.57", features = [

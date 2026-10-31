@@ -1,9 +1,9 @@
-//! La fenêtre de Scriibe vient de Tauri sous Windows (WebView2) : son contexte (icône, identifiant) est généré ici. Les autres systèmes
-//! gardent le navigateur jusqu'à leur étape (7).
+//! La fenêtre de Scriibe vient de Tauri sous Windows (WebView2) et macOS (WKWebView) : son contexte (icône, identifiant) est généré ici. Linux
+//! garde le navigateur jusqu'à son étape.
 
 fn main() {
     // `cfg!(windows)` désignerait la machine qui compile, pas la cible (compilation croisée depuis Linux).
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+    if matches!(std::env::var("CARGO_CFG_TARGET_OS").as_deref(), Ok("windows" | "macos")) {
         tauri_build::build();
     }
 }

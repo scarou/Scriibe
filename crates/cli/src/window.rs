@@ -1,14 +1,20 @@
-//! La fenêtre de Scriibe (Windows) : Tauri 2 et WebView2 affichent l'interface que sert le serveur local. Fermer la fenêtre ne quitte
-//! pas Scriibe (la dictée reste active, l'icône de la zone de notification la rouvre) ; « Quitter » est dans l'interface et le menu de l'icône.
+//! La fenêtre de Scriibe (Windows, macOS) : Tauri 2 (WebView2, WKWebView) affiche l'interface que sert le serveur local. Fermer la fenêtre
+//! ne quitte pas Scriibe (la dictée reste active, l'icône la rouvre) ; « Quitter » est dans l'interface et le menu de l'icône.
 //!
-//! La boucle de Tauri tourne dans son propre fil (`any_thread`) : le fil principal garde la boucle de messages de l'icône et du
+//! Windows : la boucle de Tauri tourne dans son propre fil (`any_thread`) ; le fil principal garde la boucle de messages de l'icône et du
 //! crochet clavier. Si WebView2 manque ou refuse de démarrer, l'appelant retombe sur le navigateur.
+//!
+//! macOS : Tauri (comme AppKit) exige le fil principal ; il le garde donc (`run_main`) et porte aussi l'icône de la barre des menus
+//! (`mac_tray`). L'appli est « accessoire » : pas d'icône dans le Dock, comme Scribe.
 
 use crate::overlay::{origin_x, OverlayModel, BOTTOM_GAP, WINDOW_SIZE};
 use scriibe_engines::runtime::Log;
 use scriibe_platform::storage::FileConfig;
+#[cfg(windows)]
 use std::panic::AssertUnwindSafe;
-use std::sync::{mpsc, Arc, Mutex, MutexGuard};
+#[cfg(windows)]
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use tauri::{AppHandle, Manager, PhysicalPosition, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 
@@ -40,6 +46,7 @@ fn show(app: &AppHandle, url: &str) -> Result<(), String> {
 
 /// Ouvre la fenêtre et rend la main quand elle est affichée (20 s au plus). Les ouvertures suivantes de l'adresse locale (menu de
 /// l'icône) passent par elle.
+#[cfg(windows)]
 pub fn start(url: String, log: Arc<dyn Log>) -> Result<(), String> {
     let (ready, waiting) = mpsc::channel::<Result<(), String>>();
     let thread_log = log.clone();
@@ -73,6 +80,7 @@ pub fn start(url: String, log: Arc<dyn Log>) -> Result<(), String> {
     }
 }
 
+#[cfg(windows)]
 fn run(url: String, ready: mpsc::Sender<Result<(), String>>) -> Result<(), String> {
     let app = tauri::Builder::default()
         .any_thread()
@@ -130,6 +138,30 @@ fn place_overlay(app: &AppHandle, window: &tauri::WebviewWindow, position: scrii
     let _ = window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
 }
 
+/// Montre la pastille sans l'activer : `show()` prendrait le focus quand Scriibe est au premier plan, et la fenêtre perdrait la touche tenue
+/// (Windows) ou le texte ne se collerait plus dans l'appli où la personne écrit (macOS).
+#[cfg(windows)]
+fn reveal(_: &AppHandle, window: &tauri::WebviewWindow) {
+    match window.hwnd() {
+        Ok(hwnd) => scriibe_platform::windows::show_without_activating(hwnd.0 as isize),
+        Err(_) => {
+            let _ = window.show();
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn reveal(app: &AppHandle, window: &tauri::WebviewWindow) {
+    // Les fenêtres d'AppKit ne se touchent que depuis le fil principal.
+    let window = window.clone();
+    let _ = app.run_on_main_thread(move || match window.ns_window() {
+        Ok(ns_window) => scriibe_platform::macos::order_front_without_activating(ns_window),
+        Err(_) => {
+            let _ = window.show();
+        }
+    });
+}
+
 /// Surveille l'état de la pastille : la montre et la cache avec l'état de la dictée quand le réglage « Afficher la pastille » est coché.
 /// La fenêtre est créée (cachée) au premier besoin, puis réutilisée.
 pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConfig>, log: Arc<dyn Log>) {
@@ -164,17 +196,62 @@ pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConf
             };
             if want {
                 place_overlay(&app, &window, settings.capture_position);
-                // Sans l'activer : `show()` prendrait le focus quand Scriibe est au premier plan, et la fenêtre perdrait la touche tenue.
-                match window.hwnd() {
-                    Ok(hwnd) => scriibe_platform::windows::show_without_activating(hwnd.0 as isize),
-                    Err(_) => {
-                        let _ = window.show();
-                    }
-                }
+                reveal(&app, &window);
             } else {
                 let _ = window.hide();
             }
             shown = want;
         }
     });
+}
+
+/// macOS : ouvre la fenêtre, l'icône de la barre des menus et la pastille, puis fait tourner Tauri sur le fil principal. Ne rend la main
+/// qu'en cas d'échec avant le démarrage de la boucle (l'appelant retombe alors sur le navigateur) : « Quitter » arrête le programme.
+#[cfg(target_os = "macos")]
+pub struct MainSetup {
+    pub url: String,
+    /// Ouvrir la fenêtre au démarrage (pas avec `--sans-navigateur`).
+    pub show_window: bool,
+    pub log: Arc<dyn Log>,
+    pub overlay: Arc<OverlayModel>,
+    pub config: Arc<FileConfig>,
+    pub tray: crate::mac_tray::Shell,
+}
+
+#[cfg(target_os = "macos")]
+pub fn run_main(setup: MainSetup) -> Result<(), String> {
+    let MainSetup { url, show_window, log, overlay, config, tray } = setup;
+    let reopen_url = url.clone();
+    let app = tauri::Builder::default()
+        .on_menu_event(|_, event| crate::mac_tray::on_menu_event(event.id().as_ref()))
+        .setup(move |app| {
+            // Pas d'icône dans le Dock ni de menu en haut de l'écran : l'icône de la barre des menus suffit (comme Scribe).
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            // Sans menu « Édition », ⌘C, ⌘V et ⌘A ne marchent pas dans les champs de la page.
+            app.set_menu(crate::mac_tray::app_menu(app.handle())?).map_err(|e| e.to_string())?;
+            *handle() = Some(app.handle().clone());
+            scriibe_platform::open::set_window_opener(move |target| match handle().as_ref() {
+                Some(app) => show(app, target).is_ok(),
+                None => false,
+            });
+            if show_window {
+                show(app.handle(), &url)?;
+            }
+            crate::mac_tray::install(app.handle(), tray)?;
+            start_overlay(url.clone(), overlay, config, log.clone());
+            log.write("fenêtre: Tauri (WKWebView) prête, icône de la barre des menus installée");
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .map_err(|e| e.to_string())?;
+    app.run(move |app, event| match event {
+        // Fermer la dernière fenêtre ne quitte pas Scriibe.
+        RunEvent::ExitRequested { api, code: None, .. } => api.prevent_exit(),
+        // Un second double-clic sur Scriibe.app, ou « Ouvrir » dans le Finder : montrer la fenêtre.
+        RunEvent::Reopen { has_visible_windows: false, .. } => {
+            let _ = show(app, &reopen_url);
+        }
+        _ => {}
+    });
+    Ok(())
 }

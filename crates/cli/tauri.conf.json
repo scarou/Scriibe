@@ -4,6 +4,6 @@
   "version": "0.1.0",
   "identifier": "fr.scriibe.app",
   "build": { "frontendDist": "./placeholder-ui" },
-  "app": { "windows": [], "security": { "csp": null } },
+  "app": { "windows": [], "macOSPrivateApi": true, "security": { "csp": null } },
   "bundle": { "active": false, "icon": ["icons/icon.png", "icons/icon.ico"] }
 }

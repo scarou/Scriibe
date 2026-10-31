@@ -1,4 +1,4 @@
-//! `scriibe` : la dictée en ligne de commande, avec une icône dans la zone de notification (Windows).
+//! `scriibe` : la dictée, avec une icône dans la zone de notification (Windows) ou la barre des menus (macOS) et une fenêtre.
 //!
 //! Sous-commandes (sans argument : `lancer`) :
 //! - `verifier` : ce qui est installé, trouvé, manquant (moteurs, modèles, micro, clés) ;
@@ -11,17 +11,19 @@
 mod app;
 mod assistant;
 mod commands;
+#[cfg(target_os = "macos")]
+mod mac_tray;
 mod overlay;
 mod tray_source;
 mod web;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "macos"))]
 mod window;
 
 use std::process::ExitCode;
 
 const HELP: &str = "Scriibe — dictée vocale\n\n\
 Usage : scriibe [commande]\n\n\
-  lancer                     la dictée (maintiens Ctrl droit, parle, relâche) + la fenêtre de Scriibe (par défaut ; --navigateur : dans le navigateur ; --sans-navigateur : sans rien ouvrir)\n\
+  lancer                     la dictée (maintiens la touche de dictée, parle, relâche) + la fenêtre de Scriibe (par défaut ; --navigateur : dans le navigateur ; --sans-navigateur : sans rien ouvrir)\n\
   verifier                   ce qui est installé, trouvé ou manquant\n\
   micro [secondes]           enregistre le micro (3 s par défaut) et mesure le niveau\n\
   essai [fichier.wav] [--traduire]\n\

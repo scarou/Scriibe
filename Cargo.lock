@@ -3429,13 +3429,14 @@ dependencies = [
  "arboard",
  "chrono",
  "cpal",
+ "libc",
  "objc2 0.5.3",
  "scriibe-core",
  "scriibe-engines",
  "security-framework",
  "serde_json",
  "sysinfo",
- "tray-icon",
+ "tray-icon 0.19.3",
  "windows 0.57.0",
  "windows-sys 0.59.0",
  "x11rb",
@@ -4031,6 +4032,7 @@ dependencies = [
  "tauri-utils",
  "thiserror 2.0.21",
  "tokio",
+ "tray-icon 0.25.1",
  "url",
  "webkit2gtk",
  "webview2-com",
@@ -4512,6 +4514,28 @@ dependencies = [
  "png 0.17.16",
  "thiserror 2.0.21",
  "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "tray-icon"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b2b9c52859a94554803ccd4a24b98f74148ebc73b90676d783f3490b1bff9d72"
+dependencies = [
+ "crossbeam-channel",
+ "dirs 7.0.0",
+ "libappindicator",
+ "muda 0.20.0",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+ "once_cell",
+ "png 0.18.1",
+ "serde",
+ "thiserror 2.0.21",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

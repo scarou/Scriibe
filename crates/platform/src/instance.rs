@@ -1,15 +1,14 @@
 //! Une seule Scriibe par dossier de données : deux instances se disputeraient la touche, l'icône et le serveur Whisper (S09 : Whisper
 //! ne répondait plus avec deux Scriibe lancées).
 //!
-//! Le verrou est un fichier ouvert sans partage (Windows) : le système le libère à la fin du processus, même après un plantage. La
-//! première instance écrit son adresse locale dans `instance.url` ; la suivante la lit pour lui demander de montrer sa fenêtre.
-//! Pas encore de verrou sur les autres systèmes : toute instance y est « première ».
+//! Le verrou est un fichier ouvert sans partage (Windows) ou verrouillé par `flock` (macOS, Linux) : le système le libère à la fin du
+//! processus, même après un plantage. La première instance écrit son adresse locale dans `instance.url` ; la suivante la lit pour lui
+//! demander de montrer sa fenêtre.
 
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-#[cfg(windows)]
 const LOCK_FILE: &str = "instance.lock";
 const URL_FILE: &str = "instance.url";
 
@@ -51,7 +50,22 @@ fn lock(folder: &Path) -> Option<Result<File, ()>> {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(unix)]
+fn lock(folder: &Path) -> Option<Result<File, ()>> {
+    use std::os::unix::io::AsRawFd;
+    let file = File::options().write(true).create(true).truncate(false).open(folder.join(LOCK_FILE)).ok()?;
+    // SAFETY : `flock` sur un descripteur ouvert que ce `File` garde jusqu'à la fin du processus ; le verrou tombe avec lui.
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0 {
+        Some(Ok(file))
+    } else if std::io::Error::last_os_error().kind() == std::io::ErrorKind::WouldBlock {
+        Some(Err(()))
+    } else {
+        // Verrou impossible pour une autre raison : mieux vaut démarrer sans verrou que de ne pas démarrer.
+        None
+    }
+}
+
+#[cfg(not(any(windows, unix)))]
 fn lock(_: &Path) -> Option<Result<File, ()>> {
     None
 }
@@ -111,7 +125,7 @@ mod tests {
         dir
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, unix))]
     #[test]
     fn a_second_instance_is_refused_until_the_first_ends() {
         let dir = folder("second");

@@ -80,35 +80,10 @@ pub struct TrayHost {
     english: bool,
 }
 
-/// Transparence de la plume du logo (32×32, un octet par point), tracée depuis `logo/scriibe-symbole.svg` par `tools/faire_icones.*`.
-const FEATHER: &[u8; 32 * 32] = include_bytes!("plume32.alpha");
-
-/// L'icône de la zone de notification : un disque de la couleur de l'état, avec la plume du logo en blanc.
-fn circle(color: [u8; 3]) -> Icon {
-    const SIZE: u32 = 32;
-    let mut rgba = Vec::with_capacity((SIZE * SIZE * 4) as usize);
-    for y in 0..SIZE {
-        for x in 0..SIZE {
-            let (dx, dy) = (x as f32 + 0.5 - 16.0, y as f32 + 0.5 - 16.0);
-            let distance = (dx * dx + dy * dy).sqrt();
-            // Bord adouci sur un pixel.
-            let alpha = (14.5 - distance).clamp(0.0, 1.0);
-            let feather = f32::from(FEATHER[(y * SIZE + x) as usize]) / 255.0;
-            let mix = |c: u8| (f32::from(c) * (1.0 - feather) + 255.0 * feather) as u8;
-            rgba.extend_from_slice(&[mix(color[0]), mix(color[1]), mix(color[2]), (alpha * 255.0) as u8]);
-        }
-    }
-    Icon::from_rgba(rgba, SIZE, SIZE).expect("32×32 RGBA est un format valide")
-}
-
-fn color_of(state: &IndicatorState) -> [u8; 3] {
-    match state {
-        IndicatorState::Hidden => [120, 124, 134],
-        IndicatorState::Listening => [224, 56, 56],
-        IndicatorState::Working => [240, 160, 32],
-        IndicatorState::Done => [64, 180, 96],
-        IndicatorState::Message(_) => [64, 120, 224],
-    }
+/// L'icône de la zone de notification pour cet état.
+fn circle(state: &IndicatorState) -> Icon {
+    Icon::from_rgba(crate::tray_menu::status_icon_rgba(state), crate::tray_menu::ICON_SIZE, crate::tray_menu::ICON_SIZE)
+        .expect("32×32 RGBA est un format valide")
 }
 
 impl TrayHost {
@@ -148,7 +123,7 @@ impl TrayHost {
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(menu))
             .with_tooltip(idle_tip)
-            .with_icon(circle(color_of(&IndicatorState::Hidden)))
+            .with_icon(circle(&IndicatorState::Hidden))
             .build()
             .map_err(|e| format!("icône de la zone de notification : {e}"))?;
         let (tx, rx) = mpsc::channel();
@@ -183,22 +158,12 @@ impl TrayHost {
         match command {
             Command::Translation(language) => self.translation = language,
             Command::State(state) => {
-                let tip = match &state {
-                    IndicatorState::Hidden => self.idle_tip.clone(),
-                    IndicatorState::Listening => match (&self.translation, self.english) {
-                        (Some(language), false) => format!("Scriibe — à l'écoute (traduction : {language})"),
-                        (Some(language), true) => format!("Scriibe — listening (translation: {language})"),
-                        (None, false) => "Scriibe — à l'écoute…".to_string(),
-                        (None, true) => "Scriibe — listening…".to_string(),
-                    },
-                    other => format!("Scriibe — {}", crate::indicator::describe_in(other, self.english)),
-                };
+                let tip = crate::tray_menu::state_tooltip(&state, &self.idle_tip, self.translation.as_deref(), self.english);
                 if state == IndicatorState::Hidden || state == IndicatorState::Done {
                     self.translation = None;
                 }
-                let _ = self.tray.set_icon(Some(circle(color_of(&state))));
-                // L'infobulle de Windows est limitée à 127 caractères.
-                let _ = self.tray.set_tooltip(Some(tip.chars().take(120).collect::<String>()));
+                let _ = self.tray.set_icon(Some(circle(&state)));
+                let _ = self.tray.set_tooltip(Some(tip));
             }
         }
     }
