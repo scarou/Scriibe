@@ -904,7 +904,8 @@ fn update_state(ctx: &Context) -> Value {
     };
     json!({
         "windows": cfg!(windows),
-        "has_token": ctx.app.platform.secrets.get(KeyKind::GitHub).is_some(),
+        // Le jeton ne sert qu'à la mise à jour intégrée (Windows) : ailleurs, ne pas le lire (le trousseau de macOS demanderait l'accès).
+        "has_token": cfg!(windows) && ctx.app.platform.secrets.get(KeyKind::GitHub).is_some(),
         "current": update::current_sha().map(|s| s[..s.len().min(7)].to_string()),
         "repo": update::REPO,
         "progress": state,
