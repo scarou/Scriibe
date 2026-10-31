@@ -12,7 +12,7 @@
 
 ## Pas encore fait
 
-- **Pause des médias** (`NoMedia`) : il faudra CoreAudio (quels processus jouent ou captent le micro, macOS 14.4 et après) et la touche Lecture/Pause du clavier.
+- **Pause des médias** : faite en S10 (`macos/media.rs`), essayée avec Chrome seulement ; l'écriture de Scriibe au journal (« médias: … ») dit ce qu'elle voit.
 - **Icône de la barre des menus** et **fenêtre de Scriibe** : l'interface s'ouvre dans le navigateur (`open`). La fenêtre Tauri (WKWebView) et l'icône sont à porter.
 - **Verrou d'instance** (une seule Scriibe à la fois) : Windows seulement ; **détection de la carte graphique** : à écrire (`system_profiler`) ; **mise à jour intégrée** et **téléchargement des moteurs** par la page : Windows seulement (sur Mac, passer par Homebrew).
 - Pas de `.app` : Scriibe se lance depuis un terminal, et c'est **le terminal** qui reçoit les autorisations ci-dessous.

@@ -3429,6 +3429,7 @@ dependencies = [
  "arboard",
  "chrono",
  "cpal",
+ "objc2 0.5.3",
  "scriibe-core",
  "scriibe-engines",
  "security-framework",

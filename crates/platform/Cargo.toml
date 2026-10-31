@@ -27,6 +27,8 @@ arboard = { version = "3", default-features = false }
 [target.'cfg(target_os = "macos")'.dependencies]
 arboard = { version = "3", default-features = false }
 security-framework = "2"
+# La touche Lecture/Pause du clavier est un `NSEvent` système (pause des médias).
+objc2 = "0.5"
 
 [target.'cfg(windows)'.dependencies]
 # Sessions audio (quelles applis jouent du son ou captent le micro) pour la pause des médias : les interfaces COM de WASAPI.
