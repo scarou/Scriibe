@@ -475,7 +475,7 @@ fn local_models(ctx: &Context, engine: &str) -> Value {
     }
 }
 
-/// « Parcourir… » : la boîte d'ouverture de fichier du système (Windows seulement pour l'instant), `{"path": null}` si on annule.
+/// « Parcourir… » : la boîte d'ouverture de fichier du système (Windows et macOS), `{"path": null}` si on annule.
 fn pick_file(kind: &str) -> Value {
     #[cfg(windows)]
     {
@@ -485,7 +485,15 @@ fn pick_file(kind: &str) -> Value {
         };
         json!({"ok": true, "path": scriibe_platform::windows::file_dialog::pick_file(title, filter)})
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        let (title, filter): (&str, &[(&str, &str)]) = match kind {
+            "whisper" => ("Choisir un modèle Whisper (fichier ggml .bin)", &[("Modèles Whisper (*.bin)", "*.bin")]),
+            _ => return json!({"ok": false, "error": "type de fichier inconnu"}),
+        };
+        json!({"ok": true, "path": scriibe_platform::macos::file_dialog::pick_file(title, filter)})
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = kind;
         json!({"ok": false, "error": "le choix d'un fichier n'est pas encore pris en charge sur ce système"})
@@ -903,22 +911,11 @@ fn update_state(ctx: &Context) -> Value {
     })
 }
 
-/// Enregistre une clé ou un jeton dans le Gestionnaire d'identifiants (elle n'est ni affichée, ni journalisée, ni renvoyée à la page).
+/// Enregistre une clé ou un jeton dans le coffre du système (elle n'est ni affichée, ni journalisée, ni renvoyée à la page).
 fn save_key(ctx: &Context, kind: KeyKind, value: &str) -> Result<(), String> {
-    let _ = ctx;
-    #[cfg(windows)]
-    {
-        scriibe_platform::windows::set_credential(kind, value)?;
-        ctx.app
-            .log
-            .write(&format!("clés: {} enregistrée dans le Gestionnaire d'identifiants", scriibe_platform::secrets::account_name(kind)));
-        Ok(())
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = (kind, value);
-        Err("l'enregistrement d'une clé ne marche que sous Windows".into())
-    }
+    let store = scriibe_platform::save_secret(kind, value)?;
+    ctx.app.log.write(&format!("clés: {} enregistrée dans le {store}", scriibe_platform::secrets::account_name(kind)));
+    Ok(())
 }
 
 fn github_token(ctx: &Context) -> Result<String, String> {

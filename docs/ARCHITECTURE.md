@@ -48,7 +48,7 @@ Une interface (trait) par fonction dépendant du système, et une implémentatio
 
 | Fonction | Windows | macOS | Linux |
 |---|---|---|---|
-| Touche globale (appui, relâchement, autre touche, modificateur) | hook clavier bas niveau | moniteur d'événements | X11 ; Wayland : portail ou repli |
+| Touche globale (appui, relâchement, autre touche, modificateur) | hook clavier bas niveau | tap d'événements CoreGraphics (écoute seule) | X11 ; Wayland : portail ou repli |
 | Collage + presse-papiers remis | `SendInput` Ctrl+V | `CGEvent` ⌘V | X11 : XTest ; Wayland : repli copie seule |
 | Micro | WASAPI (`cpal`) | CoreAudio (`cpal`) | PipeWire / PulseAudio (`cpal`) |
 | Pause des médias | sessions audio + touche média | processus audio CoreAudio | MPRIS (D-Bus) |

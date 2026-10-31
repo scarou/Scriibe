@@ -15,6 +15,17 @@ pub fn system_language() -> String {
     }
     #[cfg(not(windows))]
     {
+        // Une appli lancée hors d'un terminal n'a pas de LANG sous macOS : les réglages du système la donnent (« fr_FR »).
+        #[cfg(target_os = "macos")]
+        {
+            let output = std::process::Command::new("defaults").args(["read", "-g", "AppleLocale"]).output();
+            if let Some(output) = output.ok().filter(|o| o.status.success()) {
+                let language = crate::apple::parse_locale(&String::from_utf8_lossy(&output.stdout));
+                if !language.is_empty() {
+                    return language;
+                }
+            }
+        }
         ["LC_ALL", "LC_MESSAGES", "LANG"].iter().filter_map(|name| std::env::var(name).ok()).find(|v| !v.is_empty()).unwrap_or_default()
     }
 }

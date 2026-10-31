@@ -43,7 +43,11 @@ pub fn key_of(vk: u32) -> Key {
 /// Transforme un événement de touche de Windows (`vk` : code de touche, `down` : enfoncée ou relâchée) en événement de l'appli.
 /// `held` : les touches déjà tenues, mises à jour ici. Le maintien d'une touche enfoncée (répétition) ne change rien.
 pub fn translate_vk(held: &mut Vec<Key>, vk: u32, down: bool) -> Option<KeyEvent> {
-    let key = key_of(vk);
+    translate_key(held, key_of(vk), down)
+}
+
+/// Comme `translate_vk` pour un système qui nomme lui-même ses touches (Option, Commande et Fn du Mac).
+pub fn translate_key(held: &mut Vec<Key>, key: Key, down: bool) -> Option<KeyEvent> {
     let already = held.contains(&key);
     if down == already {
         return None;

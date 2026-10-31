@@ -1,4 +1,4 @@
-//! Implémentations des systèmes qui n'ont pas encore leur code (macOS, Linux) : elles compilent et disent ce qui manque.
+//! Implémentations des systèmes qui n'ont pas encore leur code (Wayland, BSD…) : elles compilent et disent ce qui manque.
 
 use crate::apps::{AppInfo, ForegroundApp};
 use crate::audio::{LevelListener, Recorder, Recording, StartInfo};
@@ -64,7 +64,7 @@ impl ForegroundApp for NoApp {
     }
 }
 
-#[cfg_attr(any(windows, target_os = "linux"), allow(dead_code))]
+#[cfg_attr(any(windows, target_os = "linux", target_os = "macos"), allow(dead_code))]
 pub fn platform() -> Platform {
     Platform {
         keys: Arc::new(NoKeys),

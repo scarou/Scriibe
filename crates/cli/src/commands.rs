@@ -154,10 +154,11 @@ pub fn run() -> Result<(), String> {
         open_interface(&url, &app, &overlay);
     }
     app.controller.preload();
+    let key = if cfg!(target_os = "macos") { "Option droite" } else { "Ctrl droit" };
     if cfg!(windows) {
-        eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
+        eprintln!("Prêt : maintiens {key}, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
     } else {
-        eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
+        eprintln!("Prêt : maintiens {key}, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
     }
 
     #[cfg(windows)]
@@ -278,20 +279,18 @@ pub fn key(kind: Option<&str>) -> Result<(), String> {
         Some("github") => KeyKind::GitHub,
         _ => return Err("usage : scriibe cle deepgram|openrouter|github (puis colle la clé et valide)".into()),
     };
-    #[cfg(windows)]
-    {
-        eprintln!("Colle la clé puis valide (elle s'affiche pendant la saisie, efface la fenêtre ensuite) :");
-        let mut line = String::new();
-        std::io::stdin().read_line(&mut line).map_err(|e| e.to_string())?;
-        scriibe_platform::windows::set_credential(kind, &line)?;
-        eprintln!("Clé enregistrée dans le Gestionnaire d'identifiants (Scriibe/{}).", scriibe_platform::secrets::account_name(kind));
-        Ok(())
+    if !cfg!(any(windows, target_os = "macos")) {
+        return Err(format!(
+            "pas encore pris en charge ici : définis la variable d'environnement {}",
+            scriibe_platform::secrets::env_name(kind)
+        ));
     }
-    #[cfg(not(windows))]
-    {
-        let _ = kind;
-        Err(format!("pas encore pris en charge ici : définis la variable d'environnement {}", scriibe_platform::secrets::env_name(kind)))
-    }
+    eprintln!("Colle la clé puis valide (elle s'affiche pendant la saisie, efface la fenêtre ensuite) :");
+    let mut line = String::new();
+    std::io::stdin().read_line(&mut line).map_err(|e| e.to_string())?;
+    let store = scriibe_platform::save_secret(kind, &line)?;
+    eprintln!("Clé enregistrée dans le {store} (Scriibe/{}).", scriibe_platform::secrets::account_name(kind));
+    Ok(())
 }
 
 pub fn check() -> Result<(), String> {
