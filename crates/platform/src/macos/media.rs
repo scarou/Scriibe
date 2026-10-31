@@ -8,7 +8,12 @@ use objc2::encode::{Encode, Encoding};
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
 use scriibe_core::media_pause::AudioProcess;
+use std::collections::HashMap;
 use std::ffi::{c_char, c_void};
+use std::io::Read;
+use std::process::{Command, Stdio};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 /// Une valeur de CoreAudio écrite en quatre caractères (`'prs#'`).
 const fn code(text: &[u8; 4]) -> u32 {
@@ -73,6 +78,66 @@ fn is_own_sound(pid: i64) -> bool {
     // SAFETY : le tampon a la taille annoncée ; `proc_pidpath` rend le nombre d'octets écrits.
     let written = unsafe { proc_pidpath(pid, buffer.as_mut_ptr().cast(), buffer.len() as u32) };
     usize::try_from(written).ok().filter(|n| *n > 0).is_some_and(|n| buffer[..n].ends_with(b"/afplay"))
+}
+
+/// Les lecteurs qui disent eux-mêmes s'ils jouent : (identifiant de bundle, script AppleScript qui rend `true` ou `false`). VLC (et d'autres)
+/// gardent leur flux audio ouvert en pause : CoreAudio les voit « jouer » à tort, et la touche Lecture/Pause relancerait un lecteur arrêté.
+const SELF_REPORTING_PLAYERS: &[(&str, &str)] = &[
+    ("org.videolan.vlc", "tell application id \"org.videolan.vlc\" to return playing"),
+    ("com.apple.Music", "tell application id \"com.apple.Music\" to return (player state is playing)"),
+    ("com.spotify.client", "tell application id \"com.spotify.client\" to return (player state is playing)"),
+];
+
+/// Les réponses récentes : l'état lu (`None` : pas de réponse, voir `ask_player`) et quand. Une vérification de pause relit la liste
+/// toutes les 50 ms : sans cette mémoire, chaque lecture lancerait `osascript`.
+type PlayerStates = HashMap<&'static str, (Instant, Option<bool>)>;
+static PLAYER_STATES: Mutex<Option<PlayerStates>> = Mutex::new(None);
+const STATE_FRESH: Duration = Duration::from_millis(200);
+/// Sans réponse (autorisation d'automatisation non accordée : macOS attend le clic de la personne), on ne redemande pas avant ce délai.
+const NO_ANSWER_FRESH: Duration = Duration::from_secs(30);
+const ASK_TIMEOUT: Duration = Duration::from_millis(1500);
+
+/// Lance le script et attend sa réponse au plus `ASK_TIMEOUT` (un `osascript` bloqué par une demande d'autorisation est tué).
+fn ask_player(script: &str) -> Option<bool> {
+    let mut child =
+        Command::new("osascript").args(["-e", script]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().ok()?;
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => break,
+            Ok(Some(_)) | Err(_) => return None,
+            Ok(None) if started.elapsed() > ASK_TIMEOUT => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+        }
+    }
+    let mut out = String::new();
+    child.stdout.take()?.read_to_string(&mut out).ok()?;
+    match out.trim() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
+/// Ce que dit le lecteur de `bundle` ; `None` si ce n'est pas un lecteur connu ou s'il ne répond pas.
+fn player_says_playing(bundle: &str) -> Option<bool> {
+    let (name, script) = SELF_REPORTING_PLAYERS.iter().find(|(id, _)| *id == bundle)?;
+    let mut slot = PLAYER_STATES.lock().unwrap_or_else(|e| e.into_inner());
+    let states = slot.get_or_insert_with(HashMap::new);
+    if let Some((at, state)) = states.get(name) {
+        let fresh = if state.is_some() { STATE_FRESH } else { NO_ANSWER_FRESH };
+        if at.elapsed() < fresh {
+            return *state;
+        }
+    }
+    drop(slot);
+    let state = ask_player(script);
+    PLAYER_STATES.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(HashMap::new).insert(name, (Instant::now(), state));
+    state
 }
 
 fn address(selector: u32) -> PropertyAddress {
@@ -144,6 +209,13 @@ fn read_processes() -> Vec<AudioProcess> {
             input: number(id, PROCESS_RUNNING_INPUT, 0) != 0,
         })
         .filter(|process| !is_own_sound(process.pid))
+        .map(|mut process| {
+            // Un lecteur qui dit qu'il ne joue pas ne joue pas, même si son flux audio reste ouvert.
+            if process.output && player_says_playing(&process.bundle) == Some(false) {
+                process.output = false;
+            }
+            process
+        })
         .collect()
 }
 
