@@ -7,6 +7,10 @@ use std::ffi::c_void;
 /// Un objet de CoreFoundation ou de CoreGraphics (`CFTypeRef`, `CGEventRef`…). Nul : l'appel a échoué.
 pub type Ref = *const c_void;
 
+/// Une structure de CoreFoundation dont on ne lit rien : on n'en prend que l'adresse.
+#[repr(C)]
+pub struct Opaque([u8; 0]);
+
 /// `CGEventTapCallBack` : (proxy, type d'événement, événement, `userInfo`) -> l'événement.
 pub type TapCallback = extern "C" fn(*mut c_void, u32, Ref, *mut c_void) -> Ref;
 
@@ -31,6 +35,17 @@ pub const SOURCE_COMBINED_SESSION: i32 = 0;
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {
     pub static kCFRunLoopDefaultMode: Ref;
+    pub static kCFBooleanTrue: Ref;
+    pub static kCFTypeDictionaryKeyCallBacks: Opaque;
+    pub static kCFTypeDictionaryValueCallBacks: Opaque;
+    pub fn CFDictionaryCreate(
+        allocator: Ref,
+        keys: *const Ref,
+        values: *const Ref,
+        count: isize,
+        key_callbacks: *const Opaque,
+        value_callbacks: *const Opaque,
+    ) -> Ref;
     pub fn CFRelease(object: Ref);
     pub fn CFRetain(object: Ref) -> Ref;
     pub fn CFRunLoopGetCurrent() -> Ref;
@@ -67,6 +82,32 @@ extern "C" {
 extern "C" {
     /// Autorisation « Accessibilité », nécessaire pour envoyer ⌘V à une autre appli.
     pub fn AXIsProcessTrusted() -> bool;
+    pub fn AXIsProcessTrustedWithOptions(options: Ref) -> bool;
+    pub static kAXTrustedCheckOptionPrompt: Ref;
+}
+
+/// Demande l'autorisation « Accessibilité » : macOS montre sa fenêtre (avec un bouton vers les Réglages) et ajoute l'appli à la liste. Rend
+/// l'état d'avant la réponse de l'utilisateur.
+pub fn ask_accessibility() -> bool {
+    // SAFETY : le dictionnaire est créé avec les fonctions de rappel standard de CoreFoundation (les clés et valeurs sont des objets
+    // éternels), n'est lu que pendant l'appel et relâché juste après.
+    unsafe {
+        let keys = [kAXTrustedCheckOptionPrompt];
+        let values = [kCFBooleanTrue];
+        let options = CFDictionaryCreate(
+            std::ptr::null(),
+            keys.as_ptr(),
+            values.as_ptr(),
+            1,
+            std::ptr::addr_of!(kCFTypeDictionaryKeyCallBacks),
+            std::ptr::addr_of!(kCFTypeDictionaryValueCallBacks),
+        );
+        let trusted = AXIsProcessTrustedWithOptions(options);
+        if !options.is_null() {
+            CFRelease(options);
+        }
+        trusted
+    }
 }
 
 /// Un objet de CoreFoundation qu'on possède : relâché à la fin.

@@ -9,6 +9,7 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+#[cfg(windows)]
 const LOCK_FILE: &str = "instance.lock";
 const URL_FILE: &str = "instance.url";
 

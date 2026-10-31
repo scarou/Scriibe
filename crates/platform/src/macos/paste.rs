@@ -10,8 +10,12 @@ use super::ffi;
 use crate::apple::PASTE_BLOCKING_FLAGS;
 use crate::paste::{PasteOutcome, Paster};
 use arboard::Clipboard;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
+
+/// La demande d'autorisation « Accessibilité » a déjà été montrée pendant ce lancement.
+static ASKED: AtomicBool = AtomicBool::new(false);
 
 const KEY_V: u16 = 9;
 /// `kCGEventFlagMaskCommand`.
@@ -72,6 +76,10 @@ fn post_key(down: bool) -> Result<(), String> {
 fn send_command_v() -> Result<(), String> {
     // SAFETY : fonction sans paramètre.
     if !unsafe { ffi::AXIsProcessTrusted() } {
+        // Une seule demande par lancement : la fenêtre de macOS ne doit pas revenir à chaque dictée.
+        if !ASKED.swap(true, Ordering::SeqCst) {
+            ffi::ask_accessibility();
+        }
         return Err("collage refusé : autorise Scriibe (ou l'appli qui la lance) dans Réglages Système → Confidentialité et sécurité → Accessibilité".into());
     }
     wait_for_modifiers_released();
