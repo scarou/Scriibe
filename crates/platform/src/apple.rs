@@ -134,21 +134,28 @@ pub fn parse_front(output: &str) -> Option<String> {
     output.split_whitespace().find(|word| word.starts_with("ASN:")).map(str::to_string)
 }
 
-/// L'appli décrite par `lsappinfo info -only name -only bundleid <ASN>` : des lignes `"LSDisplayName"="Notes"` et
-/// `"CFBundleIdentifier"="com.apple.Notes"` (les anciennes versions écrivent `name` et `bundleid`).
+/// L'appli décrite par `lsappinfo info -only name -only bundleid <ASN>`. Sur macOS récent, la première ligne porte le nom et la suivante
+/// l'identifiant : `"Notes" ASN:0x0-0xc00c: (in front)` puis `    bundleID="com.apple.Notes"`. D'autres versions écrivent des lignes
+/// `"LSDisplayName"="Notes"` et `"CFBundleIdentifier"="com.apple.Notes"` : les deux formes sont lues.
 pub fn parse_app_info(output: &str) -> AppInfo {
     let mut name = None;
     let mut id = None;
-    for line in output.lines() {
+    for line in output.lines().map(str::trim) {
+        if let Some((quoted, after)) = line.strip_prefix('"').and_then(|rest| rest.split_once('"')) {
+            if after.trim_start().starts_with("ASN:") {
+                name = Some(quoted.to_string()).filter(|n| !n.is_empty());
+                continue;
+            }
+        }
         let Some((key, value)) = line.split_once('=') else { continue };
-        let key = key.trim().trim_matches('"');
+        let key = key.trim().trim_matches('"').to_ascii_lowercase();
         let value = value.trim().trim_matches('"').trim();
         if value.is_empty() || value.starts_with('[') {
             continue;
         }
-        match key {
-            "LSDisplayName" | "name" => name = Some(value.to_string()),
-            "CFBundleIdentifier" | "bundleid" => id = Some(value.to_string()),
+        match key.as_str() {
+            "lsdisplayname" | "name" => name = Some(value.to_string()),
+            "cfbundleidentifier" | "bundleid" => id = Some(value.to_string()),
             _ => {}
         }
     }
@@ -211,6 +218,14 @@ mod tests {
         assert_eq!(parse_front(""), None);
         let info = parse_app_info("\"LSDisplayName\"=\"Notes\"\n\"CFBundleIdentifier\"=\"com.apple.Notes\"\n");
         assert_eq!(info, AppInfo { name: "Notes".into(), id: Some("com.apple.Notes".into()) });
+        // La vraie sortie d'un Mac (macOS récent), relevée sur le Mac de Christophe.
+        let real = "\"TextEdit\" ASN:0x0-0xee0ee: (in front) 
+    bundleID=\"com.apple.TextEdit\"
+    bundle path=[ NULL ] 
+    executable path=[ NULL ] 
+ !cgsConnection !signalled type=[ NULL ]  flavor=[ NULL ]  Version=[ NULL ]  Arch=!!none 
+";
+        assert_eq!(parse_app_info(real), AppInfo { name: "TextEdit".into(), id: Some("com.apple.TextEdit".into()) });
         let old = parse_app_info("\"name\"=\"Safari\"\n\"bundleid\"=\"com.apple.Safari\"\n");
         assert_eq!(old.id.as_deref(), Some("com.apple.Safari"));
         let only_id = parse_app_info("\"CFBundleIdentifier\"=\"org.example.App\"\n");

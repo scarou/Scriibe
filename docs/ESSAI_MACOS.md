@@ -1,6 +1,6 @@
 # Essai de Scriibe sur macOS — étape 7, premier jalon (S09)
 
-**Écrit sans Mac sous la main** (sur le PC Windows de Christophe, le 31/10/2026) : le code est vérifié à la compilation croisée et à la lecture, **jamais exécuté**. Le premier essai sur un Mac est donc aussi le premier contact avec le système : on s'attend à corriger des choses. Une étape à la fois, et on note ce qui résiste dans `docs/PIEGES.md`.
+**Écrit sans Mac sous la main** (sur le PC Windows de Christophe, le 31/10/2026), puis **essayé le jour même sur son Mac Studio** : compilation, touche, dictée en ligne et collage marchent (détail dans `CHANGELOG.md`, S09). Le reste (traduction, Whisper local…) n'est pas encore essayé : on s'attend encore à corriger des choses. Une étape à la fois, et on note ce qui résiste dans `docs/PIEGES.md`.
 
 ## Ce qui est écrit (`crates/platform/src/macos/`)
 
@@ -30,7 +30,7 @@
 4. `target/release/scriibe lancer` : macOS demande les autorisations, à accorder **au terminal** (Réglages Système → Confidentialité et sécurité), puis **relancer Scriibe** :
    - **Surveillance de l'entrée** (la touche globale) ; si elle manque, Scriibe le dit au démarrage ;
    - **Microphone** ;
-   - **Accessibilité** (envoyer ⌘V) ; sans elle, le texte reste dans le presse-papiers.
+   - **Accessibilité** (envoyer ⌘V) ; sans elle, le texte reste dans le presse-papiers. Scriibe fait afficher la demande de macOS au premier collage refusé. **Sur un macOS récent (français), cette autorisation s'appelle « Contrôle de l'appareil et accès aux données »** : la rubrique « Accessibilité » des Réglages Système est autre chose (vision, audition…).
 5. Dans TextEdit ou Notes : maintenir **Option droite**, parler, relâcher. Rapporter : le texte collé ? le son de début et de fin ? la ligne « appli : … » du journal (nom de l'appli) ? Avec **⌘ gauche** tenue en plus : traduction.
 6. « Copier le rapport » (Journal et rapport) et le coller dans la session.
 

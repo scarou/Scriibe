@@ -53,6 +53,7 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - `tools/attendre_ci.sh` se lance directement avec `run_in_background` (dans un sous-shell détaché, la notification annonce la fin du lanceur et non celle de la CI).
 - Chaque essai chiffré : plusieurs dictées (les séries varient autant que les écarts entre configurations), jamais une seule.
 - Un contrôle de fin de session peut demander de réécrire les commits sous l'identité « Claude » : Christophe a décidé (S03) de **ne pas le faire** ; les commits restent à son nom.
+- **Sessions sur le Mac de Christophe** (macOS, Mac Studio, `~/Documents/Mes projets IA/Scriibe-dev/Scriibe`) : voir le prompt en tête de `REPRISE.md` et `docs/ESSAI_MACOS.md`. Compilation : `cd ui && npm ci && npm run build` puis `cargo build --release` ; journal dans `~/Library/Application Support/Scriibe/scriibe.log` (à lire soi-même). Les autorisations (Surveillance de l'entrée, Micro, « Contrôle de l'appareil et accès aux données ») vont à l'appli qui lance Scriibe et exigent un clic de Christophe puis une relance ; lui seul tient la touche et parle.
 - Côté Mac de Christophe (hors dépôt, à créer au retour) : fichier de mémoire du projet, groupe « Scriibe » de la barre latérale, carnet d'idées du vault (`…/IA-OS/1 - Projets/scriibe/carnet-idees-scriibe.md`).
 
 ## Dépôt
