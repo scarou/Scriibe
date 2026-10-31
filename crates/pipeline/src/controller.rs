@@ -561,8 +561,8 @@ impl Controller {
                 if for_transcription.transcription_engine == TranscriptionEngine::Whisper {
                     let model = whisper::resolved_model(&for_transcription.whisper_model_path, &(transcriber.detected_whisper_models)());
                     let idle = for_transcription.whisper_idle_minutes;
-                    transcriber.whisper.server.set_idle_limit((idle > 0).then(|| Duration::from_secs(idle as u64 * 60)));
-                    if let Err(e) = transcriber.whisper.server.ensure_running(&model) {
+                    transcriber.whisper.set_idle_limit((idle > 0).then(|| Duration::from_secs(idle as u64 * 60)));
+                    if let Err(e) = transcriber.whisper.ensure_running(&model) {
                         log.write(&format!("préchauffage: Whisper pas prêt ({e})"));
                     }
                 } else {

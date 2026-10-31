@@ -195,6 +195,79 @@ fn whisper_transcribes_through_the_local_server() {
     assert!(text_body.ends_with(&format!("--{boundary}--\r\n")));
 }
 
+/// Un WAV 16 kHz mono 16 bits de `seconds` secondes de silence.
+fn wav_of(seconds: f64) -> Vec<u8> {
+    let data = (seconds * 32_000.0) as u32;
+    let mut out = b"RIFF".to_vec();
+    out.extend((36 + data).to_le_bytes());
+    out.extend(b"WAVEfmt ");
+    out.extend(16u32.to_le_bytes());
+    out.extend([1, 0, 1, 0]);
+    out.extend(16_000u32.to_le_bytes());
+    out.extend(32_000u32.to_le_bytes());
+    out.extend([2, 0, 16, 0]);
+    out.extend(b"data");
+    out.extend(data.to_le_bytes());
+    out.extend(vec![0u8; data as usize]);
+    out
+}
+
+fn whisper_world() -> Arc<FakeWorld> {
+    let world = FakeWorld::new();
+    world.route("/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Bonjour"}).to_string().into_bytes() }));
+    world
+}
+
+#[test]
+fn a_short_recording_goes_to_the_short_server_with_a_reduced_audio_context() {
+    let world = whisper_world();
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    assert_eq!(t.transcribe(&wav_of(4.0), &settings, &[]).unwrap(), "Bonjour");
+    let spawn = &world.spawns()[0];
+    assert!(spawn.args.windows(2).any(|w| w == ["-ac", "512"]), "contexte réduit : {:?}", spawn.args);
+    assert!(spawn.args.windows(2).any(|w| w == ["--port", "8177"]), "port court : {:?}", spawn.args);
+    assert!(world.requests().iter().any(|r| r.url == "http://127.0.0.1:8177/inference"));
+}
+
+#[test]
+fn a_long_recording_goes_to_the_normal_server_and_both_servers_stop_together() {
+    let world = whisper_world();
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    t.transcribe(&wav_of(12.0), &settings, &[]).unwrap();
+    let spawns = world.spawns();
+    assert_eq!(spawns.len(), 1, "le serveur court ne démarre pas pour une prise longue");
+    assert!(!spawns[0].args.iter().any(|a| a == "-ac"), "30 s de contexte : {:?}", spawns[0].args);
+    assert!(spawns[0].args.windows(2).any(|w| w == ["--port", "8178"]));
+    t.transcribe(&wav_of(3.0), &settings, &[]).unwrap();
+    assert_eq!(world.spawns().len(), 2, "la prise courte démarre son propre serveur");
+    assert_eq!(world.live_processes(), 2);
+    t.whisper.stop();
+    assert_eq!(world.live_processes(), 0);
+}
+
+#[test]
+fn a_recording_of_unknown_length_goes_to_the_normal_server() {
+    let world = whisper_world();
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    t.transcribe(b"pas un WAV", &settings, &[]).unwrap();
+    assert!(world.requests().iter().any(|r| r.url == "http://127.0.0.1:8178/inference"));
+}
+
+#[test]
+fn the_length_of_a_wav_is_read_from_its_header() {
+    assert_eq!(whisper::wav_seconds(&wav_of(2.0)), Some(2.0));
+    assert_eq!(whisper::wav_seconds(&wav_of(0.0)), Some(0.0));
+    assert_eq!(whisper::wav_seconds(b"RIFF"), None);
+    assert_eq!(whisper::wav_seconds(&[0u8; 100]), None);
+    // Un en-tête de flux annonce une taille démesurée : seul ce qui est reçu compte.
+    let mut stream = wav_of(1.0);
+    stream[40..44].copy_from_slice(&u32::MAX.to_le_bytes());
+    assert_eq!(whisper::wav_seconds(&stream), Some(1.0));
+}
+
 #[test]
 fn whisper_language_multi_is_sent_as_auto_and_no_prompt_without_words() {
     let body = whisper::multipart_body("B", b"x", DictationLanguage::Multi, &[]);

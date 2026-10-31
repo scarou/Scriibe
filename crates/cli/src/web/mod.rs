@@ -394,7 +394,7 @@ fn handle(ctx: &Context, mut request: Request) {
         }
         (Method::Post, "api/quit") => {
             ok(request, json!({"ok": true}));
-            ctx.app.whisper.server.stop();
+            ctx.app.whisper.stop();
             ctx.app.llama.stop();
             std::process::exit(0);
         }
@@ -571,7 +571,7 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
         ctx.app.llama.stop();
     }
     if after.whisper_idle_minutes != before.whisper_idle_minutes {
-        ctx.app.whisper.server.set_idle_limit(crate::app::idle_limit(after.whisper_idle_minutes));
+        ctx.app.whisper.set_idle_limit(crate::app::idle_limit(after.whisper_idle_minutes));
     }
     if after.llama_idle_minutes != before.llama_idle_minutes {
         ctx.app.llama.set_idle_limit(crate::app::idle_limit(after.llama_idle_minutes));
@@ -951,7 +951,7 @@ fn install_update(ctx: &Context) -> Result<(), String> {
 
 /// Arrête les moteurs, relance le programme (la fenêtre se rouvre) puis s'arrête.
 fn restart(app: &App) {
-    app.whisper.server.stop();
+    app.whisper.stop();
     app.llama.stop();
     let mut args: Vec<String> = std::env::args().skip(1).filter(|a| a != crate::commands::RESTARTED).collect();
     args.push(crate::commands::RESTARTED.into());

@@ -138,7 +138,7 @@ pub fn run() -> Result<(), String> {
         .name("scriibe-evenements".into())
         .spawn(move || {
             event_loop(controller, events, move || {
-                whisper.server.release_if_idle();
+                whisper.release_if_idle();
                 llama.release_if_idle();
             })
         })
@@ -168,7 +168,7 @@ pub fn run() -> Result<(), String> {
     }
     #[cfg(windows)]
     {
-        app.whisper.server.stop();
+        app.whisper.stop();
         app.llama.stop();
         drop(keys);
         Ok(())
@@ -265,7 +265,7 @@ pub fn trial(args: &[String]) -> Result<(), String> {
         println!("\n=== passage {pass}{} ===", if pass == 1 { " (chargement des modèles compris)" } else { " (modèles chargés)" });
         app.controller.process_recording(recording.clone(), translate, "fichier");
     }
-    app.whisper.server.stop();
+    app.whisper.stop();
     app.llama.stop();
     println!("\nLe détail des temps est dans {}", app.log.path().display());
     Ok(())
