@@ -17,6 +17,19 @@ fn whisper_writing_puce_as_plus_starts_a_bullet_after_a_line_break() {
 }
 
 #[test]
+fn whisper_writing_puce_as_pus_starts_a_bullet_after_a_line_break() {
+    // Dictées réelles du 01/11/2026 (« Pus », puis « PUS »).
+    assert_eq!(
+        listed("Voici ma liste de courses, retour à la ligne, Pus du pain, retour à la ligne, pus des légumes, retour à la ligne, pus du lait."),
+        "Voici ma liste de courses\n- du pain\n- des légumes\n- du lait."
+    );
+    assert_eq!(listed("Courses, retour à la ligne, PUS du pain."), "Courses\n- du pain.");
+    for text in ["Pus du pain.", "Le pus est jaune.", "Retour à la ligne, il pus partir."] {
+        assert!(!listed(text).contains("- "), "{text} ne doit pas devenir une puce : {}", listed(text));
+    }
+}
+
+#[test]
 fn a_plus_sign_elsewhere_stays_text() {
     for text in
         ["+ du pain", "Un plus un font 1 + 1 = 2.", "Appelle le +33 6 12 34 56 78.", "Retour à la ligne +33 6 12", "Il a écrit\n+ \n"]

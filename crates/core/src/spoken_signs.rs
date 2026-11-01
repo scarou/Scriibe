@@ -221,9 +221,9 @@ fn item_tail() -> String {
 regex!(BULLET_ITEM, format!(r"(?i)^{b}*(?:tiret|puce)(?![\p{{L}}\p{{N}}'’-]){t}", b = BLANK, t = item_tail()));
 // Whisper entend parfois « tiret » comme « tirer », « tirez », « tiré » ou « tirée » : ces verbes ordinaires ne comptent
 // qu'après un saut de ligne, jamais en tête de dictée (« Tirez la porte. »).
-// Scriibe (S12) : Whisper écrit aussi « puce » en « + » (« retour à la ligne + du pain ») ; même règle, après un saut de ligne seulement
+// Scriibe (S12) : Whisper écrit aussi « puce » en « + » ou « pus » (« retour à la ligne + du pain », « retour à la ligne, Pus du pain ») ; même règle, après un saut de ligne seulement
 // (« +33 6… » et « 1 + 2 » ne sont jamais en tête de ligne suivie d'un blanc et d'un mot).
-regex!(MISHEARD_BULLET, format!(r"(?i)^{b}*(?:tirer|tirez|tirée|tiré|\+)(?![\p{{L}}\p{{N}}'’-]){t}", b = BLANK, t = item_tail()));
+regex!(MISHEARD_BULLET, format!(r"(?i)^{b}*(?:tirer|tirez|tirée|tiré|pus|\+)(?![\p{{L}}\p{{N}}'’-]){t}", b = BLANK, t = item_tail()));
 // « point 1 » mais pas « point 1,5 » (un nombre à virgule) ; en lettres, « point un, » demande sa ponctuation (« point un peu plus » reste du texte).
 regex!(
     NUMBERED_ITEM,
@@ -235,10 +235,10 @@ regex!(
     )
 );
 regex!(NEXT_ITEM, format!(r"(?i)^{b}*num[ée]ro{b}+suivant(?![\p{{L}}\p{{N}}]){t}", b = BLANK, t = item_tail()));
-regex!(ANY_LIST_WORD, r"(?i)tir(?:et|er|ez|é)|puce|point|num[ée]ro|\+");
+regex!(ANY_LIST_WORD, r"(?i)tir(?:et|er|ez|é)|puce|pus|point|num[ée]ro|\+");
 regex!(NUMBERED_LINE, r"^[ \t]*(\d{1,2})\.[ \t]");
 
-/// Au début d'une ligne seulement : « tiret » (ou « tirer », « tirez », « tiré », « tirée » ou « + » mal entendus, après un saut de ligne)
+/// Au début d'une ligne seulement : « tiret » (ou « tirer », « tirez », « tiré », « tirée », « pus » ou « + » mal entendus, après un saut de ligne)
 /// ou « puce » → le caractère de puce ; « point un » ou « point 2 » → « 1. », « 2. » ; « numéro suivant » → le numéro d'après
 /// (1 si la ligne précédente n'est pas numérotée). Une commande sans rien derrière (« Tiret. ») ou au milieu d'une phrase
 /// (« il a mis un tiret ») reste du texte. La majuscule n'est pas forcée.
