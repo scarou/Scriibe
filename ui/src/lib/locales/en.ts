@@ -194,9 +194,8 @@ export const en: Record<string, string> = {
   'Mise à jour de Scriibe': 'Scriibe update',
   'Version installée : {version}': 'Installed version: {version}',
   'compilée à la main (inconnue)': 'built by hand (unknown)',
-  ' — la mise à jour ne marche que sous Windows': ' — updating only works on Windows',
-  'Pour récupérer les nouvelles versions sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le Gestionnaire d’identifiants de Windows, jamais affiché ni écrit dans le journal.':
-    'To fetch new versions from GitHub (private repository), Scriibe needs a read-only token. It is kept in the Windows Credential Manager and is never displayed or written to the log.',
+  'Pour savoir si une nouvelle version existe sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le gestionnaire d’identifiants du système (Windows) ou le trousseau (Mac), jamais affiché ni écrit dans le journal.':
+    'To know whether a new version exists on GitHub (private repository), Scriibe needs a read-only token. It is kept in the system credential manager (Windows) or the keychain (Mac) and is never displayed or written to the log.',
   'Colle le jeton GitHub ici': 'Paste the GitHub token here',
   'Enregistrer le jeton': 'Save the token',
   'Chercher une nouvelle version': 'Check for a new version',
@@ -547,6 +546,10 @@ export const en: Record<string, string> = {
   'Je t’entends à peine…': 'I can barely hear you…',
   'J’écoute…': 'Listening…',
   'Touche indisponible': 'Key unavailable',
+  'Nouvelle version disponible': 'New version available',
+  'Chercher automatiquement une nouvelle version (toutes les 6 heures)': 'Look for a new version automatically (every 6 hours)',
+  ' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore': ' — on this system, Scriibe reports a new version but does not install it yet',
+  'Une version plus récente existe. Pour l’instant, mettez à jour à la main : récupérez le code (git pull), puis recompilez Scriibe.': 'A newer version exists. For now, update by hand: get the code (git pull), then rebuild Scriibe.',
   'Prêt · {key}': 'Ready · {key}',
   'Traduction en {language}…': 'Translating into {language}…',
   'Mise au propre…': 'Cleaning up…',

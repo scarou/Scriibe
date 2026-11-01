@@ -20,6 +20,8 @@ export interface Status {
   recording: boolean;
   busy: boolean;
   keys_error: string | null;
+  /** Une version plus récente que celle qui tourne, trouvée par la vérification automatique (absent : à jour ou pas vérifié). */
+  update: { sha: string; title: string; date: string } | null;
   hotkey: string;
   /** « Ctrl gauche + F9 » : la dictée et la traduction en vigueur. */
   dictation_label: string;
@@ -76,6 +78,8 @@ export interface Settings {
   translateKeys: string[];
   /** Langue de l'interface : automatique (celle du système), français ou anglais. */
   uiLanguage: 'auto' | 'fr' | 'en';
+  /** Chercher toutes les 6 heures s'il existe une nouvelle version. */
+  checkUpdates: boolean;
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
   captureColor: 'scribe' | 'gray' | 'red' | 'blue' | 'black';

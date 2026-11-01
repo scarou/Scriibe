@@ -1,6 +1,6 @@
 # Cadrage — mise à jour de Scriibe sur Windows, macOS et Linux (S12)
 
-Statut : **cadrage, rien n'est écrit**. À valider par Christophe avant de coder.
+Statut : **chantier A écrit en S12** (alerte, sauf l'entrée du menu de l'icône) ; B et C à décider.
 
 ## État actuel
 

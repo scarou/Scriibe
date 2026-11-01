@@ -35,3 +35,13 @@ fn interface_language_defaults_to_automatic_and_survives_a_round_trip() {
     assert_eq!(AppSettings::from_json(r#"{"language": "fr"}"#).unwrap().ui_language, UiLanguage::Auto);
     assert_eq!(AppSettings::from_json(r#"{"uiLanguage": "klingon"}"#).unwrap().ui_language, UiLanguage::Auto);
 }
+
+#[test]
+fn the_update_check_is_on_by_default_and_can_be_turned_off() {
+    assert!(AppSettings::default().check_updates);
+    let off = AppSettings::from_json(r#"{"checkUpdates": false}"#).unwrap();
+    assert!(!off.check_updates);
+    let back = AppSettings::from_json(&serde_json::to_string(&off).unwrap()).unwrap();
+    assert!(!back.check_updates);
+    assert!(AppSettings::from_json("{}").unwrap().check_updates);
+}

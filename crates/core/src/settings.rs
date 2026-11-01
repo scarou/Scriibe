@@ -312,6 +312,9 @@ pub struct AppSettings {
     /// Langue de l'interface (S08) : automatique (celle du système), français ou anglais. Propre à Scriibe.
     #[serde(rename = "uiLanguage")]
     pub ui_language: UiLanguage,
+    /// Chercher toutes les 6 heures s'il existe une nouvelle version (S12) ; faux : seulement le bouton de l'onglet « Mise à jour ». Propre à Scriibe.
+    #[serde(rename = "checkUpdates")]
+    pub check_updates: bool,
 }
 
 impl Default for AppSettings {
@@ -364,6 +367,7 @@ impl Default for AppSettings {
             dictation_keys: Vec::new(),
             translate_keys: Vec::new(),
             ui_language: UiLanguage::default(),
+            check_updates: true,
         }
     }
 }
@@ -462,6 +466,7 @@ impl AppSettings {
             dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
             translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
             ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
+            check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
         })
     }
 

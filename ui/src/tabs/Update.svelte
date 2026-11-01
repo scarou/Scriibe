@@ -5,6 +5,7 @@
   import { percent } from '../lib/format';
   import { mo } from '../lib/display.svelte';
   import { t } from '../lib/i18n.svelte';
+  import { settings } from '../lib/settings.svelte';
 
   interface UpdateState {
     windows: boolean;
@@ -17,6 +18,8 @@
     ok: boolean;
     error?: string;
     up_to_date: boolean;
+    /** Faux sur Mac et Linux : Scriibe signale la version mais ne l'installe pas. */
+    installable: boolean;
     sha: string;
     title: string;
     date: string;
@@ -61,6 +64,7 @@
 
   onMount(() => {
     void load();
+    void settings.load();
     const timer = setInterval(() => void load(), 1500);
     return () => clearInterval(timer);
   });
@@ -71,12 +75,12 @@
 {#if u}
   <section class="card">
     <div class="muted">
-      {t('Version installée : {version}', { version: u.current ?? t('compilée à la main (inconnue)') })}{u.windows ? '' : t(' — la mise à jour ne marche que sous Windows')}
+      {t('Version installée : {version}', { version: u.current ?? t('compilée à la main (inconnue)') })}{u.windows ? '' : t(' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore')}
     </div>
 
-    {#if u.windows && !u.has_token}
+    {#if !u.has_token}
       <p class="muted">
-        {t('Pour récupérer les nouvelles versions sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le Gestionnaire d’identifiants de Windows, jamais affiché ni écrit dans le journal.')}
+        {t('Pour savoir si une nouvelle version existe sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le gestionnaire d’identifiants du système (Windows) ou le trousseau (Mac), jamais affiché ni écrit dans le journal.')}
       </p>
       <div class="row">
         <input type="password" class="grow" placeholder={t('Colle le jeton GitHub ici')} autocomplete="off" bind:value={token} />
@@ -84,7 +88,7 @@
       </div>
     {/if}
 
-    {#if u.windows && u.has_token}
+    {#if u.has_token}
       <div class="row"><button onclick={check} disabled={searching}>{t('Chercher une nouvelle version')}</button></div>
       {#if searching}<span class="muted">{t('Recherche…')}</span>{/if}
       {#if found}
@@ -98,11 +102,20 @@
           </div>
           {#if found.up_to_date}
             <div class="ok">{t('✔ Vous avez déjà cette version.')}</div>
-          {:else}
+          {:else if found.installable}
             <div class="row"><button class="primary" onclick={install}>{t('Installer et redémarrer')}</button></div>
+          {:else}
+            <div class="warn">{t('Une version plus récente existe. Pour l’instant, mettez à jour à la main : récupérez le code (git pull), puis recompilez Scriibe.')}</div>
           {/if}
         {/if}
       {/if}
+    {/if}
+
+    {#if settings.value}
+      <div class="row">
+        <label><input type="checkbox" checked={settings.value.checkUpdates} onchange={(e) => settings.change({ checkUpdates: e.currentTarget.checked })} />
+          {t('Chercher automatiquement une nouvelle version (toutes les 6 heures)')}</label>
+      </div>
     {/if}
 
     {#if u.progress.state === 'running'}

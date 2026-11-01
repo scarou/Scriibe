@@ -39,8 +39,9 @@ use scriibe_platform::audio::Recording;
 use scriibe_platform::bench_store::BenchStore;
 use scriibe_platform::storage::FileHistory;
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
 
 pub struct Context {
@@ -53,6 +54,11 @@ pub struct Context {
     updater: Arc<update::Updater>,
     /// Dernière version trouvée par « Chercher » : c'est elle, vue et confirmée, que « Installer » télécharge.
     found: Mutex<Option<update::Latest>>,
+    /// Une version plus récente, trouvée par la vérification automatique (toutes les 6 heures) ou par « Chercher ».
+    available: Mutex<Option<update::Available>>,
+    /// Un jeton GitHub est-il enregistré ? Relu par le fil de vérification (sous macOS la lecture du trousseau peut attendre une réponse de la
+    /// personne : elle ne doit jamais bloquer la page).
+    has_github_token: AtomicBool,
     token: String,
     port: u16,
     last: Mutex<Option<Recording>>,
@@ -73,7 +79,7 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 
 /// Version affichée dans la page : le commit de la CI, sinon « dev ».
 pub fn build_id() -> String {
-    format!("{} ({})", env!("CARGO_PKG_VERSION"), option_env!("GITHUB_SHA").map_or("dev", |s| &s[..s.len().min(7)]))
+    format!("{} ({})", env!("CARGO_PKG_VERSION"), update::current_sha().map_or("dev", |s| &s[..s.len().min(7)]))
 }
 
 /// Démarre le serveur dans un fil et rend son adresse complète.
@@ -98,6 +104,8 @@ pub fn start(
         downloads: Arc::new(Downloads::default()),
         updater: Arc::new(update::Updater::default()),
         found: Mutex::new(None),
+        available: Mutex::new(None),
+        has_github_token: AtomicBool::new(false),
         token,
         port,
         last: Mutex::new(None),
@@ -118,7 +126,41 @@ pub fn start(
             }
         })
         .map_err(|e| e.to_string())?;
+    spawn_update_checker(&context);
     Ok((context, url))
+}
+
+/// Le délai entre deux vérifications automatiques de nouvelle version.
+const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(6 * 3600);
+
+/// Cherche une nouvelle version toutes les 6 heures (d'abord 30 s après le lancement), si le réglage est actif et qu'un jeton GitHub est
+/// enregistré. Une requête légère vers GitHub, rien d'autre ne part ; une erreur (réseau coupé) est notée au journal et réessayée à l'heure.
+fn spawn_update_checker(ctx: &Arc<Context>) {
+    let Some(current) = update::current_sha() else { return };
+    let ctx = ctx.clone();
+    let _ = std::thread::Builder::new().name("scriibe-update".into()).spawn(move || {
+        std::thread::sleep(Duration::from_secs(30));
+        let mut last: Option<Instant> = None;
+        loop {
+            let token = github_token(&ctx);
+            ctx.has_github_token.store(token.is_ok(), Ordering::Relaxed);
+            if ctx.app.config.settings().check_updates && last.is_none_or(|t| t.elapsed() >= UPDATE_CHECK_EVERY) {
+                if let Ok(token) = token {
+                    last = Some(Instant::now());
+                    match update::newer(&token, current) {
+                        Ok(found) => {
+                            if let Some(v) = &found {
+                                ctx.app.log.write(&format!("mise à jour: nouvelle version disponible ({})", v.short_sha()));
+                            }
+                            *lock(&ctx.available) = found;
+                        }
+                        Err(e) => ctx.app.log.write(&format!("mise à jour: vérification impossible ({e})")),
+                    }
+                }
+            }
+            std::thread::sleep(Duration::from_secs(60));
+        }
+    });
 }
 
 fn header(name: &str, value: &str) -> Header {
@@ -370,7 +412,10 @@ fn handle(ctx: &Context, mut request: Request) {
         }
         (Method::Get, "api/update") => ok(request, update_state(ctx)),
         (Method::Post, "api/update/token") => match save_key(ctx, KeyKind::GitHub, input["token"].as_str().unwrap_or("")) {
-            Ok(()) => ok(request, json!({"ok": true})),
+            Ok(()) => {
+                ctx.has_github_token.store(true, Ordering::Relaxed);
+                ok(request, json!({"ok": true}))
+            }
             Err(e) => fail(request, 400, &e),
         },
         (Method::Post, "api/keys") => {
@@ -524,6 +569,7 @@ fn status(ctx: &Context) -> Value {
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),
+        "update": lock(&ctx.available).as_ref().map(|v| json!({"sha": v.short_sha(), "title": v.title, "date": v.date})),
         "hotkey": format!("{:?}", settings.hotkey),
         "dictation_label": if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
         "translate_label": if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
@@ -909,8 +955,8 @@ fn update_state(ctx: &Context) -> Value {
     };
     json!({
         "windows": cfg!(windows),
-        // Le jeton ne sert qu'à la mise à jour intégrée (Windows) : ailleurs, ne pas le lire (le trousseau de macOS demanderait l'accès).
-        "has_token": cfg!(windows) && ctx.app.platform.secrets.get(KeyKind::GitHub).is_some(),
+        // Le jeton sert à l'alerte de nouvelle version (tous les systèmes) et à l'installation (Windows) ; la lecture du trousseau de macOS est gardée.
+        "has_token": ctx.has_github_token.load(Ordering::Relaxed) || (cfg!(windows) && ctx.app.platform.secrets.get(KeyKind::GitHub).is_some()),
         "current": update::current_sha().map(|s| s[..s.len().min(7)].to_string()),
         "repo": update::REPO,
         "progress": state,
@@ -930,10 +976,30 @@ fn github_token(ctx: &Context) -> Result<String, String> {
 
 /// Cherche la dernière version, sans rien télécharger : la page montre ce qui sera installé, puis demande confirmation.
 fn check_update(ctx: &Context) -> Result<Value, String> {
+    if !cfg!(windows) {
+        // Mac et Linux : rien à installer par Scriibe, on dit seulement s'il existe une version plus récente que celle qui tourne.
+        let current = update::current_sha().ok_or("version installée inconnue (programme compilé hors d'un dépôt git)")?;
+        let found = update::newer(&github_token(ctx)?, current)?;
+        *lock(&ctx.available) = found.clone();
+        return Ok(match found {
+            Some(v) => {
+                json!({"ok": true, "up_to_date": false, "installable": false, "sha": v.short_sha(), "title": v.title, "date": v.date, "size": 0, "run": 0,
+                              "source": format!("github.com/{}", update::REPO)})
+            }
+            None => {
+                json!({"ok": true, "up_to_date": true, "installable": false, "sha": &current[..current.len().min(7)], "title": "", "date": "", "size": 0, "run": 0,
+                           "source": format!("github.com/{}", update::REPO)})
+            }
+        });
+    }
     let latest = update::latest(&github_token(ctx)?)?;
+    if latest.up_to_date() {
+        *lock(&ctx.available) = None;
+    }
     let found = json!({
         "ok": true,
         "up_to_date": latest.up_to_date(),
+        "installable": true,
         "sha": latest.short_sha(),
         "title": latest.title,
         "date": latest.date,

@@ -77,6 +77,9 @@
           <span>{a?.recording ? t('J’écoute…') : a?.busy ? t('Mise au propre…') : status.value.keys_error ? t('Touche indisponible') : t('Prêt · {key}', { key: keyName(status.value.dictation_label) })}</span>
         </div>
       {/if}
+      {#if status.value?.update}
+        <button class="nav news" onclick={() => choose('update')} title={status.value.update.title}>↑ {t('Nouvelle version disponible')}</button>
+      {/if}
       <div class="muted version">{status.value ? t('version {version}', { version: status.value.version }) : ''}</div>
       <button class="nav" onclick={quit}>{t('Quitter Scriibe')}</button>
     </nav>
@@ -112,6 +115,7 @@
   .dot.rec { background: var(--rec); opacity: 1; }
   .dot.busy { background: var(--warn); opacity: 1; }
   .dot.off { background: var(--bad); opacity: 1; }
+  .news { color: var(--accent); font-size: .85rem; font-weight: 600; }
   .version { padding: 4px 10px; font-size: .78rem; word-break: break-all; }
   main { flex: 1; min-width: 0; padding: 20px; max-width: 900px; }
   main.stopped { padding: 40px; }

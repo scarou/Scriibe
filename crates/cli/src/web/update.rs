@@ -14,9 +14,44 @@ const WORKFLOW: &str = "ci.yml";
 const ARTIFACT: &str = "scriibe-windows-x64";
 const PROGRAM: &str = "scriibe.exe";
 
-/// La version installée : le commit de la CI qui l'a construite (absent d'une compilation à la main).
+/// La version installée : le commit compilé (celui de la CI, ou lu dans git pour une compilation à la main ; absent hors d'un dépôt git).
 pub fn current_sha() -> Option<&'static str> {
-    option_env!("GITHUB_SHA")
+    Some(env!("SCRIIBE_COMMIT")).filter(|s| !s.is_empty())
+}
+
+/// Une version plus récente que celle qui tourne (trouvée par la vérification automatique).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Available {
+    pub sha: String,
+    pub title: String,
+    pub date: String,
+}
+
+impl Available {
+    pub fn short_sha(&self) -> &str {
+        &self.sha[..self.sha.len().min(7)]
+    }
+}
+
+/// GitHub dit si le commit `latest` est en avance sur `current` (« ahead ») ; « identical », « behind » ou « diverged » (une compilation
+/// qui a des commits à elle) ne déclenchent pas d'alerte.
+fn is_ahead(compare: &Value) -> bool {
+    compare["status"].as_str() == Some("ahead")
+}
+
+/// Cherche s'il existe une version plus récente que la version installée : la dernière exécution verte de la CI sur `main`, comparée à
+/// `current`. Rien n'est téléchargé ; `None` quand la version installée est la dernière, ou plus récente.
+pub fn newer(token: &str, current: &str) -> Result<Option<Available>, String> {
+    let runs = get_json(
+        &format!("https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/runs?branch=main&status=success&per_page=1"),
+        token,
+    )?;
+    let (_, sha, title, date) = parse_run(&runs)?;
+    if sha == current {
+        return Ok(None);
+    }
+    let compare = get_json(&format!("https://api.github.com/repos/{REPO}/compare/{current}...{sha}"), token)?;
+    Ok(is_ahead(&compare).then_some(Available { sha, title, date }))
 }
 
 /// La dernière version disponible.
@@ -133,7 +168,7 @@ pub fn latest(token: &str) -> Result<Latest, String> {
         return Err("la mise à jour ne marche que sous Windows (c'est scriibe.exe qui est publié)".into());
     }
     let runs = get_json(
-        &format!("https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/runs?branch=main&status=success&event=push&per_page=1"),
+        &format!("https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/runs?branch=main&status=success&per_page=1"),
         token,
     )?;
     let (run_id, sha, title, date) = parse_run(&runs)?;
@@ -381,6 +416,15 @@ mod tests {
         let current = dir.join("introuvable").join("scriibe.exe");
         assert!(replace_program(&current, &fake_program(2)).unwrap_err().contains("écriture impossible"));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn only_a_latest_commit_ahead_of_the_installed_one_is_an_update() {
+        for (status, ahead) in [("ahead", true), ("identical", false), ("behind", false), ("diverged", false)] {
+            assert_eq!(is_ahead(&serde_json::json!({"status": status})), ahead, "{status}");
+        }
+        assert!(!is_ahead(&serde_json::json!({})));
+        assert_eq!(Available { sha: "abcdef1234".into(), title: String::new(), date: String::new() }.short_sha(), "abcdef1");
     }
 
     #[test]
