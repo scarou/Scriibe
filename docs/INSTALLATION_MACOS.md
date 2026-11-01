@@ -4,11 +4,13 @@ Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la prog
 
 **Ce qu'il faut** : un Mac à puce Apple (M1 ou plus récent), macOS 14 ou plus récent, une connexion Internet, un micro.
 
+> **Aucune version n'est encore publiée dans les « Releases »** (la première se crée avec `tools/publier_macos.sh`, voir la fin de ce fichier) : tant que la page est vide, demander le zip à la personne qui vous donne Scriibe.
+>
 > **État de cette procédure (S13)** : écrite d'après ce qui est essayé sur le Mac de Christophe (autorisations, première dictée, moteurs). Les étapes 1 à 3 (téléchargement d'une version publiée, avertissement de macOS au premier lancement) **n'ont pas encore été essayées sur un autre Mac** : si une étape ne se passe pas comme écrit, noter laquelle et la dire.
 
 ## 1. Télécharger Scriibe
 
-1. Ouvrir la page des versions : `https://github.com/scarou/Scriibe/releases` (le dépôt est privé : il faut un compte GitHub que Christophe a invité ; sans invitation, la page répond « 404 »).
+1. Ouvrir la page des versions : `https://github.com/scarou/Scriibe/releases` (tant que le dépôt est privé, il faut un compte GitHub invité par Christophe : sans invitation, la page répond « 404 » ; une fois le dépôt public, la page est ouverte à tous).
 2. Sous la version la plus récente (le numéro le plus haut, en haut de la page), cliquer sur le fichier **`Scriibe-…-macos.zip`** dans la rubrique « Assets ». Le téléchargement arrive dans le dossier **Téléchargements**.
 
 ## 2. Installer
