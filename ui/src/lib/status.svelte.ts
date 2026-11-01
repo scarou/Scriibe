@@ -4,6 +4,16 @@ import { api, type Status } from './api';
 class StatusStore {
   value = $state<Status | null>(null);
   failed = $state(false);
+  /** La dictée en cours, relue chaque seconde par la ligne d'état de la barre latérale. */
+  activity = $state<{ recording: boolean; busy: boolean; keys_error: string | null } | null>(null);
+
+  async refreshActivity(): Promise<void> {
+    try {
+      this.activity = await api('activity');
+    } catch {
+      /* `refresh` signale déjà l'absence de réponse */
+    }
+  }
 
   async refresh(): Promise<void> {
     try {
@@ -18,6 +28,8 @@ class StatusStore {
   start(): void {
     void this.refresh();
     setInterval(() => void this.refresh(), 8000);
+    void this.refreshActivity();
+    setInterval(() => void this.refreshActivity(), 1000);
   }
 }
 

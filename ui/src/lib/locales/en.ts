@@ -546,6 +546,8 @@ export const en: Record<string, string> = {
   'Je n’entends rien…': 'I can’t hear anything…',
   'Je t’entends à peine…': 'I can barely hear you…',
   'J’écoute…': 'Listening…',
+  'Touche indisponible': 'Key unavailable',
+  'Prêt · {key}': 'Ready · {key}',
   'Traduction en {language}…': 'Translating into {language}…',
   'Mise au propre…': 'Cleaning up…',
   'Collé en {language}': 'Pasted in {language}',

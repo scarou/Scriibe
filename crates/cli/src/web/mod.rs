@@ -155,6 +155,11 @@ fn handle(ctx: &Context, mut request: Request) {
     let input: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
+        // L'état de la dictée seul, léger : la ligne d'état de la barre latérale le relit chaque seconde.
+        (Method::Get, "api/activity") => ok(
+            request,
+            json!({"recording": ctx.app.controller.is_recording(), "busy": ctx.app.controller.is_busy(), "keys_error": lock(&ctx.keys_error).clone()}),
+        ),
         // Une deuxième Scriibe lancée par l'utilisateur demande de montrer cette fenêtre, puis s'arrête.
         (Method::Post, "api/instance/show") => {
             scriibe_platform::open::open(&format!("http://127.0.0.1:{}/{}/", ctx.port, ctx.token));

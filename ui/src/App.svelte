@@ -5,7 +5,7 @@
   import { status } from './lib/status.svelte';
   import { createKeyRelay } from './lib/keyrelay';
   import { nav } from './lib/nav.svelte';
-  import { i18n, t } from './lib/i18n.svelte';
+  import { i18n, keyName, t } from './lib/i18n.svelte';
   import { settings } from './lib/settings.svelte';
   import { tabs, type TabId } from './lib/tabs';
   import Settings from './tabs/Settings.svelte';
@@ -70,6 +70,13 @@
         <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}</button>
       {/each}
       <div class="spacer"></div>
+      {#if status.value}
+        {@const a = status.activity}
+        <div class="state" title={status.value.keys_error ?? ''}>
+          <span class="dot" class:rec={a?.recording} class:busy={!a?.recording && a?.busy} class:off={!!status.value.keys_error}></span>
+          <span>{a?.recording ? t('J’écoute…') : a?.busy ? t('Mise au propre…') : status.value.keys_error ? t('Touche indisponible') : t('Prêt · {key}', { key: keyName(status.value.dictation_label) })}</span>
+        </div>
+      {/if}
       <div class="muted version">{status.value ? t('version {version}', { version: status.value.version }) : ''}</div>
       <button class="nav" onclick={quit}>{t('Quitter Scriibe')}</button>
     </nav>
@@ -100,12 +107,17 @@
   .nav.active { background: var(--accent); color: var(--accent-ink); }
   .icon { display: inline-block; width: 1.6em; }
   .spacer { flex: 1; }
+  .state { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: .82rem; color: var(--muted); }
+  .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--ok); opacity: .55; }
+  .dot.rec { background: var(--rec); opacity: 1; }
+  .dot.busy { background: var(--warn); opacity: 1; }
+  .dot.off { background: var(--bad); opacity: 1; }
   .version { padding: 4px 10px; font-size: .78rem; word-break: break-all; }
   main { flex: 1; min-width: 0; padding: 20px; max-width: 900px; }
   main.stopped { padding: 40px; }
   @media (max-width: 640px) {
     .shell { flex-direction: column; }
     nav { width: auto; height: auto; position: static; flex-direction: row; flex-wrap: wrap; }
-    .spacer, .version, .brand { display: none; }
+    .spacer, .version, .state, .brand { display: none; }
   }
 </style>
