@@ -965,13 +965,20 @@ fn update_state(ctx: &Context) -> Value {
 
 /// Enregistre une clé ou un jeton dans le coffre du système (elle n'est ni affichée, ni journalisée, ni renvoyée à la page).
 fn save_key(ctx: &Context, kind: KeyKind, value: &str) -> Result<(), String> {
-    let store = scriibe_platform::save_secret(kind, value)?;
+    // Un collage ramène souvent un retour à la ligne ou une espace : une clé n'en contient jamais.
+    let store = scriibe_platform::save_secret(kind, value.trim())?;
     ctx.app.log.write(&format!("clés: {} enregistrée dans le {store}", scriibe_platform::secrets::account_name(kind)));
     Ok(())
 }
 
 fn github_token(ctx: &Context) -> Result<String, String> {
-    ctx.app.platform.secrets.get(KeyKind::GitHub).ok_or_else(|| "aucun jeton GitHub enregistré".to_string())
+    ctx.app
+        .platform
+        .secrets
+        .get(KeyKind::GitHub)
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .ok_or_else(|| "aucun jeton GitHub enregistré".to_string())
 }
 
 /// Cherche la dernière version, sans rien télécharger : la page montre ce qui sera installé, puis demande confirmation.
