@@ -155,6 +155,7 @@ export const en: Record<string, string> = {
   'Texte attendu': 'Expected text',
   'Ajouter un exemple': 'Add an example',
   'Annuler': 'Cancel',
+  'Changer le jeton': 'Change the token',
   'Enregistrer': 'Save',
 
   // Installation

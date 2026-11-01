@@ -32,6 +32,7 @@
   let token = $state('');
   let found = $state<Found | null>(null);
   let searching = $state(false);
+  let changing = $state(false);
 
   async function load() {
     u = await api<UpdateState>('update');
@@ -41,6 +42,8 @@
     const out = await api('update/token', { token });
     token = '';
     if (!out.ok) await notice(out.error);
+    else changing = false;
+    found = null;
     await load();
   }
 
@@ -78,18 +81,22 @@
       {t('Version installée : {version}', { version: u.current ?? t('compilée à la main (inconnue)') })}{u.windows ? '' : t(' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore')}
     </div>
 
-    {#if !u.has_token}
+    {#if !u.has_token || changing}
       <p class="muted">
         {t('Pour savoir si une nouvelle version existe sur GitHub (dépôt privé), Scriibe a besoin d’un jeton en lecture seule. Il est gardé dans le gestionnaire d’identifiants du système (Windows) ou le trousseau (Mac), jamais affiché ni écrit dans le journal.')}
       </p>
       <div class="row">
         <input type="password" class="grow" placeholder={t('Colle le jeton GitHub ici')} autocomplete="off" bind:value={token} />
         <button onclick={saveToken} disabled={!token}>{t('Enregistrer le jeton')}</button>
+        {#if changing}<button onclick={() => { changing = false; token = ''; }}>{t('Annuler')}</button>{/if}
       </div>
     {/if}
 
     {#if u.has_token}
-      <div class="row"><button onclick={check} disabled={searching}>{t('Chercher une nouvelle version')}</button></div>
+      <div class="row">
+        <button onclick={check} disabled={searching}>{t('Chercher une nouvelle version')}</button>
+        {#if !changing}<button onclick={() => (changing = true)}>{t('Changer le jeton')}</button>{/if}
+      </div>
       {#if searching}<span class="muted">{t('Recherche…')}</span>{/if}
       {#if found}
         {#if !found.ok}
