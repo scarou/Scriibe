@@ -117,8 +117,19 @@ fn get_authorized(url: &str, token: &str) -> Result<ureq::Response, String> {
     match result {
         Ok(response) => Ok(response),
         Err(ureq::Error::Status(401, _)) => Err("GitHub refuse le jeton (401) : faux, expiré ou à recréer".into()),
-        Err(ureq::Error::Status(403 | 404, _)) => {
-            Err(format!("GitHub refuse l'accès (403/404) : le jeton doit pouvoir lire « Actions » du dépôt {REPO} (lecture seule suffit)"))
+        Err(ureq::Error::Status(code @ (403 | 404), response)) => {
+            // GitHub dit lui-même ce qui manque : permissions exigées par la route et message (jamais le jeton).
+            let needed = response.header("x-accepted-github-permissions").unwrap_or("").to_string();
+            let message = response
+                .into_string()
+                .ok()
+                .and_then(|b| serde_json::from_str::<serde_json::Value>(&b).ok())
+                .and_then(|v| v["message"].as_str().map(String::from))
+                .unwrap_or_default();
+            Err(format!(
+                "GitHub refuse l'accès ({code}) : le jeton doit pouvoir lire « Actions » du dépôt {REPO} (lecture seule suffit). Réponse de GitHub : « {message} »{}",
+                if needed.is_empty() { String::new() } else { format!(" ; permissions demandées : {needed}") }
+            ))
         }
         Err(e) => Err(format!("GitHub injoignable ({})", describe(&e))),
     }
