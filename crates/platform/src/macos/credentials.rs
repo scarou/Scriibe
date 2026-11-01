@@ -2,7 +2,7 @@
 
 use crate::secrets::account_name;
 use scriibe_engines::runtime::{KeyKind, Secrets};
-use security_framework::passwords::{get_generic_password, set_generic_password};
+use security_framework::passwords::{delete_generic_password, get_generic_password, set_generic_password};
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
@@ -39,6 +39,9 @@ pub fn set_credential(kind: KeyKind, value: &str) -> Result<(), String> {
     if value.is_empty() {
         return Err("clé vide".into());
     }
+    // Comme Scribe : supprimer puis recréer, pour que l'élément appartienne à la signature actuelle de l'appli (une mise à jour sur
+    // place garde la liste d'accès de celui qui l'avait créé, par exemple un programme lancé depuis le Terminal).
+    let _ = delete_generic_password(SERVICE, account_name(kind));
     set_generic_password(SERVICE, account_name(kind), value.as_bytes())
         .map_err(|e| format!("le trousseau a refusé d'enregistrer la clé ({e})"))?;
     cache().get_or_insert_with(HashMap::new).insert(account_name(kind), Some(value.to_string()));
