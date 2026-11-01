@@ -225,6 +225,18 @@ impl Launcher for WhisperLauncher {
     }
 }
 
+/// Vrai si le texte contient un passage d'au moins `MIN_LOOP_WORDS` mots répété tel quel, deux fois de suite (majuscules et
+/// ponctuation ignorées) : la boucle de Whisper sur une prise courte. Une vraie répétition de la personne qui dicte y répond aussi ;
+/// le seul effet est alors une seconde transcription, sur le serveur normal.
+pub fn repeats_itself(text: &str) -> bool {
+    let words: Vec<String> =
+        text.split(|c: char| !c.is_alphanumeric() && c != '\'').filter(|w| !w.is_empty()).map(|w| w.to_lowercase()).collect();
+    (MIN_LOOP_WORDS..=words.len() / 2).any(|len| (0..=words.len() - 2 * len).any(|at| words[at..at + len] == words[at + len..at + 2 * len]))
+}
+
+/// Longueur minimale (en mots) d'un passage répété pour être pris pour une boucle : « oui, oui » ou « très très bien » n'en sont pas.
+const MIN_LOOP_WORDS: usize = 4;
+
 /// Whisper sur cet ordinateur : les serveurs et la transcription.
 ///
 /// **Deux serveurs** (écart avec Scribe, `docs/ECARTS.md`) : le serveur court (`-ac 512`) transcrit les prises de `SHORT_MAX_SECONDS`
@@ -276,6 +288,10 @@ impl Whisper {
 
     /// Transcrit un enregistrement WAV. `idle_minutes` : le réglage « Libérer Whisper au repos » (0 : jamais), lu à chaque appel pour
     /// suivre un changement.
+    ///
+    /// Le contexte audio réduit du serveur court fait parfois boucler Whisper : la phrase revient deux à quatre fois dans le texte
+    /// (S13, 7 dictées sur 74 le 01/11/2026, aucune sur le serveur normal). Si la réponse du serveur court se répète, la prise est
+    /// refaite sur le serveur normal ; si celui-ci échoue, on garde la première réponse.
     pub fn transcribe(
         &self,
         wav: &[u8],
@@ -285,6 +301,24 @@ impl Whisper {
         idle_minutes: i64,
     ) -> Result<String, ServiceError> {
         let server = self.server_for(wav);
+        let text = self.transcribe_on(server, wav, model_path, language, vocabulary, idle_minutes)?;
+        if std::ptr::eq(server, &self.short) && repeats_itself(&text) {
+            if let Ok(again) = self.transcribe_on(&self.server, wav, model_path, language, vocabulary, idle_minutes) {
+                return Ok(again);
+            }
+        }
+        Ok(text)
+    }
+
+    fn transcribe_on(
+        &self,
+        server: &EngineServer<WhisperLauncher>,
+        wav: &[u8],
+        model_path: &str,
+        language: DictationLanguage,
+        vocabulary: &[String],
+        idle_minutes: i64,
+    ) -> Result<String, ServiceError> {
         server.set_idle_limit((idle_minutes > 0).then(|| Duration::from_secs(idle_minutes as u64 * 60)));
         server.ensure_running(model_path)?;
         // Une transcription en cours empêche la libération ; le repos se compte à partir de sa fin.

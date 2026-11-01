@@ -256,6 +256,63 @@ fn a_recording_of_unknown_length_goes_to_the_normal_server() {
     assert!(world.requests().iter().any(|r| r.url == "http://127.0.0.1:8178/inference"));
 }
 
+const LOOPED: &str = "Une page en HTML me semble un bon compromis. Une page en HTML me semble un bon compromis. Une page en HTML me semble un bon compromis.";
+
+#[test]
+fn a_looping_answer_from_the_short_server_is_redone_on_the_normal_server() {
+    let world = FakeWorld::new();
+    world.route(":8177/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": LOOPED}).to_string().into_bytes() }));
+    world.route(":8178/inference", |_| {
+        Ok(HttpResponse { status: 200, body: json!({"text": "Une page en HTML me semble un bon compromis."}).to_string().into_bytes() })
+    });
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    assert_eq!(t.transcribe(&wav_of(3.4), &settings, &[]).unwrap(), "Une page en HTML me semble un bon compromis.");
+    let urls: Vec<String> = world.requests().into_iter().map(|r| r.url).filter(|u| u.ends_with("/inference")).collect();
+    assert_eq!(urls, ["http://127.0.0.1:8177/inference", "http://127.0.0.1:8178/inference"]);
+}
+
+#[test]
+fn a_clean_answer_from_the_short_server_is_not_redone() {
+    let world = whisper_world();
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    t.transcribe(&wav_of(3.4), &settings, &[]).unwrap();
+    assert_eq!(world.requests().iter().filter(|r| r.url.ends_with("/inference")).count(), 1);
+    assert_eq!(world.spawns().len(), 1, "le serveur normal ne démarre pas pour rien");
+}
+
+#[test]
+fn a_looping_answer_is_kept_when_the_normal_server_fails() {
+    let world = FakeWorld::new();
+    world.route(":8177/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": LOOPED}).to_string().into_bytes() }));
+    world.route(":8178/inference", |_| Ok(HttpResponse { status: 500, body: Vec::new() }));
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    assert_eq!(t.transcribe(&wav_of(3.4), &settings, &[]).unwrap(), LOOPED);
+}
+
+#[test]
+fn a_long_recording_is_never_redone_even_if_it_repeats() {
+    let world = FakeWorld::new();
+    world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": LOOPED}).to_string().into_bytes() }));
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    t.transcribe(&wav_of(12.0), &settings, &[]).unwrap();
+    assert_eq!(world.requests().iter().filter(|r| r.url.ends_with("/inference")).count(), 1);
+}
+
+#[test]
+fn a_phrase_said_twice_in_a_row_is_a_loop_but_a_short_echo_is_not() {
+    assert!(whisper::repeats_itself(LOOPED));
+    assert!(whisper::repeats_itself("Je ne sais pas, JE NE SAIS PAS !"));
+    assert!(whisper::repeats_itself("Voilà. Ces questions sont valables aussi. Ces questions sont valables aussi."));
+    assert!(!whisper::repeats_itself("Oui, oui, c'est très très bien."));
+    assert!(!whisper::repeats_itself("Une page en HTML me semble un bon compromis."));
+    assert!(!whisper::repeats_itself("Un deux trois quatre un deux trois cinq."));
+    assert!(!whisper::repeats_itself(""));
+}
+
 #[test]
 fn the_length_of_a_wav_is_read_from_its_header() {
     assert_eq!(whisper::wav_seconds(&wav_of(2.0)), Some(2.0));
