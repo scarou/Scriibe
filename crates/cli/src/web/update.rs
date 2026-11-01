@@ -33,25 +33,47 @@ impl Available {
     }
 }
 
+/// La version plus récente trouvée par la dernière vérification (la page et le menu de l'icône la lisent).
+static AVAILABLE: Mutex<Option<Available>> = Mutex::new(None);
+
+pub fn available() -> Option<Available> {
+    lock(&AVAILABLE).clone()
+}
+
+pub fn set_available(found: Option<Available>) {
+    *lock(&AVAILABLE) = found;
+}
+
 /// GitHub dit si le commit `latest` est en avance sur `current` (« ahead ») ; « identical », « behind » ou « diverged » (une compilation
 /// qui a des commits à elle) ne déclenchent pas d'alerte.
 fn is_ahead(compare: &Value) -> bool {
     compare["status"].as_str() == Some("ahead")
 }
 
-/// Cherche s'il existe une version plus récente que la version installée : la dernière exécution verte de la CI sur `main`, comparée à
-/// `current`. Rien n'est téléchargé ; `None` quand la version installée est la dernière, ou plus récente.
-pub fn newer(token: &str, current: &str) -> Result<Option<Available>, String> {
+/// La dernière exécution verte de la CI sur `main` (commit, titre, date), sans rien comparer ni télécharger.
+pub fn newest(token: &str) -> Result<Available, String> {
     let runs = get_json(
         &format!("https://api.github.com/repos/{REPO}/actions/workflows/{WORKFLOW}/runs?branch=main&status=success&per_page=1"),
         token,
     )?;
     let (_, sha, title, date) = parse_run(&runs)?;
-    if sha == current {
+    Ok(Available { sha, title, date })
+}
+
+/// `latest` si elle est plus récente que la version installée `current` ; `None` quand la version installée est la dernière, ou plus
+/// récente.
+pub fn newer_than(token: &str, current: &str, latest: Available) -> Result<Option<Available>, String> {
+    if latest.sha == current {
         return Ok(None);
     }
-    let compare = get_json(&format!("https://api.github.com/repos/{REPO}/compare/{current}...{sha}"), token)?;
-    Ok(is_ahead(&compare).then_some(Available { sha, title, date }))
+    let compare = get_json(&format!("https://api.github.com/repos/{REPO}/compare/{current}...{}", latest.sha), token)?;
+    Ok(is_ahead(&compare).then_some(latest))
+}
+
+/// Cherche s'il existe une version plus récente que la version installée : la dernière exécution verte de la CI sur `main`, comparée à
+/// `current`. Rien n'est téléchargé.
+pub fn newer(token: &str, current: &str) -> Result<Option<Available>, String> {
+    newer_than(token, current, newest(token)?)
 }
 
 /// La dernière version disponible.

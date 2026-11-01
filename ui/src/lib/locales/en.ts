@@ -202,6 +202,8 @@ export const en: Record<string, string> = {
   'Chercher une nouvelle version': 'Check for a new version',
   'Dernière version :': 'Latest version:',
   'Construite le {date} ·': 'Built on {date} ·',
+  'Construite le {date}': 'Built on {date}',
+  'Source : {source}': 'Source: {source}',
   'Source : {source} (exécution n° {run})': 'Source: {source} (run #{run})',
   '✔ Vous avez déjà cette version.': '✔ You already have this version.',
   'Téléchargement {done} / {total} ({percent} %)': 'Downloading {done} / {total} ({percent}%)',

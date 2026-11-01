@@ -9,7 +9,7 @@ mod downloads;
 mod hub;
 mod sinks;
 mod trial;
-mod update;
+pub(crate) mod update;
 
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
 pub use update::remove_leftovers as remove_update_leftovers;
@@ -55,7 +55,6 @@ pub struct Context {
     /// Dernière version trouvée par « Chercher » : c'est elle, vue et confirmée, que « Installer » télécharge.
     found: Mutex<Option<update::Latest>>,
     /// Une version plus récente, trouvée par la vérification automatique (toutes les 6 heures) ou par « Chercher ».
-    available: Mutex<Option<update::Available>>,
     /// Un jeton GitHub est-il enregistré ? Relu par le fil de vérification (sous macOS la lecture du trousseau peut attendre une réponse de la
     /// personne : elle ne doit jamais bloquer la page).
     has_github_token: AtomicBool,
@@ -104,7 +103,6 @@ pub fn start(
         downloads: Arc::new(Downloads::default()),
         updater: Arc::new(update::Updater::default()),
         found: Mutex::new(None),
-        available: Mutex::new(None),
         has_github_token: AtomicBool::new(false),
         token,
         port,
@@ -152,7 +150,7 @@ fn spawn_update_checker(ctx: &Arc<Context>) {
                             if let Some(v) = &found {
                                 ctx.app.log.write(&format!("mise à jour: nouvelle version disponible ({})", v.short_sha()));
                             }
-                            *lock(&ctx.available) = found;
+                            update::set_available(found);
                         }
                         Err(e) => ctx.app.log.write(&format!("mise à jour: vérification impossible ({e})")),
                     }
@@ -569,7 +567,7 @@ fn status(ctx: &Context) -> Value {
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),
-        "update": lock(&ctx.available).as_ref().map(|v| json!({"sha": v.short_sha(), "title": v.title, "date": v.date})),
+        "update": update::available().as_ref().map(|v| json!({"sha": v.short_sha(), "title": v.title, "date": v.date})),
         "hotkey": format!("{:?}", settings.hotkey),
         "dictation_label": if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
         "translate_label": if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
@@ -990,22 +988,20 @@ fn check_update(ctx: &Context) -> Result<Value, String> {
     if !cfg!(windows) {
         // Mac et Linux : rien à installer par Scriibe, on dit seulement s'il existe une version plus récente que celle qui tourne.
         let current = update::current_sha().ok_or("version installée inconnue (programme compilé hors d'un dépôt git)")?;
-        let found = update::newer(&github_token(ctx)?, current)?;
-        *lock(&ctx.available) = found.clone();
-        return Ok(match found {
-            Some(v) => {
-                json!({"ok": true, "up_to_date": false, "installable": false, "sha": v.short_sha(), "title": v.title, "date": v.date, "size": 0, "run": 0,
-                              "source": format!("github.com/{}", update::REPO)})
-            }
-            None => {
-                json!({"ok": true, "up_to_date": true, "installable": false, "sha": &current[..current.len().min(7)], "title": "", "date": "", "size": 0, "run": 0,
-                           "source": format!("github.com/{}", update::REPO)})
-            }
-        });
+        let token = github_token(ctx)?;
+        let newest = update::newest(&token)?;
+        let found = update::newer_than(&token, current, newest.clone())?;
+        update::set_available(found.clone());
+        // Le titre et la date sont ceux de la dernière version, qu'elle soit plus récente que la nôtre ou la nôtre ; la taille est celle
+        // d'un programme Windows, sans objet ici (0 : la page ne l'affiche pas).
+        return Ok(
+            json!({"ok": true, "up_to_date": found.is_none(), "installable": false, "sha": newest.short_sha(), "title": newest.title,
+                         "date": newest.date, "size": 0, "run": 0, "source": format!("github.com/{}", update::REPO)}),
+        );
     }
     let latest = update::latest(&github_token(ctx)?)?;
     if latest.up_to_date() {
-        *lock(&ctx.available) = None;
+        update::set_available(None);
     }
     let found = json!({
         "ok": true,

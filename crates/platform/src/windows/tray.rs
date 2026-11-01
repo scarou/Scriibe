@@ -57,6 +57,10 @@ impl Indicator for TrayIndicator {
 pub struct TrayHost {
     tray: TrayIcon,
     rx: Receiver<Command>,
+    menu: Menu,
+    /// « Nouvelle version disponible » : en tête du menu seulement quand une version plus récente existe.
+    update_item: MenuItem,
+    update_shown: bool,
     quit: MenuItem,
     open_data: MenuItem,
     open_log: MenuItem,
@@ -96,6 +100,7 @@ impl TrayHost {
         source: Arc<Mutex<Option<Arc<dyn TrayMenuSource>>>>,
     ) -> Result<(Self, TrayIndicator), String> {
         let menu = Menu::new();
+        let update_item = MenuItem::new("", true, None);
         let open_page = MenuItem::new("Ouvrir Scriibe", true, None);
         let dictation_hint = MenuItem::new("", false, None);
         let translate_hint = MenuItem::new("", false, None);
@@ -121,7 +126,7 @@ impl TrayHost {
         menu.append(&separator()).map_err(error)?;
         menu.append(&quit).map_err(error)?;
         let tray = TrayIconBuilder::new()
-            .with_menu(Box::new(menu))
+            .with_menu(Box::new(menu.clone()))
             .with_tooltip(idle_tip)
             .with_icon(circle(&IndicatorState::Hidden))
             .build()
@@ -131,6 +136,9 @@ impl TrayHost {
         let host = Self {
             tray,
             rx,
+            menu,
+            update_item,
+            update_shown: false,
             quit,
             open_data,
             open_log,
@@ -188,6 +196,20 @@ impl TrayHost {
         self.dictation_hint.set_text(&view.dictation_hint);
         self.translate_hint.set_text(&view.translate_hint);
         self.version_item.set_text(&view.version);
+        match (&view.update, self.update_shown) {
+            (Some(text), shown) => {
+                self.update_item.set_text(text);
+                if !shown && self.menu.insert(&self.update_item, 0).is_ok() {
+                    self.update_shown = true;
+                }
+            }
+            (None, true) => {
+                if self.menu.remove(&self.update_item).is_ok() {
+                    self.update_shown = false;
+                }
+            }
+            (None, false) => {}
+        }
         self.mode_menu.set_text(&view.mode_title);
         self.mode_menu.set_enabled(view.modes_enabled);
         if !same_modes {
@@ -237,7 +259,7 @@ impl TrayHost {
                 if event.id == *self.quit.id() {
                     return;
                 }
-                if event.id == *self.open_page.id() {
+                if event.id == *self.open_page.id() || event.id == *self.update_item.id() {
                     let url = self.page_url.lock().ok().and_then(|u| u.clone());
                     if let Some(url) = url {
                         crate::open::open(&url);

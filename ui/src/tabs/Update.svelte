@@ -104,8 +104,13 @@
         {:else}
           <div class="muted">
             {t('Dernière version :')} <b>{found.sha}</b> — « {found.title} »<br />
-            {t('Construite le {date} ·', { date: found.date })} <b>{mo(found.size)}</b><br />
-            {t('Source : {source} (exécution n° {run})', { source: found.source, run: found.run })}
+            {#if found.installable}
+              {t('Construite le {date} ·', { date: found.date })} <b>{mo(found.size)}</b><br />
+              {t('Source : {source} (exécution n° {run})', { source: found.source, run: found.run })}
+            {:else}
+              {t('Construite le {date}', { date: found.date })}<br />
+              {t('Source : {source}', { source: found.source })}
+            {/if}
           </div>
           {#if found.up_to_date}
             <div class="ok">{t('✔ Vous avez déjà cette version.')}</div>

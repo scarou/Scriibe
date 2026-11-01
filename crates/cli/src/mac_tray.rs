@@ -19,6 +19,7 @@ use tauri::{AppHandle, Wry};
 
 const MODE_PREFIX: &str = "tray:mode:";
 const OPEN_PAGE: &str = "tray:open";
+const UPDATE: &str = "tray:update";
 const COPY_LAST: &str = "tray:copy";
 const OPEN_DATA: &str = "tray:data";
 const OPEN_LOG: &str = "tray:log";
@@ -145,7 +146,7 @@ pub fn on_menu_event(id: &str) {
     let source = || shell.source.lock().ok().and_then(|s| s.clone());
     match id {
         QUIT | APP_QUIT => (shell.quit)(),
-        OPEN_PAGE => {
+        OPEN_PAGE | UPDATE => {
             if let Some(url) = shell.page_url.lock().ok().and_then(|u| u.clone()) {
                 std::thread::spawn(move || scriibe_platform::open::open(&url));
             }
@@ -167,6 +168,10 @@ pub fn on_menu_event(id: &str) {
 }
 
 struct Items {
+    menu: Menu<Wry>,
+    /// « Nouvelle version disponible » : en tête du menu seulement quand une version plus récente existe.
+    update: MenuItem<Wry>,
+    update_shown: bool,
     open_page: MenuItem<Wry>,
     dictation_hint: MenuItem<Wry>,
     translate_hint: MenuItem<Wry>,
@@ -194,6 +199,20 @@ impl Items {
         self.dictation_hint.set_text(&view.dictation_hint)?;
         self.translate_hint.set_text(&view.translate_hint)?;
         self.version.set_text(&view.version)?;
+        match (&view.update, self.update_shown) {
+            (Some(text), shown) => {
+                self.update.set_text(text)?;
+                if !shown {
+                    self.menu.insert(&self.update, 0)?;
+                    self.update_shown = true;
+                }
+            }
+            (None, true) => {
+                self.menu.remove(&self.update)?;
+                self.update_shown = false;
+            }
+            (None, false) => {}
+        }
         self.mode_menu.set_text(&view.mode_title)?;
         self.mode_menu.set_enabled(view.modes_enabled)?;
         if same_modes {
@@ -230,6 +249,7 @@ impl Items {
 pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
     let error = |e: tauri::Error| format!("icône de la barre des menus : {e}");
     let item = |id: &str, text: &str, enabled: bool| MenuItem::with_id(app, id, text, enabled, None::<&str>);
+    let update = item(UPDATE, "", true).map_err(error)?;
     let open_page = item(OPEN_PAGE, "Ouvrir Scriibe", true).map_err(error)?;
     let dictation_hint = item("tray:hint1", "", false).map_err(error)?;
     let translate_hint = item("tray:hint2", "", false).map_err(error)?;
@@ -273,8 +293,21 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
     let _ = SHELL.set(shell);
 
     let app = app.clone();
-    let mut items =
-        Items { open_page, dictation_hint, translate_hint, copy_last, mode_menu, version, open_data, open_log, quit, modes: Vec::new() };
+    let mut items = Items {
+        menu,
+        update,
+        update_shown: false,
+        open_page,
+        dictation_hint,
+        translate_hint,
+        copy_last,
+        mode_menu,
+        version,
+        open_data,
+        open_log,
+        quit,
+        modes: Vec::new(),
+    };
     std::thread::Builder::new()
         .name("scriibe-menu".into())
         .spawn(move || {

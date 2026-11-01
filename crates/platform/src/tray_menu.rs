@@ -91,6 +91,8 @@ pub struct MenuView {
     /// Les modes livrés par groupes (séparés par un trait), puis les modes personnels.
     pub groups: Vec<Vec<ModeEntry>>,
     pub version: String,
+    /// « Nouvelle version disponible (abc1234) » quand la vérification en a trouvé une : entrée en tête du menu, qui ouvre la fenêtre.
+    pub update: Option<String>,
 }
 
 pub trait TrayMenuSource: Send + Sync {
