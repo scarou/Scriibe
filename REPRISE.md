@@ -6,6 +6,8 @@
 
 **Points en suspens** : voir l'entrée « nouvelle version » du menu à l'écran dès qu'une CI plus récente existe ; décisions de `docs/MISE_A_JOUR.md` (chantiers B et C) ; icône de Tauri près de l'horloge à regarder sur le PC (`C:\scriibe-dev`) ; **relancer la CI complète une fois avant la prochaine clôture** (Windows ×2, macOS ×10 du forfait : prévenir Christophe ; à faire pour vérifier la compilation Windows de S13) ; trousseau macOS : trois demandes à chaque recompilation, ne recompiler que si c'est utile, ne jamais lire les clés.
 
+**Décisions du 01/11/2026 (`docs/MISE_A_JOUR.md`)** : alerte désactivée par défaut (fait, aide écrite, non vue à l'écran) ; Mac compilé sur le Mac de Christophe ; versions étiquetées (Releases) acceptées, à écrire avec le chantier B ; la diffusion à d'autres personnes n'est pas bloquée (seulement un avertissement au premier lancement sans notarisation).
+
 **Prochaine tâche proposée** (à confirmer avec Christophe) : (1) décisions des chantiers B et C de `docs/MISE_A_JOUR.md` ; (2) essayer combinaison, Fn et traduction personnalisée sur le Mac ; ensuite, au choix : essayer combinaison, Fn et traduction personnalisée sur le Mac, démarrage avec la session, modes du menu de l'icône, carte graphique, pause des médias avec Musique/Spotify/appel, signature et notarisation, Linux.
 
 Prompt de reprise (session sur le Mac, dossier `/Users/christophecampain/Documents/Mes projets IA/Scriibe-dev/Scriibe`) :

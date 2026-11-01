@@ -1,6 +1,6 @@
 # Cadrage — mise à jour de Scriibe sur Windows, macOS et Linux (S12)
 
-Statut : **chantier A écrit en S12** (alerte, sauf l'entrée du menu de l'icône) ; B et C à décider.
+Statut : **chantier A écrit en S12 et terminé en S13** (alerte, entrée du menu de l'icône) ; B et C : décisions de Christophe du 01/11/2026 ci-dessous, rien d'écrit.
 
 ## État actuel
 
@@ -38,3 +38,10 @@ Vérification au démarrage puis toutes les 6 h : une requête légère à GitHu
 2. Mac : signature par certificat exporté en secret GitHub (mise à jour sans clic mais secret à garder), ou compilation sur le Mac de Christophe ?
 3. Scriibe sera-t-il donné à d'autres personnes (alors Apple Developer + notarisation, 99 $/an) ou reste-t-il pour vos propres machines ?
 4. Passer aux versions étiquetées (Releases) ?
+
+## Décisions de Christophe (01/11/2026, S13)
+
+1. **Alerte automatique désactivée par défaut** (fait en S13 : `checkUpdates` faux par défaut). Une aide complète pour novices est écrite dans l'onglet « Mise à jour » (carte « Comment ça marche ? ») et dans la FAQ de l'Aide.
+2. **Mac : compilation sur le Mac de Christophe**, pour le moment (pas de certificat exporté en secret GitHub).
+3. **Donner Scriibe à d'autres personnes** : rien ne l'empêche techniquement. Sans notarisation (99 $/an), macOS affiche un avertissement au premier lancement d'une appli téléchargée par un navigateur (il faut l'ouvrir par Réglages Système → Confidentialité et sécurité → « Ouvrir quand même »), et Windows de même (SmartScreen, sans certificat Authenticode). Une mise à jour installée par Scriibe lui-même n'a pas ce problème. À reprendre si Scriibe est vraiment diffusé.
+4. **Versions étiquetées (GitHub Releases) : accepté**, à écrire avec le chantier B. Scribe numérotait ses versions (`Info.plist`, préfixe de commit « Scribe x.y.z : »), mais sans étiquettes ni Releases GitHub (aucune étiquette dans son dépôt).

@@ -265,7 +265,7 @@
       {@render question('A word is always misspelled.', 'Add it to “Words to write exactly”, or an automatic correction (what Whisper hears → what it should write). A bigger Whisper model hears better but takes longer: the Test bench lets you measure it on your phrases.')}
       {@render question('The music or video does not stop.', 'Check that “Pause music or video” is ticked (Settings → Dictation). The log says what Windows sees: “rien ne joue” lists the audio apps and their level, “pause demandée” says who the command went to. During a call, nothing is paused, on purpose.')}
       {@render question('The window is empty or does not open.', 'Right-click the icon near the clock → “Open Scriibe”. If WebView2 is missing, the same interface opens in your browser. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.')}
-      {@render question('How do I update?', '“Update” tab: “Check for a new version” shows the version, size and source; “Install and restart” asks for confirmation, replaces the program and restarts it. The old version is kept alongside.')}
+      {@render question('How do I update?', '“Update” tab: “Check for a new version” tells you whether a newer version exists (version, date, size, source). On Windows, “Install and restart” asks for confirmation, replaces the program and restarts it, keeping the old one alongside; on Mac, Scriibe warns you but does not install yet. The automatic search (every 6 hours) is unticked at first. That page also explains the GitHub token and what goes out on the Internet, which is nothing personal.')}
       <div class="links">{@render go('Installation', 'install')}{@render go('Log and report', 'journal')}{@render go('Update', 'update')}</div>
     {/if}
   </section>

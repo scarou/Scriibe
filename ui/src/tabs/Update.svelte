@@ -139,4 +139,21 @@
       <div class="bad">{t('Échec : {error}', { error: u.progress.error ?? '' })}</div>
     {/if}
   </section>
+  <section class="card guide">
+    <h2>{t('Comment ça marche ?')}</h2>
+    <p>{t('Scriibe est amélioré de temps en temps. Cette page dit si une version plus récente que la tienne existe. Rien n’est jamais changé sans que tu le demandes.')}</p>
+    <ul>
+      <li><b>{t('Version installée')}</b> — {t('c’est le code (sept caractères) de la version que tu utilises. Il sert à la comparer avec la dernière version publiée.')}</li>
+      <li><b>{t('Chercher une nouvelle version')}</b> — {t('Scriibe pose une seule question à GitHub, le site où il est publié : « quelle est la dernière version ? ». Rien de personnel ne part : ni tes dictées, ni tes textes, ni tes réglages.')}</li>
+      <li><b>{t('Alerte automatique')}</b> — {t('la case est décochée au départ : Scriibe ne cherche alors que lorsque tu cliques. Cochée, il cherche tout seul au démarrage puis toutes les 6 heures. Quand une version plus récente existe, le bouton « Nouvelle version disponible » apparaît dans la barre latérale, et une ligne en haut du menu de l’icône.')}</li>
+      <li><b>{t('Le jeton')}</b> — {t('Scriibe n’est pas encore public : GitHub veut savoir qui demande. Le jeton est un mot de passe en lecture seule, qui ne permet que de voir la dernière version. Tu le crées une fois sur github.com (Settings → Developer settings → Fine-grained tokens), pour le dépôt scarou/Scriibe, avec les trois permissions « Actions », « Contents » et « Metadata » en lecture seule (Read-only). Tu le colles ici : Scriibe le range dans le coffre de l’ordinateur et ne l’affiche plus.')}</li>
+      {#if u.windows}
+        <li><b>{t('Installer et redémarrer')}</b> — {t('Scriibe télécharge la nouvelle version (la taille et la source sont affichées avant de te demander ton accord), remplace son programme, puis redémarre tout seul. L’ancien programme est gardé à côté, au cas où.')}</li>
+      {:else}
+        <li><b>{t('Installer')}</b> — {t('sur ce système, Scriibe prévient mais n’installe pas encore : la mise à jour se fait en récupérant le nouveau code et en recompilant l’application. Si ce n’est pas toi qui t’en occupes, transmets le message « Nouvelle version disponible » à la personne qui t’a donné Scriibe.')}</li>
+      {/if}
+      <li><b>{t('Tes données')}</b> — {t('l’historique, le dictionnaire, les modes et les réglages sont rangés à part, dans le dossier de données : une mise à jour n’y touche pas.')}</li>
+    </ul>
+    <p class="muted">{t('Si la recherche échoue, le message dit pourquoi (jeton refusé, pas de connexion…). Le Journal note les vérifications qui échouent ou qui trouvent une version, jamais le jeton.')}</p>
+  </section>
 {/if}
