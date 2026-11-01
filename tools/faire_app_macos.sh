@@ -28,6 +28,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$exe" "$APP/Contents/MacOS/Scriibe"
 cp packaging/macos/Info.plist "$APP/Contents/Info.plist"
 cp "$STAGE/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
+# Publication d'une version (tools/publier_macos.sh) : le numéro affiché par macOS est celui de la version publiée.
+if [ -n "${SCRIIBE_VERSION:-}" ]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $SCRIIBE_VERSION" "$APP/Contents/Info.plist"
+fi
 xattr -cr "$APP"
 
 # Signature par l'empreinte du certificat (un nom en double rendrait codesign ambigu) ; sans lui, signature ad hoc (autorisations à refaire
@@ -38,6 +42,15 @@ if [ -n "$CERT" ] && codesign --force --sign "$CERT" --identifier fr.scriibe.app
 else
   codesign --force --sign - --identifier fr.scriibe.app "$APP"
   echo "Signature ad hoc : les autorisations seront à redonner après chaque compilation."
+fi
+
+# Publication : l'appli signée est déposée dans ce dossier, sans toucher à l'installation en cours ni à Scriibe s'il tourne.
+if [ -n "${SCRIIBE_APP_SORTIE:-}" ]; then
+  mkdir -p "$SCRIIBE_APP_SORTIE"
+  rm -rf "$SCRIIBE_APP_SORTIE/Scriibe.app"
+  cp -R "$APP" "$SCRIIBE_APP_SORTIE/Scriibe.app"
+  echo "Assemblé : $SCRIIBE_APP_SORTIE/Scriibe.app"
+  exit 0
 fi
 
 # Remplace l'ancienne version, après l'avoir fermée (5 s au plus : sinon `open` réactiverait l'ancienne).

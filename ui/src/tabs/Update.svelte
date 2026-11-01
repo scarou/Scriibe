@@ -147,13 +147,28 @@
       <li><b>{t('Chercher une nouvelle version')}</b> — {t('Scriibe pose une seule question à GitHub, le site où il est publié : « quelle est la dernière version ? ». Rien de personnel ne part : ni tes dictées, ni tes textes, ni tes réglages.')}</li>
       <li><b>{t('Alerte automatique')}</b> — {t('la case est décochée au départ : Scriibe ne cherche alors que lorsque tu cliques. Cochée, il cherche tout seul au démarrage puis toutes les 6 heures. Quand une version plus récente existe, le bouton « Nouvelle version disponible » apparaît dans la barre latérale, et une ligne en haut du menu de l’icône.')}</li>
       <li><b>{t('Le jeton')}</b> — {t('Scriibe n’est pas encore public : GitHub veut savoir qui demande. Le jeton est un mot de passe en lecture seule, qui ne permet que de voir la dernière version. Tu le crées une fois sur github.com (Settings → Developer settings → Fine-grained tokens), pour le dépôt scarou/Scriibe, avec les trois permissions « Actions », « Contents » et « Metadata » en lecture seule (Read-only). Tu le colles ici : Scriibe le range dans le coffre de l’ordinateur et ne l’affiche plus.')}</li>
-      {#if u.windows}
-        <li><b>{t('Installer et redémarrer')}</b> — {t('Scriibe télécharge la nouvelle version (la taille et la source sont affichées avant de te demander ton accord), remplace son programme, puis redémarre tout seul. L’ancien programme est gardé à côté, au cas où.')}</li>
-      {:else}
-        <li><b>{t('Installer')}</b> — {t('sur ce système, Scriibe prévient mais n’installe pas encore : la mise à jour se fait en récupérant le nouveau code et en recompilant l’application. Si ce n’est pas toi qui t’en occupes, transmets le message « Nouvelle version disponible » à la personne qui t’a donné Scriibe.')}</li>
-      {/if}
       <li><b>{t('Tes données')}</b> — {t('l’historique, le dictionnaire, les modes et les réglages sont rangés à part, dans le dossier de données : une mise à jour n’y touche pas.')}</li>
     </ul>
+    <h3>{t('Mettre à jour, pas à pas')}</h3>
+    {#if u.windows}
+      <ol>
+        <li>{t('Clique sur « Chercher une nouvelle version » (en haut de cette page). Si le jeton manque, crée-le d’abord comme expliqué plus haut.')}</li>
+        <li>{t('Si la page écrit « Vous avez déjà cette version », c’est terminé. Sinon, elle montre la version trouvée, sa date et sa taille.')}</li>
+        <li>{t('Clique sur « Installer et redémarrer » et lis la fenêtre de confirmation : elle donne la taille et la source du téléchargement.')}</li>
+        <li>{t('Confirme, puis attends : une barre montre le téléchargement. Scriibe remplace son programme et redémarre tout seul ; une nouvelle fenêtre s’ouvre au bout de quelques secondes, tu peux fermer l’ancienne.')}</li>
+        <li>{t('Si quelque chose ne va pas, l’ancien programme est gardé à côté du nouveau, et le message d’échec dit pourquoi.')}</li>
+      </ol>
+    {:else}
+      <p>{t('Sur ce système, Scriibe prévient mais n’installe pas encore à ta place. La mise à jour se fait à la main, en cinq étapes :')}</p>
+      <ol>
+        <li>{t('Quitte Scriibe : clique sur son icône dans la barre des menus (en haut à droite, près de l’horloge), puis sur « Quitter Scriibe ».')}</li>
+        <li>{t('Ouvre la page https://github.com/scarou/Scriibe/releases et télécharge le fichier Scriibe-…-macos.zip de la version la plus récente (celle dont le numéro est le plus haut). Il arrive dans le dossier Téléchargements.')}</li>
+        <li>{t('Double-clique sur ce fichier dans Téléchargements : l’application Scriibe apparaît à côté.')}</li>
+        <li>{t('Fais glisser Scriibe dans le dossier Applications du Finder, puis clique sur « Remplacer ».')}</li>
+        <li>{t('Ouvre Scriibe depuis Applications. Tes réglages, ton historique et ton dictionnaire sont conservés. Si macOS redemande une autorisation (Microphone, Surveillance de l’entrée, Contrôle de l’appareil et accès aux données), active-la de nouveau dans Réglages Système → Confidentialité et sécurité, puis relance Scriibe.')}</li>
+      </ol>
+      <p class="muted">{t('Première installation sur un Mac, avec toutes les étapes (avertissement de macOS, autorisations, moteurs) : fichier docs/INSTALLATION_MACOS.md du dépôt GitHub.')}</p>
+    {/if}
     <p class="muted">{t('Si la recherche échoue, le message dit pourquoi (jeton refusé, pas de connexion…). Le Journal note les vérifications qui échouent ou qui trouvent une version, jamais le jeton.')}</p>
   </section>
 {/if}
