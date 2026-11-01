@@ -105,6 +105,19 @@ fn describe(error: &ureq::Error) -> String {
     }
 }
 
+/// La forme d'un jeton, jamais sa valeur : de quoi voir qu'un collage l'a abîmé (trop court, trop long, caractères étrangers).
+fn token_shape(token: &str) -> String {
+    let kind = if token.starts_with("github_pat_") {
+        "type github_pat_"
+    } else if token.starts_with("ghp_") {
+        "type ghp_"
+    } else {
+        "type inconnu : un jeton GitHub commence par github_pat_ ou ghp_"
+    };
+    let odd = token.chars().filter(|c| !(c.is_ascii_alphanumeric() || *c == '_')).count();
+    format!("jeton de {} caractères, {kind}, {odd} caractère(s) inhabituel(s)", token.chars().count())
+}
+
 fn get_authorized(url: &str, token: &str) -> Result<ureq::Response, String> {
     let result = agent()
         .get(url)
@@ -116,7 +129,9 @@ fn get_authorized(url: &str, token: &str) -> Result<ureq::Response, String> {
         .call();
     match result {
         Ok(response) => Ok(response),
-        Err(ureq::Error::Status(401, _)) => Err("GitHub refuse le jeton (401) : faux, expiré ou à recréer".into()),
+        Err(ureq::Error::Status(401, _)) => {
+            Err(format!("GitHub refuse le jeton (401) : faux, expiré ou à recréer ({})", token_shape(token)))
+        }
         Err(ureq::Error::Status(code @ (403 | 404), response)) => {
             // GitHub dit lui-même ce qui manque : permissions exigées par la route et message (jamais le jeton).
             let needed = response.header("x-accepted-github-permissions").unwrap_or("").to_string();
