@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
 
+## S12 — 2026-11-01 · Explications de l'interface et filtres de l'historique
+
+Session **locale** sur le Mac ; `scarou/scribe` non modifié ; commit `[skip ci]`. Interface seulement, aucun code Rust touché.
+
+- **État des lieux des points restants de Scribe** : listes à puce (signes de liste, caractère au choix : onglet Dictionnaire), choix de la langue dictée (Réglages → Dictée) et conservation de l'historique (texte gardé ou non, durée) **existaient déjà** ; rien à porter.
+- **Historique** : filtre par **période** (aujourd'hui, 7 ou 30 jours, dates choisies) qui se cumule avec l'appli et les mots clés (plusieurs mots : tous requis), compteur « n sur total » et « Tout afficher » (`ui/src/lib/historyfilter.ts`, `historyfilter.test.ts`). Carte « Confidentialité de l'historique » (ex-« Conservation ») avec le texte d'intention de Scribe, durée de 14 jours ajoutée.
+- **Explications didactiques** reprises de Scribe, adaptées (« vous », « cet ordinateur ») et traduites : Réglages → Moteurs (local ou cloud, résumé « Ce qui tourne quand vous dictez », rôle de la transcription et de la mise au propre), Dictée, Clés ; Modes (ce que devient le texte, avec l'exemple, et « Mes modes ») ; Tableau de bord (14 jours, appli).
+- Vérifié : `npm run check`, `npm test` (79), `npm run build`. **Non vérifié à l'écran** (mise en page des nouveaux champs).
+
 ## S11 — 2026-10-31 · Vraie application Mac : fenêtre, icône de la barre des menus, verrou d'instance, Scriibe.app
 
 Session **locale** sur le Mac Studio de Christophe ; `scarou/scribe` non modifié ; commits `[skip ci]` (quota GitHub Actions épuisé jusqu'au 01/11/2026).

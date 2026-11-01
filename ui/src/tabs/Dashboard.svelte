@@ -66,6 +66,7 @@
 
   <section class="card">
     <h2>{t('14 derniers jours')}</h2>
+    <p class="muted">{t('Les mots dictés chaque jour. Les chiffres du tableau de bord restent justes même si l’historique est limité dans le temps.')}</p>
     <div class="chart">
       {#each s.last_days as d (d.day)}
         <div class="col" title={t('{n} mots', { n: d.words })}>
@@ -90,6 +91,7 @@
 
   <section class="card">
     <h2>{t('Où tu dictes')}</h2>
+    <p class="muted">{t('La part des mots par appli.')}</p>
     {#each s.top_apps as a (a.name)}
       <div class="app"><span>{a.name}</span><div class="share"><div style="width: {Math.round(a.share * 100)}%"></div></div><span class="muted">{t('{n} mots · {share} %', { n: a.words, share: Math.round(a.share * 100) })}</span></div>
     {:else}

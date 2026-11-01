@@ -117,11 +117,15 @@
 
   <section class="card" id="moteurs">
     <h2>{t('Moteurs')} <HelpButton section="privacy" /></h2>
-    <p class="muted">{t('Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}</p>
+    <p class="muted">{t('Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}</p>
+    <p class="summary"><b>{t('Ce qui tourne quand vous dictez :')}</b>
+      {t('transcription')} {v.transcriptionEngine === 'whisper' ? t('Local') : t('Cloud')}
+      · {t('mise au propre')} {v.cleanupEngine === 'none' ? t('aucune') : v.cleanupEngine === 'openRouter' ? t('Cloud') : t('Local')}</p>
     <div class="row">
       <button onclick={() => nav.openAssistant()} title={t('Mesure l’ordinateur et propose les moteurs qui lui conviennent')}>{t('Relancer l’assistant')}</button>
       <button onclick={() => nav.openHelp('start')}>{t('À quoi servent ces choix ?')}</button>
     </div>
+    <p class="muted">{t('La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (rien ne sort) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.')}</p>
     <div class="row">
       <label>{t('Transcription :')}
         <select value={v.transcriptionEngine} onchange={(e) => settings.change({ transcriptionEngine: e.currentTarget.value as never })}>
@@ -161,6 +165,7 @@
           : t('Sans dictée pendant {n} min, Whisper s’arrête et rend sa mémoire ; il revient à l’appui de la touche (environ 1 s, pendant que tu parles).', { n: v.whisperIdleMinutes })}
       </p>
     {/if}
+    <p class="muted">{t('La mise au propre est le modèle d’IA qui applique le mode choisi : il retire les « euh » et ponctue (voir l’onglet Modes). llama.cpp, LM Studio ou Ollama le font tourner sur cet ordinateur ; OpenRouter donne accès en ligne à de plus gros modèles.')}</p>
     <div class="row">
       <label>{t('Mise au propre :')}
         <select value={v.cleanupEngine} onchange={(e) => settings.change({ cleanupEngine: e.currentTarget.value as never })}>
@@ -231,6 +236,7 @@
 
   <section class="card" id="dictee">
     <h2>{t('Dictée')} <HelpButton section="dictate" /></h2>
+    <p class="muted">{t('Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.')}</p>
     <KeyPicker />
     <div class="row">
       <label>{t('Langue dictée :')}
@@ -319,6 +325,7 @@
 
   <section class="card" id="cles">
     <h2>{t('Clés du cloud (dépannage)')} <HelpButton section="privacy" /></h2>
+    <p class="muted">{t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}</p>
     <p class="muted">{t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}
@@ -338,3 +345,7 @@
 {:else}
   <p class="muted">{t('Chargement…')}</p>
 {/if}
+
+<style>
+  .summary { margin: 4px 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+</style>
