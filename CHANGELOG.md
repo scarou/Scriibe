@@ -12,7 +12,10 @@ Session **locale** sur le Mac Studio de Christophe ; `scarou/scribe` non modifi�
 - **Essayé sur le Mac avec Scriibe.app** : Option gauche (capture, enregistrement, dictée dans TextEdit, « Rétablir ») et Ctrl gauche (attente de 0,3 s, dictée dans TextEdit, puis retour à Option droite), confirmés par `scriibe.log`. **Non essayés** : une combinaison (Option gauche + F9), Fn, la traduction avec des touches personnalisées.
 - **Non vérifié** : la compilation Windows du nouveau code (seule la cible Mac est installée ici) ; la CI Windows le dira. 8 tests `mac_*` ajoutés ; les tests Windows existants sont fixés sur la disposition Windows.
 - Vérifié à la clôture : `cargo fmt`, `cargo clippy -D warnings`, **283 tests Rust** et **79 tests d'interface**, 0 échec. **CI non relancée** (commits `[skip ci]`).
-- **Pas fait** (tâche 1 de la reprise) : titre, date et taille de la dernière version vides sur Mac, et entrée « nouvelle version » du menu de l'icône.
+- **Suite de S13 (commit 4e46ba4, `[skip ci]`) : fin du chantier A de `docs/MISE_A_JOUR.md`.**
+  - Onglet « Mise à jour » sur Mac : titre et date de la dernière version toujours affichés, même quand on a déjà cette version (`update::newest` + `newer_than` ; avant, la route renvoyait des champs vides). Taille et numéro d'exécution (ceux du programme Windows) masqués hors Windows. **Vu à l'écran sur le Mac : titre et date visibles.**
+  - Entrée **« Nouvelle version disponible (abc1234) »** en tête du menu de l'icône (Mac et Windows, `MenuView.update`, texte français ou anglais), retirée quand il n'y en a plus ; un clic ouvre la fenêtre. La version trouvée est partagée par un état global (`update::available`). **Non vue à l'écran** : aucune version plus récente n'existe tant que la CI n'a pas tourné sur un commit plus récent ; seul le texte est testé. Le code Windows de cette entrée n'est pas compilé ici (CI Windows).
+  - Mesuré : **284 tests Rust**, 79 tests d'interface, 0 échec ; clippy et fmt propres.
 
 ## S12 — 2026-11-01 · Explications de l'interface et filtres de l'historique
 

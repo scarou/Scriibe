@@ -44,7 +44,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 1. ✔ **Langue de l'interface** : français et anglais (S08, choix de Christophe). Une troisième langue = un fichier de plus dans `ui/src/lib/locales/` (et une Aide).
 2. ✔ **Comparaison « avec / sans modèle »** du banc et réglages du banc selon les modes personnels (S07 : le nom et l'empreinte de la consigne d'un mode personnel étaient déjà dans les réglages d'un passage ; test ajouté).
 3. ✔ Boîtes de confirmation et d'avertissement dessinées par la page (titre « Scriibe », bouton qui dit ce qu'il fait ; S07 ; à essayer sur le PC).
-4. Menu de l'icône, sons, choix de fichier et capture des touches hors de Windows (étape 7). ✔ **Touches réglables sur Mac** (S13, essayées sur le Mac ; combinaisons et Fn non essayées). Reste : entrée « nouvelle version » du menu de l'icône, titre/date/taille de la dernière version sur Mac.
+4. Menu de l'icône, sons, choix de fichier et capture des touches hors de Windows (étape 7). ✔ **Touches réglables sur Mac** (S13, essayées sur le Mac ; combinaisons et Fn non essayées). ✔ Entrée « nouvelle version » du menu de l'icône et titre/date de la dernière version sur Mac (suite de S13 ; entrée non vue à l'écran).
 5. Écartés : autorisations macOS (sans objet), mode Amusant (abandonné), mode par application (idée de Scribe, après la parité).
 
 ## Plus tard, sans date
