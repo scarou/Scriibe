@@ -2,6 +2,18 @@
 
 Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
 
+## S13 — 2026-11-01 · Touches réglables sur Mac
+
+Session **locale** sur le Mac Studio de Christophe ; `scarou/scribe` non modifié ; commit `1973f3b` en `[skip ci]`.
+
+- **Touches de dictée et de traduction réglables sur Mac** (`crates/platform/src/keys.rs`) : la liste des touches devient une « disposition » par système (`Layout`) : Windows et Linux gardent la leur, le Mac a la sienne. Liste Mac : Option droite et gauche, Commande droite et gauche (⌘), Fn, Ctrl droite et gauche, Maj gauche et droite, F1 à F20, Début, Fin, Page préc., Page suiv. Défauts comme Scribe : dictée = Option droite, traduction = ⌘ (les ⌘ non utilisés pour dicter).
+- **Attente avant d'écouter** : Option, ⌘ et Fn écoutent tout de suite (comme Scribe) ; les autres touches de modification (Ctrl, Maj) attendent 0,3 s pour ne pas confondre avec un raccourci. Règles de combinaison propres au Mac (une seule touche autre que Ctrl, Maj, Option, ⌘ ou Fn ; erreur si la dictée prend les deux ⌘).
+- **Page** : la capture des touches (Réglages → Dictée → « Changer… ») relaie `KeyboardEvent.code` (Alt = Option, Meta = ⌘ sur Mac) ; textes d'aide et de permission (Surveillance de l'entrée) propres au Mac ; bouton « Rétablir {touches} » qui nomme les touches par défaut du système. Traductions ajoutées (`en.ts`, `en-server.ts`).
+- **Essayé sur le Mac avec Scriibe.app** : Option gauche (capture, enregistrement, dictée dans TextEdit, « Rétablir ») et Ctrl gauche (attente de 0,3 s, dictée dans TextEdit, puis retour à Option droite), confirmés par `scriibe.log`. **Non essayés** : une combinaison (Option gauche + F9), Fn, la traduction avec des touches personnalisées.
+- **Non vérifié** : la compilation Windows du nouveau code (seule la cible Mac est installée ici) ; la CI Windows le dira. 8 tests `mac_*` ajoutés ; les tests Windows existants sont fixés sur la disposition Windows.
+- Vérifié à la clôture : `cargo fmt`, `cargo clippy -D warnings`, **283 tests Rust** et **79 tests d'interface**, 0 échec. **CI non relancée** (commits `[skip ci]`).
+- **Pas fait** (tâche 1 de la reprise) : titre, date et taille de la dernière version vides sur Mac, et entrée « nouvelle version » du menu de l'icône.
+
 ## S12 — 2026-11-01 · Explications de l'interface et filtres de l'historique
 
 Session **locale** sur le Mac ; `scarou/scribe` non modifié ; commit `[skip ci]`. Interface seulement, aucun code Rust touché.
