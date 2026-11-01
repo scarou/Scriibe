@@ -27,6 +27,12 @@ export interface Status {
   dictation_label: string;
   translate_label: string;
   key_choices: { id: string; label: string; modifier: boolean }[];
+  /** La touche de dictée par défaut du système (« right_control » ou « right_option »), et celles qui, seules, écoutent tout de suite. */
+  default_dictation_id: string;
+  /** « Ctrl droit » et « Maj », ou « Option droite » et « ⌘ » : les touches rétablies par « Rétablir ». */
+  default_dictation_label: string;
+  default_translate_label: string;
+  immediate_keys: string[];
   paths: { data: string; settings: string; models: string; log: string; engines: string | null };
   transcription: string;
   transcription_engine: 'whisper' | 'deepgram';

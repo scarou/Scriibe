@@ -24,14 +24,16 @@
   let testing = $state(false);
   let detected = $state(false);
 
-  const DEFAULT_KEYS = ['right_control'];
+  let mac = $derived(s?.os === 'macos');
+  /** La touche de dictée par défaut du système (Ctrl droit sous Windows, Option droite sur Mac) : on la rétablit en vidant la liste. */
+  let defaultId = $derived(s?.default_dictation_id ?? 'right_control');
 
-  /** Les touches de modification seules (hors Ctrl droit) ne commencent à écouter qu'après une courte attente. */
+  /** Les touches de modification seules (sauf celles qui écoutent tout de suite) ne commencent à écouter qu'après une courte attente. */
   let waitNote = $derived.by(() => {
     const ids = capture.finished && !capture.error ? capture.ids : null;
     if (!ids || kind !== 'dictation' || !s) return false;
     const modifiers = new Set(s.key_choices.filter((c) => c.modifier).map((c) => c.id));
-    return ids.every((id) => modifiers.has(id)) && !(ids.length === 1 && ids[0] === DEFAULT_KEYS[0]);
+    return ids.every((id) => modifiers.has(id)) && !(ids.length === 1 && s.immediate_keys.includes(ids[0]));
   });
 
   async function begin(which: 'dictation' | 'translate') {
@@ -95,7 +97,7 @@
     const ids = capture.ids;
     const ok =
       kind === 'dictation'
-        ? await settings.change({ dictationKeys: ids.length === 1 && ids[0] === DEFAULT_KEYS[0] ? [] : ids })
+        ? await settings.change({ dictationKeys: ids.length === 1 && ids[0] === defaultId ? [] : ids })
         : await settings.change({ translateKeys: ids });
     if (ok) stop();
   }
@@ -143,7 +145,13 @@
         <b>{kind === 'dictation' ? t('Appuie sur la touche ou la combinaison voulue, puis relâche tout.') : t('Appuie sur la touche à tenir en plus, puis relâche tout.')}</b>
         {#if capture.labels?.length}<div class="live">{capture.labels.map(keyName).join(' + ')}</div>
         {:else if waited > 6}
-          <div class="warn">{t('Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre : passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.')}</div>
+          <div class="warn">
+            {#if mac}
+              {t('Aucune touche reçue. Vérifie que Scriibe a l’autorisation « Surveillance de l’entrée » (Réglages Système → Confidentialité et sécurité), puis relance Scriibe. Sinon, essaie une autre touche.')}
+            {:else}
+              {t('Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre : passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.')}
+            {/if}
+          </div>
         {/if}
         <div class="row"><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else if capture.error}
@@ -161,11 +169,15 @@
 
   <div class="row">
     <button onclick={test} disabled={testing || !!kind}>{testing ? t('Maintiens ta touche…') : t('Tester ma touche')}</button>
-    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>{t('Rétablir Ctrl droit + Maj')}</button>
-    {#if detected}<span class="ok">{t('✔ Touche reconnue : Scriibe écoute ({key}).', { key: keyName(s.dictation_label) })}</span>{:else if testing}<span class="muted">{t('Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) })}</span>{/if}
+    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>{t('Rétablir {keys}', { keys: keyName(`${s.default_dictation_label} + ${s.default_translate_label}`) })}</button>
+    {#if detected}<span class="ok">{t('✔ Touche reconnue : Scriibe écoute ({key}).', { key: keyName(s.dictation_label) })}</span>{:else if testing}<span class="muted">{mac ? t('Passe dans TextEdit (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) }) : t('Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) })}</span>{/if}
   </div>
   <p class="muted">
-    {t('Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.')}
+    {#if mac}
+      {t('Une combinaison se tient en entier (par exemple Option gauche + F9) : l’une des touches seule ne fait rien. Les touches Option, Commande (⌘), Fn, Ctrl, Maj, les touches de fonction (F1 à F20), Début, Fin, Page préc. et Page suiv. sont possibles ; les lettres, chiffres, Espace, Entrée et les flèches ne le sont pas. Sur la plupart des Mac, F1 à F12 demandent Fn en plus, sauf si les « touches de fonction standard » sont activées. Une touche ordinaire de la combinaison (F9…) n’est pas retenue : l’appli active la reçoit aussi.')}
+    {:else}
+      {t('Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.')}
+    {/if}
   </p>
 {/if}
 

@@ -263,10 +263,10 @@ fn handle(ctx: &Context, mut request: Request) {
             ok(request, json!({"ok": true}))
         }
         (Method::Post, "api/keys/capture/key") => {
-            let vk = input["code"].as_str().and_then(scriibe_platform::keys::vk_of_web_code);
-            if let Some(vk) = vk {
+            let key = input["code"].as_str().and_then(scriibe_platform::keys::key_of_web_code);
+            if let Some(key) = key {
                 let down = input["down"].as_bool().unwrap_or(false);
-                let event = scriibe_platform::keys::translate_vk(&mut lock(&ctx.capture_held), vk, down);
+                let event = scriibe_platform::keys::translate_key(&mut lock(&ctx.capture_held), key, down);
                 if let Some(event) = event {
                     ctx.app.controller.feed_capture(event);
                 }
@@ -277,8 +277,8 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Post, "api/keys/page") => {
             if input["release"].as_bool() == Some(true) {
                 ctx.app.controller.release_page_keys();
-            } else if let Some(vk) = input["code"].as_str().and_then(scriibe_platform::keys::vk_of_web_code) {
-                ctx.app.controller.handle_page_key(vk, input["down"].as_bool().unwrap_or(false));
+            } else if let Some(key) = input["code"].as_str().and_then(scriibe_platform::keys::key_of_web_code) {
+                ctx.app.controller.handle_page_key(key, input["down"].as_bool().unwrap_or(false));
             }
             ok(request, json!({"ok": true}))
         }
@@ -573,7 +573,11 @@ fn status(ctx: &Context) -> Value {
         "hotkey": format!("{:?}", settings.hotkey),
         "dictation_label": if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
         "translate_label": if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
-        "key_choices": scriibe_platform::keys::CHOICES.iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
+        "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
+        "default_dictation_label": scriibe_platform::keys::default_dictation_label(),
+        "default_translate_label": scriibe_platform::keys::default_translate_label(),
+        "default_dictation_id": scriibe_platform::keys::layout().default_dictation_id(&settings),
+        "immediate_keys": scriibe_platform::keys::layout().immediate_ids(),
         "paths": {"data": folder.display().to_string(), "settings": app.config.settings_path().display().to_string(), "models": models.display().to_string(),
                   "log": app.log.path().display().to_string(), "engines": scriibe_engines::engines_folder().map(|p| p.display().to_string())},
         "transcription": format!("{:?}", settings.transcription_engine),
@@ -1129,12 +1133,20 @@ mod tests {
         let kept = merge_settings(&before, &json!({"historyKeepDays": 30})).unwrap();
         assert_eq!(kept.history_keep_days, Some(30), "réglage facultatif absent du fichier tant qu'il n'a pas de valeur");
         // Les touches de dictée : une combinaison valide passe, une touche inconnue ou dangereuse est refusée.
-        let keys = merge_settings(&before, &json!({"dictationKeys": ["left_control", "f9"], "translateKeys": ["left_alt"]})).unwrap();
+        let keys = merge_settings(&before, &json!({"dictationKeys": ["left_control", "f9"], "translateKeys": ["left_shift"]})).unwrap();
         assert_eq!((keys.dictation_keys.len(), keys.translate_keys.len()), (2, 1));
         assert!(merge_settings(&before, &json!({"dictationKeys": ["a"]})).is_err());
-        // Des touches de modification seules sont permises (l'écoute attend 0,3 s) ; Maj ne peut pas dicter et traduire à la fois.
-        assert!(merge_settings(&before, &json!({"dictationKeys": ["left_win"]})).is_ok());
-        assert!(merge_settings(&before, &json!({"dictationKeys": ["left_shift"]})).unwrap_err().contains("Maj"));
+        if cfg!(target_os = "macos") {
+            // Sur Mac : Option, Commande et Fn sont proposées, pas la touche Windows ; ⌘ ne peut pas dicter et traduire à la fois.
+            assert!(merge_settings(&before, &json!({"dictationKeys": ["right_option"]})).is_ok());
+            assert!(merge_settings(&before, &json!({"dictationKeys": ["fn"], "translateKeys": ["left_command"]})).is_ok());
+            assert!(merge_settings(&before, &json!({"dictationKeys": ["left_win"]})).is_err());
+            assert!(merge_settings(&before, &json!({"dictationKeys": ["left_command", "right_command"]})).unwrap_err().contains("⌘"));
+        } else {
+            // Des touches de modification seules sont permises (l'écoute attend 0,3 s) ; Maj ne peut pas dicter et traduire à la fois.
+            assert!(merge_settings(&before, &json!({"dictationKeys": ["left_win"]})).is_ok());
+            assert!(merge_settings(&before, &json!({"dictationKeys": ["left_shift"]})).unwrap_err().contains("Maj"));
+        }
         assert!(merge_settings(&before, &json!({"dictationKeys": ["a"]})).is_err(), "une lettre ne dicte pas");
         assert!(merge_settings(&before, &json!({"dictationKeys": ["f9"], "translateKeys": ["f9"]})).is_err());
     }

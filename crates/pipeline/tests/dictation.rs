@@ -823,8 +823,8 @@ fn a_recording_from_a_file_goes_through_the_same_chain() {
     assert!(r.world.log.lines().join("\n").contains("micro : fichier"));
 }
 
-/// Code de touche virtuel de Ctrl droit (la touche par défaut), tel que la page le relaie.
-const RIGHT_CONTROL_VK: u32 = 0xA3;
+/// Ctrl droit (la touche par défaut), telle que la page le relaie.
+const RIGHT_CONTROL_VK: Key = Key::RightControl;
 
 /// Dans la fenêtre de Scriibe, le crochet du système ne reçoit rien : la page relaie les touches et elles dictent.
 #[test]

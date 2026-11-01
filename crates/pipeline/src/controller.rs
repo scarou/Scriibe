@@ -194,13 +194,13 @@ impl Controller {
     }
 
     /// Une touche vue par la page : quand la fenêtre de Scriibe a le focus, le crochet du système ne reçoit rien (S06, cause inconnue),
-    /// et la page relaie alors le clavier (`vk` : code de touche virtuel de Windows). Ignorée pendant la capture d'une combinaison (la
+    /// et la page relaie alors le clavier (`key` : la touche, d'après `KeyboardEvent.code`). Ignorée pendant la capture d'une combinaison (la
     /// capture a son propre relais) et tant que le crochet parle encore (doublon). Rend vrai si la touche a servi.
-    pub fn handle_page_key(&self, vk: u32, down: bool) -> bool {
+    pub fn handle_page_key(&self, key: Key, down: bool) -> bool {
         if self.capture().is_some() || self.hook_spoke_recently() {
             return false;
         }
-        let event = scriibe_platform::keys::translate_vk(&mut lock(&self.inner.page_held), vk, down);
+        let event = scriibe_platform::keys::translate_key(&mut lock(&self.inner.page_held), key, down);
         let Some(event) = event else { return false };
         self.announce_page_keys();
         self.dispatch_key(event);

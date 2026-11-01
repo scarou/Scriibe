@@ -14,7 +14,8 @@
 
 - **Pause des médias** : faite en S10 (`macos/media.rs`), essayée avec Chrome seulement ; l'écriture de Scriibe au journal (« médias: … ») dit ce qu'elle voit.
 - **Fait en S11** : fenêtre Tauri (WKWebView), icône de la barre des menus et son menu, pastille, verrou d'instance (`flock`), Scriibe.app (voir ci-dessous).
-- **Pas fait** : touches réglables (Option, ⌘, Fn) ; **détection de la carte graphique** : à écrire (`system_profiler`) ; **mise à jour intégrée** et **téléchargement des moteurs** par la page : Windows seulement (sur Mac, passer par Homebrew).
+- **Fait en S13 (écrit, pas encore essayé sur le Mac)** : touches réglables (Réglages → Dictée → « Changer… ») : Option, ⌘, Fn, Ctrl, Maj (gauche et droite), F1 à F20, Début, Fin, Page préc., Page suiv. (`keys::MAC_CHOICES`, `keys::MAC_LAYOUT`).
+- **Pas fait** : **détection de la carte graphique** : à écrire (`system_profiler`) ; **mise à jour intégrée** et **téléchargement des moteurs** par la page : Windows seulement (sur Mac, passer par Homebrew).
 
 ## Scriibe.app (S11)
 

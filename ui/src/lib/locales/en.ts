@@ -388,6 +388,8 @@ export const en: Record<string, string> = {
   'Appuie sur la touche à tenir en plus, puis relâche tout.': 'Press the key to hold in addition, then release everything.',
   'Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre : passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.':
     'No key received. On most laptops the Fn key is handled by the keyboard itself: Windows cannot see it. Try another key (Windows, left Ctrl, a function key…). The Windows and left Alt keys can also be captured from another window: switch to Notepad, press the key, then come back here.',
+  'Aucune touche reçue. Vérifie que Scriibe a l’autorisation « Surveillance de l’entrée » (Réglages Système → Confidentialité et sécurité), puis relance Scriibe. Sinon, essaie une autre touche.':
+    'No key received. Check that Scriibe has the “Input Monitoring” permission (System Settings → Privacy & Security), then relaunch Scriibe. Otherwise, try another key.',
   'Réessayer': 'Try again',
   'Nouvelle touche :': 'New key:',
   'Ce sont des touches de modification seules : il faudra les tenir une fraction de seconde (0,3 s) avant que l’écoute commence, pour qu’un raccourci clavier (Ctrl+C, Maj+lettre…) n’ouvre pas le micro.':
@@ -396,11 +398,15 @@ export const en: Record<string, string> = {
   'Recommencer': 'Start over',
   'Maintiens ta touche…': 'Hold your key…',
   'Tester ma touche': 'Test my key',
-  'Rétablir Ctrl droit + Maj': 'Restore right Ctrl + Shift',
+  'Rétablir {keys}': 'Restore {keys}',
   '✔ Touche reconnue : Scriibe écoute ({key}).': '✔ Key recognised: Scriibe is listening ({key}).',
   'Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…': 'Switch to Notepad (or another app), then hold {key}…',
+  'Passe dans TextEdit (ou une autre appli), puis maintiens {key}…': 'Switch to TextEdit (or another app), then hold {key}…',
   'Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.':
     'A combination is held in full (for example left Ctrl + F9): one of the keys alone does nothing. The Windows, left Alt, left Shift and Ctrl keys, function keys, “< >” (left of W), Pause, Insert… are possible; letters, digits, Space, Enter and AltGr (needed for “@” and “€” on an AZERTY keyboard) are not. An ordinary key in the combination (F9, “< >”) writes nothing in the app during dictation.',
+
+  'Une combinaison se tient en entier (par exemple Option gauche + F9) : l’une des touches seule ne fait rien. Les touches Option, Commande (⌘), Fn, Ctrl, Maj, les touches de fonction (F1 à F20), Début, Fin, Page préc. et Page suiv. sont possibles ; les lettres, chiffres, Espace, Entrée et les flèches ne le sont pas. Sur la plupart des Mac, F1 à F12 demandent Fn en plus, sauf si les « touches de fonction standard » sont activées. Une touche ordinaire de la combinaison (F9…) n’est pas retenue : l’appli active la reçoit aussi.':
+    'A combination is held in full (for example left Option + F9): one of the keys alone does nothing. The Option, Command (⌘), Fn, Ctrl and Shift keys, the function keys (F1 to F20), Home, End, Page Up and Page Down are possible; letters, digits, Space, Enter and the arrow keys are not. On most Macs, F1 to F12 need Fn as well, unless “Use F1, F2, etc. keys as standard function keys” is on. An ordinary key in the combination (F9…) is not held back: the active app receives it too.',
 
   // Banc de dictée
   '{n} phrase(s) sautée(s) sur {total}.': '{n} phrase(s) skipped out of {total}.',

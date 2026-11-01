@@ -95,6 +95,11 @@ export const enServer: Record<string, string> = {
   'Reformulation écartée': 'Rewrite rejected',
 
   // Noms des touches (keys.rs)
+  'Option droite': 'Right Option',
+  'Option gauche': 'Left Option',
+  'Commande droite (⌘)': 'Right Command (⌘)',
+  'Commande gauche (⌘)': 'Left Command (⌘)',
+  '⌘': '⌘',
   'Ctrl droit': 'Right Ctrl',
   'Ctrl gauche': 'Left Ctrl',
   'Alt gauche': 'Left Alt',
@@ -125,6 +130,9 @@ export const enServer: Record<string, string> = {
   '{label} choisie deux fois': '{label} chosen twice',
   'une seule touche autre que Ctrl, Alt, Maj ou Windows dans la combinaison':
     'only one key other than Ctrl, Alt, Shift or Windows in the combination',
+  'une seule touche autre que Ctrl, Maj, Option, ⌘ ou Fn dans la combinaison':
+    'only one key other than Ctrl, Shift, Option, ⌘ or Fn in the combination',
+  'la dictée utilise ⌘ : choisis une autre touche pour traduire': 'dictation uses ⌘: choose another key for translation',
   'la dictée utilise Maj : choisis une autre touche pour traduire': 'dictation uses Shift: choose another key for translation',
   '{label} sert déjà à dicter': '{label} is already used to dictate',
   'une seule touche pour traduire': 'only one key to translate',
