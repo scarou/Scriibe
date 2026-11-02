@@ -151,8 +151,8 @@ impl FakePaster {
 }
 
 impl Paster for FakePaster {
-    fn selection_active(&self) -> bool {
-        *lock(&self.selection)
+    fn selection(&self) -> crate::paste::Selection {
+        crate::paste::Selection { active: *lock(&self.selection), report: String::new() }
     }
 
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {

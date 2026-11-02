@@ -3,7 +3,7 @@
 
 use scriibe_core::history::Dictation;
 use scriibe_platform::indicator::{Indicator, IndicatorState};
-use scriibe_platform::paste::{PasteOutcome, Paster};
+use scriibe_platform::paste::{PasteOutcome, Paster, Selection};
 use scriibe_platform::storage::HistorySink;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -76,15 +76,11 @@ impl Paster for SwitchPaster {
     }
 
     // Pendant une capture d'essai rien n'est collé : il n'y a pas de sélection à remplacer.
-    fn selection_active(&self) -> bool {
-        !self.0.capturing() && self.0.paster.selection_active()
-    }
-
-    fn selection_report(&self) -> String {
+    fn selection(&self) -> Selection {
         if self.0.capturing() {
-            String::new()
+            Selection::default()
         } else {
-            self.0.paster.selection_report()
+            self.0.paster.selection()
         }
     }
 }

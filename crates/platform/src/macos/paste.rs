@@ -8,7 +8,7 @@
 
 use super::ffi;
 use crate::apple::PASTE_BLOCKING_FLAGS;
-use crate::paste::{PasteOutcome, Paster};
+use crate::paste::{PasteOutcome, Paster, Selection};
 use arboard::Clipboard;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -18,6 +18,7 @@ use std::time::Duration;
 static ASKED: AtomicBool = AtomicBool::new(false);
 
 const KEY_V: u16 = 9;
+const KEY_C: u16 = 8;
 /// `kCGEventFlagMaskCommand`.
 const FLAG_COMMAND: u64 = 0x0010_0000;
 
@@ -59,12 +60,12 @@ fn wait_for_modifiers_released() {
     }
 }
 
-fn post_key(down: bool) -> Result<(), String> {
+fn post_key(key: u16, down: bool) -> Result<(), String> {
     // SAFETY : une source nulle veut dire « source par défaut » ; l'événement créé est relâché après l'envoi.
     unsafe {
-        let event = ffi::CGEventCreateKeyboardEvent(std::ptr::null(), KEY_V, down);
+        let event = ffi::CGEventCreateKeyboardEvent(std::ptr::null(), key, down);
         if event.is_null() {
-            return Err("macOS n'a pas voulu créer la touche V".into());
+            return Err("macOS n'a pas voulu créer la touche".into());
         }
         ffi::CGEventSetFlags(event, FLAG_COMMAND);
         ffi::CGEventPost(ffi::TAP_HID, event);
@@ -84,18 +85,56 @@ fn send_command_v() -> Result<(), String> {
     }
     wait_for_modifiers_released();
     std::thread::sleep(Duration::from_millis(40));
-    post_key(true)?;
+    post_key(KEY_V, true)?;
     std::thread::sleep(Duration::from_millis(10));
-    post_key(false)
+    post_key(KEY_V, false)
+}
+
+/// Combien de temps on laisse à l'appli pour copier sa sélection après ⌘C.
+const COPY_WAIT: Duration = Duration::from_millis(150);
+
+impl MacPaster {
+    /// Sonde pour les applis qui n'exposent pas leur sélection à l'Accessibilité (Electron, pages web) : ⌘C, puis on regarde si le
+    /// presse-papiers a changé. Si oui, un texte était sélectionné ; le presse-papiers d'avant est remis tout de suite.
+    fn selection_by_copy(&self) -> bool {
+        let before = read_text(&self.clipboard);
+        wait_for_modifiers_released();
+        std::thread::sleep(Duration::from_millis(40));
+        if post_key(KEY_C, true).is_err() {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+        if post_key(KEY_C, false).is_err() {
+            return false;
+        }
+        let mut waited = Duration::ZERO;
+        while waited < COPY_WAIT {
+            std::thread::sleep(Duration::from_millis(10));
+            waited += Duration::from_millis(10);
+            if read_text(&self.clipboard) != before {
+                match before {
+                    Some(saved) => drop(write_text(&self.clipboard, &saved)),
+                    None => drop(with_clipboard(&self.clipboard, |c| c.clear().map_err(|e| e.to_string()))),
+                }
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl Paster for MacPaster {
-    fn selection_active(&self) -> bool {
-        ffi::selection_state() == ffi::SelectionState::Active
-    }
-
-    fn selection_report(&self) -> String {
-        ffi::selection_state().describe()
+    fn selection(&self) -> Selection {
+        match ffi::selection_state() {
+            ffi::SelectionState::Active => Selection { active: true, report: "active".into() },
+            ffi::SelectionState::Empty => Selection { active: false, report: "aucune".into() },
+            // L'appli ne dit rien : ⌘C d'essai (pas sans l'autorisation d'envoyer des touches).
+            ffi::SelectionState::Unknown(..) => {
+                let active = self.selection_by_copy();
+                Selection { active, report: format!("{} (⌘C d'essai)", if active { "active" } else { "aucune" }) }
+            }
+            ffi::SelectionState::NotTrusted => Selection { active: false, report: ffi::SelectionState::NotTrusted.describe() },
+        }
     }
 
     fn copy(&self, text: &str) -> bool {

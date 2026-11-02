@@ -789,8 +789,9 @@ impl Controller {
             text = french_typography(&text);
         }
         // Une sélection active sera remplacée par le texte : il s'écrit alors au milieu d'une phrase, sans majuscule ni point final.
-        let replaces_selection = deps.paster.selection_active();
-        let selection_report = deps.paster.selection_report();
+        let selection = deps.paster.selection();
+        let replaces_selection = selection.active;
+        let selection_report = selection.report;
         if replaces_selection {
             text = scriibe_core::inline::inside_a_sentence(&text, &dictionary);
         }
