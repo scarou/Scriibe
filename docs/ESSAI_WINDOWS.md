@@ -4,15 +4,13 @@ Tout se fait dans la **fenêtre de Scriibe** (WebView2 ; si elle ne peut pas s'o
 
 ## 0. Récupérer et lancer `scriibe.exe`
 
-GitHub → dépôt `scarou/scriibe` → onglet **Actions** → dernière exécution verte de « CI » → section **Artifacts** → `scriibe-windows-x64` (un zip contenant `scriibe.exe`). Extraire le zip dans un dossier simple (par exemple `C:\scriibe`), puis **double-cliquer sur `scriibe.exe`**. Windows SmartScreen peut avertir (binaire non signé) : « Informations complémentaires » → « Exécuter quand même ».
+Depuis S14 : `https://github.com/scarou/Scriibe/releases` → dernière version → `scriibe-windows-x64.zip` (un zip contenant `scriibe.exe`) ; avant, ou entre deux versions : onglet **Actions** → dernière exécution verte de « CI » → section **Artifacts** → `scriibe-windows-x64` (compte GitHub connecté). Extraire le zip dans un dossier simple (par exemple `C:\scriibe`), puis **double-cliquer sur `scriibe.exe`**. Windows SmartScreen peut avertir (binaire non signé) : « Informations complémentaires » → « Exécuter quand même ».
 
 Une fenêtre noire (journal) s'ouvre, une icône ronde apparaît près de l'horloge (grise au repos) et **la fenêtre de Scriibe s'ouvre**. Si elle ne s'ouvre pas : clic droit sur l'icône → « Ouvrir Scriibe ». L'interface est servie par un petit serveur local (adresse à jeton secret, ne répond qu'à cette machine) ; `scriibe lancer --navigateur` l'ouvre dans le navigateur à la place.
 
 ## 0 bis. Mettre à jour sans télécharger de zip
 
-L'onglet **« Mise à jour »** de la fenêtre. Une seule fois, il faut un **jeton GitHub en lecture seule** : GitHub → photo de profil → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token ; durée au choix (90 jours), **Only select repositories** → `Scriibe`, droit **Actions : Read-only** (rien d'autre), puis copier le jeton (il ne s'affiche qu'une fois). Le coller dans la carte et « Enregistrer le jeton » : il est gardé dans le Gestionnaire d'identifiants, jamais affiché ni écrit dans le journal.
-
-Ensuite : **« Chercher une nouvelle version »** affiche la version (commit et titre), la taille et la source ; **« Installer et redémarrer »** demande confirmation, télécharge la dernière exécution verte de la CI, remplace `scriibe.exe` (l'ancien reste un moment sous le nom `scriibe.exe.old`, supprimé au lancement suivant) et relance Scriibe : la fenêtre se rouvre. Le dossier de `scriibe.exe` doit être un dossier où l'on peut écrire (pas `Program Files`).
+L'onglet **« Mise à jour »** de la fenêtre (depuis S14 : aucun jeton, les Releases sont publiques). **« Chercher une nouvelle version »** affiche la dernière version publiée (numéro et titre), sa date, la taille du zip Windows et la source ; **« Installer et redémarrer »** demande confirmation, télécharge `scriibe-windows-x64.zip` de la dernière Release, remplace `scriibe.exe` (l'ancien reste un moment sous le nom `scriibe.exe.old`, supprimé au lancement suivant) et relance Scriibe : la fenêtre se rouvre. Le dossier de `scriibe.exe` doit être un dossier où l'on peut écrire (pas `Program Files`).
 
 ## 1. Les onglets
 

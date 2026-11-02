@@ -13,6 +13,8 @@ git fetch -q origin main
 if [ "$(stat -f %m target/release/scriibe)" -lt "$(git log -1 --format=%ct)" ]; then
   echo "Le programme compilé est plus ancien que le dernier commit : relance cargo build --release."; exit 1
 fi
+cargo_version="$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')"
+[ "$cargo_version" = "$version" ] || { echo "La version de Cargo.toml ($cargo_version) n'est pas $version : change-la, recompile, commite et pousse d'abord (sinon Scriibe se croirait en retard sur sa propre version)."; exit 1; }
 tag="v$version"
 gh release view "$tag" --repo scarou/Scriibe >/dev/null 2>&1 && { echo "La version $tag existe déjà sur GitHub."; exit 1; }
 
@@ -34,5 +36,5 @@ read -r -p "Publier cette version ? (oui/non) " answer
 [ "$answer" = "oui" ] || { echo "Annulé : rien n'est publié."; exit 0; }
 
 gh release create "$tag" "$zip" --repo scarou/Scriibe --target "$(git rev-parse HEAD)" --title "Scriibe $version" \
-  --notes "Scriibe $version (commit $commit) pour Mac à puce Apple, macOS 14 ou plus récent. Installation pas à pas : docs/INSTALLATION_MACOS.md."
+  --notes "Scriibe $version (commit $commit). Mac à puce Apple (macOS 14 ou plus récent) : Scriibe-$version-macos.zip, installation pas à pas dans docs/INSTALLATION_MACOS.md. Windows : scriibe-windows-x64.zip, ajouté automatiquement quelques minutes après la publication, installation dans docs/INSTALLATION_WINDOWS.md."
 echo "Publié : $tag"

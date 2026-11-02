@@ -1,6 +1,6 @@
 # Cadrage — mise à jour de Scriibe sur Windows, macOS et Linux (S12)
 
-Statut : **chantier A écrit en S12 et terminé en S13** (alerte, entrée du menu de l'icône) ; B et C : décisions de Christophe du 01/11/2026 ci-dessous, rien d'écrit.
+Statut : **chantier A écrit en S12 et terminé en S13** (alerte, entrée du menu de l'icône) ; **S14 (02/11/2026) : dépôt public, vérification et installation Windows par les Releases, sans jeton** (voir la fin du fichier) ; reste la partie « installation intégrée » Mac et Linux (chantier C).
 
 ## État actuel
 
@@ -47,3 +47,5 @@ Vérification au démarrage puis toutes les 6 h : une requête légère à GitHu
 4. **Versions étiquetées (GitHub Releases) : accepté**, à écrire avec le chantier B. Scribe numérotait ses versions (`Info.plist`, préfixe de commit « Scribe x.y.z : »), mais sans étiquettes ni Releases GitHub (aucune étiquette dans son dépôt).
 
 **Suite (S13)** : procédure d'installation pour une autre personne dans `docs/INSTALLATION_MACOS.md` ; publication d'une version Mac par `tools/publier_macos.sh` (chantier B-Mac, Release GitHub, compilation sur le Mac de Christophe) ; mise à jour décrite pas à pas dans l'onglet « Mise à jour ». Reste du chantier C (installation intégrée sur Mac) et B-Linux : non écrits. À décider : dépôt privé (inviter chaque personne) ou public (Releases lisibles sans jeton).
+
+**S14 (02/11/2026) : Releases, sans jeton.** Le dépôt `scarou/Scriibe` est public. La version installée est le numéro de `Cargo.toml` ; la vérification (réglage « automatique » toujours décoché au départ, bouton « Chercher ») lit `https://api.github.com/repos/scarou/Scriibe/releases/latest` sans identification (60 demandes par heure et par adresse, largement assez) et compare les numéros `x.y.z`. Windows : `scriibe-windows-x64.zip` de la Release remplace `scriibe.exe` ; ce zip est compilé et ajouté par `.github/workflows/release-windows.yml` quand une Release est publiée. Mac : alerte seulement, mise à jour à la main (chantier C non fait). Publier : mettre le numéro dans `Cargo.toml`, compiler, commiter, pousser, puis `tools/publier_macos.sh x.y.z` (le script refuse si le numéro diffère de `Cargo.toml`). Le jeton, son champ, son aide et `KeyKind::GitHub` sont supprimés ; un jeton déjà rangé dans le trousseau reste inutilisé et peut être effacé à la main.

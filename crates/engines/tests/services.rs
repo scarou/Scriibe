@@ -25,7 +25,6 @@ impl Secrets for Keys {
         match kind {
             KeyKind::Deepgram => self.deepgram,
             KeyKind::OpenRouter => self.openrouter,
-            KeyKind::GitHub => None,
         }
         .map(str::to_string)
     }

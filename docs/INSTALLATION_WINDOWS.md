@@ -4,14 +4,14 @@ Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la prog
 
 **Ce qu'il faut** : Windows 10 ou 11 (64 bits), une connexion Internet, un micro, et un compte GitHub gratuit (voir l'étape 1).
 
-> **État de cette procédure** : écrite d'après ce qui est essayé sur le PC de Christophe (`docs/ESSAI_WINDOWS.md`). **Aucune version Windows n'est encore publiée dans les « Releases » de GitHub** : en attendant, le programme se récupère dans la CI (étape 1, voie B). Les étapes n'ont pas encore été essayées par une autre personne : si l'une ne se passe pas comme écrit, noter laquelle et la dire.
+> **État de cette procédure** : écrite d'après ce qui est essayé sur le PC de Christophe (`docs/ESSAI_WINDOWS.md`). Le fichier Windows est ajouté à chaque Release par la CI quelques minutes après sa publication (la version 0.1.0, publiée avant, n'en a pas : voie B). Les étapes n'ont pas encore été essayées par une autre personne : si l'une ne se passe pas comme écrit, noter laquelle et la dire.
 
 ## 1. Télécharger Scriibe
 
-**Voie A — version publiée (dès qu'il y en aura une).**
+**Voie A — version publiée (la plus simple, sans compte).**
 
 1. Ouvrir `https://github.com/scarou/Scriibe/releases`.
-2. Sous la version la plus récente (numéro le plus haut), cliquer sur le fichier **`scriibe-windows-x64.zip`** dans la rubrique « Assets ».
+2. Sous la version la plus récente (numéro le plus haut), cliquer sur le fichier **`scriibe-windows-x64.zip`** dans la rubrique « Assets » (s'il n'y est pas encore, attendre quelques minutes ou utiliser la voie B).
 
 **Voie B — dernière version compilée par GitHub (en attendant).**
 
@@ -56,4 +56,4 @@ Dans Scriibe : **Réglages → Moteurs** (au choix, modifiable plus tard).
 2. Télécharger la version la plus récente comme à l'étape 1 et extraire le zip **dans le même dossier** (`C:\scriibe`), en acceptant de **remplacer** `scriibe.exe`.
 3. Relancer `scriibe.exe`. Réglages, historique et dictionnaire sont conservés (ils sont rangés à part).
 
-L'onglet **Mise à jour** de Scriibe sait aussi chercher et installer lui-même une version plus récente, mais il demande pour l'instant un jeton GitHub en lecture seule (l'onglet explique comment le créer) : la voie manuelle ci-dessus est la plus simple pour une autre personne.
+L'onglet **Mise à jour** de Scriibe sait aussi le faire à votre place, sans compte ni jeton : **Chercher une nouvelle version** montre la dernière version publiée, sa date et la taille du téléchargement ; **Installer et redémarrer** demande confirmation, télécharge, remplace `scriibe.exe` et relance Scriibe. L'ancien programme reste à côté sous le nom `scriibe.exe.old` jusqu'au lancement suivant.

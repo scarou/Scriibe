@@ -330,8 +330,7 @@ pub fn key(kind: Option<&str>) -> Result<(), String> {
     let kind = match kind {
         Some("deepgram") => KeyKind::Deepgram,
         Some("openrouter") => KeyKind::OpenRouter,
-        Some("github") => KeyKind::GitHub,
-        _ => return Err("usage : scriibe cle deepgram|openrouter|github (puis colle la clé et valide)".into()),
+        _ => return Err("usage : scriibe cle deepgram|openrouter (puis colle la clé et valide)".into()),
     };
     if !cfg!(any(windows, target_os = "macos")) {
         return Err(format!(

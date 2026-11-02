@@ -15,16 +15,16 @@ use std::sync::Arc;
 pub fn menu_view(settings: &AppSettings, version: &str) -> MenuView {
     let lang = settings.ui_language.resolve(&scriibe_platform::locale::system_language());
     let mut view = menu_view_in(settings, version, lang);
-    view.update = crate::web::update::available().map(|v| update_text(v.short_sha(), lang));
+    view.update = crate::web::update::available().map(|v| update_text(&v.version, lang));
     view
 }
 
 /// L'entrée du menu qui annonce une nouvelle version.
-fn update_text(sha: &str, lang: UiLang) -> String {
+fn update_text(version: &str, lang: UiLang) -> String {
     if lang == UiLang::En {
-        format!("New version available ({sha})")
+        format!("New version available ({version})")
     } else {
-        format!("Nouvelle version disponible ({sha})")
+        format!("Nouvelle version disponible ({version})")
     }
 }
 
@@ -201,8 +201,8 @@ mod tests {
 
     #[test]
     fn the_update_entry_names_the_new_commit_in_the_interface_language() {
-        assert_eq!(update_text("abc1234", UiLang::Fr), "Nouvelle version disponible (abc1234)");
-        assert_eq!(update_text("abc1234", UiLang::En), "New version available (abc1234)");
+        assert_eq!(update_text("0.2.0", UiLang::Fr), "Nouvelle version disponible (0.2.0)");
+        assert_eq!(update_text("0.2.0", UiLang::En), "New version available (0.2.0)");
         assert_eq!(menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr).update, None);
     }
 

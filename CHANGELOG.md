@@ -2,6 +2,17 @@
 
 Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
 
+## S14 — 2026-11-02 · Dépôt public, Releases, mise à jour sans jeton
+
+Suite de la session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié.
+
+- **Collages en plusieurs exemplaires** : enquête et correctif (voir S13, `whisper::repeats_itself`, `docs/ECARTS.md`).
+- **Moteurs du Mac** : `brew upgrade llama.cpp` (0.5.0 → 0.8.0) avec ggml 0.28.0 et whisper.cpp 1.9.5 ; options de Scriibe toujours acceptées, dictée essayée par Christophe ; Whisper en `-ac 512` boucle encore (la reprise reste nécessaire).
+- **Procédures d'installation** : `docs/INSTALLATION_WINDOWS.md` (nouveau), section « Installer » du README, `docs/INSTALLATION_MACOS.md` précisé. **Release v0.1.0** (zip Mac) publiée.
+- **Dépôt `scarou/Scriibe` rendu public** (accord explicite de Christophe, contrôle des secrets fait avant).
+- **Mise à jour par les Releases, sans jeton** (`crates/cli/src/web/update.rs`) : la vérification lit `releases/latest` sans identification et compare le numéro de la Release à la version du programme (`Cargo.toml`, 0.2.0) ; Windows télécharge `scriibe-windows-x64.zip` de la Release ; le champ du jeton, son aide (onglet, FAQ FR/EN, traductions), la route `api/update/token`, la lecture du trousseau et `KeyKind::GitHub` sont supprimés. Nouveau workflow `.github/workflows/release-windows.yml` (compile `scriibe.exe` et l'ajoute à la Release publiée) ; `tools/publier_macos.sh` refuse un numéro différent de `Cargo.toml`. Écart noté dans `docs/ECARTS.md`, procédure dans `docs/MISE_A_JOUR.md`.
+- Mesuré : tests Rust (289), 79 tests d'interface, 0 échec ; clippy et fmt propres. **Non essayé** : le workflow `release-windows.yml` (jamais exécuté), la mise à jour Windows depuis une vraie Release, l'alerte sur un autre numéro de version.
+
 ## S13 — 2026-11-01 · Touches réglables sur Mac
 
 Session **locale** sur le Mac Studio de Christophe ; `scarou/scribe` non modifié ; commit `1973f3b` en `[skip ci]`.
