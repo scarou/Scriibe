@@ -63,7 +63,7 @@
     <nav>
       <picture class="brand">
         <source media="(prefers-color-scheme: dark)" srcset={logo.dark} />
-        <img src={logo.light} alt="Scriibe" height="34" />
+        <img src={logo.light} alt="Scriibe" />
       </picture>
       {#each tabs as tab (tab.id)}
         <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}</button>
@@ -99,7 +99,7 @@
   .shell { display: flex; min-height: 100vh; }
   nav { width: 210px; flex: none; background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
   .brand { display: block; padding: 4px 10px 12px; }
-  .brand img { display: block; height: 34px; width: auto; max-width: 100%; }
+  .brand img { display: block; width: 100%; height: auto; }
   .nav { text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .nav:hover { background: var(--line); }
   .nav.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
