@@ -97,17 +97,18 @@
       <h2>Getting started</h2>
       <p>Scriibe writes for you in any app: you hold a key, you speak, you release, and the text, clean and punctuated, is pasted where your cursor is.</p>
       <ol class="steps">
-        <li><b>Install what is needed.</b> To do everything on this computer you need <b>whisper-server</b> and a Whisper model (the transcription), then, if you want cleanup without the Internet, <b>llama-server</b> and a model. The Installation tab tells you what is missing and, before any download, shows the name, the real size and the source: nothing is downloaded without your consent.</li>
+        <li><b>Install what is needed.</b> To do everything on this computer you need <b>whisper-server</b> and a Whisper model (the transcription), then, if you want cleanup without the Internet, <b>llama-server</b> and a model. The installation cards (Settings → Engines) tell you what is missing and, before any download, shows the name, the real size and the source: nothing is downloaded without your consent.</li>
         <li><b>Choose your engines.</b> Whisper and llama.cpp do everything on this computer, without the Internet; Deepgram and OpenRouter use online services and need a key: they are a fallback when the computer is too slow. At first launch, the Dashboard assistant measures your computer and suggests the setup that suits it.</li>
         <li><b>Dictate.</b> Click in a document, hold <b>{dictate}</b>, say a sentence, release: it is written.</li>
       </ol>
       <div class="links">
-        {@render go('Installation', 'install')}
+        {@render go('Install programs and models', 'install')}
         {@render go('The engines', 'settings', 'moteurs')}
         {@render go('The key and the microphone', 'settings', 'dictee')}
         {@render go('Dashboard', 'dashboard')}
       </div>
-      {@render tip('To check the microphone and see what Whisper hears, read a phrase in the Test bench: it shows the microphone level before you go and dictate in a real app.')}
+      <p>The window has five pages: <b>Dashboard</b>, <b>History</b>, <b>Dictionary</b>, <b>Settings</b> and <b>Help</b>. Settings has tabs: Dictation, Engines, Appearance, Modes, Measurements and trials, and Update. Each card folds with a click on its title (the fold is remembered).</p>
+      {@render tip('To check the microphone and see what Whisper hears, read a phrase of the dictation bench (Settings → Measurements and trials): it shows the microphone level before you go and dictate in a real app.')}
       <div class="links"><button class="go" onclick={() => nav.openAssistant()} title="Open the assistant on the Dashboard">→ Run the first-launch assistant again</button></div>
 
       <h3>What happens between your voice and the text</h3>
@@ -130,11 +131,11 @@
         <li><b>Space and memory.</b> A model takes from a few hundred MB to several GB on disk, and as much in memory while it works. A 2 GB graphics card cannot hold a 2 GB model: Scriibe then switches to the processor by itself.</li>
         <li><b>Privacy and cost.</b> Locally, nothing leaves the computer and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
       </ul>
-      <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, at the top of the Dashboard or in Settings → Engines) if you change computer, graphics card or mind.</p>
+      <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, or Settings → Engines) if you change computer, graphics card or mind.</p>
       <div class="links">
         {@render go('Choose the engines', 'settings', 'moteurs')}
         {@render go('Install a model', 'install')}
-        {@render go('Compare with the Test bench', 'bench')}
+        {@render go('Compare with the dictation bench', 'bench')}
       </div>
 
     {:else if open === 'dictate'}
@@ -163,6 +164,7 @@
         <li>What you had copied <b>comes back to the clipboard</b> after the paste (adjustable). <i>Why:</i> Scriibe uses the clipboard to paste, and must not take it from you. Only text is restored: an image or files copied before the dictation are lost.</li>
         <li><b>“Pause music or video”</b> (Settings → Dictation, off at first): a video or music that is playing stops when you hold the key and resumes when you release. Scriibe looks at which apps are producing sound. A player with its own window (VLC, Spotify…) receives the Play/Pause command directly; browsers receive it through the keyboard’s Play/Pause key. If that key starts a different app from the one that was playing, Scriibe cancels it. During a call (Teams, Meet, Zoom…), Scriibe touches nothing, and if you start something else during the dictation, it does not resume the old media. <i>Why:</i> interrupting a call or resuming the wrong player would be worse than letting it play.</li>
         <li>The <b>icon menu</b>, near the clock, opens the window, the data folder and the log, or quits Scriibe.</li>
+        <li><b>A selection</b> is replaced by the dictation: if a word or a group of words is selected when you release the key, the dictated text takes its place <b>without a capital letter at the start nor a period, comma or semicolon at the end</b>, since it fits in the middle of a sentence (the “?”, the “!” and ellipses stay; names from your dictionary and acronyms keep their capital). <i>Why:</i> Whisper puts a capital and a period on every dictation, which does not fit in the middle of a sentence. On a Mac only for now; Scriibe sends a ⌘C to find out whether a text is selected and puts your clipboard back right away.</li>
       </ul>
       <div class="links">{@render go('Dictation settings', 'settings', 'dictee')}</div>
 
@@ -178,7 +180,7 @@
       </ul>
       <h3>Create your own mode</h3>
       <ol class="steps">
-        <li>Modes tab → “My modes”: a name, an instruction (“Write like a short, friendly text message”).</li>
+        <li>Settings → Modes → “My modes”: a name, an instruction (“Write like a short, friendly text message”).</li>
         <li>Leave “Rephrases sentences” unchecked to keep your words with the instruction added; check it to rewrite in the style, like the professional modes.</li>
         <li>Add two or three <b>examples</b>: a dictation the way you would say it, and the text you expect. They are what really gives the style.</li>
         <li>Choose it in the list, then dictate a text to check that questions stay questions and that false starts are corrected.</li>
@@ -219,22 +221,22 @@
         <li><b>Cleaning up</b>: a turning arc (with “Cleaning up…” in the pill), while the text is transcribed and cleaned up. For a translation, the language is announced.</li>
         <li><b>Pasted</b>: a ✓ confirms that the text has arrived.</li>
         <li><b>The icon near the clock</b> always changes colour: <b>grey</b> at rest, <b>red</b> while listening, <b>orange</b> while processing, <b>green</b> once the text is pasted, <b>blue</b> for a message. It is useful when the pill is turned off.</li>
-        <li>Three styles (pill, plain dot, level meter), three positions, five colours and an adjustable transparency. The pill is on by default; it is turned off in the settings.</li>
+        <li>Three styles (pill, plain dot, level meter), three positions, five colours and an adjustable transparency. The pill is on by default; it is turned off in the settings. The window appearance (light, dark or the system one) is set in the same place, Settings → Appearance.</li>
       </ul>
       <div class="links">{@render go('Adjust the indicator', 'settings', 'indicateur')}</div>
 
     {:else if open === 'measures'}
       <h2>Measuring and comparing</h2>
       <p>These tools are not for everyday use: they answer a precise question. Choose them according to what you want to know.</p>
-      {@render question('Does Scriibe work well for me, for real?', 'The Test bench: you read 17 tricky phrases (hesitations, false starts, questions, dictated signs), and each one is checked automatically. It shows what Whisper heard, what would be pasted, the time of each step, and the microphone level.')}
+      {@render question('Does Scriibe work well for me, for real?', 'The Test bench (Settings → Measurements and trials): you read 17 tricky phrases (hesitations, false starts, questions, dictated signs), and each one is checked automatically. It shows what Whisper heard, what would be pasted, the time of each step, and the microphone level.')}
       {@render question('The bench phrases are not in the right language.', 'They follow the dictation language (Settings → Dictation → “Dictation language”), not the interface language: Whisper transcribes in the language chosen, so you read phrases in that language. To read the 17 phrases in English, choose “English”, then put “French” back when you have finished. The typing test, on the other hand, follows the interface language.')}
       {@render question('What did a change modify?', 'Each bench run is kept with its settings (version, engines, models, microphone). Do a new run after changing a setting or installing an update, then “Compare two runs”: the changed words, and the checks gained or lost. That is how you judge Whisper “small” against “base”, or the cloud against local.')}
       {@render question('Which engine should I choose on my computer?', 'The Dashboard assistant suggests a setup according to the cores, the memory and the graphics card, with the times measured on an ordinary laptop. A bench run then tells you whether it suits you. Careful: a single run of 17 phrases gives a trend, not a firm measurement; reading the phrases again also changes what Whisper hears.')}
       {@render question('How long do I wait?', 'The History gives, for each dictation, the transcription time, the cleanup time and the total since the key was released. The Log keeps one line per step (never the text).')}
       {@render question('How is the Dashboard’s time saved calculated?', `For each dictation, Scriibe compares the time spent speaking with the time it would have taken you to type the same text, at your typing speed (set to ${v?.typingWPM ?? 40} words per minute in “My typing speed”, for the whole history, purged days included: only the day’s totals remain).`)}
       {@render question('What is my real typing speed?', 'In the Dashboard, “My typing speed”: you copy out a text of a few lines, the timer starts at your first letter, mistakes turn red, and the attempt stops when the text is identical (or with “Finish”). The result is net (words of the text × share of correct letters ÷ minutes). Not kept: an attempt under 90% correct letters, shorter than 12 s, longer than 10 min or above 200 words/min. “Use” carries the average of the attempts kept over to your typing speed; the time saved is then recalculated for the whole history.')}
-      {@render question('What is the report for?', 'Log and report → “Copy the report” puts the installation state, the last bench run and the last lines of the log on the clipboard: that is what to paste so that you can be helped with a problem.')}
-      <div class="links">{@render go('Test bench', 'bench')}{@render go('Log and report', 'journal')}</div>
+      {@render question('What is the report for?', 'Settings → Measurements and trials → “Report to paste to me” → “Copy the report” puts the installation state, the last bench run and the last lines of the log on the clipboard: that is what to paste so that you can be helped with a problem.')}
+      <div class="links">{@render go('Measurements and trials', 'bench')}{@render go('Report and log', 'journal')}</div>
 
     {:else if open === 'privacy'}
       <h2>On this computer or online</h2>
@@ -247,26 +249,26 @@
         <li>Translation always goes through the cleanup engine, even in Literal mode.</li>
         <li>Choose “None” as the cleanup to load no model at all: the text is transcribed as is (dictated signs, dictionary, typography). The modes and translation are then unavailable.</li>
         <li>The history, the dictionary, the settings and the bench runs stay on this computer, in the data folder (Settings → Locations).</li>
-        <li>History tab, “Retention” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for the Dashboard. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
+        <li>History, “History privacy” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for the Dashboard. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
         <li>The Deepgram and OpenRouter keys are never displayed or written to the log; they are stored in the Windows Credential Manager.</li>
       </ul>
-      <div class="links">{@render go('The engines', 'settings', 'moteurs')}{@render go('History retention', 'history', 'conservation')}</div>
+      <div class="links">{@render go('The engines', 'settings', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
 
     {:else}
       <h2>Common problems</h2>
-      {@render question('Nothing is pasted, or a phrase is missing.', 'Look at the log (Log and report): each dictation leaves a line there, “collage: … signes envoyés à …”. If the line says “copié seulement”, the text is on the clipboard: Ctrl+V pastes it. Pasting is blocked by Windows in a window started as administrator. If the line says the text was sent but nothing appears, the app did not read the clipboard: try in Notepad to see whether the problem comes from the app, and copy the report.')}
+      {@render question('Nothing is pasted, or a phrase is missing.', 'Look at the log (Settings → Measurements and trials, at the bottom of the tab): each dictation leaves a line there, “collage: … signes envoyés à …”. If the line says “copié seulement”, the text is on the clipboard: Ctrl+V pastes it. Pasting is blocked by Windows in a window started as administrator. If the line says the text was sent but nothing appears, the app did not read the clipboard: try in Notepad to see whether the problem comes from the app, and copy the report.')}
       {@render question('My key does nothing.', 'Settings → Dictation → “Test my key”, then hold the key: if Scriibe does not switch to listening, another program may be capturing it (macro tool, keyboard software). Choose another key or a combination. If the log mentions a refused keyboard hook, restart Scriibe.')}
       {@render question('The beginning of my sentence is lost.', 'With a Bluetooth headset, Windows switches to “hands-free” mode when the microphone opens (1 to 3 s): wait until the pill shows “Listening…” before speaking, or better, choose a wired or USB microphone in Settings → Dictation → Microphone. A laptop microphone is often weak: the Test bench shows its level.')}
       {@render question('The first phrase after a long pause is slow.', 'To give memory back, Whisper stops after 10 minutes without dictation and llama.cpp’s cleanup model after the set duration (“Keep the model loaded”). They come back when you press the key: Whisper in about a second, the local model in 15 to 45 s without a graphics card. Choose “as long as Scriibe is running” to keep it loaded.')}
-      {@render question('A program or a model is missing.', 'Installation tab: whisper-server, a Whisper model (ggml-base.bin to begin with), and for local cleanup llama-server and a GGUF model. Each download shows its size and source before asking for your consent; an interrupted connection resumes where it stopped.')}
-      {@render question('With llama.cpp, cleanup does not start.', 'It needs llama-server and a .gguf model file (the Installation tab tells you what is missing). If the engine log mentions memory, try “CPU only” in Settings → Engines → Graphics card: on a 2 GB card, the model does not always fit.')}
+      {@render question('A program or a model is missing.', 'Settings → Engines (installation cards): whisper-server, a Whisper model (ggml-base.bin to begin with), and for local cleanup llama-server and a GGUF model. Each download shows its size and source before asking for your consent; an interrupted connection resumes where it stopped.')}
+      {@render question('With llama.cpp, cleanup does not start.', 'It needs llama-server and a .gguf model file (Settings → Engines, installation cards, which tell you what is missing). If the engine log mentions memory, try “CPU only” in Settings → Engines → Graphics card: on a 2 GB card, the model does not always fit.')}
       {@render question('My question got an answer instead of being written.', 'The safeguard rejects most of these outputs: a mode that rephrases tries again in Simple, otherwise the text is pasted without cleanup. If one gets through with a custom mode, add a question example to that mode.')}
       {@render question('Whisper writes “Mardi” or “Vendredi” with a capital letter.', 'In French the days are written without a capital, but Whisper sometimes writes them the English way. It is only a matter of presentation: the meaning does not change. When a cleanup model is active, it fixes this; without it (Literal mode, cleanup “None”), the capital stays. To avoid it, add an automatic correction “mardi” → “mardi” in the Dictionary (one per day): it replaces any spelling with yours, capital included. Careful, it also puts the day in lower case at the start of a sentence.')}
       {@render question('A word is always misspelled.', 'Add it to “Words to write exactly”, or an automatic correction (what Whisper hears → what it should write). A bigger Whisper model hears better but takes longer: the Test bench lets you measure it on your phrases.')}
       {@render question('The music or video does not stop.', 'Check that “Pause music or video” is ticked (Settings → Dictation). The log says what Windows sees: “rien ne joue” lists the audio apps and their level, “pause demandée” says who the command went to. During a call, nothing is paused, on purpose.')}
       {@render question('The window is empty or does not open.', 'Right-click the icon near the clock → “Open Scriibe”. If WebView2 is missing, the same interface opens in your browser. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.')}
-      {@render question('How do I update?', '“Update” tab: “Check for a new version” tells you whether a version newer than yours is published (version, date, source); no account or token is needed. On Windows, “Install and restart” asks for confirmation, replaces the program and restarts it, keeping the old one alongside; on Mac, Scriibe warns you but does not install yet: the tab gives the steps to do by hand. The automatic search (every 6 hours) is unticked at first. That page also explains what goes out on the Internet, which is nothing personal.')}
-      <div class="links">{@render go('Installation', 'install')}{@render go('Log and report', 'journal')}{@render go('Update', 'update')}</div>
+      {@render question('How do I update?', 'Settings → Update: “Check for a new version” tells you whether a version newer than yours is published (version, date, source); no account or token is needed. On Windows, “Install and restart” asks for confirmation, replaces the program and restarts it, keeping the old one alongside; on Mac, Scriibe warns you but does not install yet: the tab gives the steps to do by hand. The automatic search (every 6 hours) is unticked at first. That page also explains what goes out on the Internet, which is nothing personal.')}
+      <div class="links">{@render go('Installation', 'install')}{@render go('Report and log', 'journal')}{@render go('Update', 'update')}</div>
     {/if}
   </section>
 </div>
