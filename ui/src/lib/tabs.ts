@@ -13,7 +13,7 @@ export type MainTab = (typeof tabs)[number]['id'];
 export const settingsTabs = [
   { id: 'dictation', label: 'Dictée', description: 'Les réglages de tous les jours : la touche, le micro, la langue et ce que devient ton texte.' },
   { id: 'engines', label: 'Moteurs', description: 'Où passent ta voix et ton texte, les programmes et les modèles à installer.' },
-  { id: 'appearance', label: 'Apparence', description: 'La langue de l’interface et l’indicateur affiché à l’écran.' },
+  { id: 'appearance', label: 'Apparence', description: 'L’apparence de la fenêtre, la langue de l’interface et l’indicateur affiché à l’écran.' },
   { id: 'modes', label: 'Modes', description: 'Comment le texte est mis au propre : un mode par usage, et les tiens.' },
   { id: 'measures', label: 'Mesures et essais', description: 'Mesurer la vitesse et la qualité, essayer la dictée, et le journal à joindre à un rapport.' },
   { id: 'update', label: 'Mise à jour', description: 'Chercher une version plus récente de Scriibe.' },

@@ -1,6 +1,6 @@
 //! Les réglages propres à Scriibe (absents de Scribe) : appareil et durée de conservation de llama.cpp.
 
-use scriibe_core::settings::{is_device_name, AppSettings, UiLanguage, LLAMA_IDLE_DEFAULT};
+use scriibe_core::settings::{is_device_name, AppSettings, Theme, UiLanguage, LLAMA_IDLE_DEFAULT};
 
 #[test]
 fn llama_options_default_to_scribes_behaviour_and_survive_a_round_trip() {
@@ -34,6 +34,17 @@ fn interface_language_defaults_to_automatic_and_survives_a_round_trip() {
     // Un fichier de Scribe, ou une valeur inconnue, laisse l'automatique.
     assert_eq!(AppSettings::from_json(r#"{"language": "fr"}"#).unwrap().ui_language, UiLanguage::Auto);
     assert_eq!(AppSettings::from_json(r#"{"uiLanguage": "klingon"}"#).unwrap().ui_language, UiLanguage::Auto);
+}
+
+#[test]
+fn the_window_theme_defaults_to_the_system_one_and_survives_a_round_trip() {
+    assert_eq!(AppSettings::default().theme, Theme::Auto);
+    let settings = AppSettings { theme: Theme::Dark, ..AppSettings::default() };
+    let json = serde_json::to_string(&settings).unwrap();
+    assert!(json.contains(r#""theme":"dark""#));
+    assert_eq!(AppSettings::from_json(&json).unwrap().theme, Theme::Dark);
+    assert_eq!(AppSettings::from_json(r#"{"language": "fr"}"#).unwrap().theme, Theme::Auto);
+    assert_eq!(AppSettings::from_json(r#"{"theme": "sepia"}"#).unwrap().theme, Theme::Auto);
 }
 
 #[test]

@@ -86,6 +86,7 @@ export interface Settings {
   translateKeys: string[];
   /** Langue de l'interface : automatique (celle du système), français ou anglais. */
   uiLanguage: 'auto' | 'fr' | 'en';
+  theme: 'auto' | 'light' | 'dark';
   /** Chercher toutes les 6 heures s'il existe une nouvelle version. */
   checkUpdates: boolean;
   captureStyle: 'pill' | 'dot' | 'meter';

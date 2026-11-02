@@ -15,10 +15,13 @@
   import Help from './tabs/Help.svelte';
   import HelpEn from './tabs/HelpEn.svelte';
   import { logotype } from './lib/logotype';
+  import { applyTheme, isDark } from './lib/theme';
   import Dialog from './components/Dialog.svelte';
 
   let stopped = $state(false);
   let logo = $derived(logotype(status.value?.os));
+  let systemDark = $state(false);
+  let dark = $derived(isDark(settings.value?.theme, systemDark));
 
   function choose(id: TabId, anchor?: string) {
     void nav.go(id, anchor);
@@ -40,7 +43,13 @@
     document.documentElement.lang = i18n.lang;
   });
 
+  $effect(() => applyTheme(document.documentElement, settings.value?.theme));
+
   onMount(() => {
+    const scheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const followSystem = () => (systemDark = scheme.matches);
+    followSystem();
+    scheme.addEventListener('change', followSystem);
     status.start();
     void settings.load();
     window.addEventListener('keydown', onKeyDown);
@@ -50,6 +59,7 @@
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
+      scheme.removeEventListener('change', followSystem);
     };
   });
 </script>
@@ -61,10 +71,7 @@
 {:else}
   <div class="shell">
     <nav>
-      <picture class="brand">
-        <source media="(prefers-color-scheme: dark)" srcset={logo.dark} />
-        <img src={logo.light} alt="Scriibe" />
-      </picture>
+      <div class="brand"><img src={dark ? logo.dark : logo.light} alt="Scriibe" /></div>
       {#each tabs as tab (tab.id)}
         <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}</button>
       {/each}

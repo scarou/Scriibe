@@ -294,6 +294,5 @@
   .go { font-size: 0.9rem; }
   .samples { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
   .sample { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  .stagebox { min-width: 150px; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #ececec; }
-  @media (prefers-color-scheme: dark) { .stagebox { background: #3a3a3a; } }
+  .stagebox { min-width: 150px; min-height: 64px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--stage); }
 </style>

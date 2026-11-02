@@ -106,6 +106,16 @@
 
 {#if s && v}
   {#if section === 'appearance'}
+  <Card id="theme" title={t('Apparence de la fenêtre')} intro={t('Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.')}>
+    <label>{t('Apparence :')}
+      <select value={v.theme} onchange={(e) => settings.change({ theme: e.currentTarget.value as never })}>
+        <option value="auto">{t('Automatique (apparence du système)')}</option>
+        <option value="light">{t('Claire')}</option>
+        <option value="dark">{t('Sombre')}</option>
+      </select>
+    </label>
+  </Card>
+
   <Card id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}>
     <label>{t('Langue :')}
       <select value={v.uiLanguage} onchange={(e) => settings.change({ uiLanguage: e.currentTarget.value as never })}>

@@ -148,6 +148,16 @@ pub enum CaptureColor {
     Black,
 }
 
+/// L'apparence de la fenêtre : claire, sombre, ou celle du système (`Auto`, décidée par la page).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    Auto,
+    Light,
+    Dark,
+}
+
 /// La langue des textes de l'interface (pas celle de la dictée ni de la traduction). `Auto` suit celle du système, décidée par la page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -312,6 +322,8 @@ pub struct AppSettings {
     /// Langue de l'interface (S08) : automatique (celle du système), français ou anglais. Propre à Scriibe.
     #[serde(rename = "uiLanguage")]
     pub ui_language: UiLanguage,
+    /// Apparence de la fenêtre : celle du système (par défaut), claire ou sombre. Propre à Scriibe.
+    pub theme: Theme,
     /// Chercher toutes les 6 heures s'il existe une nouvelle version (S12) ; faux (par défaut, décision de Christophe en S13) : seulement le bouton de l'onglet « Mise à jour ». Propre à Scriibe.
     #[serde(rename = "checkUpdates")]
     pub check_updates: bool,
@@ -367,6 +379,7 @@ impl Default for AppSettings {
             dictation_keys: Vec::new(),
             translate_keys: Vec::new(),
             ui_language: UiLanguage::default(),
+            theme: Theme::default(),
             check_updates: false,
         }
     }
@@ -466,6 +479,7 @@ impl AppSettings {
             dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
             translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
             ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
+            theme: get(o, "theme").unwrap_or(d.theme),
             check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
         })
     }
