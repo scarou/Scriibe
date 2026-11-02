@@ -788,16 +788,22 @@ impl Controller {
         if settings.language == scriibe_core::settings::DictationLanguage::Fr && translated.is_none() {
             text = french_typography(&text);
         }
+        // Une sélection active sera remplacée par le texte : il s'écrit alors au milieu d'une phrase, sans majuscule ni point final.
+        let replaces_selection = deps.paster.selection_active();
+        if replaces_selection {
+            text = scriibe_core::inline::inside_a_sentence(&text, &dictionary);
+        }
         // Trace du collage : un Ctrl+V envoyé n'est pas un texte reçu, et sans cette ligne un collage perdu en silence ne laisse rien.
         let focus_at_paste = deps.apps.current();
         let paste_start = deps.clock.now();
         let pasted = deps.paster.paste(&text, settings.restore_clipboard);
         deps.log.write(&format!(
-            "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}",
+            "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}{}",
             text.chars().count(),
             focus_at_paste.name,
             job.target.name,
             seconds(elapsed_since(paste_start)),
+            if replaces_selection { " — sur une sélection (sans majuscule ni point final)" } else { "" },
             match &pasted {
                 PasteOutcome::Pasted => String::new(),
                 PasteOutcome::CopiedOnly(_) => " — copié seulement".to_string(),

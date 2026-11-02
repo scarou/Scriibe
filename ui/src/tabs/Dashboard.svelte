@@ -55,7 +55,6 @@
     <div class="hint">
       <span class="key">{keyName(status.value?.dictation_label ?? 'Ctrl droit')}</span>
       <span>{t('maintenir pour dicter')}</span>
-      <button class="ghost" onclick={openAssistant} title={t('Mesure l’ordinateur et propose les moteurs qui lui conviennent')}>{t('Relancer l’assistant de premier lancement')}</button>
     </div>
   </div>
   <div class="wave" aria-hidden="true">
@@ -127,8 +126,6 @@
   .banner p { margin: 0 0 12px; opacity: .92; }
   .hint { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: .9rem; }
   .key { background: #fff; color: var(--brand-deep); font-weight: 700; padding: 3px 10px; border-radius: 7px; }
-  .ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .55); padding: 3px 12px; font-size: .85rem; }
-  .ghost:hover { border-color: #fff; }
   .wave { display: flex; align-items: center; gap: 6px; height: 90px; flex: none; }
   .wave span { display: block; width: 6px; border-radius: 3px; background: #fff; }
   .head { justify-content: space-between; margin: 0 0 6px; }

@@ -10,6 +10,7 @@ pub mod cleaner;
 pub mod dictionary;
 pub mod history;
 pub mod hotkey;
+pub mod inline;
 pub mod lang;
 pub mod media_pause;
 pub mod microphone;

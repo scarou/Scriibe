@@ -301,6 +301,24 @@ fn a_normal_dictation_is_transcribed_cleaned_pasted_and_recorded() {
 }
 
 #[test]
+fn text_replacing_a_selection_has_no_capital_and_no_final_period() {
+    let r = rig("euh bonjour tout le monde on se voit demain", "Bonjour tout le monde, on se voit demain.");
+    r.paster.set_selection(true);
+    r.dictate();
+    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde, on se voit demain");
+    assert_eq!(r.history.items()[0].final_text, "bonjour tout le monde, on se voit demain", "l'historique garde ce qui a été collé");
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("sur une sélection"), "{log}");
+}
+
+#[test]
+fn without_a_selection_the_text_is_pasted_as_written() {
+    let r = rig("euh bonjour tout le monde on se voit demain", "Bonjour tout le monde, on se voit demain.");
+    r.dictate();
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on se voit demain.");
+}
+
+#[test]
 fn the_history_never_gets_a_key_or_a_wav_in_the_log() {
     let r = rig("bonjour à toute l'équipe ce matin", "Bonjour à toute l'équipe ce matin.");
     r.dictate();

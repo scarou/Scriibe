@@ -61,7 +61,6 @@ export const en: Record<string, string> = {
   'Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.': 'Scriibe is not responding. Start it again from the notification area icon.',
 
   // Tableau de bord
-  'Relancer l’assistant de premier lancement': 'Run the first-launch assistant again',
   'Mesure l’ordinateur et propose les moteurs qui lui conviennent': 'Measures this computer and suggests the engines that suit it',
   '{change} % par rapport à hier à la même heure': '{change}% compared with yesterday at the same time',
   'corrections du dictionnaire cette semaine': 'dictionary corrections this week',

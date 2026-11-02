@@ -90,6 +90,10 @@ fn send_command_v() -> Result<(), String> {
 }
 
 impl Paster for MacPaster {
+    fn selection_active(&self) -> bool {
+        ffi::selection_is_active()
+    }
+
     fn copy(&self, text: &str) -> bool {
         write_text(&self.clipboard, text).is_ok()
     }

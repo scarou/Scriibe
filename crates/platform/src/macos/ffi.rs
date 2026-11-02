@@ -53,6 +53,10 @@ extern "C" {
     pub fn CFRunLoopStop(run_loop: Ref);
     pub fn CFRunLoopAddSource(run_loop: Ref, source: Ref, mode: Ref);
     pub fn CFMachPortCreateRunLoopSource(allocator: Ref, port: Ref, order: isize) -> Ref;
+    pub fn CFStringCreateWithCString(allocator: Ref, text: *const std::ffi::c_char, encoding: u32) -> Ref;
+    pub fn CFStringGetLength(string: Ref) -> isize;
+    pub fn CFStringGetTypeID() -> usize;
+    pub fn CFGetTypeID(object: Ref) -> usize;
 }
 
 #[link(name = "CoreGraphics", kind = "framework")]
@@ -84,6 +88,45 @@ extern "C" {
     pub fn AXIsProcessTrusted() -> bool;
     pub fn AXIsProcessTrustedWithOptions(options: Ref) -> bool;
     pub static kAXTrustedCheckOptionPrompt: Ref;
+    pub fn AXUIElementCreateSystemWide() -> Ref;
+    /// Rend 0 (`kAXErrorSuccess`) et pose dans `value` un objet qu'il faut relâcher.
+    pub fn AXUIElementCopyAttributeValue(element: Ref, attribute: Ref, value: *mut Ref) -> i32;
+}
+
+/// `kCFStringEncodingUTF8`.
+const UTF8: u32 = 0x0800_0100;
+
+/// Une chaîne de CoreFoundation faite d'un texte ASCII (nom d'attribut) ; à relâcher.
+fn cf_string(text: &std::ffi::CStr) -> Owned {
+    // SAFETY : `text` est une chaîne C valide pendant l'appel ; CoreFoundation en copie le contenu.
+    Owned(unsafe { CFStringCreateWithCString(std::ptr::null(), text.as_ptr(), UTF8) })
+}
+
+/// La valeur d'un attribut d'accessibilité de l'élément, si l'appli la donne.
+fn attribute(element: Ref, name: &std::ffi::CStr) -> Option<Owned> {
+    let key = cf_string(name);
+    let mut value: Ref = std::ptr::null();
+    // SAFETY : `element` et `key` sont des objets valides pendant l'appel ; `value` reçoit un objet qu'on possède (relâché par `Owned`).
+    let status = unsafe { AXUIElementCopyAttributeValue(element, key.0, &mut value) };
+    (status == 0 && !value.is_null()).then_some(Owned(value))
+}
+
+/// Un texte est-il sélectionné dans l'élément qui a le focus (toutes applis confondues) ? Faux si l'appli n'expose pas sa sélection
+/// (c'est le cas de bien des applis Electron ou de pages web tant que l'accessibilité n'y est pas activée) ou si l'autorisation manque.
+pub fn selection_is_active() -> bool {
+    // SAFETY : fonction sans paramètre.
+    if !unsafe { AXIsProcessTrusted() } {
+        return false;
+    }
+    // SAFETY : fonction sans paramètre ; l'élément créé est relâché par `Owned`.
+    let system = Owned(unsafe { AXUIElementCreateSystemWide() });
+    if system.0.is_null() {
+        return false;
+    }
+    let Some(focused) = attribute(system.0, c"AXFocusedUIElement") else { return false };
+    let Some(selected) = attribute(focused.0, c"AXSelectedText") else { return false };
+    // SAFETY : `selected` est un objet valide ; on ne lit sa longueur que si c'est bien une chaîne.
+    unsafe { CFGetTypeID(selected.0) == CFStringGetTypeID() && CFStringGetLength(selected.0) > 0 }
 }
 
 /// Demande l'autorisation « Accessibilité » : macOS montre sa fenêtre (avec un bouton vers les Réglages) et ajoute l'appli à la liste. Rend

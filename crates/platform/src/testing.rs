@@ -126,11 +126,12 @@ impl Recorder for FakeRecorder {
 pub struct FakePaster {
     pasted: Mutex<Vec<(String, bool)>>,
     outcome: Mutex<PasteOutcome>,
+    selection: Mutex<bool>,
 }
 
 impl Default for FakePaster {
     fn default() -> Self {
-        Self { pasted: Mutex::new(Vec::new()), outcome: Mutex::new(PasteOutcome::Pasted) }
+        Self { pasted: Mutex::new(Vec::new()), outcome: Mutex::new(PasteOutcome::Pasted), selection: Mutex::new(false) }
     }
 }
 
@@ -142,9 +143,18 @@ impl FakePaster {
     pub fn set_outcome(&self, outcome: PasteOutcome) {
         *lock(&self.outcome) = outcome;
     }
+
+    /// Fait croire qu'un texte est sélectionné dans l'appli active.
+    pub fn set_selection(&self, active: bool) {
+        *lock(&self.selection) = active;
+    }
 }
 
 impl Paster for FakePaster {
+    fn selection_active(&self) -> bool {
+        *lock(&self.selection)
+    }
+
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
         lock(&self.pasted).push((text.to_string(), restore_clipboard));
         lock(&self.outcome).clone()
