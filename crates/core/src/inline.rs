@@ -1,5 +1,5 @@
 //! Texte dicté par-dessus une sélection (S14, propre à Scriibe) : il remplace un mot ou un groupe de mots au milieu d'une phrase, donc
-//! sans majuscule au début ni point à la fin. Les noms propres du dictionnaire, les sigles et les mots comme « iPhone » gardent leur
+//! sans majuscule au début ni point (ni virgule, que Whisper pose quand on s'arrête de parler) à la fin. Les noms propres du dictionnaire, les sigles et les mots comme « iPhone » gardent leur
 //! majuscule ; les autres noms propres (« Paris ») perdent la leur, c'est la limite de la règle.
 
 use crate::dictionary::UserDictionary;
@@ -8,19 +8,22 @@ use crate::dictionary::UserDictionary;
 const OPENERS: &str = "«“\"'‘(¿¡ \u{00A0}\u{202F}";
 
 /// Le texte tel qu'il s'écrit au milieu d'une phrase : première lettre en minuscule (sauf nom du dictionnaire, sigle, « I », « iPhone »…)
-/// et point final retiré (« … » et « ... » restent, ainsi que `?` et `!`).
+/// et point, virgule ou point-virgule final retiré (« … » et « ... » restent, ainsi que `?`, `!` et `:`).
 pub fn inside_a_sentence(text: &str, dictionary: &UserDictionary) -> String {
-    let without_period = strip_final_period(text);
-    lower_first_word(&without_period, dictionary)
+    let without_stop = strip_final_stop(text);
+    lower_first_word(&without_stop, dictionary)
 }
 
-fn strip_final_period(text: &str) -> String {
+fn strip_final_stop(text: &str) -> String {
     let body = text.trim_end();
     let tail = &text[body.len()..];
-    match body.strip_suffix('.') {
-        Some(rest) if !rest.ends_with('.') && !rest.is_empty() => format!("{rest}{tail}"),
-        _ => text.to_string(),
+    let Some(last) = body.chars().last().filter(|c| matches!(c, '.' | ',' | ';')) else { return text.to_string() };
+    let rest = &body[..body.len() - last.len_utf8()];
+    // « ... » reste ; un texte réduit à la ponctuation aussi.
+    if rest.is_empty() || (last == '.' && rest.ends_with('.')) {
+        return text.to_string();
     }
+    format!("{}{tail}", rest.trim_end())
 }
 
 fn lower_first_word(text: &str, dictionary: &UserDictionary) -> String {
@@ -74,6 +77,13 @@ mod tests {
         assert_eq!(fix("Bonjour tout le monde."), "bonjour tout le monde");
         assert_eq!(fix("Demain."), "demain");
         assert_eq!(fix("Je viendrai demain."), "je viendrai demain");
+    }
+
+    #[test]
+    fn a_final_comma_or_semicolon_goes_too() {
+        assert_eq!(fix("Lorsqu'une sélection est active,"), "lorsqu'une sélection est active");
+        assert_eq!(fix("Bonjour ;"), "bonjour");
+        assert_eq!(fix("Voici :"), "voici :");
     }
 
     #[test]

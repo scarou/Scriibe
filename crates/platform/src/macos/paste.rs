@@ -91,7 +91,11 @@ fn send_command_v() -> Result<(), String> {
 
 impl Paster for MacPaster {
     fn selection_active(&self) -> bool {
-        ffi::selection_is_active()
+        ffi::selection_state() == ffi::SelectionState::Active
+    }
+
+    fn selection_report(&self) -> String {
+        ffi::selection_state().describe()
     }
 
     fn copy(&self, text: &str) -> bool {

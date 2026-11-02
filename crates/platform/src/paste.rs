@@ -16,6 +16,11 @@ pub trait Paster: Send + Sync {
     fn selection_active(&self) -> bool {
         false
     }
+    /// Ce que le système dit de la sélection, en quelques mots pour le journal (« active », « aucune », « inconnue (…) ») ; vide si le
+    /// système ne sait pas la lire.
+    fn selection_report(&self) -> String {
+        String::new()
+    }
     /// Met `text` dans le presse-papiers, sans coller (« Copier la dernière dictée »). Faux si le système n'a pas pu.
     fn copy(&self, _text: &str) -> bool {
         false

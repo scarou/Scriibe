@@ -790,6 +790,7 @@ impl Controller {
         }
         // Une sélection active sera remplacée par le texte : il s'écrit alors au milieu d'une phrase, sans majuscule ni point final.
         let replaces_selection = deps.paster.selection_active();
+        let selection_report = deps.paster.selection_report();
         if replaces_selection {
             text = scriibe_core::inline::inside_a_sentence(&text, &dictionary);
         }
@@ -803,7 +804,11 @@ impl Controller {
             focus_at_paste.name,
             job.target.name,
             seconds(elapsed_since(paste_start)),
-            if replaces_selection { " — sur une sélection (sans majuscule ni point final)" } else { "" },
+            match (replaces_selection, selection_report.as_str()) {
+                (true, _) => " — sur une sélection (sans majuscule ni point final)".to_string(),
+                (false, "") => String::new(),
+                (false, report) => format!(" — sélection : {report}"),
+            },
             match &pasted {
                 PasteOutcome::Pasted => String::new(),
                 PasteOutcome::CopiedOnly(_) => " — copié seulement".to_string(),

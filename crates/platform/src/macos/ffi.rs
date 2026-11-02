@@ -102,31 +102,71 @@ fn cf_string(text: &std::ffi::CStr) -> Owned {
     Owned(unsafe { CFStringCreateWithCString(std::ptr::null(), text.as_ptr(), UTF8) })
 }
 
-/// La valeur d'un attribut d'accessibilité de l'élément, si l'appli la donne.
-fn attribute(element: Ref, name: &std::ffi::CStr) -> Option<Owned> {
+/// Ce que l'accessibilité dit de la sélection de l'élément qui a le focus (pour le journal, sans jamais le texte).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SelectionState {
+    Active,
+    Empty,
+    /// L'appli ne donne pas cet élément ou cet attribut : (ce qui manque, code d'erreur d'accessibilité).
+    Unknown(&'static str, i32),
+    NotTrusted,
+}
+
+impl SelectionState {
+    pub fn describe(&self) -> String {
+        match self {
+            Self::Active => "active".into(),
+            Self::Empty => "aucune".into(),
+            Self::Unknown(what, code) => format!("inconnue ({what}, code {code})"),
+            Self::NotTrusted => "inconnue (Accessibilité non autorisée)".into(),
+        }
+    }
+}
+
+/// La valeur d'un attribut d'accessibilité de l'élément, ou le code d'erreur de l'appli.
+fn attribute(element: Ref, name: &std::ffi::CStr) -> Result<Owned, i32> {
     let key = cf_string(name);
     let mut value: Ref = std::ptr::null();
     // SAFETY : `element` et `key` sont des objets valides pendant l'appel ; `value` reçoit un objet qu'on possède (relâché par `Owned`).
     let status = unsafe { AXUIElementCopyAttributeValue(element, key.0, &mut value) };
-    (status == 0 && !value.is_null()).then_some(Owned(value))
+    if status == 0 && !value.is_null() {
+        Ok(Owned(value))
+    } else {
+        Err(if status == 0 { -1 } else { status })
+    }
 }
 
-/// Un texte est-il sélectionné dans l'élément qui a le focus (toutes applis confondues) ? Faux si l'appli n'expose pas sa sélection
-/// (c'est le cas de bien des applis Electron ou de pages web tant que l'accessibilité n'y est pas activée) ou si l'autorisation manque.
-pub fn selection_is_active() -> bool {
+/// Un texte est-il sélectionné dans l'élément qui a le focus (toutes applis confondues) ? « Inconnue » si l'appli n'expose pas sa
+/// sélection (bien des applis Electron ou pages web tant que l'accessibilité n'y est pas activée) ou si l'autorisation manque.
+pub fn selection_state() -> SelectionState {
     // SAFETY : fonction sans paramètre.
     if !unsafe { AXIsProcessTrusted() } {
-        return false;
+        return SelectionState::NotTrusted;
     }
     // SAFETY : fonction sans paramètre ; l'élément créé est relâché par `Owned`.
     let system = Owned(unsafe { AXUIElementCreateSystemWide() });
     if system.0.is_null() {
-        return false;
+        return SelectionState::Unknown("système", -1);
     }
-    let Some(focused) = attribute(system.0, c"AXFocusedUIElement") else { return false };
-    let Some(selected) = attribute(focused.0, c"AXSelectedText") else { return false };
+    let focused = match attribute(system.0, c"AXFocusedUIElement") {
+        Ok(f) => f,
+        Err(code) => return SelectionState::Unknown("élément ayant le focus", code),
+    };
+    let selected = match attribute(focused.0, c"AXSelectedText") {
+        Ok(s) => s,
+        Err(code) => return SelectionState::Unknown("texte sélectionné", code),
+    };
     // SAFETY : `selected` est un objet valide ; on ne lit sa longueur que si c'est bien une chaîne.
-    unsafe { CFGetTypeID(selected.0) == CFStringGetTypeID() && CFStringGetLength(selected.0) > 0 }
+    let is_text = unsafe { CFGetTypeID(selected.0) == CFStringGetTypeID() };
+    if !is_text {
+        return SelectionState::Unknown("type de la sélection", -2);
+    }
+    // SAFETY : voir ci-dessus.
+    if unsafe { CFStringGetLength(selected.0) } > 0 {
+        SelectionState::Active
+    } else {
+        SelectionState::Empty
+    }
 }
 
 /// Demande l'autorisation « Accessibilité » : macOS montre sa fenêtre (avec un bouton vers les Réglages) et ajoute l'appli à la liste. Rend

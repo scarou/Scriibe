@@ -74,6 +74,19 @@ impl Paster for SwitchPaster {
             self.0.paster.paste(text, restore_clipboard)
         }
     }
+
+    // Pendant une capture d'essai rien n'est collé : il n'y a pas de sélection à remplacer.
+    fn selection_active(&self) -> bool {
+        !self.0.capturing() && self.0.paster.selection_active()
+    }
+
+    fn selection_report(&self) -> String {
+        if self.0.capturing() {
+            String::new()
+        } else {
+            self.0.paster.selection_report()
+        }
+    }
 }
 
 pub struct SwitchHistory(pub Arc<TestSinks>);
