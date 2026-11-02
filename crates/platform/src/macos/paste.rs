@@ -93,33 +93,60 @@ fn send_command_v() -> Result<(), String> {
 /// Combien de temps on laisse à l'appli pour copier sa sélection après ⌘C.
 const COPY_WAIT: Duration = Duration::from_millis(150);
 
-impl MacPaster {
-    /// Sonde pour les applis qui n'exposent pas leur sélection à l'Accessibilité (Electron, pages web) : ⌘C, puis on regarde si le
-    /// presse-papiers a changé. Si oui, un texte était sélectionné ; le presse-papiers d'avant est remis tout de suite.
-    fn selection_by_copy(&self) -> bool {
-        let before = read_text(&self.clipboard);
-        wait_for_modifiers_released();
-        std::thread::sleep(Duration::from_millis(40));
-        if post_key(KEY_C, true).is_err() {
+/// Attend (au plus `max`) que le presse-papiers contienne `wanted`.
+fn wait_for_text(slot: &Mutex<Option<Clipboard>>, wanted: &Option<String>, max: Duration) -> bool {
+    let mut waited = Duration::ZERO;
+    loop {
+        if read_text(slot) == *wanted {
+            return true;
+        }
+        if waited >= max {
             return false;
         }
         std::thread::sleep(Duration::from_millis(10));
-        if post_key(KEY_C, false).is_err() {
-            return false;
-        }
+        waited += Duration::from_millis(10);
+    }
+}
+
+impl MacPaster {
+    /// Sonde pour les applis qui n'exposent pas leur sélection à l'Accessibilité (Electron, pages web) : ⌘C, puis on regarde si le
+    /// presse-papiers a changé. Si oui, un texte était sélectionné (on rend sa longueur, jamais son contenu) ; le presse-papiers d'avant
+    /// est remis, et on s'assure que la remise est faite avant de rendre la main : le collage qui suit écrit à son tour, et une écriture de
+    /// l'appli arrivant en retard (Chrome copie en deux temps) ne doit pas passer après la nôtre.
+    fn selection_by_copy(&self) -> Option<usize> {
+        let before = read_text(&self.clipboard);
+        wait_for_modifiers_released();
+        std::thread::sleep(Duration::from_millis(40));
+        post_key(KEY_C, true).ok()?;
+        std::thread::sleep(Duration::from_millis(10));
+        post_key(KEY_C, false).ok()?;
         let mut waited = Duration::ZERO;
         while waited < COPY_WAIT {
             std::thread::sleep(Duration::from_millis(10));
             waited += Duration::from_millis(10);
-            if read_text(&self.clipboard) != before {
-                match before {
-                    Some(saved) => drop(write_text(&self.clipboard, &saved)),
-                    None => drop(with_clipboard(&self.clipboard, |c| c.clear().map_err(|e| e.to_string()))),
-                }
-                return true;
+            let now = read_text(&self.clipboard);
+            if now == before {
+                continue;
             }
+            // L'appli a copié : on la laisse finir (même valeur deux fois de suite), puis on remet l'ancien contenu.
+            let mut copied = now;
+            for _ in 0..10 {
+                std::thread::sleep(Duration::from_millis(15));
+                let again = read_text(&self.clipboard);
+                if again == copied {
+                    break;
+                }
+                copied = again;
+            }
+            match &before {
+                Some(saved) => drop(write_text(&self.clipboard, saved)),
+                None => drop(with_clipboard(&self.clipboard, |c| c.clear().map_err(|e| e.to_string()))),
+            }
+            wait_for_text(&self.clipboard, &before, Duration::from_millis(200));
+            std::thread::sleep(Duration::from_millis(60));
+            return Some(copied.map_or(0, |t| t.chars().count()));
         }
-        false
+        None
     }
 }
 
@@ -129,10 +156,10 @@ impl Paster for MacPaster {
             ffi::SelectionState::Active => Selection { active: true, report: "active".into() },
             ffi::SelectionState::Empty => Selection { active: false, report: "aucune".into() },
             // L'appli ne dit rien : ⌘C d'essai (pas sans l'autorisation d'envoyer des touches).
-            ffi::SelectionState::Unknown(..) => {
-                let active = self.selection_by_copy();
-                Selection { active, report: format!("{} (⌘C d'essai)", if active { "active" } else { "aucune" }) }
-            }
+            ffi::SelectionState::Unknown(..) => match self.selection_by_copy() {
+                Some(len) => Selection { active: true, report: format!("active (⌘C d'essai, {len} signes)") },
+                None => Selection { active: false, report: "aucune (⌘C d'essai)".into() },
+            },
             ffi::SelectionState::NotTrusted => Selection { active: false, report: ffi::SelectionState::NotTrusted.describe() },
         }
     }
@@ -146,6 +173,8 @@ impl Paster for MacPaster {
         if let Err(e) = write_text(&self.clipboard, text) {
             return PasteOutcome::CopiedOnly(e);
         }
+        // Le collage lit le presse-papiers : on s'assure que c'est bien la dictée qu'il contient (0,2 s au plus).
+        wait_for_text(&self.clipboard, &Some(text.to_string()), Duration::from_millis(200));
         if let Err(e) = send_command_v() {
             return PasteOutcome::CopiedOnly(e);
         }
