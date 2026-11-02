@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchesHistory, type HistoryFilter } from './historyfilter';
+import { groupByDay, matchesHistory, type HistoryFilter } from './historyfilter';
 
 const now = new Date(2026, 9, 22, 15, 0);
 const item = (day: number, app = 'Mail', text = 'Bonjour Marie') => ({ date: new Date(2026, 9, day, 9, 30).toISOString(), app, text, raw: text.toLowerCase() });
@@ -33,5 +33,13 @@ describe('filtres de l’historique', () => {
     expect(matchesHistory(item(3, 'Notes'), { ...base, app: 'Mail' }, now)).toBe(false);
     expect(matchesHistory(item(3), { ...base, app: 'Mail', search: 'MARIE bonjour' }, now)).toBe(true);
     expect(matchesHistory(item(3), { ...base, search: 'pierre' }, now)).toBe(false);
+  });
+
+  it('groupe par jour, le plus récent d’abord, et dans un jour la plus récente d’abord', () => {
+    const at = (day: number, hour: number) => ({ date: new Date(2026, 9, day, hour).toISOString(), id: `${day}-${hour}` });
+    const groups = groupByDay([at(20, 9), at(22, 8), at(22, 17), at(20, 18)]);
+    expect(groups.map((g) => g.day)).toEqual(['2026-10-22', '2026-10-20']);
+    expect(groups.map((g) => g.items.map((i) => i.id))).toEqual([['22-17', '22-8'], ['20-18', '20-9']]);
+    expect(groupByDay([])).toEqual([]);
   });
 });

@@ -14,6 +14,9 @@ export const en: Record<string, string> = {
   'Automatique (apparence du système)': 'Automatic (the system appearance)',
   'Claire': 'Light',
   'Sombre': 'Dark',
+  'Hier': 'Yesterday',
+  '{n} dictée(s) · {words} mots': '{n} dictation(s) · {words} words',
+  '{n} mots · {s} s': '{n} words · {s} s',
   'Déplier': 'Expand',
   'Replier': 'Collapse',
   'Apparence': 'Appearance',
@@ -97,7 +100,6 @@ export const en: Record<string, string> = {
   'Gardé sur cet ordinateur seulement.': 'Kept on this computer only.',
   'Chercher dans les textes': 'Search the texts',
   'Toutes les applis': 'All apps',
-  '{date} · {app} · {n} mots · {s} s': '{date} · {app} · {n} words · {s} s',
   ' · traduit en {language}': ' · translated into {language}',
   'Copier': 'Copy',
   'Supprimer': 'Delete',
@@ -113,7 +115,6 @@ export const en: Record<string, string> = {
   'sans limite': 'no limit',
   '{n} jours': '{n} days',
   '1 an': '1 year',
-  'Effacer tout l’historique': 'Erase the whole history',
 
   // Résultat de la mise au propre
   'Modèle': 'Model',
@@ -614,12 +615,8 @@ export const en: Record<string, string> = {
   'Les phrases à lire suivent la langue dictée : {language}.': 'The phrases to read follow the dictation language: {language}.',
   'Changer la langue dictée': 'Change the dictation language',
   // Explications des cartes (S12)
-  'Tout ce que vous dictez s’enregistre ici, sur cet ordinateur. Filtrez par mots clés, par date ou par appli ; les filtres se cumulent.': 'Everything you dictate is saved here, on this computer. Filter by keywords, date or app; filters combine.',
-  'Période :': 'Period:',
   'Tout': 'All',
   'Aujourd’hui': 'Today',
-  '7 derniers jours': 'Last 7 days',
-  '30 derniers jours': 'Last 30 days',
   'Dates choisies': 'Chosen dates',
   'du': 'from',
   'au': 'to',

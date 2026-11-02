@@ -1,14 +1,13 @@
 <script lang="ts">
   import Card from '../components/Card.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
-  import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api, type HistoryItem } from '../lib/api';
-  import { fmt, when } from '../lib/display.svelte';
-  import { t } from '../lib/i18n.svelte';
+  import { fmt } from '../lib/display.svelte';
+  import { i18n, t } from '../lib/i18n.svelte';
   import { outcomeLabels } from '../lib/timings';
   import { settings } from '../lib/settings.svelte';
-  import { matchesHistory, type Period } from '../lib/historyfilter';
+  import { dayKey, groupByDay, matchesHistory, type Period } from '../lib/historyfilter';
 
   let items = $state<HistoryItem[]>([]);
   let apps = $state<string[]>([]);
@@ -24,7 +23,28 @@
   let preview = $state('');
 
   let shown = $derived(items.filter((d) => matchesHistory(d, { period, from, to, app, search }, new Date())));
+  let groups = $derived(groupByDay(shown));
   let filtered = $derived(period !== 'all' || !!app || !!search.trim());
+
+  const periods: { id: Period; label: () => string }[] = [
+    { id: 'today', label: () => t('Aujourd’hui') },
+    { id: '7', label: () => t('{n} jours', { n: 7 }) },
+    { id: '30', label: () => t('{n} jours', { n: 30 }) },
+    { id: 'all', label: () => t('Tout') },
+    { id: 'custom', label: () => t('Dates choisies') },
+  ];
+
+  /** « Aujourd'hui », « Hier », puis « samedi 31 octobre » : le titre d'un jour du groupe. */
+  function dayTitle(key: string): string {
+    const now = new Date();
+    if (key === dayKey(now)) return t('Aujourd’hui');
+    if (key === dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return t('Hier');
+    const [y, m, d] = key.split('-').map(Number);
+    const long = new Date(y, m - 1, d).toLocaleDateString(i18n.locale, { weekday: 'long', day: 'numeric', month: 'long' });
+    return long.charAt(0).toUpperCase() + long.slice(1);
+  }
+
+  const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' });
 
   function resetFilters() {
     period = 'all';
@@ -85,8 +105,13 @@
   });
 </script>
 
-<h1>{t('Historique')}</h1>
-<p class="muted">{t('Gardé sur cet ordinateur seulement.')} {copied}</p>
+<div class="page-head">
+  <div>
+    <h1>{t('Historique')}</h1>
+    <p class="muted">{t('Gardé sur cet ordinateur seulement.')} {copied}</p>
+  </div>
+  <button class="danger" onclick={clearAll} disabled={!items.length}>🗑 {t('Tout effacer')}</button>
+</div>
 
 <Card id="conservation" title={t('Confidentialité de l’historique')} help="privacy" intro={t('Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}>
   <div class="row"><label><input type="checkbox" bind:checked={keepText} onchange={previewChange} /> {t('Garder le texte des dictées (sinon seule la fiche chiffrée reste)')}</label></div>
@@ -101,67 +126,92 @@
   {#if preview}<div class="muted">{preview}</div>{/if}
   <div class="row">
     <button class="primary" onclick={applyChange}>{t('Appliquer')}</button>
-    <button onclick={clearAll}>{t('Effacer tout l’historique')}</button>
   </div>
 </Card>
 
-<section class="card">
-  <p class="muted">{t('Tout ce que vous dictez s’enregistre ici, sur cet ordinateur. Filtrez par mots clés, par date ou par appli ; les filtres se cumulent.')}</p>
-  <div class="row">
-    <input type="text" class="grow" placeholder={t('Chercher dans les textes')} bind:value={search} />
-    <select bind:value={app}>
+<div class="card filters">
+  <div class="filter-bar">
+    <input type="text" class="search" placeholder={t('Chercher dans les textes')} bind:value={search} />
+    <div class="seg" role="group">
+      {#each periods as p (p.id)}
+        <button class:on={period === p.id} aria-pressed={period === p.id} onclick={() => (period = p.id)}>{p.label()}</button>
+      {/each}
+    </div>
+    <select bind:value={app} aria-label={t('Toutes les applis')}>
       <option value="">{t('Toutes les applis')}</option>
       {#each apps as a (a)}<option value={a}>{a}</option>{/each}
     </select>
   </div>
-  <div class="row">
-    <label>{t('Période :')}
-      <select bind:value={period}>
-        <option value="all">{t('Tout')}</option>
-        <option value="today">{t('Aujourd’hui')}</option>
-        <option value="7">{t('7 derniers jours')}</option>
-        <option value="30">{t('30 derniers jours')}</option>
-        <option value="custom">{t('Dates choisies')}</option>
-      </select>
-    </label>
-    {#if period === 'custom'}
-      <label>{t('du')} <input type="date" bind:value={from} max={to || undefined} /></label>
-      <label>{t('au')} <input type="date" bind:value={to} min={from || undefined} /></label>
-    {/if}
-    {#if filtered}
-      <span class="muted">{t('{n} dictée(s) sur {total}', { n: shown.length, total: items.length })}</span>
-      <button onclick={resetFilters}>{t('Tout afficher')}</button>
-    {/if}
-  </div>
-  {#each shown as d (d.id)}
-    <div class="item">
-      <div class="head">
-        <span class="muted">{t('{date} · {app} · {n} mots · {s} s', { date: when(d.date), app: d.app, n: d.words, s: fmt(d.duration) })}{d.translation ? t(' · traduit en {language}', { language: d.translation }) : ''}</span>
-        <span>
-          {#if d.has_text}<button onclick={() => copy(d.text)}>{t('Copier')}</button>{/if}
-          <button onclick={() => remove(d.id)}>{t('Supprimer')}</button>
-        </span>
-      </div>
-      {#if d.has_text}
-        <div class="text">{d.text}</div>
-        {#if d.raw && d.raw !== d.text}<details><summary class="muted">{t('Ce que Whisper a entendu')}</summary><div class="text muted">{d.raw}</div></details>{/if}
-      {:else}
-        <div class="muted">{t('Texte non gardé (réglage « Garder le texte des dictées »).')}</div>
+  {#if period === 'custom' || filtered}
+    <div class="row">
+      {#if period === 'custom'}
+        <label>{t('du')} <input type="date" bind:value={from} max={to || undefined} /></label>
+        <label>{t('au')} <input type="date" bind:value={to} min={from || undefined} /></label>
       {/if}
-      {#if d.mode || d.timing}
-        <div class="muted">
-          {#if d.mode}{t('Mode : {mode}', { mode: t(d.mode) })}{#if d.timing}{' — ' + t(outcomeLabels[d.timing.outcome] ?? d.timing.outcome)}{/if}{/if}
-          {#if d.timing}{d.mode ? ' · ' : ''}{t('transcription {a} s · mise au propre {b} s · total {c} s', { a: fmt(d.timing.transcription), b: fmt(d.timing.cleanup), c: fmt(d.timing.total) })}{/if}
-        </div>
+      {#if filtered}
+        <span class="muted">{t('{n} dictée(s) sur {total}', { n: shown.length, total: items.length })}</span>
+        <button onclick={resetFilters}>{t('Tout afficher')}</button>
       {/if}
     </div>
-  {:else}
-    <p class="muted">{items.length ? t('Aucune dictée ne correspond.') : t('Aucune dictée pour l’instant.')}</p>
-  {/each}
-</section>
+  {/if}
+</div>
+
+{#each groups as g (g.day)}
+  <div class="day">
+    <h2>{dayTitle(g.day)} <span class="muted">{t('{n} dictée(s) · {words} mots', { n: g.items.length, words: g.items.reduce((sum, d) => sum + d.words, 0) })}</span></h2>
+    <div class="card list">
+      {#each g.items as d (d.id)}
+        <div class="item">
+          <span class="muted time">{timeOf(d.date)}</span>
+          <div class="body">
+            <div class="meta"><span class="chip">{d.app}</span> <span class="muted">{t('{n} mots · {s} s', { n: d.words, s: fmt(d.duration) })}{d.translation ? t(' · traduit en {language}', { language: d.translation }) : ''}</span></div>
+            {#if d.has_text}
+              <div class="text">{d.text}</div>
+              {#if d.raw && d.raw !== d.text}<details><summary class="muted">{t('Ce que Whisper a entendu')}</summary><div class="text muted">{d.raw}</div></details>{/if}
+            {:else}
+              <div class="muted">{t('Texte non gardé (réglage « Garder le texte des dictées »).')}</div>
+            {/if}
+            {#if d.mode || d.timing}
+              <div class="muted">
+                {#if d.mode}{t('Mode : {mode}', { mode: t(d.mode) })}{#if d.timing}{' — ' + t(outcomeLabels[d.timing.outcome] ?? d.timing.outcome)}{/if}{/if}
+                {#if d.timing}{d.mode ? ' · ' : ''}{t('transcription {a} s · mise au propre {b} s · total {c} s', { a: fmt(d.timing.transcription), b: fmt(d.timing.cleanup), c: fmt(d.timing.total) })}{/if}
+              </div>
+            {/if}
+          </div>
+          <span class="actions">
+            {#if d.has_text}<button onclick={() => copy(d.text)}>{t('Copier')}</button>{/if}
+            <button onclick={() => remove(d.id)}>{t('Supprimer')}</button>
+          </span>
+        </div>
+      {/each}
+    </div>
+  </div>
+{:else}
+  <p class="muted">{items.length ? t('Aucune dictée ne correspond.') : t('Aucune dictée pour l’instant.')}</p>
+{/each}
 
 <style>
-  .item { padding: 10px 0; border-bottom: 1px solid var(--line); }
-  .head { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .text { white-space: pre-wrap; margin: 4px 0; }
+  .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .page-head p { margin: 0 0 12px; }
+  .danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  .filters { padding: 12px 14px; }
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .search { flex: 1 1 140px; min-width: 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 6px 12px; background: var(--card); }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .day { margin: 18px 0 0; }
+  .day h2 { font-size: 1rem; margin: 0 0 6px 4px; }
+  .day h2 .muted { font-weight: 400; margin-left: 6px; font-size: .85rem; }
+  .list { padding: 4px 14px; }
+  .item { display: flex; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; }
+  .time { width: 46px; flex: none; font-variant-numeric: tabular-nums; padding-top: 2px; }
+  .body { flex: 1; min-width: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip { background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: .78rem; padding: 1px 9px; border-radius: 999px; }
+  .actions { display: flex; gap: 6px; align-items: flex-start; flex: none; }
+  .text { white-space: pre-wrap; margin: 4px 0; overflow-wrap: anywhere; }
+  @media (max-width: 640px) { .item { flex-wrap: wrap; } .actions { width: 100%; } }
 </style>

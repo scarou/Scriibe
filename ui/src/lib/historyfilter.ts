@@ -41,3 +41,13 @@ export function matchesHistory(item: { date: string; app: string; text: string; 
   const haystack = `${item.text} ${item.raw}`.toLowerCase();
   return words.every((w) => haystack.includes(w));
 }
+
+/** Les dictées groupées par jour local, du plus récent au plus ancien (et, dans un jour, la plus récente d'abord), comme l'Historique de Scribe. */
+export function groupByDay<T extends { date: string }>(items: T[]): { day: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  for (const item of [...items].sort((a, b) => b.date.localeCompare(a.date))) {
+    const key = dayKey(new Date(item.date));
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  return [...groups].map(([day, list]) => ({ day, items: list }));
+}
