@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
@@ -41,17 +42,13 @@
   });
 </script>
 
-<h1>{t('Journal et rapport')}</h1>
-
-<section class="card">
-  <h2>{t('Dictée avec la touche, dans une vraie appli')}</h2>
+<Card id="journal-dictee-avec-la-touche-dans-une-vraie-app" title={t('Dictée avec la touche, dans une vraie appli')}>
   <p>{t('Ouvrez le Bloc-notes, maintenez Ctrl droit, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.')}</p>
   <div class="muted">{t('Journal en direct (une ligne par étape, jamais le texte dicté) :')}</div>
   <pre bind:this={logBox}>{lines.join('\n') || t('(vide)')}</pre>
-</section>
+</Card>
 
-<section class="card">
-  <h2>{t('Rapport à me coller')} <HelpButton section="measures" /></h2>
+<Card id="journal-rapport-a-me-coller" title={t('Rapport à me coller')} help="measures">
   <div class="row"><button class="primary" onclick={copy}>{t('Copier le rapport')}</button><span class="muted">{copied}</span></div>
   <pre>{report || t('Faites quelques essais, puis cliquez sur « Copier le rapport ».')}</pre>
-</section>
+</Card>

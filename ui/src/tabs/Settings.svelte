@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import { notice } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { api } from '../lib/api';
@@ -10,6 +11,9 @@
   import { t, tx } from '../lib/i18n.svelte';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
+
+  /** L'onglet des Réglages dont cette page montre les cartes (SettingsPage choisit). */
+  let { section }: { section: 'dictation' | 'engines' | 'appearance' } = $props();
 
   let s = $derived(status.value);
   let v = $derived(settings.value);
@@ -100,12 +104,9 @@
   });
 </script>
 
-<h1>{t('Réglages')}</h1>
-
 {#if s && v}
-  <section class="card" id="langue">
-    <h2>{t('Langue de l’interface')}</h2>
-    <p class="muted">{t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}</p>
+  {#if section === 'appearance'}
+  <Card id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}>
     <label>{t('Langue :')}
       <select value={v.uiLanguage} onchange={(e) => settings.change({ uiLanguage: e.currentTarget.value as never })}>
         <option value="auto">{t('Automatique (celle du système)')}</option>
@@ -113,11 +114,11 @@
         <option value="en">English</option>
       </select>
     </label>
-  </section>
+  </Card>
+  {/if}
 
-  <section class="card" id="moteurs">
-    <h2>{t('Moteurs')} <HelpButton section="privacy" /></h2>
-    <p class="muted">{t('Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}</p>
+  {#if section === 'engines'}
+  <Card id="moteurs" title={t('Moteurs')} help="privacy" intro={t('Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}>
     <p class="summary"><b>{t('Ce qui tourne quand vous dictez :')}</b>
       {t('transcription')} {v.transcriptionEngine === 'whisper' ? t('Local') : t('Cloud')}
       · {t('mise au propre')} {v.cleanupEngine === 'none' ? t('aucune') : v.cleanupEngine === 'openRouter' ? t('Cloud') : t('Local')}</p>
@@ -232,27 +233,30 @@
         </label>
       </div>
     {/if}
-  </section>
+  </Card>
+  {/if}
 
-  <section class="card" id="dictee">
-    <h2>{t('Dictée')} <HelpButton section="dictate" /></h2>
-    <p class="muted">{t('Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.')}</p>
+  {#if section === 'dictation'}
+  <Card id="dictee" title={t('Dictée')} help="dictate" intro={t('Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.')}>
     <KeyPicker />
-    <div class="row">
+    <div class="setting">
       <label>{t('Langue dictée :')}
         <select value={v.language} onchange={(e) => settings.change({ language: e.currentTarget.value as never })}>
           {#each languages as l (l.id)}<option value={l.id}>{t(l.label)}</option>{/each}
         </select>
       </label>
+    </div>
+    <div class="setting">
       <label>{t('Traduire vers :')}
         <select value={v.translationLanguage} onchange={(e) => settings.change({ translationLanguage: e.currentTarget.value as never })}>
           {#each translations as l (l.id)}<option value={l.id}>{t(l.label)}</option>{/each}
         </select>
       </label>
     </div>
-    <div class="row">
+    <div class="settings-group">
       {#each [{ key: 'startSoundName', label: tx('Son au début') }, { key: 'endSoundName', label: tx('Son à la fin') }] as snd (snd.key)}
         {@const current = String(v[snd.key] ?? 'Aucun')}
+        <div class="setting">
         <label>{t(snd.label)} :
           <select value={current} onchange={(e) => { void settings.change({ [snd.key]: e.currentTarget.value }); playSound(e.currentTarget.value); }}>
             <option value="Aucun">{t('Aucun')}</option>
@@ -260,15 +264,16 @@
           </select>
         </label>
         <button onclick={() => playSound(current)} disabled={current === 'Aucun'} title={t('Écouter')}>▶</button>
+        </div>
       {/each}
     </div>
-    <div class="row">
+    <div class="setting">
       <label>{t('Volume des sons :')}
         <input type="range" min="0.05" max="1" step="0.05" value={v.soundVolume} onchange={async (e) => { await settings.change({ soundVolume: Number(e.currentTarget.value) }); playSound(String(v.startSoundName)); }} />
         {Math.round(v.soundVolume * 100)} %
       </label>
     </div>
-    <div class="row">
+    <div class="setting">
       <label>{t('Micro :')}
         <select value={v.microphoneUID} onchange={(e) => settings.change({ microphoneUID: e.currentTarget.value })}>
           <option value="">{t('Celui du système')}</option>
@@ -276,23 +281,28 @@
         </select>
       </label>
     </div>
-    <div class="row">
+    <div class="setting">
       <label><input type="checkbox" checked={v.pauseMedia} onchange={(e) => settings.change({ pauseMedia: e.currentTarget.checked })} />
         {t('Mettre en pause la musique ou la vidéo pendant la dictée')}</label>
     </div>
-    <div class="row">
+    <div class="setting">
       <label><input type="checkbox" checked={v.restoreClipboard} onchange={(e) => settings.change({ restoreClipboard: e.currentTarget.checked })} />
         {t('Remettre le presse-papiers d’avant après le collage')}</label>
     </div>
+  </Card>
+  {/if}
+
+  {#if section === 'dictation'}
+  <Card id="texte" title={t('Ce que devient ton texte')} intro={t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (onglet Modes). Le moteur de cette mise au propre se choisit dans l’onglet Moteurs.')}>
     <div class="row">
       <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
         {t('Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)')}</label>
     </div>
-  </section>
+  </Card>
+  {/if}
 
-  <section class="card" id="indicateur">
-    <h2>{t('Apparence de l’indicateur')} <HelpButton section="indicator" /></h2>
-    <p class="muted">{t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}</p>
+  {#if section === 'appearance'}
+  <Card id="indicateur" title={t('Apparence de l’indicateur')} help="indicator" intro={t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}>
     <div class="row">
       <label><input type="checkbox" checked={v.overlayEnabled} onchange={(e) => settings.change({ overlayEnabled: e.currentTarget.checked })} />
         {t('Afficher la pastille à l’écran (bêta)')}</label>
@@ -321,11 +331,11 @@
       </label>
       <button onclick={() => api('overlay/preview', {})} disabled={!v.overlayEnabled}>{t('Aperçu')}</button>
     </div>
-  </section>
+  </Card>
+  {/if}
 
-  <section class="card" id="cles">
-    <h2>{t('Clés du cloud (dépannage)')} <HelpButton section="privacy" /></h2>
-    <p class="muted">{t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}</p>
+  {#if section === 'engines'}
+  <Card id="cles" title={t('Clés du cloud (dépannage)')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
     <p class="muted">{t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}
@@ -336,16 +346,23 @@
         <button onclick={() => saveKey(id)} disabled={!keyInput[id]}>{t('Enregistrer')}</button>
       </div>
     {/each}
-  </section>
+  </Card>
+  {/if}
 
-  <section class="card">
-    <h2>{t('Emplacements')}</h2>
+  {#if section === 'engines'}
+  <Card id="reglages-emplacements" title={t('Emplacements')}>
     <div class="muted">{t('Réglages : {path}', { path: s.paths.settings })}<br />{t('Modèles : {path}', { path: s.paths.models })}<br />{t('Journal : {path}', { path: s.paths.log })}</div>
-  </section>
+  </Card>
+  {/if}
 {:else}
   <p class="muted">{t('Chargement…')}</p>
 {/if}
 
 <style>
+  /* Une ligne de réglage comme dans Scribe : le libellé à gauche, la commande à droite, un filet entre deux lignes. */
+  .setting { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .setting label { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .setting label:has(input[type='checkbox']) { justify-content: flex-start; }
+  .settings-group { display: contents; }
   .summary { margin: 4px 0 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 </style>

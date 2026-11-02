@@ -86,6 +86,48 @@ fn probe_gpus() -> Option<Vec<Gpu>> {
     None
 }
 
+/// Le prénom du bandeau d'accueil : le premier mot du nom complet du compte, à défaut l'identifiant de connexion (première lettre en
+/// majuscule). Vide si le système ne dit rien.
+pub fn first_name_from(full_name: &str, login: &str) -> String {
+    let word = |text: &str| text.split_whitespace().next().unwrap_or("").to_string();
+    let name = match word(full_name) {
+        w if !w.is_empty() => w,
+        _ => word(login),
+    };
+    let mut letters = name.chars();
+    letters.next().map(|first| first.to_uppercase().chain(letters).collect()).unwrap_or_default()
+}
+
+fn account_full_name(login: &str) -> String {
+    let run = |program: &str, args: &[&str]| {
+        std::process::Command::new(program)
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+    };
+    if cfg!(target_os = "macos") {
+        run("id", &["-F"]).unwrap_or_default()
+    } else if cfg!(target_os = "linux") {
+        // « login:x:1000:1000:Nom complet,,,:/home/login:/bin/bash »
+        run("getent", &["passwd", login])
+            .and_then(|line| line.split(':').nth(4).map(|f| f.split(',').next().unwrap_or("").to_string()))
+            .unwrap_or_default()
+    } else {
+        String::new()
+    }
+}
+
+/// Le prénom de la personne qui utilise l'ordinateur (calculé une fois).
+pub fn first_name() -> &'static str {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        let login = std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_default();
+        first_name_from(&account_full_name(&login), &login)
+    })
+}
+
 pub fn probe() -> MachineInfo {
     let mut system = sysinfo::System::new();
     system.refresh_memory();
@@ -114,6 +156,14 @@ mod tests {
         assert_eq!(gpus[0].vram_bytes, Some(2 * GIB));
         assert_eq!(gpus[1].vram_bytes, None);
         assert_eq!(gpus[2].name, "NVIDIA GeForce RTX 3060");
+    }
+
+    #[test]
+    fn the_first_name_comes_from_the_full_name_then_from_the_login() {
+        assert_eq!(first_name_from("Christophe Campain", "christophecampain"), "Christophe");
+        assert_eq!(first_name_from("  marie-claire  Dupont", "mcd"), "Marie-claire");
+        assert_eq!(first_name_from("", "scarou"), "Scarou");
+        assert_eq!(first_name_from("", ""), "");
     }
 
     #[test]

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import { confirmBox, notice } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
@@ -61,10 +62,8 @@
   });
 </script>
 
-<h1>{t('Mise à jour de Scriibe')}</h1>
-
 {#if u}
-  <section class="card">
+  <Card id="update-version" title={t('Version de Scriibe')}>
     <div class="muted">
       {t('Version installée : {version}', { version: u.current })}{u.windows ? '' : t(' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore')}
     </div>
@@ -113,9 +112,8 @@
     {:else if u.progress.state === 'failed'}
       <div class="bad">{t('Échec : {error}', { error: u.progress.error ?? '' })}</div>
     {/if}
-  </section>
-  <section class="card guide">
-    <h2>{t('Comment ça marche ?')}</h2>
+  </Card>
+  <Card id="update-guide" folded title={t('Comment ça marche ?')}>
     <p>{t('Scriibe est amélioré de temps en temps. Cette page dit si une version plus récente que la tienne existe. Rien n’est jamais changé sans que tu le demandes.')}</p>
     <ul>
       <li><b>{t('Version installée')}</b> — {t('c’est le numéro de la version que tu utilises (par exemple 0.1.0). Il sert à la comparer avec la dernière version publiée.')}</li>
@@ -144,5 +142,5 @@
       <p class="muted">{t('Première installation sur un Mac, avec toutes les étapes (avertissement de macOS, autorisations, moteurs) : fichier docs/INSTALLATION_MACOS.md du dépôt GitHub.')}</p>
     {/if}
     <p class="muted">{t('Si la recherche échoue, le message dit pourquoi (pas de connexion, GitHub qui limite les demandes…). Le Journal note les vérifications qui échouent ou qui trouvent une version.')}</p>
-  </section>
+  </Card>
 {/if}

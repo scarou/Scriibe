@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import { confirmBox, notice } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
@@ -93,10 +94,7 @@
   );
 </script>
 
-<h1>{t('Installation')}</h1>
-
-<section class="card">
-  <h2>{t('État de l’installation')} <HelpButton section="start" /></h2>
+<Card id="install-etat-de-linstallation" title={t('État de l’installation')} help="start">
   <table>
     <tbody>
       {#each rows as r (r.label)}
@@ -104,7 +102,7 @@
       {/each}
     </tbody>
   </table>
-</section>
+</Card>
 
 {#snippet offer(it: Item)}
   {@const p = it.progress}
@@ -128,19 +126,15 @@
   </div>
 {/snippet}
 
-<section class="card">
-  <h2>{t('Les programmes')}</h2>
-  <p class="muted">{t('Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}</p>
+<Card id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
   {#each items.filter((i) => i.kind === 'program') as it (it.id)}{@render offer(it)}{/each}
-</section>
+</Card>
 
 <InstalledModels />
 
-<section class="card">
-  <h2>{t('Modèles recommandés')}</h2>
-  <p class="muted">{t('Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.')}</p>
+<Card id="install-modeles-recommandes" title={t('Modèles recommandés')} intro={t('Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.')}>
   {#each items.filter((i) => i.kind !== 'program') as it (it.id)}{@render offer(it)}{/each}
-</section>
+</Card>
 
 <HubSearch {chosen} download={downloadChosen} />
 

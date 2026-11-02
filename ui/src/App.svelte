@@ -8,13 +8,8 @@
   import { i18n, keyName, t } from './lib/i18n.svelte';
   import { settings } from './lib/settings.svelte';
   import { tabs, type TabId } from './lib/tabs';
-  import Settings from './tabs/Settings.svelte';
-  import Install from './tabs/Install.svelte';
-  import Bench from './tabs/Bench.svelte';
-  import Update from './tabs/Update.svelte';
-  import Journal from './tabs/Journal.svelte';
+  import SettingsPage from './tabs/SettingsPage.svelte';
   import Dictionary from './tabs/Dictionary.svelte';
-  import Modes from './tabs/Modes.svelte';
   import History from './tabs/History.svelte';
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
@@ -89,14 +84,9 @@
       {/if}
       {#if nav.tab === 'dashboard'}<Dashboard goto={choose} />
       {:else if nav.tab === 'history'}<History />
-      {:else if nav.tab === 'modes'}<Modes />
       {:else if nav.tab === 'dictionary'}<Dictionary />
       {:else if nav.tab === 'help'}{#if i18n.lang === 'en'}<HelpEn />{:else}<Help />{/if}
-      {:else if nav.tab === 'settings'}<Settings />
-      {:else if nav.tab === 'install'}<Install />
-      {:else if nav.tab === 'bench'}<Bench />
-      {:else if nav.tab === 'update'}<Update />
-      {:else}<Journal />{/if}
+      {:else}<SettingsPage />{/if}
     </main>
   </div>
 {/if}
@@ -107,7 +97,7 @@
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.2rem; padding: 4px 10px 12px; color: var(--brand); }
   .nav { text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .nav:hover { background: var(--line); }
-  .nav.active { background: var(--accent); color: var(--accent-ink); }
+  .nav.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .icon { display: inline-block; width: 1.6em; }
   .spacer { flex: 1; }
   .state { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: .82rem; color: var(--muted); }

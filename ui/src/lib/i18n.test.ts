@@ -6,12 +6,12 @@ import { enServer } from './locales/en-server';
 // Le texte de tous les fichiers de la page (sauf les tests et les traductions), lu tel quel.
 const files = import.meta.glob(['../**/*.svelte', '../**/*.ts', '!../**/*.test.ts', '!../lib/locales/*'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
-/** Les textes français passés à `t('…')` dans la page, plus les libellés des onglets (`label: '…'`, traduits par `t(tab.label)`). */
+/** Les textes français passés à `t('…')` dans la page, plus les libellés et descriptions des onglets (`label: '…'`, `description: '…'`, traduits par `t(tab.label)`). */
 function usedKeys(): Set<string> {
   const keys = new Set<string>();
   for (const [file, text] of Object.entries(files)) {
     for (const m of text.matchAll(/(?<![\w.$])tx?\(\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(m[1].replace(/\\'/g, "'"));
-    if (file.endsWith('/tabs.ts')) for (const m of text.matchAll(/label:\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(m[1]);
+    if (file.endsWith('/tabs.ts')) for (const m of text.matchAll(/(?:label|description):\s*'((?:[^'\\]|\\.)*)'/g)) keys.add(m[1]);
   }
   return keys;
 }

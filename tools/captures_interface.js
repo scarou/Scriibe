@@ -34,6 +34,16 @@ const fs = require('fs');
     const file = `${out}/${label.replace(/[^a-z0-9]/gi, '_')}.png`;
     await page.screenshot({ path: file, fullPage: true });
     console.log(file);
+    // Les Réglages ont des onglets : un cliché par onglet.
+    if (label === 'Réglages') {
+      for (const pill of await page.$$eval('.pills button', (bs) => bs.map((b) => b.textContent.trim().replace(/[●\s]+$/, '')))) {
+        await page.click(`.pills button:has-text("${pill}")`);
+        await page.waitForTimeout(500);
+        const f = `${out}/Reglages_${pill.replace(/[^a-z0-9]/gi, '_')}.png`;
+        await page.screenshot({ path: f, fullPage: true });
+        console.log(f);
+      }
+    }
   }
   console.log(errors.length ? errors.join('\n') : 'aucune erreur dans la page');
   await browser.close();

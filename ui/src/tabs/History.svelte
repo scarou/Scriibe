@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
@@ -87,6 +88,23 @@
 <h1>{t('Historique')}</h1>
 <p class="muted">{t('Gardé sur cet ordinateur seulement.')} {copied}</p>
 
+<Card id="conservation" title={t('Confidentialité de l’historique')} help="privacy" intro={t('Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}>
+  <div class="row"><label><input type="checkbox" bind:checked={keepText} onchange={previewChange} /> {t('Garder le texte des dictées (sinon seule la fiche chiffrée reste)')}</label></div>
+  <div class="row">
+    <label>{t('Garder l’historique :')}
+      <select value={keepDays === null ? '' : String(keepDays)} onchange={(e) => { keepDays = e.currentTarget.value === '' ? null : Number(e.currentTarget.value); void previewChange(); }}>
+        <option value="">{t('sans limite')}</option>
+        <option value="2">{t('{n} jours', { n: 2 })}</option><option value="7">{t('{n} jours', { n: 7 })}</option><option value="14">{t('{n} jours', { n: 14 })}</option><option value="30">{t('{n} jours', { n: 30 })}</option><option value="90">{t('{n} jours', { n: 90 })}</option><option value="365">{t('1 an')}</option>
+      </select>
+    </label>
+  </div>
+  {#if preview}<div class="muted">{preview}</div>{/if}
+  <div class="row">
+    <button class="primary" onclick={applyChange}>{t('Appliquer')}</button>
+    <button onclick={clearAll}>{t('Effacer tout l’historique')}</button>
+  </div>
+</Card>
+
 <section class="card">
   <p class="muted">{t('Tout ce que vous dictez s’enregistre ici, sur cet ordinateur. Filtrez par mots clés, par date ou par appli ; les filtres se cumulent.')}</p>
   <div class="row">
@@ -140,25 +158,6 @@
   {:else}
     <p class="muted">{items.length ? t('Aucune dictée ne correspond.') : t('Aucune dictée pour l’instant.')}</p>
   {/each}
-</section>
-
-<section class="card" id="conservation">
-  <h2>{t('Confidentialité de l’historique')} <HelpButton section="privacy" /></h2>
-  <p class="muted">{t('Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}</p>
-  <div class="row"><label><input type="checkbox" bind:checked={keepText} onchange={previewChange} /> {t('Garder le texte des dictées (sinon seule la fiche chiffrée reste)')}</label></div>
-  <div class="row">
-    <label>{t('Garder l’historique :')}
-      <select value={keepDays === null ? '' : String(keepDays)} onchange={(e) => { keepDays = e.currentTarget.value === '' ? null : Number(e.currentTarget.value); void previewChange(); }}>
-        <option value="">{t('sans limite')}</option>
-        <option value="2">{t('{n} jours', { n: 2 })}</option><option value="7">{t('{n} jours', { n: 7 })}</option><option value="14">{t('{n} jours', { n: 14 })}</option><option value="30">{t('{n} jours', { n: 30 })}</option><option value="90">{t('{n} jours', { n: 90 })}</option><option value="365">{t('1 an')}</option>
-      </select>
-    </label>
-  </div>
-  {#if preview}<div class="muted">{preview}</div>{/if}
-  <div class="row">
-    <button class="primary" onclick={applyChange}>{t('Appliquer')}</button>
-    <button onclick={clearAll}>{t('Effacer tout l’historique')}</button>
-  </div>
 </section>
 
 <style>

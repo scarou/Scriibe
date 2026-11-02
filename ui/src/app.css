@@ -1,27 +1,27 @@
 :root {
   --bg: #f5f6f8; --card: #ffffff; --ink: #1c2230; --muted: #667085; --line: #dfe3ea;
   --accent: #2f6fed; --accent-ink: #ffffff; --ok: #1a8a4a; --bad: #c43434; --warn: #b7791f; --rec: #d12f2f;
-  --side: #eceff4;
+  --side: #eceff4; --accent-soft: #e4ecff;
   /* La couleur de la marque, selon le système (voir logo/LISEZMOI.md) : bleu pour Windows, turquoise pour macOS, violet pour Linux. */
   --brand-bright: #5b97f7; --brand: #2f6fed; --brand-deep: #2257c7;
 }
-:root[data-os='macos'] { --accent: #00968d; --brand-bright: #3fd6cb; --brand: #00b8ad; --brand-deep: #009c93; }
-:root[data-os='linux'] { --accent: #7b52e0; --brand-bright: #9b7bf2; --brand: #7b52e0; --brand-deep: #5e3cc0; }
+:root[data-os='macos'] { --accent: #00968d; --accent-soft: #dff3f1; --brand-bright: #3fd6cb; --brand: #00b8ad; --brand-deep: #009c93; }
+:root[data-os='linux'] { --accent: #7b52e0; --accent-soft: #ece6fb; --brand-bright: #9b7bf2; --brand: #7b52e0; --brand-deep: #5e3cc0; }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171d; --card: #1d222b; --ink: #e8ebf0; --muted: #9aa3b2; --line: #2e3542;
     --accent: #5b8cff; --accent-ink: #0b1020; --ok: #4cc77f; --bad: #ff7a7a; --warn: #e6b25a; --rec: #ff5c5c;
-    --side: #181c23;
+    --side: #181c23; --accent-soft: #232c45;
   }
-  :root[data-os='macos'] { --accent: #2dd4c8; }
-  :root[data-os='linux'] { --accent: #a58bf5; }
+  :root[data-os='macos'] { --accent: #2dd4c8; --accent-soft: #17332f; }
+  :root[data-os='linux'] { --accent: #a58bf5; --accent-soft: #2a2442; }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, 'Segoe UI', sans-serif; }
 h1 { font-size: 1.35rem; margin: 0 0 12px; }
 h2 { font-size: 1.05rem; margin: 0 0 8px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin: 0 0 14px; box-shadow: 0 1px 3px rgba(20, 30, 50, .05); }
 .muted { color: var(--muted); font-size: .9rem; }
 .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
 button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 14px; cursor: pointer; }

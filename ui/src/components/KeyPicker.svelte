@@ -172,13 +172,14 @@
     <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>{t('Rétablir {keys}', { keys: keyName(`${s.default_dictation_label} + ${s.default_translate_label}`) })}</button>
     {#if detected}<span class="ok">{t('✔ Touche reconnue : Scriibe écoute ({key}).', { key: keyName(s.dictation_label) })}</span>{:else if testing}<span class="muted">{mac ? t('Passe dans TextEdit (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) }) : t('Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) })}</span>{/if}
   </div>
-  <p class="muted">
+  <details class="muted">
+    <summary>{t('Quelles touches choisir ?')}</summary>
     {#if mac}
       {t('Une combinaison se tient en entier (par exemple Option gauche + F9) : l’une des touches seule ne fait rien. Les touches Option, Commande (⌘), Fn, Ctrl, Maj, les touches de fonction (F1 à F20), Début, Fin, Page préc. et Page suiv. sont possibles ; les lettres, chiffres, Espace, Entrée et les flèches ne le sont pas. Sur la plupart des Mac, F1 à F12 demandent Fn en plus, sauf si les « touches de fonction standard » sont activées. Une touche ordinaire de la combinaison (F9…) n’est pas retenue : l’appli active la reçoit aussi.')}
     {:else}
       {t('Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.')}
     {/if}
-  </p>
+  </details>
 {/if}
 
 <style>

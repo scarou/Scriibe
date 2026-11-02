@@ -17,6 +17,8 @@ export interface Status {
   windows: boolean;
   /** « windows », « macos » ou « linux » : choisit la couleur de la marque. */
   os: string;
+  /** Le prénom du compte, pour le bandeau d'accueil (vide si inconnu). */
+  first_name: string;
   recording: boolean;
   busy: boolean;
   keys_error: string | null;

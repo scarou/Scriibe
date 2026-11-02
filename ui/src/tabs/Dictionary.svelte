@@ -1,7 +1,8 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
-  import { api, type Dictionary } from '../lib/api';
+  import { api, type Dictionary, type Stats } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
   import { t, tx } from '../lib/i18n.svelte';
 
@@ -13,6 +14,7 @@
   let saved = $state('');
   let loaded = false;
   let signs = $state<{ said: string; written: string }[]>([]);
+  let weekCorrections = $state(0);
   let v = $derived(settings.value);
 
   const bullets = [
@@ -70,6 +72,7 @@
 
   onMount(() => {
     void settings.load();
+    void api<Stats>('stats').then((r) => (weekCorrections = r.corrections_this_week));
     void api<{ signs: { said: string; written: string }[] }>('signs').then((out) => (signs = out.signs));
     void api<Dictionary>('dictionary').then((d) => {
       apply(d);
@@ -82,25 +85,28 @@
 <h1>{t('Dictionnaire')}</h1>
 <p class="muted">{t('Ce que Scriibe écrit exactement, même quand Whisper l’entend autrement.')} {saved}</p>
 
-<section class="card">
-  <h2>{t('Mots à écrire exactement')} <HelpButton section="dictionary" /></h2>
-  <p class="muted">{t('Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.')}</p>
+<div class="card figures">
+  <div><b>{words.length}</b> <span class="muted">{t('mots dans ton dictionnaire')}</span></div>
+  <div><b>{weekCorrections}</b> <span class="muted">{t('corrections du dictionnaire cette semaine')}</span></div>
+</div>
+
+<div class="two">
+
+<Card id="dictionary-mots-a-ecrire-exactement" title={t('Mots à écrire exactement')} help="dictionary" intro={t('Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.')}>
   <div class="row">
     <input type="text" class="grow" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
     <button onclick={addWord} disabled={!newWord.trim()}>{t('Ajouter')}</button>
   </div>
-  <div class="chips">
+  <div class="chips scroll">
     {#each words as w, i (w + i)}
       <span class="chip">{w}<button class="x" title={t('Retirer')} onclick={() => { words = words.filter((_, j) => j !== i); changed(); }}>×</button></span>
     {:else}
       <span class="muted">{t('Aucun mot pour l’instant.')}</span>
     {/each}
   </div>
-</section>
+</Card>
 
-<section class="card">
-  <h2>{t('Corrections « entendu → écrit »')} <HelpButton section="dictionary" /></h2>
-  <p class="muted">{t('Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.')}</p>
+<Card id="dictionary-corrections-entendu-ecrit" title={t('Corrections « entendu → écrit »')} help="dictionary" intro={t('Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.')}>
   <div class="row">
     <input type="text" class="grow" placeholder={t('Entendu')} bind:value={heard} />
     <span>→</span>
@@ -108,7 +114,7 @@
     <button onclick={addCorrection} disabled={!heard.trim() || !written.trim()}>{t('Ajouter')}</button>
   </div>
   {#if corrections.length}
-    <table>
+    <div class="scroll"><table>
       <tbody>
         {#each corrections as c, i (c.heard + '→' + c.written + i)}
           <tr>
@@ -117,15 +123,15 @@
           </tr>
         {/each}
       </tbody>
-    </table>
+    </table></div>
   {:else}
     <span class="muted">{t('Aucune correction pour l’instant.')}</span>
   {/if}
-</section>
+</Card>
 
-<section class="card">
-  <h2>{t('Signes dictés')} <HelpButton section="dictionary" /></h2>
-  <p class="muted">{t('Toujours reconnus, avec leurs variantes (« ouvre » ou « ouvrez », « ferme » ou « fermez la parenthèse », « retour » ou « passe à la ligne »…). Pour un signe à toi, ajoute une correction : « trois points d’exclamation » → !!!')}</p>
+</div>
+
+<Card id="dictionary-signes-dictes" title={t('Signes dictés')} help="dictionary" intro={t('Toujours reconnus, avec leurs variantes (« ouvre » ou « ouvrez », « ferme » ou « fermez la parenthèse », « retour » ou « passe à la ligne »…). Pour un signe à toi, ajoute une correction : « trois points d’exclamation » → !!!')}>
   <div class="chips">
     {#each signs as sign (sign.said)}
       <span class="sign">{sign.said} → <b>{shown(sign.written)}</b></span>
@@ -147,9 +153,15 @@
       </label>
     </div>
   {/if}
-</section>
+</Card>
 
 <style>
+  .figures { display: flex; gap: 32px; flex-wrap: wrap; padding: 12px 18px; }
+  .figures b { font-size: 1.5rem; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+  /* Au-delà d'une quinzaine d'entrées, la liste défile dans sa carte au lieu d'allonger la page. */
+  .scroll { max-height: 17rem; overflow-y: auto; padding-right: 6px; }
   .sign { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   h3 { margin: 14px 0 4px; font-size: 1rem; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }

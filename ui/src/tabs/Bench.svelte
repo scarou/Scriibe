@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import { notice } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
@@ -137,10 +138,7 @@
   });
 </script>
 
-<h1>{t('Banc d’essai')}</h1>
-
-<section class="card">
-  <h2>{t('Banc de dictée (les 17 phrases de Scribe)')} <HelpButton section="measures" /></h2>
+<Card id="bench-banc-de-dictee-les-17-phrases-de-scribe" title={t('Banc de dictée (les 17 phrases de Scribe)')} help="measures">
   <p class="muted">
     {t('Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.')}
   </p>
@@ -217,11 +215,10 @@
       {/if}
     </div>
   {/if}
-</section>
+</Card>
 
 {#if bench.results.length}
-  <section class="card">
-    <h2>{t('Ce passage')}</h2>
+  <Card id="bench-ce-passage" title={t('Ce passage')}>
     <div class="muted">{bench.results[0].setup.transcription} · {bench.results[0].setup.cleanup} · {bench.results[0].setup.mode}</div>
     <p class="muted">{summary}</p>
     {#each bench.results as r (r.index)}
@@ -250,7 +247,7 @@
       </div>
     {/each}
     <p class="muted">{t('Le rapport à copier (onglet « Journal et rapport ») reprend ces résultats.')}</p>
-  </section>
+  </Card>
 {/if}
 
 <BenchArchive />

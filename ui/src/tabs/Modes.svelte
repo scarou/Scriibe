@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Card from '../components/Card.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
@@ -67,8 +68,6 @@
   });
 </script>
 
-<h1>{t('Modes')}</h1>
-
 {#if modes}
   <p class="muted">{t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode (en Littéral, sans modèle : seulement les signes dictés et le dictionnaire). En Simple, « euh, je pense qu’on pourrait, euh, décaler à jeudi » devient « Je pense qu’on pourrait décaler à jeudi. » ; en Soutenu, la phrase est en plus reformulée dans un français soigné.')}</p>
   <p class="muted">{t('Le mode règle le ton de la mise au propre. Mode en cours :')} <b>{t(modes.active_label)}</b>. {t('La consigne de base (ne jamais répondre, garder les personnes) et le garde-fou ne changent pas.')}</p>
@@ -99,9 +98,7 @@
     </section>
   {/each}
 
-  <section class="card">
-    <h2>{t('Mes modes')} <HelpButton section="modes" /></h2>
-    <p class="muted">{t('Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), créez votre mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.')}</p>
+  <Card id="modes-mes-modes" title={t('Mes modes')} help="modes" intro={t('Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), créez votre mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.')}>
     {#each custom as m (m.id)}
       <div class="mode">
         <label class="pick">
@@ -116,7 +113,7 @@
       <p class="muted">{t('Aucun mode personnel.')}</p>
     {/each}
     <button onclick={newMode}>{t('Créer un mode')}</button>
-  </section>
+  </Card>
 
   {#if editing}
     <section class="card edit">
