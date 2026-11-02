@@ -1,5 +1,7 @@
 # Installer Scriibe sur Windows — pas à pas
 
+🇬🇧 [English version](INSTALLATION_WINDOWS.en.md)
+
 Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la programmation nécessaire). Compter 10 minutes avec les moteurs en ligne, 30 minutes avec les moteurs sur le PC (téléchargements compris).
 
 **Ce qu'il faut** : Windows 10 ou 11 (64 bits), une connexion Internet, un micro, et un compte GitHub gratuit (voir l'étape 1).
@@ -42,13 +44,13 @@ Dans Scriibe : **Réglages → Moteurs** (au choix, modifiable plus tard).
 
 **A. En ligne (le plus rapide).** La voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (services payants à l'usage, quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le Gestionnaire d'identifiants de Windows et ne sont jamais affichées.
 
-**B. Sur le PC (rien ne part sur Internet).** Ouvrir l'onglet **Installation** : il dit ce qui manque (programmes `whisper-server` et `llama-server`, modèles) et propose chaque téléchargement avec sa **taille et sa source avant de demander l'accord**. Accepter un à un. Choisir ensuite **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
+**B. Sur le PC (rien ne part sur Internet).** Dans le même onglet (**Réglages → Moteurs**), les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** disent ce qui manque (programmes `whisper-server` et `llama-server`, modèles) et propose chaque téléchargement avec sa **taille et sa source avant de demander l'accord**. Accepter un à un. Choisir ensuite **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
 
 ## 6. Essayer
 
 1. Ouvrir le Bloc-notes et cliquer dans une page vide.
 2. **Maintenir Ctrl droit** (la touche de dictée par défaut, modifiable dans **Réglages → Dictée**), dire une phrase, **relâcher** : le texte apparaît.
-3. Si rien ne se passe : onglet **Journal et rapport** → « Copier le rapport », puis le transmettre à la personne qui vous a donné Scriibe.
+3. Si rien ne se passe : **Réglages → Mesures et essais** → carte « Rapport à me coller » → « Copier le rapport », puis le transmettre à la personne qui vous a donné Scriibe.
 
 ## Installer une mise à jour
 
@@ -56,4 +58,4 @@ Dans Scriibe : **Réglages → Moteurs** (au choix, modifiable plus tard).
 2. Télécharger la version la plus récente comme à l'étape 1 et extraire le zip **dans le même dossier** (`C:\scriibe`), en acceptant de **remplacer** `scriibe.exe`.
 3. Relancer `scriibe.exe`. Réglages, historique et dictionnaire sont conservés (ils sont rangés à part).
 
-L'onglet **Mise à jour** de Scriibe sait aussi le faire à votre place, sans compte ni jeton : **Chercher une nouvelle version** montre la dernière version publiée, sa date et la taille du téléchargement ; **Installer et redémarrer** demande confirmation, télécharge, remplace `scriibe.exe` et relance Scriibe. L'ancien programme reste à côté sous le nom `scriibe.exe.old` jusqu'au lancement suivant.
+L'onglet **Réglages → Mise à jour** de Scriibe sait aussi le faire à votre place, sans compte ni jeton : **Chercher une nouvelle version** montre la dernière version publiée, sa date et la taille du téléchargement ; **Installer et redémarrer** demande confirmation, télécharge, remplace `scriibe.exe` et relance Scriibe. L'ancien programme reste à côté sous le nom `scriibe.exe.old` jusqu'au lancement suivant.

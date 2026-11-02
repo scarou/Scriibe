@@ -1,5 +1,7 @@
 # Installer Scriibe sur un Mac — pas à pas
 
+🇬🇧 [English version](INSTALLATION_MACOS.en.md)
+
 Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la programmation nécessaire). Compter 10 minutes avec les moteurs en ligne, 30 minutes avec les moteurs sur le Mac (téléchargements compris).
 
 **Ce qu'il faut** : un Mac à puce Apple (M1 ou plus récent), macOS 14 ou plus récent, une connexion Internet, un micro.
@@ -54,22 +56,22 @@ brew install whisper-cpp
 brew install llama.cpp
 ```
 
-Ensuite, dans Scriibe, l'onglet **Installation** dit ce qui manque (modèle Whisper, modèle de mise au propre) et propose les téléchargements, avec leur taille et leur source avant de demander l'accord. Choisir enfin **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
+Ensuite, dans Scriibe, les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** (même onglet, **Réglages → Moteurs**) disent ce qui manque (modèle Whisper, modèle de mise au propre) et proposent les téléchargements, avec leur taille et leur source avant de demander l'accord. Choisir enfin **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
 
 ## 6. Essayer
 
 1. Ouvrir **TextEdit** (ou Notes) et cliquer dans une page vide.
 2. **Maintenir Option droite** (en bas à droite du clavier), dire une phrase, **relâcher** : le texte apparaît.
-3. Si rien ne se passe : onglet **Journal et rapport** de Scriibe → « Copier le rapport », puis le transmettre à la personne qui vous a donné Scriibe.
+3. Si rien ne se passe : **Réglages → Mesures et essais** → carte « Rapport à me coller » → « Copier le rapport », puis le transmettre à la personne qui vous a donné Scriibe.
 
 ## Installer une mise à jour
 
 1. Quitter Scriibe : icône de la barre des menus → **Quitter Scriibe**.
-2. Retourner sur `https://github.com/scarou/Scriibe/releases` et télécharger le zip de la **version la plus récente** (comparer son numéro et son code à ceux de l'onglet « Mise à jour » de Scriibe).
+2. Retourner sur `https://github.com/scarou/Scriibe/releases` et télécharger le zip de la **version la plus récente** (comparer son numéro et son code à ceux de **Réglages → Mise à jour** dans Scriibe).
 3. Double-cliquer sur le zip dans **Téléchargements**, puis faire glisser **Scriibe** dans **Applications** et cliquer sur **Remplacer**.
 4. Ouvrir Scriibe. Réglages, historique et dictionnaire sont conservés (ils sont rangés à part). Les autorisations sont normalement conservées ; si macOS les redemande, les redonner comme à l'étape 4.
 
-L'onglet **Mise à jour** de Scriibe prévient quand une version plus récente existe (voir « Alerte automatique » dans cet onglet).
+L'onglet **Réglages → Mise à jour** de Scriibe prévient quand une version plus récente existe (voir « Alerte automatique » dans cet onglet).
 
 ---
 

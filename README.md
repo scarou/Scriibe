@@ -7,6 +7,8 @@
 
 # Scriibe
 
+🇬🇧 [English version](README.en.md)
+
 Dictée vocale pour Windows, macOS et Linux. Maintenir une touche, parler, relâcher : le texte est transcrit, mis au propre et collé dans l'appli ouverte.
 
 Scriibe est la suite multiplateforme de [Scribe](https://github.com/scarou/scribe) (macOS, Swift), qui reste la **version de référence** du comportement. Le but est la même expérience sur les trois systèmes, avec un code unique (Rust + Tauri).
@@ -17,8 +19,8 @@ Scriibe est la suite multiplateforme de [Scribe](https://github.com/scarou/scrib
 
 Pas à pas, pour une personne qui n'a jamais compilé de programme :
 
-- **Mac** (puce Apple, macOS 14 ou plus) : [docs/INSTALLATION_MACOS.md](docs/INSTALLATION_MACOS.md).
-- **Windows** (10 ou 11, 64 bits) : [docs/INSTALLATION_WINDOWS.md](docs/INSTALLATION_WINDOWS.md).
+- **Mac** (puce Apple, macOS 14 ou plus) : [docs/INSTALLATION_MACOS.md](docs/INSTALLATION_MACOS.md) ([English](docs/INSTALLATION_MACOS.en.md)).
+- **Windows** (10 ou 11, 64 bits) : [docs/INSTALLATION_WINDOWS.md](docs/INSTALLATION_WINDOWS.md) ([English](docs/INSTALLATION_WINDOWS.en.md)).
 - **Linux** (X11 ; Wayland n'est pas pris en charge) : pas encore de version prête à télécharger ; l'état est dans [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md), et on peut compiler soi-même (voir ci-dessous).
 
 Les versions à télécharger sont dans les [Releases](https://github.com/scarou/Scriibe/releases) du dépôt. Les moteurs locaux (Whisper, llama.cpp) sont installés ou téléchargés depuis l'application, avec l'accord de l'utilisateur à chaque téléchargement ; les moteurs en ligne (Deepgram, OpenRouter) demandent une clé personnelle.
@@ -38,7 +40,7 @@ L'exécutable est `target/release/scriibe` (`scriibe.exe` sous Windows). Sur Mac
 
 - **Local d'abord** : transcription par `whisper-server` (whisper.cpp) et mise au propre par `llama-server`, LM Studio ou Ollama ; le cloud (Deepgram, OpenRouter) reste un choix, jamais une obligation.
 - **Le comportement est mesuré** : la logique de texte est vérifiée par des cas de référence (`fixtures/`) tirés de Scribe.
-- **Ouvert** : licence MIT, développement en français, interface en français et en anglais (README anglais à venir).
+- **Ouvert** : licence MIT, développement en français, interface, Aide et procédures d'installation en français et en anglais ([README en anglais](README.en.md)).
 
 ## Licence
 
