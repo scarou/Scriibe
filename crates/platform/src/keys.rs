@@ -917,7 +917,8 @@ mod tests {
         assert_eq!(binding(&settings), Binding::from_hotkey(Hotkey::RightOption));
         settings.dictation_keys = ids(&["left_option", "f9"]);
         let effective = binding(&settings);
-        assert_eq!(effective == Binding::from_hotkey(Hotkey::RightOption), !cfg!(any(windows, target_os = "macos")));
+        // Option gauche n'existe que sur Mac : ailleurs les identifiants inconnus sont ignorés et la touche par défaut reste.
+        assert_eq!(effective == Binding::from_hotkey(Hotkey::RightOption), !cfg!(target_os = "macos"));
         // La touche de traduction réglée seule garde la dictée par défaut.
         let translate_only = AppSettings { translate_keys: ids(&["left_shift"]), ..AppSettings::default() };
         if cfg!(target_os = "macos") {
