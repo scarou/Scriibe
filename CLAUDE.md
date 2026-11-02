@@ -58,5 +58,5 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 
 ## Dépôt
 
-- `scarou/scriibe` (privé pour l'instant), branche `main`, licence MIT.
+- `scarou/scriibe` (public depuis le 02/11/2026), branche `main`, licence MIT.
 - Commit : message court en français, identité `Christophe Campain <christophe.campain@gmail.com>`.

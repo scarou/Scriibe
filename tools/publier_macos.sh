@@ -1,7 +1,7 @@
 #!/bin/bash
 # Publie une version de Scriibe pour Mac : Scriibe.app signée (« Scribe Dev »), zippée, en pièce jointe d'une Release GitHub.
 # Usage : après `cd ui && npm ci && npm run build` et `cargo build --release`, `tools/publier_macos.sh 0.2.0`.
-# Montre l'aperçu (version, commit, taille, signature) et ne publie qu'après un « oui » (publication visible de tous ceux qui ont accès au dépôt).
+# Montre l'aperçu (version, commit, taille, signature) et ne publie qu'après un « oui » (publication visible de tous).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 version="${1:-}"
@@ -29,7 +29,7 @@ echo "Version   : $version (étiquette $tag)"
 echo "Commit    : $commit — $(git log -1 --format=%s)"
 echo "Fichier   : $(basename "$zip") ($(du -h "$zip" | cut -f1))"
 echo "Signature : $(codesign -dv "$out/Scriibe.app" 2>&1 | grep -E 'Authority|Signature' | head -n 2 | tr '\n' ' ')"
-echo "Dépôt     : scarou/Scriibe (privé : seuls les comptes invités verront cette version)"
+echo "Dépôt     : scarou/Scriibe (public : tout le monde verra cette version)"
 read -r -p "Publier cette version ? (oui/non) " answer
 [ "$answer" = "oui" ] || { echo "Annulé : rien n'est publié."; exit 0; }
 
