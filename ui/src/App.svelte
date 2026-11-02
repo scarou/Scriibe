@@ -14,10 +14,11 @@
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
   import HelpEn from './tabs/HelpEn.svelte';
-  import Logo from './components/Logo.svelte';
+  import { logotype } from './lib/logotype';
   import Dialog from './components/Dialog.svelte';
 
   let stopped = $state(false);
+  let logo = $derived(logotype(status.value?.os));
 
   function choose(id: TabId, anchor?: string) {
     void nav.go(id, anchor);
@@ -60,7 +61,10 @@
 {:else}
   <div class="shell">
     <nav>
-      <div class="brand"><Logo size={24} />Scriibe</div>
+      <picture class="brand">
+        <source media="(prefers-color-scheme: dark)" srcset={logo.dark} />
+        <img src={logo.light} alt="Scriibe" height="34" />
+      </picture>
       {#each tabs as tab (tab.id)}
         <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}</button>
       {/each}
@@ -94,7 +98,8 @@
 <style>
   .shell { display: flex; min-height: 100vh; }
   nav { width: 210px; flex: none; background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
-  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.2rem; padding: 4px 10px 12px; color: var(--brand); }
+  .brand { display: block; padding: 4px 10px 12px; }
+  .brand img { display: block; height: 34px; width: auto; max-width: 100%; }
   .nav { text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .nav:hover { background: var(--line); }
   .nav.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
