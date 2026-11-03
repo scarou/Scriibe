@@ -42,7 +42,13 @@ struct Running {
 pub struct CpalRecorder {
     shared: Arc<Shared>,
     running: Mutex<Option<Running>>,
+    /// La dernière liste des micros et son heure (Linux : chaque parcours d'ALSA écrit des lignes d'erreur sur le terminal et la page
+    /// redemande la liste à chaque rafraîchissement ; quelques secondes de mémoire suffisent).
+    listed: Mutex<Option<(std::time::Instant, Vec<Microphone>)>>,
 }
+
+/// Durée pendant laquelle la liste des micros est gardée en mémoire (Linux seulement).
+const MICROPHONES_CACHE: Duration = Duration::from_secs(5);
 
 fn device_name(device: &Device) -> String {
     device.name().unwrap_or_else(|_| "micro sans nom".into())
@@ -94,8 +100,16 @@ fn open(device: &Device, shared: &Arc<Shared>) -> Result<(Stream, String), Strin
 
 impl Recorder for CpalRecorder {
     fn microphones(&self) -> Vec<Microphone> {
+        if cfg!(target_os = "linux") {
+            if let Some((when, list)) = lock(&self.listed).as_ref() {
+                if when.elapsed() < MICROPHONES_CACHE {
+                    return list.clone();
+                }
+            }
+        }
         let host = cpal::default_host();
-        host.input_devices()
+        let list: Vec<Microphone> = host
+            .input_devices()
             .map(|devices| {
                 devices
                     .enumerate()
@@ -105,7 +119,11 @@ impl Recorder for CpalRecorder {
                     })
                     .collect()
             })
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if cfg!(target_os = "linux") {
+            *lock(&self.listed) = Some((std::time::Instant::now(), list.clone()));
+        }
+        list
     }
 
     fn start(&self, microphone_uid: &str) -> Result<StartInfo, String> {

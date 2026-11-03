@@ -62,7 +62,7 @@ export OPENROUTER_API_KEY='…your key…'
 ~/scriibe/scriibe
 ```
 
-**B. On the PC (nothing leaves your computer).** You need `whisper-server` (transcription) and, for the cleanup, `llama-server`. There is no ready-made Linux `whisper-server`, and Scriibe's downloads do not offer them on Linux yet: see [ESSAI_LINUX.md](ESSAI_LINUX.md) (French) for building `whisper.cpp` step by step. The program goes in `~/.local/share/Scriibe/engines/whisper/` (or next to `scriibe`).
+**B. On the PC (nothing leaves your computer).** Under **Settings → Engines**, the **Programs** and **Recommended models** cards offer, showing size and source before asking for your consent: `whisper-server (Linux)` and `llama-server (Linux, CPU)` (built by GitHub for Linux x86-64 and added to every Release), then a Whisper model and a cleanup model. Accept them one by one, then choose **Whisper** and **llama.cpp**. *(These cards come with the version after 0.2.2; with 0.2.2 you have to build `whisper-server` yourself: see [ESSAI_LINUX.md](ESSAI_LINUX.md), in French.)* The programs are stored in `~/.local/share/Scriibe/engines/`. The processor must support AVX2 (any PC since about 2015).
 
 ## 6. Try it
 

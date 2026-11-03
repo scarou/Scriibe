@@ -39,7 +39,11 @@ PC de Christophe : HP ProBook 450 G6, **Ubuntu 26.04.1 LTS**, session **Wayland*
 
 Livrable : `scriibe-linux-x64.zip` (exécutable `scriibe`, x86-64), compilé sur Ubuntu 22.04 par `.github/workflows/release-linux.yml` et ajouté à la Release publiée. Guide : [INSTALLATION_LINUX.md](INSTALLATION_LINUX.md).
 
-### Compiler `whisper-server` (aucun binaire Linux tout fait chez whisper.cpp)
+### Moteurs (S15)
+
+Depuis le commit « Moteurs Linux » : `release-linux.yml` compile `whisper-server` (whisper.cpp v1.9.5, statique, AVX2 ; vérifié en CI : ne dépend que de libstdc++, libm, libgcc, libc) et remballe en zip le `llama-server` officiel de llama.cpp (processeur, variantes CPU en `.so`) ; l'onglet Installation les propose sous Linux (`whisper-server (Linux)`, `llama-server (Linux, processeur)`), droits d'exécution posés après dépaquetage, `LD_LIBRARY_PATH` du dossier du moteur à son lancement. **Pas encore essayé sur le PC** (il faut une version publiée après la 0.2.2).
+
+### Compiler `whisper-server` soi-même (version 0.2.2 sans les cartes Linux)
 
 À confirmer par l'essai. Une commande après l'autre :
 
@@ -52,7 +56,9 @@ mkdir -p ~/.local/share/Scriibe/engines/whisper && cp ~/whisper.cpp/build/bin/wh
 
 (`BUILD_SHARED_LIBS=OFF` : un seul fichier, sans bibliothèques à côté.) Le modèle (`whisper-base`) se télécharge depuis la page de Scriibe, qui le propose sous Linux.
 
-`llama-server` (mise au propre) : llama.cpp publie `llama-bNNNN-bin-ubuntu-x64.tar.gz` (≈ 23 Mo), mais les téléchargements de Scriibe ne savent lire que des `.zip` et sont réservés à Windows (`downloads.rs`, `windows_only`) : à faire ensuite. Pour le premier essai, la mise au propre peut rester éteinte (texte brut).
+Bruit d'ALSA : au premier lancement, des lignes `ALSA lib pcm_dsnoop.c … unable to open slave` défilent. Cause trouvée dans le code : la page redemande la liste des micros à chaque rafraîchissement et `cpal` parcourt à chaque fois les périphériques ALSA, qui écrivent ces lignes ; la liste est maintenant gardée 5 s sous Linux (`recorder.rs`). Que le micro s'ouvre vraiment reste à vérifier sur le PC.
+
+Constat sur Wayland : Christophe n'acceptera pas de changer de bureau pour utiliser Scriibe (« le logiciel doit s'adapter à mon environnement ») ; la cible réelle est GNOME Wayland. Pistes dans `ROADMAP.md` (portails GlobalShortcuts et RemoteDesktop).
 
 ### Résultats
 

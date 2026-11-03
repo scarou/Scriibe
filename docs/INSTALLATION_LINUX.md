@@ -62,7 +62,7 @@ export OPENROUTER_API_KEY='…ta clé…'
 ~/scriibe/scriibe
 ```
 
-**B. Sur le PC (rien ne part sur Internet).** Il faut `whisper-server` (transcription) et, pour la mise au propre, `llama-server`. Il n'existe pas de `whisper-server` Linux tout fait et les téléchargements de Scriibe ne les proposent pas encore sous Linux : voir [ESSAI_LINUX.md](ESSAI_LINUX.md) pour la compilation de `whisper.cpp` pas à pas. Le programme se range dans `~/.local/share/Scriibe/engines/whisper/` (ou à côté de `scriibe`).
+**B. Sur le PC (rien ne part sur Internet).** Dans **Réglages → Moteurs**, les cartes **Les programmes** et **Modèles recommandés** proposent, avec leur taille et leur source avant de demander l'accord : `whisper-server (Linux)` et `llama-server (Linux, processeur)` (compilés par GitHub pour Linux x86-64 et ajoutés à chaque Release), puis un modèle Whisper et un modèle de mise au propre. Accepter un à un, puis choisir **Whisper** et **llama.cpp**. *(Ces cartes arrivent avec la version qui suit la 0.2.2 ; avec la 0.2.2 il faut compiler `whisper-server` soi-même : voir [ESSAI_LINUX.md](ESSAI_LINUX.md).)* Les programmes se rangent dans `~/.local/share/Scriibe/engines/`. Le processeur doit connaître AVX2 (tout PC depuis 2015 environ).
 
 ## 6. Essayer
 
