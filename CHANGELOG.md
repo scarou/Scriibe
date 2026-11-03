@@ -10,7 +10,7 @@ Session Claude Code **sur le PC Linux de Christophe** (HP ProBook 450 G6, Ubuntu
 - **Xfce (X11)** : touche (Ctrl droit), micro, transcription et collage marchent. Pièges : micro intégré saturé (gain ALSA au maximum), moteur posé à la main vu seulement au démarrage, dossier `Scriibe/engines` (majuscule) ≠ données `scriibe` (`docs/PIEGES.md`).
 - **GNOME Wayland** : nouveau module `crates/platform/src/linux/wayland.rs` (crate `ashpd`) : raccourci global par le portail `GlobalShortcuts` (appui et relâchement rejoués comme les touches de dictée en vigueur, `HookRules::binding`), Ctrl+V par le portail `RemoteDesktop` (jeton gardé), presse-papiers par XWayland ; fichier `fr.scriibe.Scriibe.desktop` écrit au besoin. **Essayé par Christophe : marche** (raccourci Ctrl + ←, collage dans l'Éditeur de texte, rien redemandé au relancement). La page affiche le raccourci de GNOME et explique où le changer (Réglages → Dictée) ; guides d'installation Linux (FR/EN) mis à jour.
 - Résultats détaillés : `docs/ESSAI_LINUX.md` (« Résultats »).
-- Mesuré : 315 tests Rust et 82 tests d'interface, 0 échec ; clippy et fmt propres ; `npm run check` sans erreur. CI non lancée depuis le PC.
+- Mesuré : 315 tests Rust et 82 tests d'interface, 0 échec ; clippy et fmt propres ; `npm run check` sans erreur. **CI complète verte sur Linux, macOS et Windows** (03/11/2026, exécution 41679482305, branche `linux-pc`), `scriibe.exe` construit.
 
 ## S14 — 2026-11-02 · Dépôt public, Releases, mise à jour sans jeton, interface à la manière de Scribe
 
