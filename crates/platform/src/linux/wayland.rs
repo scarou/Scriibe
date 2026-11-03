@@ -332,7 +332,43 @@ impl Drop for Listening {
 static TRIGGER: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
 pub fn current_trigger() -> Option<String> {
-    TRIGGER.lock().ok().and_then(|t| t.clone())
+    TRIGGER.lock().ok().and_then(|t| t.clone()).map(|t| pretty_trigger(&t))
+}
+
+/// « Appuyer sur <Control>Left » (texte de GNOME, dans sa langue) → « Ctrl + ← », dans les noms de touches de Scriibe.
+pub fn pretty_trigger(description: &str) -> String {
+    let Some(start) = description.find('<').or_else(|| description.rfind(' ').map(|i| i + 1)) else {
+        return description.to_string();
+    };
+    let mut rest = &description[start..];
+    let mut parts: Vec<String> = Vec::new();
+    while let Some(after) = rest.strip_prefix('<') {
+        let Some(end) = after.find('>') else { break };
+        parts.push(
+            match &after[..end] {
+                "Control" | "Primary" => "Ctrl",
+                "Alt" => "Alt",
+                "Shift" => "Maj",
+                "Super" | "Meta" => "Super",
+                other => other,
+            }
+            .to_string(),
+        );
+        rest = &after[end + 1..];
+    }
+    let key = match rest {
+        "Left" => "←",
+        "Right" => "→",
+        "Up" => "↑",
+        "Down" => "↓",
+        "space" => "Espace",
+        "Return" => "Entrée",
+        other => other,
+    };
+    if !key.is_empty() {
+        parts.push(if key.chars().count() == 1 { key.to_uppercase() } else { key.to_string() });
+    }
+    parts.join(" + ")
 }
 
 impl crate::keys::KeyListener for WaylandKeys {
@@ -356,4 +392,17 @@ pub fn send_ctrl_v_blocking() -> Result<(), String> {
     let (done, wait) = oneshot::channel();
     portal.tx.send(Command::PasteKeys { done }).map_err(|_| "fil des portails arrêté".to_string())?;
     wait.blocking_recv().map_err(|_| "fil des portails arrêté".to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pretty_trigger;
+
+    #[test]
+    fn the_gnome_trigger_is_shown_with_scriibe_key_names() {
+        assert_eq!(pretty_trigger("Appuyer sur <Control>Left"), "Ctrl + ←");
+        assert_eq!(pretty_trigger("Press <Control><Alt>space"), "Ctrl + Alt + Espace");
+        assert_eq!(pretty_trigger("<Shift><Super>d"), "Maj + Super + D");
+        assert_eq!(pretty_trigger("F9"), "F9");
+    }
 }

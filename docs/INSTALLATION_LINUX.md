@@ -6,9 +6,9 @@ Autres systèmes : [Windows](INSTALLATION_WINDOWS.md) · [macOS](INSTALLATION_MA
 
 > **État de cette procédure (S15)** : le programme Linux est **expérimental**. La touche globale, le collage et la fenêtre active ont été vérifiés sur un écran virtuel (`docs/ESSAI_LINUX.md`) ; l'essai sur un vrai bureau est en cours sur Ubuntu 26.04. Les étapes ci-dessous sont à confirmer par cet essai : si l'une ne se passe pas comme écrit, noter laquelle et la dire.
 
-**Ce qu'il faut** : un PC Linux 64 bits (x86-64) avec une **session X11**, une connexion Internet, un micro. **Wayland n'est pas pris en charge** (voir l'étape 1).
+**Ce qu'il faut** : un PC Linux 64 bits (x86-64) avec une session **X11**, ou **GNOME 48 ou plus récent en Wayland** (Ubuntu 25.04 et suivantes ; à partir de la version publiée après la 0.2.2), une connexion Internet, un micro (voir l'étape 1).
 
-## 1. Vérifier qu'on est en X11
+## 1. Vérifier le type de session
 
 Ouvrir un **terminal** (touches Ctrl+Alt+T) et taper :
 
@@ -17,7 +17,10 @@ echo $XDG_SESSION_TYPE
 ```
 
 - **`x11`** : c'est bon, passer à l'étape 2.
-- **`wayland`** : Scriibe ne peut pas voir la touche de dictée ni coller dans les autres applications. Il faut ouvrir une session X11 :
+- **`wayland`** avec **GNOME 48 ou plus récent** (Ubuntu 26.04) : ça marche, par les « portails » de GNOME (essayé le 03/11/2026). Au premier lancement, GNOME ouvre deux fenêtres, une seule fois :
+  - un **raccourci clavier** pour dicter : GNOME n'accepte pas une touche seule comme Ctrl droit, choisir une combinaison avec une touche ordinaire (par exemple Ctrl + flèche gauche, ou Ctrl + Alt + Espace), puis valider. Pour le changer ensuite : **Paramètres → Applications → Scriibe → Raccourcis clavier**, puis relancer Scriibe ;
+  - au premier collage, l'autorisation de **contrôler le clavier** (c'est ce qui permet de coller) : l'accepter.
+- **`wayland`** avec un autre bureau (KDE, ou GNOME plus ancien) : pas encore pris en charge. Il faut ouvrir une session X11 :
   - Sur beaucoup de distributions, à l'écran de connexion, cliquer sur la **petite roue dentée** à côté du bouton de connexion et choisir une session **Xorg** / **X11** (par exemple « Ubuntu sur Xorg »).
   - **Ubuntu 25.10 et suivantes (dont 26.04)** n'ont plus de session X11 avec le bureau GNOME. Installer un autre bureau, par exemple Xfce (qui tourne en X11) : `sudo apt update && sudo apt install -y xfce4`, puis, à l'écran de connexion, choisir **Xfce Session** avec la roue dentée. GNOME reste installé.
 

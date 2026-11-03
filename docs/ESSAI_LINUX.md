@@ -72,3 +72,11 @@ Constat sur Wayland : Christophe n'acceptera pas de changer de bureau pour utili
 - Transcription : environ 0,5 à 0,8 s après le relâchement pour 2 à 5 s de parole (processeur, 4 fils).
 - Premiers textes sans rapport avec la dictée : **micro intégré saturé** (niveau 1,000) ; voir `PIEGES.md`. Après avoir baissé le gain, phrases justes (« bonjour ceci est une phrase test », « Retour à la ligne, ceci est la troisième phrase test. »).
 - Le niveau relevé monte encore parfois à 1,000 sur une dictée juste (pic isolé ?) : à surveiller.
+
+**03/11/2026, session GNOME Wayland (Ubuntu 26.04, GNOME 50, portail `xdg-desktop-portal` 1.21, `xdg-desktop-portal-gnome` 50), module `crates/platform/src/linux/wayland.rs` :**
+
+- **Touche globale (portail `GlobalShortcuts`)** : marche. Au premier lancement, GNOME ouvre sa fenêtre de raccourci ; il **refuse une touche de modification seule** (Ctrl droit) ; Christophe a choisi **Ctrl + flèche gauche**. `Activated`/`Deactivated` arrivent bien à l'appui et au relâchement (son de fin aussitôt). Au relancement, rien n'est redemandé (GNOME garde le raccourci sous l'identifiant `fr.scriibe.Scriibe`, déclaré par `register_host_app`).
+- **Collage (presse-papiers par XWayland + Ctrl+V par le portail `RemoteDesktop`)** : marche dans l'Éditeur de texte (0,04 à 0,06 s). Autorisation de contrôle demandée une fois ; le jeton (`portail-wayland.json` du dossier de données) évite de la redemander au relancement (vérifié).
+- **Appli au premier plan** : « Inconnue » (Wayland ne la donne pas).
+- Le portail `GlobalShortcuts` de ce GNOME est en **version 1** : pas de `ConfigureShortcuts` (fenêtre de changement du raccourci) ; on change le raccourci dans **Paramètres → Applications → Scriibe → Raccourcis clavier** (chemin vérifié par Christophe), puis on relance Scriibe. La page l'explique (Réglages → Dictée) et affiche le raccourci (« Prêt · Ctrl + ← »).
+- Non essayé : la traduction (aucun raccourci de traduction n'est déclaré pour l'instant), la pause des médias, les terminaux, une appli Wayland native autre que l'Éditeur de texte (Firefox, LibreOffice…).

@@ -6,9 +6,9 @@ Other systems: [Windows](INSTALLATION_WINDOWS.en.md) · [macOS](INSTALLATION_MAC
 
 > **State of this guide (S15)**: the Linux program is **experimental**. The global key, pasting and the active window were checked on a virtual screen (`docs/ESSAI_LINUX.md`, in French); trying it on a real desktop is under way on Ubuntu 26.04. The steps below are to be confirmed by that trial: if one does not go as written, note which one and say so.
 
-**What you need**: a 64-bit (x86-64) Linux PC with an **X11 session**, an Internet connection, a microphone. **Wayland is not supported** (see step 1).
+**What you need**: a 64-bit (x86-64) Linux PC with an **X11** session, or **GNOME 48 or later on Wayland** (Ubuntu 25.04 and later; from the version released after 0.2.2), an Internet connection, a microphone (see step 1).
 
-## 1. Check that you are on X11
+## 1. Check the session type
 
 Open a **terminal** (Ctrl+Alt+T) and type:
 
@@ -17,7 +17,10 @@ echo $XDG_SESSION_TYPE
 ```
 
 - **`x11`**: good, go to step 2.
-- **`wayland`**: Scriibe cannot see the dictation key nor paste into other applications. You need to open an X11 session:
+- **`wayland`** with **GNOME 48 or later** (Ubuntu 26.04): it works, through GNOME's “portals” (tried on 2026-11-03). On first launch, GNOME opens two windows, only once:
+  - a **keyboard shortcut** to dictate: GNOME does not accept a single key such as Right Ctrl, pick a combination with an ordinary key (for example Ctrl + Left arrow, or Ctrl + Alt + Space), then confirm. To change it later: **Settings → Apps → Scriibe → Global Shortcuts**, then restart Scriibe;
+  - on the first paste, permission to **control the keyboard** (this is what lets Scriibe paste): accept it.
+- **`wayland`** with another desktop (KDE, or an older GNOME): not supported yet. You need to open an X11 session:
   - On many distributions, at the login screen, click the **small gear** next to the sign-in button and pick an **Xorg** / **X11** session (for example “Ubuntu on Xorg”).
   - **Ubuntu 25.10 and later (including 26.04)** no longer have an X11 session with the GNOME desktop. Install another desktop, for example Xfce (which runs on X11): `sudo apt update && sudo apt install -y xfce4`, then, at the login screen, choose **Xfce Session** with the gear. GNOME stays installed.
 

@@ -553,7 +553,8 @@ fn status(ctx: &Context) -> Value {
         "keys_error": lock(&ctx.keys_error).clone(),
         "update": update::available().as_ref().map(|v| json!({"version": v.version, "title": v.title, "date": v.date})),
         "hotkey": format!("{:?}", settings.hotkey),
-        "dictation_label": if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
+        "gnome_shortcut": gnome_shortcut(),
+        "dictation_label": if let Some(shortcut) = gnome_shortcut() { shortcut } else if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
         "translate_label": if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
         "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "default_dictation_label": scriibe_platform::keys::default_dictation_label(),
@@ -1069,6 +1070,18 @@ fn llama_devices(ctx: &Context) -> Vec<String> {
         }
         Ok(Err(e)) => vec![format!("lecture impossible ({e})")],
         Err(_) => vec!["pas de réponse en 20 s".into()],
+    }
+}
+
+/// Sous Wayland (GNOME), la touche de dictée est le raccourci que GNOME a fait choisir (« Ctrl + ← ») ; aucun ailleurs.
+fn gnome_shortcut() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        scriibe_platform::linux::wayland_trigger()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
     }
 }
 
