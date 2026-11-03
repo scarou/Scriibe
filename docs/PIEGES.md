@@ -63,4 +63,5 @@
 - **ashpd** : les portails sont derrière des options (`global_shortcuts`, `remote_desktop`, et `screencast` dont `remote_desktop` a besoin).
 
 - **Micro USB branché : il devient la source par défaut** (`wpctl status`, astérisque) et Scriibe l'écoute (`default`) sans rien dire ; un micro USB à -14 dB (`amixer -c 1 sget Mic`) donnait « Aucun son capté » (niveau 0,001). Monté par `amixer -c 1 sset Mic 100%` et `wpctl set-volume <id> 1.0` : niveau 0,06, texte juste. À faire : afficher dans la page le nom du micro réellement utilisé derrière `default`.
+- **Pastille sous Linux (XWayland)** : `set_ignore_cursor_events` sur une fenêtre jamais montrée fait s'arrêter Scriibe net (tao, `window().unwrap()` sur `None`, panique qui ne peut pas remonter) ; sous Linux, l'appeler après `show()`.
 - **Fenêtre Tauri sous Linux** : il faut `libwebkit2gtk-4.1-dev` et `libayatana-appindicator3-dev` pour compiler (CI et Release aussi). Au lancement, `libayatana-appindicator is deprecated` et `Gtk-CRITICAL … gtk_widget_get_scale_factor` s'affichent : sans effet visible (fenêtre, icône et dictée marchent).

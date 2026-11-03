@@ -53,7 +53,7 @@ La fenêtre et l'icône demandent WebKitGTK et AppIndicator, présents d'office 
 ~/scriibe/scriibe
 ```
 
-Le terminal reste occupé (c'est le journal de Scriibe). **La fenêtre de Scriibe s'ouvre**, et une **icône** apparaît dans la barre du haut, près du son et de la batterie : son menu rouvre la fenêtre ou quitte Scriibe. Fermer la fenêtre ne quitte pas Scriibe, qui continue d'écouter la touche. (Sur un GNOME sans l'extension AppIndicator, comme Fedora, l'icône n'apparaît pas : rouvrir la page par l'adresse affichée par le terminal.) Pour quitter : menu de l'icône, ou **Ctrl+C** dans le terminal.
+Le terminal reste occupé (c'est le journal de Scriibe). **La fenêtre de Scriibe s'ouvre**, et une **icône** apparaît dans la barre du haut, près du son et de la batterie : son menu rouvre la fenêtre ou quitte Scriibe. Pendant la dictée, une **pastille** s'affiche en bas de l'écran. Fermer la fenêtre ne quitte pas Scriibe, qui continue d'écouter la touche. (Sur un GNOME sans l'extension AppIndicator, comme Fedora, l'icône n'apparaît pas : rouvrir la page par l'adresse affichée par le terminal.) Pour quitter : menu de l'icône, ou **Ctrl+C** dans le terminal.
 
 ## 5. Choisir comment Scriibe transcrit
 
