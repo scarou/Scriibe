@@ -45,12 +45,14 @@ const has = (paths: string[], part: string) => paths.some((p) => p.toLowerCase()
 export function isInstalled(id: string, s: Status): boolean {
   switch (id) {
     case 'whisper-server':
+    case 'whisper-server-linux':
       return !!s.whisper.binary;
     case 'whisper-base':
       return has(s.whisper.models, 'ggml-base');
     case 'whisper-small':
       return has(s.whisper.models, 'ggml-small');
     case 'llama-server':
+    case 'llama-server-linux':
     case 'llama-vulkan':
       return !!s.llama.binary;
     case 'qwen-0.5b':

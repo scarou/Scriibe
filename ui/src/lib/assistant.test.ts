@@ -22,6 +22,8 @@ describe('assistant de premier lancement', () => {
     expect(isInstalled('whisper-base', s)).toBe(true);
     expect(isInstalled('whisper-small', s)).toBe(false);
     expect(isInstalled('llama-server', s)).toBe(false);
+    expect(isInstalled('whisper-server-linux', s)).toBe(true);
+    expect(isInstalled('llama-server-linux', s)).toBe(false);
     expect(isInstalled('inconnu', s)).toBe(false);
   });
   it('dit ce qui manque, clé comprise', () => {

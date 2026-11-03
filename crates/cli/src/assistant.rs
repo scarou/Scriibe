@@ -109,8 +109,21 @@ pub fn machine_json(machine: &MachineInfo) -> Value {
 pub fn chain_json(chain: &Chain) -> Value {
     json!({
         "id": chain.id, "title": chain.title, "detail": chain.detail, "timing": chain.timing, "measured": chain.measured,
-        "needs": chain.needs, "needs_key": chain.needs_key,
+        "needs": chain.needs.iter().map(|n| for_this_system(n)).collect::<Vec<_>>(), "needs_key": chain.needs_key,
     })
+}
+
+/// Les programmes des chaînes sont nommés comme sous Windows ; sous Linux, la page propose les siens (`downloads::offered`). Pas de
+/// llama.cpp Vulkan pour Linux : la version processeur.
+fn for_this_system(need: &'static str) -> &'static str {
+    if !cfg!(target_os = "linux") {
+        return need;
+    }
+    match need {
+        "whisper-server" => "whisper-server-linux",
+        "llama-server" | "llama-vulkan" => "llama-server-linux",
+        other => other,
+    }
 }
 
 /// Applique la chaîne aux réglages (les moteurs ; les modèles gardent « automatique ») et marque l'assistant comme passé.
@@ -172,6 +185,8 @@ mod tests {
         for c in CHAINS.iter() {
             for need in c.needs {
                 assert!(ids.contains(need), "{} : {need} n'existe pas dans la page Installation", c.id);
+                let need = for_this_system(need);
+                assert!(crate::web::downloads::offered(need), "{} : {need} n'est pas proposé sur ce système", c.id);
             }
         }
     }

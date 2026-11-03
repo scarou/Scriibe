@@ -5,7 +5,7 @@
 mod assets;
 mod bench_view;
 mod data;
-mod downloads;
+pub(crate) mod downloads;
 mod hub;
 mod sinks;
 mod trial;
