@@ -62,4 +62,13 @@ Constat sur Wayland : Christophe n'acceptera pas de changer de bureau pour utili
 
 ### Résultats
 
-(à remplir pendant l'essai)
+**03/11/2026, session Xfce (X11), Scriibe compilé depuis les sources (`55dc789`), Whisper `ggml-base`, mise au propre éteinte :**
+
+- Compilation sur le PC : `apt install git build-essential libasound2-dev pkg-config cmake curl nodejs npm gh` (Node 22.22 d'Ubuntu 26.04, environ 130 Mo), Rust par rustup ; `npm ci && npm run build`, `cargo build --release -p scriibe-cli` en 2 min. Rien à corriger.
+- `whisper-server` compilé à la main (section ci-dessus), modèle `ggml-base.bin` téléchargé par la page : sans souci.
+- **Touche globale (Ctrl droit, XInput2)** : marche ; appui et relâchement vus, appli au premier plan reconnue (`gnome-text-edit`).
+- **Micro (`cpal`, ALSA → PipeWire)** : s'ouvre (`default`, 44 100 Hz, 2 canaux). Le bruit `ALSA lib …`/`jack server is not running` reste dans la sortie mais ne gêne pas.
+- **Collage (presse-papiers + Ctrl+V par XTest)** : marche dans l'Éditeur de texte de GNOME, en 0,04 s.
+- Transcription : environ 0,5 à 0,8 s après le relâchement pour 2 à 5 s de parole (processeur, 4 fils).
+- Premiers textes sans rapport avec la dictée : **micro intégré saturé** (niveau 1,000) ; voir `PIEGES.md`. Après avoir baissé le gain, phrases justes (« bonjour ceci est une phrase test », « Retour à la ligne, ceci est la troisième phrase test. »).
+- Le niveau relevé monte encore parfois à 1,000 sur une dictée juste (pic isolé ?) : à surveiller.

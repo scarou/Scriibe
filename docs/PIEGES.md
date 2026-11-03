@@ -51,3 +51,10 @@
 - **Deux instances sur Mac (S11)** : le verrou est un `flock` sur `instance.lock`, mais le programme d'avant S11 (lancé depuis un Terminal) ne le prend pas : fermer l'ancien avant de lancer le `.app`, sinon deux collages.
 - **Compiler Scriibe.app** : `cd ui && npm run build`, `cargo build --release`, `tools/faire_app_macos.sh` (ferme l'ancienne, installe dans `~/Applications`, ajouter `--lancer`). L'assemblage se fait hors de Documents (iCloud remet des attributs que `codesign` refuse).
 
+## Linux
+
+- **`whisper-server` posé à la main n'est pas vu** : le chemin du moteur n'est cherché **qu'au démarrage** (`WhisperLauncher::new`) ; relancer Scriibe après l'avoir posé. Le dossier des moteurs est `~/.local/share/Scriibe/engines/whisper/` (**S majuscule**, `APP_NAME`), alors que les données sont dans `~/.local/share/scriibe/` (minuscule) : ne pas confondre.
+- **Texte sans rapport avec la dictée, niveau 1,000 dans le journal** : micro intégré saturé. Sur le HP ProBook 450 G6 (Ubuntu 26.04), ALSA réglait `Capture` à +30 dB **et** `Internal Mic Boost` à +30 dB. Corrigé par `amixer -c 0 sset 'Internal Mic Boost' 1` et `amixer -c 0 sset Capture 40` (environ +23 dB en tout). À faire : avertir dans la page quand le niveau reste collé au maximum (saturation), comme on avertit déjà d'un micro trop faible.
+- Pas de `pactl` sur Ubuntu 26.04 de base (PipeWire seul, `wpctl`) : la pause des médias qui le lit ne trouvera rien (à vérifier).
+- Dans la session de Claude Code : `sudo` demande un mot de passe qu'on ne peut pas taper ; ouvrir une fenêtre `gnome-terminal -- script.sh` où Christophe le tape. Le contrôle de sécurité refuse aussi de compiler du code téléchargé (whisper.cpp) : préparer un script et le faire lancer par Christophe avec `! bash ~/script.sh`.
+
