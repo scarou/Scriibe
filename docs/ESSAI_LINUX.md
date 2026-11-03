@@ -83,5 +83,5 @@ Constat sur Wayland : Christophe n'acceptera pas de changer de bureau pour utili
 
 **03/11/2026, fenêtre et icône (Tauri) sous GNOME Wayland :**
 
-- Scriibe ouvre maintenant **sa propre fenêtre** (WebKitGTK, comme sur Mac et Windows) au lieu du navigateur, et met une **icône dans la barre du haut** (AppIndicator, extension `ubuntu-appindicators` d'Ubuntu) avec le même menu que sur Mac. Pas de pastille (sous Wayland, une appli ne peut pas placer une fenêtre toujours devant). **Vues par Christophe** : la fenêtre et l’icône (menu pas encore essayé).
+- Scriibe ouvre maintenant **sa propre fenêtre** (WebKitGTK, comme sur Mac et Windows) au lieu du navigateur, et met une **icône dans la barre du haut** (AppIndicator, extension `ubuntu-appindicators` d'Ubuntu) avec le même menu que sur Mac. Pas de pastille (sous Wayland, une appli ne peut pas placer une fenêtre toujours devant). **Vues par Christophe** : la fenêtre et l’icône et menu « Ouvrir Scriibe » (une fenêtre réduite revient : sous Wayland, `show()` cache puis remontre la fenêtre).
 - Dictée avec la fenêtre ouverte : texte collé dans l'Éditeur de texte (31 signes en 0,08 s), après avoir monté le micro USB devenu source par défaut (`PIEGES.md`).

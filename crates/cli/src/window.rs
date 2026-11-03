@@ -40,6 +40,10 @@ fn handle() -> MutexGuard<'static, Option<AppHandle>> {
 fn show(app: &AppHandle, url: &str) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(LABEL) {
         let _ = window.unminimize();
+        // Wayland : une appli ne peut ni sortir sa fenêtre de la barre des tâches ni la passer devant ; cachée puis remontrée,
+        // la fenêtre revient comme une nouvelle, devant.
+        #[cfg(target_os = "linux")]
+        let _ = window.hide();
         let _ = window.show();
         return window.set_focus().map_err(|e| e.to_string());
     }
