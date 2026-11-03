@@ -476,6 +476,8 @@ pub struct HookRules {
     pub swallow: Vec<u32>,
     /// Les autres touches de la combinaison de dictée, tenues avant de retenir une touche ordinaire.
     pub needs: Vec<u32>,
+    /// Les touches en vigueur (aucune pendant une capture). Sous Wayland, le raccourci de GNOME rejoue l'appui de ces touches.
+    pub binding: Option<Binding>,
 }
 
 pub fn hook_rules(binding: &Binding) -> HookRules {
@@ -488,6 +490,7 @@ pub fn hook_rules(binding: &Binding) -> HookRules {
         mask_menu: codes.iter().chain(translate.iter()).any(is_menu_key),
         needs: if plain.is_empty() { Vec::new() } else { codes.iter().copied().filter(|c| !plain.contains(c)).collect() },
         swallow: plain,
+        binding: Some(binding.clone()),
     }
 }
 
@@ -720,7 +723,9 @@ mod tests {
     #[test]
     fn the_hook_masks_the_menu_keys_and_holds_back_ordinary_keys_of_the_combination() {
         let rules = |dictation: &[&str], translate: &[&str]| hook_rules(&custom_binding(&ids(dictation), &ids(translate)).unwrap());
-        assert_eq!(rules(&["right_control"], &[]), HookRules::default());
+        let plain = rules(&["right_control"], &[]);
+        assert_eq!(HookRules { binding: None, ..plain.clone() }, HookRules::default());
+        assert_eq!(plain.binding.map(|b| b.dictation), Some(vec![Key::RightControl]), "les touches en vigueur suivent (Wayland)");
         assert!(rules(&["left_win"], &[]).mask_menu);
         assert!(rules(&["left_control", "f9"], &["left_alt"]).mask_menu, "Alt gauche pour traduire compte aussi");
         let combo = rules(&["left_control", "f9"], &[]);

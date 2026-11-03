@@ -56,8 +56,13 @@ fn wait_for_modifiers_released(conn: &impl Connection) {
     }
 }
 
-/// Ctrl+V, avec les touches de la disposition en vigueur (« v » est où l'est la lettre, pas où le QWERTY la met).
+/// Ctrl+V, avec les touches de la disposition en vigueur (« v » est où l'est la lettre, pas où le QWERTY la met). Sous Wayland, par le
+/// portail `RemoteDesktop` de GNOME (`wayland.rs`) : le raccourci de dictée vient d'être relâché, on laisse 40 ms au bureau.
 fn send_ctrl_v() -> Result<(), String> {
+    if super::wayland::is_wayland() {
+        std::thread::sleep(Duration::from_millis(40));
+        return super::wayland::send_ctrl_v_blocking();
+    }
     let (conn, root) = x11::connect()?;
     let control = x11::keycode_for(&conn, &[KEYSYM_CONTROL_L]).ok_or("touche Ctrl introuvable dans la disposition du clavier")?;
     let v = x11::keycode_for(&conn, &KEYSYM_V).ok_or("touche V introuvable dans la disposition du clavier")?;

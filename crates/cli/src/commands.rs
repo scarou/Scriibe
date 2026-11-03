@@ -211,7 +211,12 @@ pub fn run() -> Result<(), String> {
         if cfg!(windows) {
             eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
         } else {
-            eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
+            #[cfg(target_os = "linux")]
+            let key = scriibe_platform::linux::wayland_trigger()
+                .map_or_else(|| "Ctrl droit".to_string(), |t| format!("{t} (raccourci de GNOME)"));
+            #[cfg(not(target_os = "linux"))]
+            let key = "Ctrl droit".to_string();
+            eprintln!("Prêt : maintiens {key}, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
         }
 
         #[cfg(windows)]
