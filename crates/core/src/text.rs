@@ -36,6 +36,16 @@ pub fn known_hallucination(text: &str) -> Option<String> {
     FRAGMENTS.iter().find(|f| t.contains(**f)).map(|f| f.to_string())
 }
 
+// Scriibe (S15) : un code épelé (« zéro neuf deux six F A 6 ») que Whisper lit comme un nombre décimal et écrit « 0,926FA6 ».
+// Un chiffre, une virgule, puis au moins cinq caractères hexadécimaux mêlant chiffres et lettres, collés : ce n'est pas un nombre.
+regex!(SPELLED_CODE, r"(?<![\p{L}\p{N},.])(\d),((?=[0-9A-Fa-f]*[A-Fa-f])(?=[0-9A-Fa-f]*\d)[0-9A-Fa-f]{5,})(?![\p{L}\p{N}])");
+
+/// Recolle un code épelé que Whisper a coupé d'une virgule décimale : « 0,926FA6 » → « 0926FA6 ». Un nombre (« 3,14159 »,
+/// « 1,5 Mo ») ou un code court (« 3,5db ») reste tel quel.
+pub fn join_spelled_code(text: &str) -> String {
+    SPELLED_CODE.replace_all(text, "$1$2").into_owned()
+}
+
 regex!(BADLY_SPLIT, r"([.?!][ \x{00A0}]+|\n[ \x{00A0}]*)[a-zàâçéèêëîïôûùüÿœ]");
 regex!(
     ASKS_WITH_PERIOD,

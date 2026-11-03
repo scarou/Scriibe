@@ -434,6 +434,15 @@ fn three_words_or_fewer_skip_the_model_in_simple_mode() {
 }
 
 #[test]
+fn a_spelled_code_cut_by_a_decimal_comma_is_pasted_joined_and_the_history_keeps_what_was_heard() {
+    // Dictée réelle du 03/11/2026 : « zéro neuf deux six F A 6 » écrit « 0,926FA6 » par Whisper (docs/ECARTS.md).
+    let r = rig("0,926FA6", "ne doit pas être utilisé");
+    r.dictate();
+    assert_eq!(r.paster.pasted()[0].0, "0926FA6");
+    assert_eq!(r.history.items()[0].raw_text, "0,926FA6");
+}
+
+#[test]
 fn literal_mode_pastes_what_was_heard_with_the_dictionary_applied() {
     let r = rig_with(
         AppSettings { rewrite_mode: scriibe_core::modes::RewriteMode::Literal, ..local_settings() },

@@ -6,7 +6,7 @@ use scriibe_core::history::{Cleanup, Dictation, DictationTiming};
 use scriibe_core::hotkey::{HotkeyEvent, HotkeyMonitor, Key};
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{AppSettings, TranscriptionEngine};
-use scriibe_core::text::{known_hallucination, word_count};
+use scriibe_core::text::{join_spelled_code, known_hallucination, word_count};
 use scriibe_core::translation::TranslationLanguage;
 use scriibe_core::typography::french_typography;
 use scriibe_engines::http::{HttpRequest, Method};
@@ -710,7 +710,7 @@ impl Controller {
             return;
         }
 
-        let applied = dictionary::apply(&dictionary, &raw, settings.list_bullet, settings.lists_on());
+        let applied = dictionary::apply(&dictionary, &join_spelled_code(&raw), settings.list_bullet, settings.lists_on());
         let mut text = applied.text;
         let mut corrections = applied.count as i64;
         let mut note: Option<String> = None;
