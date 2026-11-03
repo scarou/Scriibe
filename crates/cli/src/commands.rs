@@ -81,7 +81,7 @@ pub fn run() -> Result<(), String> {
     // L'adresse de la page d'essais n'est connue qu'une fois son serveur démarré ; l'icône la lit au moment du clic.
     let page_url: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     // Ce que le menu de l'icône montre et fait : connu une fois l'appli construite.
-    #[cfg(any(windows, target_os = "macos"))]
+    #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
     let menu_source: Arc<Mutex<Option<Arc<dyn scriibe_platform::tray_menu::TrayMenuSource>>>> = Arc::new(Mutex::new(None));
     #[cfg(windows)]
     let (host, real_indicator): (_, Arc<dyn Indicator>) = {
@@ -112,7 +112,15 @@ pub fn run() -> Result<(), String> {
         let (state, indicator) = crate::mac_tray::indicator(tip);
         (state, Arc::new(indicator))
     };
-    #[cfg(not(any(windows, target_os = "macos")))]
+    // Linux : comme macOS, l'icône (barre du haut, AppIndicator) est créée par Tauri sur le fil principal.
+    #[cfg(target_os = "linux")]
+    let (tray_state, real_indicator): (_, Arc<dyn Indicator>) = {
+        let english = settings.ui_language.resolve(&scriibe_platform::locale::system_language()) == scriibe_core::settings::UiLang::En;
+        let tip = if english { "Scriibe — voice dictation" } else { "Scriibe — dictée vocale" };
+        let (state, indicator) = crate::mac_tray::indicator(tip);
+        (state, Arc::new(indicator))
+    };
+    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
     let real_indicator: Arc<dyn Indicator> = Arc::new(ConsoleIndicator);
 
     // L'état de l'indicateur à l'écran suit l'icône : tout ce qui est montré à l'une l'est à l'autre.
@@ -128,7 +136,7 @@ pub fn run() -> Result<(), String> {
         indicator: Arc::new(TeeIndicator(sinks.clone())),
     };
     let app = Arc::new(build(config, log, platform, choices));
-    #[cfg(any(windows, target_os = "macos"))]
+    #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
     if let Ok(mut slot) = menu_source.lock() {
         *slot = Some(Arc::new(crate::tray_source::TraySource {
             config: app.config.clone(),
@@ -162,11 +170,18 @@ pub fn run() -> Result<(), String> {
     }
     instance_lock.publish(&url);
     eprintln!("Interface : {url}");
-    // macOS : Tauri prend le fil principal pour de bon (fenêtre, icône, pastille) et ne le rend pas avant « Quitter ».
-    #[cfg(target_os = "macos")]
+    // macOS et Linux : Tauri prend le fil principal pour de bon (fenêtre, icône, pastille sur Mac) et ne le rend pas avant « Quitter ».
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
         app.controller.preload();
+        #[cfg(target_os = "macos")]
         eprintln!("Prêt : maintiens Option droite, parle, relâche. Icône dans la barre des menus (menu : ouvrir Scriibe, quitter).");
+        #[cfg(target_os = "linux")]
+        {
+            let key = scriibe_platform::linux::wayland_trigger()
+                .map_or_else(|| "Ctrl droit".to_string(), |t| format!("{t} (raccourci de GNOME)"));
+            eprintln!("Prêt : maintiens {key}, parle, relâche. Icône dans la barre du haut (menu : ouvrir Scriibe, quitter).");
+        }
         let quitting = app.clone();
         let setup = crate::window::MainSetup {
             url: url.clone(),
@@ -202,7 +217,7 @@ pub fn run() -> Result<(), String> {
         Ok(())
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         if !std::env::args().any(|a| a == "--sans-navigateur") {
             open_interface(&url, &app, &overlay);
@@ -211,12 +226,7 @@ pub fn run() -> Result<(), String> {
         if cfg!(windows) {
             eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Icône dans la zone de notification (menu : ouvrir Scriibe, quitter).");
         } else {
-            #[cfg(target_os = "linux")]
-            let key = scriibe_platform::linux::wayland_trigger()
-                .map_or_else(|| "Ctrl droit".to_string(), |t| format!("{t} (raccourci de GNOME)"));
-            #[cfg(not(target_os = "linux"))]
-            let key = "Ctrl droit".to_string();
-            eprintln!("Prêt : maintiens {key}, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
+            eprintln!("Prêt : maintiens Ctrl droit, parle, relâche. Pas d'icône sur ce système pour l'instant : l'interface s'ouvre dans le navigateur (adresse ci-dessus).");
         }
 
         #[cfg(windows)]
@@ -236,7 +246,7 @@ pub fn run() -> Result<(), String> {
 
 /// Ouvre l'interface : dans la fenêtre de Scriibe (Windows) ou, si elle ne peut pas s'ouvrir ou sur demande (`--navigateur`), dans le
 /// navigateur. (macOS : voir `window::run_main`.)
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 fn open_interface(url: &str, app: &app::App, overlay: &Arc<OverlayModel>) {
     #[cfg(windows)]
     if !std::env::args().any(|a| a == "--navigateur") {

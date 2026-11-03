@@ -11,12 +11,12 @@
 mod app;
 mod assistant;
 mod commands;
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 mod mac_tray;
 mod overlay;
 mod tray_source;
 mod web;
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 mod window;
 
 use std::process::ExitCode;

@@ -6,8 +6,13 @@
 //!
 //! macOS : Tauri (comme AppKit) exige le fil principal ; il le garde donc (`run_main`) et porte aussi l'icône de la barre des menus
 //! (`mac_tray`). L'appli est « accessoire » : pas d'icône dans le Dock, comme Scribe.
+//!
+//! Linux : comme macOS (`run_main`, fil principal, icône par `mac_tray`, qui passe par AppIndicator), sans pastille pour l'instant (Wayland
+//! ne laisse pas une appli placer une fenêtre ni la garder devant sans prendre le focus).
 
-use crate::overlay::{origin_x, OverlayModel, BOTTOM_GAP, WINDOW_SIZE};
+use crate::overlay::OverlayModel;
+#[cfg(any(windows, target_os = "macos"))]
+use crate::overlay::{origin_x, BOTTOM_GAP, WINDOW_SIZE};
 use scriibe_engines::runtime::Log;
 use scriibe_platform::storage::FileConfig;
 #[cfg(windows)]
@@ -15,10 +20,14 @@ use std::panic::AssertUnwindSafe;
 #[cfg(windows)]
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex, MutexGuard};
+#[cfg(any(windows, target_os = "macos"))]
 use std::time::Duration;
-use tauri::{AppHandle, Manager, PhysicalPosition, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
+#[cfg(any(windows, target_os = "macos"))]
+use tauri::PhysicalPosition;
+use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder};
 
 const LABEL: &str = "main";
+#[cfg(any(windows, target_os = "macos"))]
 const OVERLAY_LABEL: &str = "overlay";
 
 static HANDLE: Mutex<Option<AppHandle>> = Mutex::new(None);
@@ -101,6 +110,7 @@ fn run(url: String, ready: mpsc::Sender<Result<(), String>>) -> Result<(), Strin
     Ok(())
 }
 
+#[cfg(any(windows, target_os = "macos"))]
 /// La fenêtre de la pastille : sans cadre, transparente, toujours devant, jamais activée (le texte doit se coller dans l'appli qui a le focus)
 /// et insensible à la souris. Elle charge la même interface avec « #overlay ».
 fn build_overlay(app: &AppHandle, url: &str) -> Result<tauri::WebviewWindow, String> {
@@ -123,6 +133,7 @@ fn build_overlay(app: &AppHandle, url: &str) -> Result<tauri::WebviewWindow, Str
     Ok(window)
 }
 
+#[cfg(any(windows, target_os = "macos"))]
 /// Pose la fenêtre en bas de la zone de travail de l'écran où se trouve la souris, selon la position choisie.
 fn place_overlay(app: &AppHandle, window: &tauri::WebviewWindow, position: scriibe_core::settings::CapturePosition) {
     let monitor = app
@@ -162,6 +173,7 @@ fn reveal(app: &AppHandle, window: &tauri::WebviewWindow) {
     });
 }
 
+#[cfg(any(windows, target_os = "macos"))]
 /// Surveille l'état de la pastille : la montre et la cache avec l'état de la dictée quand le réglage « Afficher la pastille » est coché.
 /// La fenêtre est créée (cachée) au premier besoin, puis réutilisée.
 pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConfig>, log: Arc<dyn Log>) {
@@ -207,7 +219,7 @@ pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConf
 
 /// macOS : ouvre la fenêtre, l'icône de la barre des menus et la pastille, puis fait tourner Tauri sur le fil principal. Ne rend la main
 /// qu'en cas d'échec avant le démarrage de la boucle (l'appelant retombe alors sur le navigateur) : « Quitter » arrête le programme.
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub struct MainSetup {
     pub url: String,
     /// Ouvrir la fenêtre au démarrage (pas avec `--sans-navigateur`).
@@ -218,16 +230,19 @@ pub struct MainSetup {
     pub tray: crate::mac_tray::Shell,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub fn run_main(setup: MainSetup) -> Result<(), String> {
     let MainSetup { url, show_window, log, overlay, config, tray } = setup;
+    #[cfg(target_os = "macos")]
     let reopen_url = url.clone();
     let app = tauri::Builder::default()
         .on_menu_event(|_, event| crate::mac_tray::on_menu_event(event.id().as_ref()))
         .setup(move |app| {
             // Pas d'icône dans le Dock ni de menu en haut de l'écran : l'icône de la barre des menus suffit (comme Scribe).
+            #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             // Sans menu « Édition », ⌘C, ⌘V et ⌘A ne marchent pas dans les champs de la page.
+            #[cfg(target_os = "macos")]
             app.set_menu(crate::mac_tray::app_menu(app.handle())?).map_err(|e| e.to_string())?;
             *handle() = Some(app.handle().clone());
             scriibe_platform::open::set_window_opener(move |target| match handle().as_ref() {
@@ -237,17 +252,28 @@ pub fn run_main(setup: MainSetup) -> Result<(), String> {
             if show_window {
                 show(app.handle(), &url)?;
             }
-            crate::mac_tray::install(app.handle(), tray)?;
+            // Linux : sans AppIndicator (bureau sans zone d'icônes), la fenêtre reste ; elle se rouvre par le lanceur.
+            if let Err(e) = crate::mac_tray::install(app.handle(), tray) {
+                if cfg!(target_os = "macos") {
+                    return Err(e.into());
+                }
+                log.write(&format!("icône: impossible ({e})"));
+            }
+            #[cfg(target_os = "macos")]
             start_overlay(url.clone(), overlay, config, log.clone());
-            log.write("fenêtre: Tauri (WKWebView) prête, icône de la barre des menus installée");
+            #[cfg(target_os = "linux")]
+            let _ = (overlay, config);
+            log.write("fenêtre: Tauri prête, icône installée");
             Ok(())
         })
         .build(tauri::generate_context!())
         .map_err(|e| e.to_string())?;
+    #[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
     app.run(move |app, event| match event {
         // Fermer la dernière fenêtre ne quitte pas Scriibe.
         RunEvent::ExitRequested { api, code: None, .. } => api.prevent_exit(),
         // Un second double-clic sur Scriibe.app, ou « Ouvrir » dans le Finder : montrer la fenêtre.
+        #[cfg(target_os = "macos")]
         RunEvent::Reopen { has_visible_windows: false, .. } => {
             let _ = show(app, &reopen_url);
         }

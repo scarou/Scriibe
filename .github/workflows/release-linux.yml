@@ -47,7 +47,7 @@ jobs:
           npm ci
           npm run build
       - name: Paquets Linux (micro ALSA)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev zip
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev zip
       - name: Rust stable
         run: rustup update stable && rustup default stable
       - name: Compilation

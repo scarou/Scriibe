@@ -45,13 +45,15 @@ chmod +x ~/scriibe/scriibe
 
 The microphone needs the ALSA library, present on common desktops. If launching complains about `libasound.so.2`: `sudo apt install -y libasound2t64` (or `libasound2` on older versions).
 
+The window and the icon need WebKitGTK and AppIndicator, installed by default on Ubuntu with GNOME. If `libwebkit2gtk-4.1.so.0` or `libayatana-appindicator3.so.1` is missing: `sudo apt install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1`.
+
 ## 4. Launch
 
 ```bash
 ~/scriibe/scriibe
 ```
 
-The terminal stays busy (it is Scriibe's log) and **Scriibe's page opens in the browser**. There is no icon near the clock and no window of its own for Scriibe on Linux yet. To quit: **Ctrl+C** in the terminal. To reopen the page: open the address shown by the terminal.
+The terminal stays busy (it is Scriibe's log). **Scriibe's window opens**, and an **icon** appears in the top bar, near the sound and battery: its menu reopens the window or quits Scriibe. Closing the window does not quit Scriibe, which keeps listening for the key. (On a GNOME without the AppIndicator extension, such as Fedora, the icon does not appear: reopen the page with the address shown by the terminal.) To quit: the icon's menu, or **Ctrl+C** in the terminal.
 
 ## 5. Choose how Scriibe transcribes
 

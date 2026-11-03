@@ -80,3 +80,8 @@ Constat sur Wayland : Christophe n'acceptera pas de changer de bureau pour utili
 - **Appli au premier plan** : « Inconnue » (Wayland ne la donne pas).
 - Le portail `GlobalShortcuts` de ce GNOME est en **version 1** : pas de `ConfigureShortcuts` (fenêtre de changement du raccourci) ; on change le raccourci dans **Paramètres → Applications → Scriibe → Raccourcis clavier** (chemin vérifié par Christophe), puis on relance Scriibe. La page l'explique (Réglages → Dictée) et affiche le raccourci (« Prêt · Ctrl + ← »).
 - Non essayé : la traduction (aucun raccourci de traduction n'est déclaré pour l'instant), la pause des médias, les terminaux, une appli Wayland native autre que l'Éditeur de texte (Firefox, LibreOffice…).
+
+**03/11/2026, fenêtre et icône (Tauri) sous GNOME Wayland :**
+
+- Scriibe ouvre maintenant **sa propre fenêtre** (WebKitGTK, comme sur Mac et Windows) au lieu du navigateur, et met une **icône dans la barre du haut** (AppIndicator, extension `ubuntu-appindicators` d'Ubuntu) avec le même menu que sur Mac. Pas de pastille (sous Wayland, une appli ne peut pas placer une fenêtre toujours devant). **Vues par Christophe** : la fenêtre et l’icône (menu pas encore essayé).
+- Dictée avec la fenêtre ouverte : texte collé dans l'Éditeur de texte (31 signes en 0,08 s), après avoir monté le micro USB devenu source par défaut (`PIEGES.md`).
