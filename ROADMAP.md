@@ -13,6 +13,13 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 8. ○ **Ouverture** : README anglais, CONTRIBUTING, vérification du nom (INPI/EUIPO, recherche web), passage du dépôt en public.
 9. ✘ **Mode Amusant** (schtroumpf) : **abandonné** (décision de Christophe, S05).
 
+## Prochaines étapes
+
+1. ▶ **Publier une v0.2.1** (interface refaite à la manière de Scribe, apparence réglable, dictée sur une sélection sur Mac, documentation anglaise) : numéro dans `Cargo.toml`, compiler, commiter, pousser, `tools/publier_macos.sh 0.2.1` (aperçu puis « oui » de Christophe) ; attendre `release-windows.yml`. Puis **essayer sur le PC la mise à jour par la fenêtre** (0.2.0 → 0.2.1, jamais essayée de bout en bout) et l'alerte de nouvelle version sur le Mac (Scriibe.app à recompiler en 0.2.x).
+2. Voir sur le PC la nouvelle interface (Réglages à onglets, cartes repliables, Historique groupé par jour).
+3. Détection de la sélection sous Windows et Linux (aujourd'hui Mac seulement) ; cartes de groupes de Modes repliables.
+4. Chantier C de `docs/MISE_A_JOUR.md` (installation intégrée sur Mac), release Linux ; essais Mac restants (combinaison de touches, Fn, traduction personnalisée).
+
 ## Étape 5 en détail
 
 Objectif : dicter sous Windows, de bout en bout (touche → micro → transcription → mise au propre → collage), sur le PC Windows de Christophe (HP, AZERTY, Radeon RX 540 2 Go + Intel UHD 620).
