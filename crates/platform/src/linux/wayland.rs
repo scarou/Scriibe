@@ -86,20 +86,32 @@ fn ensure_desktop_file() {
     else {
         return;
     };
-    let path = base.join("applications").join(format!("{APP_ID}.desktop"));
-    if path.exists() {
-        return;
+    // L'icône du dock : GNOME relie la fenêtre (classe X11 « Scriibe », par XWayland) à ce fichier par `StartupWMClass`, et en prend `Icon`.
+    let icon = base.join("icons/hicolor/scalable/apps").join(format!("{APP_ID}.svg"));
+    if std::fs::read(&icon).ok().as_deref() != Some(ICON_SVG) {
+        if let Some(dir) = icon.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        let _ = std::fs::write(&icon, ICON_SVG);
     }
+    let path = base.join("applications").join(format!("{APP_ID}.desktop"));
     let Ok(exe) = std::env::current_exe() else { return };
     let content = format!(
-        "[Desktop Entry]\nType=Application\nName=Scriibe\nComment=Dictée vocale\nExec=\"{}\" lancer\nTerminal=false\nCategories=Utility;Accessibility;\n",
+        "[Desktop Entry]\nType=Application\nName=Scriibe\nComment=Dictée vocale\nExec=\"{}\" lancer\nIcon={APP_ID}\nStartupWMClass=Scriibe\nTerminal=false\nCategories=Utility;Accessibility;\n",
         exe.display()
     );
+    // Réécrit seulement s'il manque ou a changé (programme déplacé, ancienne version sans icône).
+    if std::fs::read_to_string(&path).is_ok_and(|old| old == content) {
+        return;
+    }
     if let Some(dir) = path.parent() {
         let _ = std::fs::create_dir_all(dir);
     }
     let _ = std::fs::write(&path, content);
 }
+
+/// L'icône de Scriibe pour Linux (violette, `logo/`).
+const ICON_SVG: &[u8] = include_bytes!("../../../../logo/scriibe-icone-linux.svg");
 
 fn token_path() -> PathBuf {
     crate::storage::data_folder().join("portail-wayland.json")
