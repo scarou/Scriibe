@@ -37,7 +37,7 @@ Step by step, for someone who has never built a program:
 
 - **Mac** (Apple silicon, macOS 14 or later): [docs/INSTALLATION_MACOS.en.md](docs/INSTALLATION_MACOS.en.md) · [français](docs/INSTALLATION_MACOS.md)
 - **Windows** (10 or 11, 64-bit): [docs/INSTALLATION_WINDOWS.en.md](docs/INSTALLATION_WINDOWS.en.md) · [français](docs/INSTALLATION_WINDOWS.md)
-- **Linux** (X11; Wayland is not supported): no ready-to-download version yet; the state is in [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md) (French), and you can build it yourself (see below).
+- **Linux** (X11; Wayland is not supported; experimental): [docs/INSTALLATION_LINUX.en.md](docs/INSTALLATION_LINUX.en.md) · [français](docs/INSTALLATION_LINUX.md). The `scriibe-linux-x64.zip` file is added to the Releases from the next published version; the state of the trial is in [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md) (French), and you can also build it yourself (see below).
 
 Downloads are on the [Releases](https://github.com/scarou/Scriibe/releases) page. The local engines (Whisper, llama.cpp) are installed or downloaded from within the application, with your consent for every download; the online engines (Deepgram, OpenRouter) need a personal key.
 

@@ -2,6 +2,8 @@
 
 🇫🇷 [Version française](INSTALLATION_MACOS.md)
 
+Other systems: [Windows](INSTALLATION_WINDOWS.en.md) · [Linux](INSTALLATION_LINUX.en.md)
+
 For someone who receives Scriibe from somebody else (no programming knowledge needed). Allow 10 minutes with online engines, 30 minutes with engines running on the Mac (downloads included).
 
 **What you need**: a Mac with Apple silicon (M1 or later), macOS 14 or later, an Internet connection, a microphone.

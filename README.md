@@ -21,7 +21,7 @@ Pas à pas, pour une personne qui n'a jamais compilé de programme :
 
 - **Mac** (puce Apple, macOS 14 ou plus) : [docs/INSTALLATION_MACOS.md](docs/INSTALLATION_MACOS.md) ([English](docs/INSTALLATION_MACOS.en.md)).
 - **Windows** (10 ou 11, 64 bits) : [docs/INSTALLATION_WINDOWS.md](docs/INSTALLATION_WINDOWS.md) ([English](docs/INSTALLATION_WINDOWS.en.md)).
-- **Linux** (X11 ; Wayland n'est pas pris en charge) : pas encore de version prête à télécharger ; l'état est dans [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md), et on peut compiler soi-même (voir ci-dessous).
+- **Linux** (X11 ; Wayland n'est pas pris en charge ; expérimental) : [docs/INSTALLATION_LINUX.md](docs/INSTALLATION_LINUX.md) ([English](docs/INSTALLATION_LINUX.en.md)). Le fichier `scriibe-linux-x64.zip` est ajouté aux Releases à partir de la prochaine version publiée ; l'état de l'essai est dans [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md), et on peut aussi compiler soi-même (voir ci-dessous).
 
 Les versions à télécharger sont dans les [Releases](https://github.com/scarou/Scriibe/releases) du dépôt. Les moteurs locaux (Whisper, llama.cpp) sont installés ou téléchargés depuis l'application, avec l'accord de l'utilisateur à chaque téléchargement ; les moteurs en ligne (Deepgram, OpenRouter) demandent une clé personnelle.
 

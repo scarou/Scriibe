@@ -32,3 +32,28 @@ SCRIIBE_DATA=/tmp/scriibe target/debug/scriibe lancer --sans-navigateur
 ```
 
 Sur un écran virtuel : `Xvfb :99 &`, puis `DISPLAY=:99 SCRIIBE_X11_ACCEPT_XTEST=1 … scriibe lancer`, et `DISPLAY=:99 xdotool keydown 105` (Ctrl droit) pour dicter.
+
+## Essai sur un vrai bureau Linux (S15, 03/11/2026)
+
+PC de Christophe : HP ProBook 450 G6, **Ubuntu 26.04.1 LTS**, session **Wayland** à l'origine. Ubuntu 25.10 et suivantes n'ont plus de session X11 avec GNOME : choix de Christophe (03/11) d'installer le bureau **Xfce** (`sudo apt install xfce4`, session « Xfce Session » au choix à la connexion) pour essayer la couche X11 existante. Wayland reste le vrai chantier pour les utilisateurs d'Ubuntu récent (portails, `libei` : `ROADMAP.md`).
+
+Livrable : `scriibe-linux-x64.zip` (exécutable `scriibe`, x86-64), compilé sur Ubuntu 22.04 par `.github/workflows/release-linux.yml` et ajouté à la Release publiée. Guide : [INSTALLATION_LINUX.md](INSTALLATION_LINUX.md).
+
+### Compiler `whisper-server` (aucun binaire Linux tout fait chez whisper.cpp)
+
+À confirmer par l'essai. Une commande après l'autre :
+
+```bash
+sudo apt install -y build-essential cmake git
+git clone --depth 1 https://github.com/ggml-org/whisper.cpp ~/whisper.cpp
+cd ~/whisper.cpp && cmake -B build -DBUILD_SHARED_LIBS=OFF && cmake --build build -j --config Release --target whisper-server
+mkdir -p ~/.local/share/Scriibe/engines/whisper && cp ~/whisper.cpp/build/bin/whisper-server ~/.local/share/Scriibe/engines/whisper/
+```
+
+(`BUILD_SHARED_LIBS=OFF` : un seul fichier, sans bibliothèques à côté.) Le modèle (`whisper-base`) se télécharge depuis la page de Scriibe, qui le propose sous Linux.
+
+`llama-server` (mise au propre) : llama.cpp publie `llama-bNNNN-bin-ubuntu-x64.tar.gz` (≈ 23 Mo), mais les téléchargements de Scriibe ne savent lire que des `.zip` et sont réservés à Windows (`downloads.rs`, `windows_only`) : à faire ensuite. Pour le premier essai, la mise au propre peut rester éteinte (texte brut).
+
+### Résultats
+
+(à remplir pendant l'essai)

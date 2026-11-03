@@ -2,6 +2,8 @@
 
 🇬🇧 [English version](INSTALLATION_WINDOWS.en.md)
 
+Autres systèmes : [macOS](INSTALLATION_MACOS.md) · [Linux](INSTALLATION_LINUX.md)
+
 Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la programmation nécessaire). Compter 10 minutes avec les moteurs en ligne, 30 minutes avec les moteurs sur le PC (téléchargements compris).
 
 **Ce qu'il faut** : Windows 10 ou 11 (64 bits), une connexion Internet, un micro, et un compte GitHub gratuit (voir l'étape 1).

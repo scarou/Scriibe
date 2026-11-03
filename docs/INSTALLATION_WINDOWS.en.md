@@ -2,6 +2,8 @@
 
 🇫🇷 [Version française](INSTALLATION_WINDOWS.md)
 
+Other systems: [macOS](INSTALLATION_MACOS.en.md) · [Linux](INSTALLATION_LINUX.en.md)
+
 For someone who receives Scriibe from somebody else (no programming knowledge needed). Allow 10 minutes with online engines, 30 minutes with engines running on the PC (downloads included).
 
 **What you need**: Windows 10 or 11 (64-bit), an Internet connection, a microphone. A free GitHub account is only needed for route B in step 1.

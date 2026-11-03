@@ -2,6 +2,8 @@
 
 🇬🇧 [English version](INSTALLATION_MACOS.en.md)
 
+Autres systèmes : [Windows](INSTALLATION_WINDOWS.md) · [Linux](INSTALLATION_LINUX.md)
+
 Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la programmation nécessaire). Compter 10 minutes avec les moteurs en ligne, 30 minutes avec les moteurs sur le Mac (téléchargements compris).
 
 **Ce qu'il faut** : un Mac à puce Apple (M1 ou plus récent), macOS 14 ou plus récent, une connexion Internet, un micro.
