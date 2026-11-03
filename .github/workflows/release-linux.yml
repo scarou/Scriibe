@@ -3,15 +3,15 @@ name: Release Linux
 # Quand une Release est publiée (par tools/publier_macos.sh, qui y met le zip du Mac), ce travail compile l'exécutable `scriibe` (Linux x86-64, X11)
 # et l'ajoute à la même Release sous le nom scriibe-linux-x64.zip. Compilé sur Ubuntu 22.04 (glibc 2.35) pour tourner aussi sur les
 # distributions plus anciennes que la plus récente. Lancement à la main possible (Actions → Release Linux → Run workflow) pour une Release
-# déjà publiée, avec son étiquette (v0.2.2).
+# déjà publiée, avec son étiquette (v0.2.2) ; sans étiquette, c'est un essai à blanc (compilation sans envoi).
 on:
   release:
     types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Étiquette de la Release (par exemple v0.2.2)"
-        required: true
+        description: "Étiquette de la Release (par exemple v0.2.2) ; vide : essai à blanc, on compile sans rien envoyer"
+        required: false
 
 permissions:
   contents: write
@@ -28,6 +28,7 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag }}
       - name: Le numéro de la Release est celui du programme
+        if: env.TAG != ''
         shell: bash
         run: |
           version=$(grep -m1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
@@ -57,4 +58,67 @@ jobs:
           cp target/release/scriibe out/
           chmod +x out/scriibe
           (cd out && zip ../scriibe-linux-x64.zip scriibe)
-          gh release upload "$TAG" scriibe-linux-x64.zip --clobber --repo "$GITHUB_REPOSITORY"
+          [ -z "$TAG" ] || gh release upload "$TAG" scriibe-linux-x64.zip --clobber --repo "$GITHUB_REPOSITORY"
+
+  # whisper.cpp ne publie pas de whisper-server pour Linux : compilé ici, en un seul fichier (bibliothèques liées, sans OpenMP), avec AVX2 / FMA
+  # comme plancher (tout PC depuis 2015 environ). Scriibe le télécharge depuis la Release (onglet Installation, carte « whisper-server (Linux) »).
+  whisper-linux:
+    name: whisper-server-linux-x64.zip
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      WHISPER_TAG: v1.9.5
+    steps:
+      - name: Paquets
+        run: sudo apt-get update && sudo apt-get install -y cmake zip
+      - name: Sources de whisper.cpp
+        run: git clone --depth 1 --branch "$WHISPER_TAG" https://github.com/ggml-org/whisper.cpp whisper.cpp
+      - name: Compilation
+        working-directory: whisper.cpp
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF \
+            -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON -DGGML_AVX512=OFF -DWHISPER_BUILD_TESTS=OFF
+          cmake --build build -j"$(nproc)" --config Release --target whisper-server
+      - name: Le programme démarre et ne dépend que de bibliothèques courantes
+        run: |
+          ldd whisper.cpp/build/bin/whisper-server
+          whisper.cpp/build/bin/whisper-server --help | head -5
+      - name: Zip et envoi dans la Release
+        run: |
+          mkdir out
+          cp whisper.cpp/build/bin/whisper-server out/
+          chmod +x out/whisper-server
+          (cd out && zip ../whisper-server-linux-x64.zip whisper-server)
+          [ -z "$TAG" ] || gh release upload "$TAG" whisper-server-linux-x64.zip --clobber --repo "$GITHUB_REPOSITORY"
+
+  # llama.cpp publie un llama-server pour Linux, mais en .tar.gz ; Scriibe ne lit que des zip : on le remballe à plat (le programme et ses
+  # bibliothèques .so côte à côte, liens copiés en vrais fichiers).
+  llama-linux:
+    name: llama-server-linux-x64.zip
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Paquets
+        run: sudo apt-get update && sudo apt-get install -y zip
+      - name: Dernière version de llama.cpp pour Linux (processeur)
+        run: |
+          name=$(gh api "repos/ggml-org/llama.cpp/releases?per_page=5" --jq '.[0].assets[].name' | grep -E '^llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz$' | head -1)
+          test -n "$name" || { echo "::error::aucun llama-bNNNN-bin-ubuntu-x64.tar.gz dans la dernière version de llama.cpp"; exit 1; }
+          echo "Fichier : $name"
+          gh release download --repo ggml-org/llama.cpp "$(gh api "repos/ggml-org/llama.cpp/releases?per_page=1" --jq '.[0].tag_name')" --pattern "$name" --dir dl
+          mkdir src && tar -xzf "dl/$name" -C src
+      - name: Remballage à plat
+        run: |
+          mkdir out
+          server=$(find src -type f -name llama-server | head -1)
+          test -n "$server" || { echo "::error::llama-server absent de l'archive"; exit 1; }
+          cp "$server" out/
+          find src \( -type f -o -type l \) \( -name '*.so' -o -name '*.so.*' \) -exec cp -L {} out/ \;
+          chmod +x out/*
+          ls -l out
+          (cd out && LD_LIBRARY_PATH=. ./llama-server --version 2>&1 | head -3)
+          (cd out && zip ../llama-server-linux-x64.zip *)
+          [ -z "$TAG" ] || gh release upload "$TAG" llama-server-linux-x64.zip --clobber --repo "$GITHUB_REPOSITORY"

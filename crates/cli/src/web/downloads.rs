@@ -19,7 +19,7 @@ pub struct Item {
     pub kind: &'static str,
 }
 
-pub const ITEMS: [Item; 8] = [
+pub const ITEMS: [Item; 10] = [
     Item {
         id: "whisper-server",
         label: "whisper-server (Windows)",
@@ -31,6 +31,18 @@ pub const ITEMS: [Item; 8] = [
         label: "Modèle Whisper « base »",
         detail: "Le plus rapide ; quelques erreurs sur les mots courts.",
         kind: "whisper",
+    },
+    Item {
+        id: "whisper-server-linux",
+        label: "whisper-server (Linux)",
+        detail: "Le programme de transcription (whisper.cpp), compilé pour Linux x86-64 par la CI de Scriibe (un seul fichier, processeur avec AVX2).",
+        kind: "program",
+    },
+    Item {
+        id: "llama-server-linux",
+        label: "llama-server (Linux, processeur)",
+        detail: "Le programme de mise au propre (llama.cpp), version processeur pour Linux x86-64 (fichier officiel de llama.cpp, remballé en zip par la CI de Scriibe).",
+        kind: "program",
     },
     Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent.", kind: "whisper" },
     Item {
@@ -64,6 +76,19 @@ pub const ITEMS: [Item; 8] = [
         kind: "llama",
     },
 ];
+
+/// Les moteurs pour Linux que `release-linux.yml` ajoute à chaque Release (whisper.cpp n'en publie pas ; celui de llama.cpp est remballé en zip).
+const LINUX_WHISPER_ASSET: &str = "whisper-server-linux-x64.zip";
+const LINUX_LLAMA_ASSET: &str = "llama-server-linux-x64.zip";
+
+/// La page ne montre que les programmes de son système : ceux de Windows pas sous Linux, ceux de Linux nulle part ailleurs.
+pub fn offered(id: &str) -> bool {
+    match id {
+        "whisper-server-linux" | "llama-server-linux" => cfg!(target_os = "linux"),
+        "whisper-server" | "llama-server" | "llama-vulkan" => !cfg!(target_os = "linux"),
+        _ => true,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Resolved {
@@ -179,6 +204,13 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
             Err(format!("{what} : proposé seulement sous Windows pour l'instant"))
         }
     };
+    let linux_only = |what: &str| -> Result<(), String> {
+        if cfg!(target_os = "linux") {
+            Ok(())
+        } else {
+            Err(format!("{what} : ce fichier est celui de Linux"))
+        }
+    };
     if let Some((repo, file, _)) = hub::parse_download_id(id) {
         return hub_resolved(&repo, &file, models);
     }
@@ -202,6 +234,14 @@ pub fn resolve(id: &str, data: &Path) -> Result<Resolved, String> {
                 engines.join("llama"),
                 true,
             )
+        }
+        "whisper-server-linux" => {
+            linux_only("whisper-server")?;
+            (release_asset(super::update::REPO, |n| n == LINUX_WHISPER_ASSET)?, engines.join("whisper"), true)
+        }
+        "llama-server-linux" => {
+            linux_only("llama-server")?;
+            (release_asset(super::update::REPO, |n| n == LINUX_LLAMA_ASSET)?, engines.join("llama"), true)
         }
         "whisper-base" => (hub_file("ggerganov/whisper.cpp", "ggml-base.bin")?, models, false),
         "whisper-small" => (hub_file("ggerganov/whisper.cpp", "ggml-small.bin")?, models, false),
@@ -232,8 +272,15 @@ fn unzip_flat(zip_path: &Path, dest: &Path) -> Result<usize, String> {
             continue;
         }
         let Some(name) = entry.enclosed_name().and_then(|p| p.file_name().map(|n| n.to_owned())) else { continue };
-        let mut out = std::fs::File::create(dest.join(name)).map_err(|e| e.to_string())?;
+        let target = dest.join(name);
+        let mut out = std::fs::File::create(&target).map_err(|e| e.to_string())?;
         std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+        // Un zip peut perdre le droit d'exécution : les programmes et bibliothèques des moteurs s'exécutent.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
+        }
         written += 1;
     }
     Ok(written)
@@ -244,8 +291,14 @@ fn clean_engine_folder(folder: &Path) -> Result<(), String> {
     let Ok(entries) = std::fs::read_dir(folder) else { return Ok(()) };
     for entry in entries.flatten() {
         let path = entry.path();
-        let is_engine_file =
-            path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("exe") || e.eq_ignore_ascii_case("dll"));
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let is_engine_file = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("exe") || e.eq_ignore_ascii_case("dll") || e.eq_ignore_ascii_case("so"))
+            || name.contains(".so.")
+            || name == "whisper-server"
+            || name == "llama-server";
         if is_engine_file {
             std::fs::remove_file(&path)
                 .map_err(|e| format!("{} ne peut pas être remplacé ({e}) : le moteur est-il encore lancé ?", path.display()))?;
@@ -448,6 +501,48 @@ mod tests {
         assert!(out.join("whisper-server.exe").exists() && out.join("ggml.dll").exists());
         assert!(!dir.join("evil.txt").exists());
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unzipped_programs_are_executable() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("scriibe-zip-exec-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let archive = dir.join("a.zip");
+        {
+            let mut writer = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+            let options = zip::write::SimpleFileOptions::default().unix_permissions(0o644);
+            writer.start_file("whisper-server", options).unwrap();
+            writer.write_all(b"elf").unwrap();
+            writer.finish().unwrap();
+        }
+        let out = dir.join("out");
+        unzip_flat(&archive, &out).unwrap();
+        assert_eq!(std::fs::metadata(out.join("whisper-server")).unwrap().permissions().mode() & 0o111, 0o111);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn cleaning_an_engine_folder_removes_linux_programs_and_libraries_too() {
+        let dir = std::env::temp_dir().join(format!("scriibe-clean-linux-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["llama-server", "libllama.so", "libggml.so.0", "notes.txt"] {
+            std::fs::write(dir.join(name), b"x").unwrap();
+        }
+        clean_engine_folder(&dir).unwrap();
+        assert!(!dir.join("llama-server").exists() && !dir.join("libllama.so").exists() && !dir.join("libggml.so.0").exists());
+        assert!(dir.join("notes.txt").exists());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn each_system_is_offered_its_own_engines_only() {
+        assert_eq!(offered("whisper-server-linux"), cfg!(target_os = "linux"));
+        assert_eq!(offered("llama-vulkan"), !cfg!(target_os = "linux"));
+        assert!(offered("whisper-base"));
     }
 
     #[test]

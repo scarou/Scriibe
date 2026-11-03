@@ -150,6 +150,18 @@ impl Spawner for RealSpawner {
                 command.stderr(Stdio::null());
             }
         }
+        // Linux : les bibliothèques (`libllama.so`, `libggml*.so`) livrées à côté du programme se trouvent même si le zip n'a pas gardé le
+        // RPATH d'origine.
+        #[cfg(target_os = "linux")]
+        if let Some(dir) = program.parent().filter(|d| !d.as_os_str().is_empty()) {
+            let mut paths = vec![dir.to_path_buf()];
+            if let Some(existing) = std::env::var_os("LD_LIBRARY_PATH") {
+                paths.extend(std::env::split_paths(&existing));
+            }
+            if let Ok(joined) = std::env::join_paths(paths) {
+                command.env("LD_LIBRARY_PATH", joined);
+            }
+        }
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;

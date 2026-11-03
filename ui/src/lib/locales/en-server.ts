@@ -27,6 +27,12 @@ export const enServer: Record<string, string> = {
 
   // Programmes et modèles à télécharger (downloads.rs)
   'Le programme de transcription (whisper.cpp), avec ses DLL.': 'The transcription program (whisper.cpp), with its DLLs.',
+  'whisper-server (Linux)': 'whisper-server (Linux)',
+  'Le programme de transcription (whisper.cpp), compilé pour Linux x86-64 par la CI de Scriibe (un seul fichier, processeur avec AVX2).':
+    'The transcription program (whisper.cpp), built for Linux x86-64 by Scriibe’s CI (a single file, AVX2 processor).',
+  'llama-server (Linux, processeur)': 'llama-server (Linux, CPU)',
+  'Le programme de mise au propre (llama.cpp), version processeur pour Linux x86-64 (fichier officiel de llama.cpp, remballé en zip par la CI de Scriibe).':
+    'The cleanup program (llama.cpp), CPU version for Linux x86-64 (official llama.cpp file, repacked as a zip by Scriibe’s CI).',
   'Modèle Whisper « base »': 'Whisper “base” model',
   'Le plus rapide ; quelques erreurs sur les mots courts.': 'The fastest; a few mistakes on short words.',
   'Modèle Whisper « small »': 'Whisper “small” model',

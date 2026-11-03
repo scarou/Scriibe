@@ -922,6 +922,7 @@ fn downloads_state(ctx: &Context) -> Value {
     let progress = ctx.downloads.progress();
     let items: Vec<Value> = downloads::ITEMS
         .iter()
+        .filter(|item| downloads::offered(item.id))
         .map(|item| {
             json!({"id": item.id, "label": item.label, "detail": item.detail, "kind": item.kind, "progress": progress_json(progress.get(item.id))})
         })
