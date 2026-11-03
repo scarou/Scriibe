@@ -250,6 +250,7 @@
   <Card id="dictee" title={t('Dictée')} help="dictate" intro={t('Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.')}>
     {#if s?.gnome_shortcut}
       <p class="muted">{t('Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.', { shortcut: keyName(s.gnome_shortcut) })}</p>
+      <p class="muted">{s.gnome_translate_shortcut ? t('Pour dicter et traduire : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_translate_shortcut) }) : t('Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
     {:else}
       <KeyPicker />
     {/if}

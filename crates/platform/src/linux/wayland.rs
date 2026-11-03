@@ -32,6 +32,9 @@ pub const APP_ID: &str = "fr.scriibe.Scriibe";
 /// Le raccourci de dictée proposé à GNOME (spécification « shortcuts » de XDG) ; la personne peut en choisir un autre dans sa fenêtre.
 pub const PREFERRED_TRIGGER: &str = "CTRL+ALT+space";
 const SHORTCUT_DICTATION: &str = "dictation";
+const SHORTCUT_TRANSLATE: &str = "translate";
+/// Proposé par défaut pour traduire : en face de Ctrl + ← (choisi pour dicter sur le PC d’essai) ; GNOME laisse en choisir un autre.
+pub const PREFERRED_TRANSLATE_TRIGGER: &str = "CTRL+Right";
 const KEYSYM_CONTROL_L: i32 = 0xFFE3;
 const KEYSYM_V: i32 = 0x76;
 /// La fenêtre d'autorisation de GNOME attend la personne : au-delà, le collage abandonne (le texte reste copié).
@@ -43,7 +46,7 @@ pub fn is_wayland() -> bool {
 }
 
 enum Command {
-    Listen { sink: Sender<KeyEvent>, done: oneshot::Sender<Result<String, String>> },
+    Listen { sink: Sender<KeyEvent>, done: oneshot::Sender<Result<Triggers, String>> },
     StopListening,
     PasteKeys { done: oneshot::Sender<Result<(), String>> },
 }
@@ -186,19 +189,36 @@ fn dictation_keys() -> Vec<Key> {
     }
 }
 
+/// Traduire = dicter en tenant aussi une touche de traduction (Maj par défaut) : le raccourci de traduction rejoue les deux.
+fn translate_keys() -> Vec<Key> {
+    let binding = crate::keys::current_hook_rules().binding.unwrap_or_else(|| Binding::from_hotkey(Hotkey::RightControl));
+    let mut keys = dictation_keys();
+    if let Some(extra) = binding.translate.iter().find(|k| !keys.contains(k)) {
+        keys.push(*extra);
+    }
+    keys
+}
+
+/// Les deux raccourcis acceptés par GNOME (descriptions de GNOME), dictée puis traduction.
+type Triggers = (String, Option<String>);
+
 /// Ouvre la session de raccourcis, fait accepter le raccourci à GNOME et relaie appui et relâchement jusqu'à `stop`.
 async fn listen(
     conn: ashpd::zbus::Connection,
     sink: Sender<KeyEvent>,
-    done: oneshot::Sender<Result<String, String>>,
+    done: oneshot::Sender<Result<Triggers, String>>,
     mut stop: oneshot::Receiver<()>,
 ) {
     let setup = async {
         let proxy = GlobalShortcuts::with_connection(conn).await.map_err(|e| format!("portail GlobalShortcuts absent ({e})"))?;
         let session = proxy.create_session(Default::default()).await.map_err(|e| format!("session de raccourcis refusée ({e})"))?;
-        let shortcut = NewShortcut::new(SHORTCUT_DICTATION, "Dicter (maintenir, parler, relâcher)").preferred_trigger(PREFERRED_TRIGGER);
+        let shortcuts = [
+            NewShortcut::new(SHORTCUT_DICTATION, "Dicter (maintenir, parler, relâcher)").preferred_trigger(PREFERRED_TRIGGER),
+            NewShortcut::new(SHORTCUT_TRANSLATE, "Dicter et traduire (maintenir, parler, relâcher)")
+                .preferred_trigger(PREFERRED_TRANSLATE_TRIGGER),
+        ];
         let bound = proxy
-            .bind_shortcuts(&session, &[shortcut], None, Default::default())
+            .bind_shortcuts(&session, &shortcuts, None, Default::default())
             .await
             .and_then(|request| request.response())
             .map_err(|e| format!("raccourci refusé par GNOME ({e})"))?;
@@ -208,6 +228,13 @@ async fn listen(
             .find(|s| s.id() == SHORTCUT_DICTATION)
             .map(|s| s.trigger_description().to_string())
             .ok_or("raccourci de dictée non retenu par GNOME")?;
+        let translate = bound
+            .shortcuts()
+            .iter()
+            .find(|s| s.id() == SHORTCUT_TRANSLATE)
+            .map(|s| s.trigger_description().to_string())
+            .filter(|t| !t.trim().is_empty());
+        let trigger = (trigger, translate);
         let activated = proxy.receive_activated().await.map_err(|e| e.to_string())?;
         let deactivated = proxy.receive_deactivated().await.map_err(|e| e.to_string())?;
         Ok::<_, String>((proxy, session, trigger, activated, deactivated))
@@ -224,12 +251,15 @@ async fn listen(
     let mut deactivated = std::pin::pin!(deactivated);
     let mut held: Vec<Key> = Vec::new();
     let mut pressed: Vec<Key> = Vec::new();
+    let mut active = String::new();
     loop {
         tokio::select! {
             _ = &mut stop => break,
             Some(signal) = activated.next() => {
-                if signal.shortcut_id() == SHORTCUT_DICTATION && pressed.is_empty() {
-                    pressed = dictation_keys();
+                let id = signal.shortcut_id();
+                if pressed.is_empty() && (id == SHORTCUT_DICTATION || id == SHORTCUT_TRANSLATE) {
+                    active = id.to_string();
+                    pressed = if id == SHORTCUT_TRANSLATE { translate_keys() } else { dictation_keys() };
                     for key in &pressed {
                         if let Some(event) = translate_key(&mut held, *key, true) {
                             let _ = sink.send(event);
@@ -238,7 +268,8 @@ async fn listen(
                 }
             }
             Some(signal) = deactivated.next() => {
-                if signal.shortcut_id() == SHORTCUT_DICTATION {
+                if signal.shortcut_id() == active {
+                    active.clear();
                     for key in pressed.drain(..).rev() {
                         if let Some(event) = translate_key(&mut held, key, false) {
                             let _ = sink.send(event);
@@ -341,10 +372,15 @@ impl Drop for Listening {
 }
 
 /// Le dernier raccourci accepté par GNOME (« Ctrl+Alt+Espace »), pour le journal et la page.
-static TRIGGER: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+static TRIGGER: std::sync::Mutex<Option<Triggers>> = std::sync::Mutex::new(None);
 
 pub fn current_trigger() -> Option<String> {
-    TRIGGER.lock().ok().and_then(|t| t.clone()).map(|t| pretty_trigger(&t))
+    TRIGGER.lock().ok().and_then(|t| t.clone()).map(|(t, _)| pretty_trigger(&t))
+}
+
+/// Le raccourci de traduction accepté par GNOME (« Ctrl + Alt + T »), s'il y en a un.
+pub fn current_translate_trigger() -> Option<String> {
+    TRIGGER.lock().ok().and_then(|t| t.clone()).and_then(|(_, t)| t).map(|t| pretty_trigger(&t))
 }
 
 /// « Appuyer sur <Control>Left » (texte de GNOME, dans sa langue) → « Ctrl + ← », dans les noms de touches de Scriibe.
@@ -390,7 +426,11 @@ impl crate::keys::KeyListener for WaylandKeys {
         portal.tx.send(Command::Listen { sink, done }).map_err(|_| "fil des portails arrêté".to_string())?;
         // La première fois, GNOME montre sa fenêtre et attend la personne.
         let trigger = wait.blocking_recv().map_err(|_| "fil des portails arrêté".to_string())??;
-        eprintln!("portails: raccourci de dictée accepté par GNOME : {trigger}");
+        eprintln!("portails: raccourci de dictée accepté par GNOME : {}", trigger.0);
+        match &trigger.1 {
+            Some(t) => eprintln!("portails: raccourci de traduction accepté par GNOME : {t}"),
+            None => eprintln!("portails: pas de raccourci de traduction"),
+        }
         if let Ok(mut slot) = TRIGGER.lock() {
             *slot = Some(trigger);
         }

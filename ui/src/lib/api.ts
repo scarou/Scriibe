@@ -24,6 +24,7 @@ export interface Status {
   keys_error: string | null;
   /** Sous Wayland (GNOME) : le raccourci de dictée choisi dans la fenêtre de GNOME (« Ctrl + ← ») ; `null` ailleurs. */
   gnome_shortcut: string | null;
+  gnome_translate_shortcut: string | null;
   /** Une version plus récente que celle qui tourne, trouvée par la vérification automatique (absent : à jour ou pas vérifié). */
   update: { sha: string; title: string; date: string } | null;
   hotkey: string;

@@ -555,7 +555,8 @@ fn status(ctx: &Context) -> Value {
         "hotkey": format!("{:?}", settings.hotkey),
         "gnome_shortcut": gnome_shortcut(),
         "dictation_label": if let Some(shortcut) = gnome_shortcut() { shortcut } else if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
-        "translate_label": if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
+        "gnome_translate_shortcut": gnome_translate_shortcut(),
+        "translate_label": if let Some(shortcut) = gnome_translate_shortcut() { shortcut } else if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
         "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "default_dictation_label": scriibe_platform::keys::default_dictation_label(),
         "default_translate_label": scriibe_platform::keys::default_translate_label(),
@@ -1078,6 +1079,18 @@ fn gnome_shortcut() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         scriibe_platform::linux::wayland_trigger()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// Sous Wayland (GNOME), le raccourci de traduction accepté par GNOME ; aucun ailleurs.
+fn gnome_translate_shortcut() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        scriibe_platform::linux::wayland_translate_trigger()
     }
     #[cfg(not(target_os = "linux"))]
     {
