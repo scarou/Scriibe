@@ -10,6 +10,9 @@
 
   interface UpdateState {
     windows: boolean;
+    mac: boolean;
+    /** Vrai sous Windows et sur Mac : Scriibe sait installer la nouvelle version. */
+    installs: boolean;
     current: string;
     commit: string | null;
     repo: string;
@@ -19,7 +22,7 @@
     ok: boolean;
     error?: string;
     up_to_date: boolean;
-    /** Faux sur Mac et Linux : Scriibe signale la version mais ne l'installe pas. */
+    /** Faux sous Linux, ou si la Release n'a pas de fichier pour ce système : Scriibe signale la version mais ne l'installe pas. */
     installable: boolean;
     version: string;
     title: string;
@@ -65,7 +68,7 @@
 {#if u}
   <Card id="update-version" title={t('Version de Scriibe')}>
     <div class="muted">
-      {t('Version installée : {version}', { version: u.current })}{u.windows ? '' : t(' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore')}
+      {t('Version installée : {version}', { version: u.current })}{u.installs ? '' : t(' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore')}
     </div>
 
     <div class="row">
@@ -89,8 +92,8 @@
           <div class="ok">{t('✔ Vous avez déjà cette version.')}</div>
         {:else if found.installable}
           <div class="row"><button class="primary" onclick={install}>{t('Installer et redémarrer')}</button></div>
-        {:else if u.windows}
-          <div class="warn">{t('Une version plus récente existe, mais elle ne contient pas encore de fichier pour Windows : réessayez plus tard.')}</div>
+        {:else if u.installs}
+          <div class="warn">{t('Une version plus récente existe, mais elle ne contient pas encore de fichier pour ce système : réessayez plus tard.')}</div>
         {:else}
           <div class="warn">{t('Une version plus récente existe. Mettez à jour à la main en suivant les étapes ci-dessous.')}</div>
         {/if}
@@ -122,24 +125,22 @@
       <li><b>{t('Tes données')}</b> — {t('l’historique, le dictionnaire, les modes et les réglages sont rangés à part, dans le dossier de données : une mise à jour n’y touche pas.')}</li>
     </ul>
     <h3>{t('Mettre à jour, pas à pas')}</h3>
-    {#if u.windows}
+    {#if u.installs}
       <ol>
         <li>{t('Clique sur « Chercher une nouvelle version » (en haut de cette page).')}</li>
         <li>{t('Si la page écrit « Vous avez déjà cette version », c’est terminé. Sinon, elle montre la version trouvée, sa date et sa taille.')}</li>
         <li>{t('Clique sur « Installer et redémarrer » et lis la fenêtre de confirmation : elle donne la taille et la source du téléchargement.')}</li>
         <li>{t('Confirme, puis attends : une barre montre le téléchargement. Scriibe remplace son programme et redémarre tout seul ; une nouvelle fenêtre s’ouvre au bout de quelques secondes, tu peux fermer l’ancienne.')}</li>
         <li>{t('Si quelque chose ne va pas, l’ancien programme est gardé à côté du nouveau, et le message d’échec dit pourquoi.')}</li>
+        {#if u.mac}
+          <li>{t('Sur Mac, les autorisations de macOS (Microphone, Surveillance de l’entrée, Contrôle de l’appareil et accès aux données) restent normalement acquises. Si macOS en redemande une, active-la de nouveau dans Réglages Système → Confidentialité et sécurité, puis relance Scriibe.')}</li>
+        {/if}
       </ol>
+      {#if u.mac}
+        <p class="muted">{t('Première installation sur un Mac, avec toutes les étapes (avertissement de macOS, autorisations, moteurs) : fichier docs/INSTALLATION_MACOS.md du dépôt GitHub.')}</p>
+      {/if}
     {:else}
-      <p>{t('Sur ce système, Scriibe prévient mais n’installe pas encore à ta place. La mise à jour se fait à la main, en cinq étapes :')}</p>
-      <ol>
-        <li>{t('Quitte Scriibe : clique sur son icône dans la barre des menus (en haut à droite, près de l’horloge), puis sur « Quitter Scriibe ».')}</li>
-        <li>{t('Ouvre la page https://github.com/scarou/Scriibe/releases et télécharge le fichier Scriibe-…-macos.zip de la version la plus récente (celle dont le numéro est le plus haut). Il arrive dans le dossier Téléchargements.')}</li>
-        <li>{t('Double-clique sur ce fichier dans Téléchargements : l’application Scriibe apparaît à côté.')}</li>
-        <li>{t('Fais glisser Scriibe dans le dossier Applications du Finder, puis clique sur « Remplacer ».')}</li>
-        <li>{t('Ouvre Scriibe depuis Applications. Tes réglages, ton historique et ton dictionnaire sont conservés. Si macOS redemande une autorisation (Microphone, Surveillance de l’entrée, Contrôle de l’appareil et accès aux données), active-la de nouveau dans Réglages Système → Confidentialité et sécurité, puis relance Scriibe.')}</li>
-      </ol>
-      <p class="muted">{t('Première installation sur un Mac, avec toutes les étapes (avertissement de macOS, autorisations, moteurs) : fichier docs/INSTALLATION_MACOS.md du dépôt GitHub.')}</p>
+      <p>{t('Sur ce système, Scriibe prévient mais n’installe pas encore à ta place : cherche la dernière version sur https://github.com/scarou/Scriibe/releases.')}</p>
     {/if}
     <p class="muted">{t('Si la recherche échoue, le message dit pourquoi (pas de connexion, GitHub qui limite les demandes…). Le Journal note les vérifications qui échouent ou qui trouvent une version.')}</p>
   </Card>

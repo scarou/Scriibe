@@ -941,6 +941,8 @@ fn update_state(ctx: &Context) -> Value {
     };
     json!({
         "windows": cfg!(windows),
+        "mac": cfg!(target_os = "macos"),
+        "installs": update::can_install(),
         "current": update::current_version(),
         "commit": update::current_commit().map(|s| s[..s.len().min(7)].to_string()),
         "repo": update::REPO,
@@ -956,8 +958,8 @@ fn save_key(ctx: &Context, kind: KeyKind, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Cherche la dernière version publiée, sans rien télécharger : la page montre ce qui sera installé, puis demande confirmation. Sur Mac et
-/// Linux, Scriibe dit seulement s'il existe une version plus récente ; sous Windows il peut l'installer si la Release contient son zip.
+/// Cherche la dernière version publiée, sans rien télécharger : la page montre ce qui sera installé, puis demande confirmation. Sous Linux,
+/// Scriibe dit seulement s'il existe une version plus récente ; sous Windows et sur Mac il peut l'installer si la Release contient son zip.
 fn check_update(ctx: &Context) -> Result<Value, String> {
     let latest = update::latest()?;
     let newer = latest.is_newer();
@@ -965,7 +967,7 @@ fn check_update(ctx: &Context) -> Result<Value, String> {
     let found = json!({
         "ok": true,
         "up_to_date": !newer,
-        "installable": cfg!(windows) && !latest.download_url.is_empty(),
+        "installable": update::can_install() && !latest.download_url.is_empty(),
         "version": latest.version,
         "title": latest.title,
         "date": latest.date,
@@ -986,6 +988,17 @@ fn install_update(ctx: &Context) -> Result<(), String> {
 fn restart(app: &App) {
     app.whisper.stop();
     app.llama.stop();
+    // Mac : l'application se rouvre par `open`, comme un double-clic, pour que macOS lui rattache ses autorisations (micro, touche) ; un
+    // programme lancé par un autre n'en a aucune. L'aide attend la fin de ce processus : `open` réactiverait sinon l'ancienne instance.
+    if let Some(bundle) = update::app_bundle().filter(|_| cfg!(target_os = "macos")) {
+        let script = r#"while kill -0 "$1" 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open "$2""#;
+        let pid = std::process::id().to_string();
+        match std::process::Command::new("/bin/sh").args(["-c", script, "sh", &pid]).arg(&bundle).spawn() {
+            Ok(_) => app.log.write("mise à jour: nouvelle version lancée"),
+            Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : ouvre Scriibe à la main")),
+        }
+        std::process::exit(0);
+    }
     let mut args: Vec<String> = std::env::args().skip(1).filter(|a| a != crate::commands::RESTARTED).collect();
     args.push(crate::commands::RESTARTED.into());
     match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(args).spawn()) {

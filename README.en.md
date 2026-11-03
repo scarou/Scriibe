@@ -29,7 +29,7 @@ Scriibe is the cross-platform successor of [Scribe](https://github.com/scarou/sc
 - **Dashboard**: words dictated, speed, time saved compared with typing, daily chart, where you dictate.
 - **Bench** to measure the speed and quality of your engines and modes, with comparison between runs.
 - Pauses music or video while you speak, restores your clipboard after pasting, light/dark/system appearance, French and English interface, an in-app **Help** written for non-technical users.
-- **Updates**: Scriibe tells you when a newer release exists, and on Windows it can install it for you — no account, no token.
+- **Updates**: Scriibe tells you when a newer release exists, and on Windows and on a Mac it can install it for you — no account, no token.
 
 ## Install
 

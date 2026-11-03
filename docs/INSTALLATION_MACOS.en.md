@@ -74,6 +74,10 @@ If a word or a group of words is selected when you release the key, the dictated
 
 ## Installing an update
 
+**From the version that contains the built-in update (S15)**: in Scriibe, **Settings → Update** → **Check for a new version** → **Install and restart**, then confirm. Scriibe downloads the Release zip, checks the signature of the new application, replaces `Scriibe.app` (the old one stays alongside as `Scriibe.app.old` until the next launch) and reopens by itself. Nothing to do by hand.
+
+**From an older version, or if the built-in installation fails** (for example `Scriibe.app` is not in a folder you can write to):
+
 1. Quit Scriibe: menu bar icon → **Quit Scriibe**.
 2. Go back to `https://github.com/scarou/Scriibe/releases` and download the zip of the **latest version** (compare its number with the one in Scriibe's **Settings → Update** tab).
 3. Double-click the zip in **Downloads**, then drag **Scriibe** into **Applications** and click **Replace**.

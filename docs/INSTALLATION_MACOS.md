@@ -66,6 +66,10 @@ Ensuite, dans Scriibe, les cartes **État de l'installation**, **Les programmes*
 
 ## Installer une mise à jour
 
+**Depuis la version qui contient la mise à jour intégrée (S15)** : dans Scriibe, **Réglages → Mise à jour** → **Chercher une nouvelle version** → **Installer et redémarrer**, puis confirmer. Scriibe télécharge le zip de la Release, vérifie la signature de la nouvelle application, remplace `Scriibe.app` (l'ancienne reste à côté, sous le nom `Scriibe.app.old`, jusqu'au lancement suivant) et se rouvre tout seul. Rien à faire à la main.
+
+**Depuis une version plus ancienne, ou si l'installation intégrée échoue** (par exemple `Scriibe.app` n'est pas dans un dossier où vous pouvez écrire) :
+
 1. Quitter Scriibe : icône de la barre des menus → **Quitter Scriibe**.
 2. Retourner sur `https://github.com/scarou/Scriibe/releases` et télécharger le zip de la **version la plus récente** (comparer son numéro et son code à ceux de **Réglages → Mise à jour** dans Scriibe).
 3. Double-cliquer sur le zip dans **Téléchargements**, puis faire glisser **Scriibe** dans **Applications** et cliquer sur **Remplacer**.

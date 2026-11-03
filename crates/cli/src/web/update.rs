@@ -1,7 +1,8 @@
 //! Mise à jour de Scriibe : la dernière Release publiée sur GitHub (le dépôt est public : aucune clé ni aucun jeton). La version installée
 //! est celle du programme (`CARGO_PKG_VERSION`), comparée au numéro de l'étiquette de la Release (`v0.2.0`). Sous Windows, le zip
-//! `scriibe-windows-x64.zip` de la Release remplace `scriibe.exe` ; Mac et Linux sont seulement prévenus. Comme pour les téléchargements,
-//! rien ne part sans que la personne ait vu la version, la taille et la source, puis confirmé.
+//! `scriibe-windows-x64.zip` de la Release remplace `scriibe.exe` ; sur Mac, `Scriibe-x.y.z-macos.zip` remplace `Scriibe.app` (S15) ;
+//! Linux est seulement prévenu. Comme pour les téléchargements, rien ne part sans que la personne ait vu la version, la taille et la
+//! source, puis confirmé.
 
 use scriibe_engines::runtime::Log;
 use serde_json::Value;
@@ -14,6 +15,39 @@ pub const REPO: &str = "scarou/Scriibe";
 /// Le fichier de la Release qui contient `scriibe.exe`.
 const ASSET: &str = "scriibe-windows-x64.zip";
 const PROGRAM: &str = "scriibe.exe";
+/// Le programme à l'intérieur de `Scriibe.app`, et l'identifiant que `tools/faire_app_macos.sh` donne à l'application.
+const MAC_PROGRAM: &str = "Contents/MacOS/Scriibe";
+const MAC_BUNDLE_ID: &str = "fr.scriibe.app";
+
+/// Le système dont on cherche le fichier dans la Release.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Platform {
+    Windows,
+    Mac,
+}
+
+impl Platform {
+    fn this() -> Platform {
+        if cfg!(target_os = "macos") {
+            Platform::Mac
+        } else {
+            Platform::Windows
+        }
+    }
+
+    /// Windows : `scriibe-windows-x64.zip` ; Mac : `Scriibe-0.2.1-macos.zip` (le numéro change avec la version).
+    fn owns(self, asset: &str) -> bool {
+        match self {
+            Platform::Windows => asset == ASSET,
+            Platform::Mac => asset.starts_with("Scriibe-") && asset.ends_with("-macos.zip"),
+        }
+    }
+}
+
+/// Vrai là où Scriibe sait s'installer seul (Windows et Mac) ; ailleurs il prévient seulement.
+pub fn can_install() -> bool {
+    cfg!(windows) || cfg!(target_os = "macos")
+}
 
 /// La version installée : celle du programme (`Cargo.toml`), qui est aussi le numéro de la Release dont il vient.
 pub fn current_version() -> &'static str {
@@ -64,9 +98,9 @@ pub struct Latest {
     /// Le titre de la Release.
     pub title: String,
     pub date: String,
-    /// Taille du zip Windows (0 : la Release n'en contient pas).
+    /// Taille du zip de ce système (0 : la Release n'en contient pas).
     pub size: u64,
-    /// Adresse du zip Windows (vide : la Release n'en contient pas).
+    /// Adresse du zip de ce système (vide : la Release n'en contient pas).
     pub download_url: String,
 }
 
@@ -126,14 +160,18 @@ fn fetch_release() -> Result<Value, String> {
     }
 }
 
-/// La Release : version (sans « v »), titre, date, et le zip Windows s'il existe.
+/// La Release : version (sans « v »), titre, date, et le zip du système qui tourne s'il existe.
 fn parse_release(release: &Value) -> Result<Latest, String> {
+    parse_release_for(release, Platform::this())
+}
+
+fn parse_release_for(release: &Value, platform: Platform) -> Result<Latest, String> {
     let tag = release["tag_name"].as_str().ok_or("étiquette de version absente")?;
     parse_version(tag).ok_or_else(|| format!("numéro de version illisible : « {tag} »"))?;
     let version = tag.trim().trim_start_matches('v').to_string();
     let title = release["name"].as_str().filter(|n| !n.is_empty()).map_or_else(|| format!("Scriibe {version}"), String::from);
     let date = release["published_at"].as_str().unwrap_or("").to_string();
-    let asset = release["assets"].as_array().into_iter().flatten().find(|a| a["name"].as_str() == Some(ASSET));
+    let asset = release["assets"].as_array().into_iter().flatten().find(|a| a["name"].as_str().is_some_and(|n| platform.owns(n)));
     let size = asset.and_then(|a| a["size"].as_u64()).unwrap_or(0);
     let download_url = asset.and_then(|a| a["browser_download_url"].as_str()).unwrap_or("").to_string();
     Ok(Latest { version, title, date, size, download_url })
@@ -229,17 +267,87 @@ fn replace_program(current: &Path, program: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// `Scriibe.app` d'après l'emplacement du programme (`…/Scriibe.app/Contents/MacOS/Scriibe`) ; `None` hors d'une application (`cargo run`).
+pub fn app_bundle() -> Option<PathBuf> {
+    let current = std::env::current_exe().ok()?;
+    bundle_of(&current)
+}
+
+fn bundle_of(exe: &Path) -> Option<PathBuf> {
+    let bundle = exe.parent()?.parent()?.parent()?;
+    let is_app = bundle.extension().is_some_and(|e| e == "app") && exe.ends_with(MAC_PROGRAM);
+    is_app.then(|| bundle.to_path_buf())
+}
+
+/// Lance un outil du système et renvoie sa sortie d'erreur s'il échoue.
+fn run_tool(program: &str, args: &[&Path]) -> Result<(), String> {
+    let output = std::process::Command::new(program).args(args).output().map_err(|e| format!("{program} introuvable ({e})"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let said = String::from_utf8_lossy(&output.stderr);
+    Err(format!("{program} a échoué : {}", said.trim().chars().take(200).collect::<String>()))
+}
+
+/// Décompresse le zip de la Release (par `ditto`, l'outil de macOS qui l'a fabriqué : liens, droits et signature intacts) dans `stage`
+/// et vérifie que `Scriibe.app` y est, complète et correctement signée. Renvoie son emplacement.
+fn unpack_app(zip_bytes: &[u8], stage: &Path) -> Result<PathBuf, String> {
+    let zip = stage.join("release.zip");
+    std::fs::write(&zip, zip_bytes).map_err(|e| format!("écriture impossible dans {} ({e})", stage.display()))?;
+    run_tool("/usr/bin/ditto", &[Path::new("-x"), Path::new("-k"), &zip, stage])?;
+    let app = stage.join("Scriibe.app");
+    if !app.join(MAC_PROGRAM).is_file() {
+        return Err("Scriibe.app n'est pas dans le zip".into());
+    }
+    let plist = std::fs::read_to_string(app.join("Contents/Info.plist")).unwrap_or_default();
+    if !plist.contains(MAC_BUNDLE_ID) {
+        return Err("le zip ne contient pas Scriibe".into());
+    }
+    run_tool("/usr/bin/codesign", &[Path::new("--verify"), Path::new("--deep"), Path::new("--strict"), &app])
+        .map_err(|e| format!("la signature de la nouvelle version n'est pas valide ({e})"))?;
+    Ok(app)
+}
+
+/// Met `fresh` à la place de `bundle` : l'ancienne application devient `Scriibe.app.old` (supprimée au prochain lancement) et, si
+/// quelque chose échoue, elle est remise en place. macOS laisse renommer une application qui tourne.
+fn swap_bundle(bundle: &Path, fresh: &Path) -> Result<(), String> {
+    let old = sibling(bundle, ".old");
+    let _ = std::fs::remove_dir_all(&old);
+    if let Err(e) = std::fs::rename(bundle, &old) {
+        return Err(format!("l'ancienne version ne peut pas être renommée ({e})"));
+    }
+    if let Err(e) = std::fs::rename(fresh, bundle) {
+        let _ = std::fs::rename(&old, bundle);
+        return Err(format!("la nouvelle version ne peut pas être mise en place ({e}) ; l'ancienne est remise"));
+    }
+    Ok(())
+}
+
+/// Installe la Release sur Mac : décompressée à côté de `Scriibe.app` (même disque, donc un simple renommage), vérifiée, puis échangée.
+fn install_app(exe: &Path, zip_bytes: &[u8]) -> Result<(), String> {
+    let bundle = bundle_of(exe).ok_or("Scriibe ne tourne pas depuis Scriibe.app : rien à remplacer")?;
+    let folder = bundle.parent().ok_or("emplacement de Scriibe.app inconnu")?;
+    let stage = folder.join(".Scriibe-mise-a-jour");
+    let _ = std::fs::remove_dir_all(&stage);
+    std::fs::create_dir(&stage)
+        .map_err(|e| format!("écriture impossible dans {} ({e}) : place Scriibe.app dans le dossier Applications", folder.display()))?;
+    let outcome = unpack_app(zip_bytes, &stage).and_then(|fresh| swap_bundle(&bundle, &fresh));
+    let _ = std::fs::remove_dir_all(&stage);
+    outcome
+}
+
 /// Au lancement : supprime l'ancienne version laissée par une mise à jour. Elle tourne encore quelques secondes (le temps qu'elle
 /// s'arrête), donc on réessaie un peu, sans rien bloquer.
 pub fn remove_leftovers() {
     let Ok(current) = std::env::current_exe() else { return };
-    let old = sibling(&current, ".old");
+    // Sur Mac, c'est l'ancienne application entière (`Scriibe.app.old`) ; ailleurs, l'ancien programme (`scriibe.exe.old`).
+    let old = sibling(&bundle_of(&current).unwrap_or(current), ".old");
     if !old.exists() {
         return;
     }
     let _ = std::thread::Builder::new().name("scriibe-nettoyage".into()).spawn(move || {
         for _ in 0..15 {
-            if std::fs::remove_file(&old).is_ok() || !old.exists() {
+            if std::fs::remove_file(&old).is_ok() || std::fs::remove_dir_all(&old).is_ok() || !old.exists() {
                 return;
             }
             std::thread::sleep(Duration::from_secs(2));
@@ -263,11 +371,15 @@ impl Updater {
 
     /// Télécharge, installe, puis appelle `restart` (qui relance le programme). Le journal reçoit le commit, la taille et la source.
     pub fn start(self: &Arc<Self>, latest: Latest, log: Arc<dyn Log>, restart: impl FnOnce() + Send + 'static) -> Result<(), String> {
-        if !cfg!(windows) {
-            return Err("la mise à jour ne marche que sous Windows".into());
+        if !can_install() {
+            return Err("la mise à jour intégrée ne marche que sous Windows et sur Mac".into());
         }
         if latest.download_url.is_empty() {
-            return Err(format!("cette version ne contient pas de fichier pour Windows ({ASSET})"));
+            return Err(if cfg!(windows) {
+                format!("cette version ne contient pas de fichier pour Windows ({ASSET})")
+            } else {
+                "cette version ne contient pas de fichier pour Mac (Scriibe-…-macos.zip)".into()
+            });
         }
         let current = std::env::current_exe().map_err(|e| format!("emplacement du programme inconnu ({e})"))?;
         {
@@ -286,9 +398,14 @@ impl Updater {
         ));
         let me = Arc::clone(self);
         std::thread::spawn(move || {
-            let outcome = download(&latest.download_url, latest.size, &|done, total| me.set(State::Running { done, total }))
-                .and_then(|zip| extract_program(&zip))
-                .and_then(|program| replace_program(&current, &program));
+            let outcome =
+                download(&latest.download_url, latest.size, &|done, total| me.set(State::Running { done, total })).and_then(|zip| {
+                    if cfg!(windows) {
+                        extract_program(&zip).and_then(|program| replace_program(&current, &program))
+                    } else {
+                        install_app(&current, &zip)
+                    }
+                });
             match outcome {
                 Ok(()) => {
                     log.write("mise à jour: installée, redémarrage");
@@ -339,10 +456,16 @@ mod tests {
         let release = json!({"tag_name": "v0.2.0", "name": "Scriibe 0.2.0", "published_at": "2026-11-02T10:00:00Z", "assets": [
             {"name": "Scriibe-0.2.0-macos.zip", "size": 21359614, "browser_download_url": "https://github.com/x/mac.zip"},
             {"name": ASSET, "size": 18343080, "browser_download_url": "https://github.com/x/win.zip"}]});
-        let latest = parse_release(&release).unwrap();
+        let latest = parse_release_for(&release, Platform::Windows).unwrap();
         assert_eq!(
             (latest.version.as_str(), latest.title.as_str(), latest.date.as_str(), latest.size, latest.download_url.as_str()),
             ("0.2.0", "Scriibe 0.2.0", "2026-11-02T10:00:00Z", 18343080, "https://github.com/x/win.zip")
+        );
+        let mac = parse_release_for(&release, Platform::Mac).unwrap();
+        assert_eq!(
+            (mac.size, mac.download_url.as_str()),
+            (21359614, "https://github.com/x/mac.zip"),
+            "le zip Mac, quel que soit son numéro"
         );
         assert_eq!(
             latest.available(),
@@ -353,10 +476,16 @@ mod tests {
     #[test]
     fn a_release_without_windows_zip_is_still_a_version_but_not_installable() {
         let release = json!({"tag_name": "v0.1.0", "assets": [{"name": "Scriibe-0.1.0-macos.zip", "size": 1, "browser_download_url": "https://x/m.zip"}]});
-        let latest = parse_release(&release).unwrap();
+        let latest = parse_release_for(&release, Platform::Windows).unwrap();
         assert_eq!(
             (latest.version.as_str(), latest.title.as_str(), latest.size, latest.download_url.as_str()),
             ("0.1.0", "Scriibe 0.1.0", 0, "")
+        );
+        let windows_only = json!({"tag_name": "v0.1.0", "assets": [{"name": ASSET, "size": 1, "browser_download_url": "https://x/w.zip"}]});
+        assert_eq!(
+            parse_release_for(&windows_only, Platform::Mac).unwrap().download_url,
+            "",
+            "une Release sans zip Mac n'est pas installable sur Mac"
         );
         assert!(parse_release(&json!({})).is_err(), "pas d'étiquette");
         assert!(parse_release(&json!({"tag_name": "nightly"})).unwrap_err().contains("illisible"));
@@ -405,6 +534,103 @@ mod tests {
         let dir = temp("echec");
         let current = dir.join("introuvable").join("scriibe.exe");
         assert!(replace_program(&current, &fake_program(2)).unwrap_err().contains("écriture impossible"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_app_is_found_from_the_program_inside_it() {
+        let exe = Path::new("/Users/moi/Applications/Scriibe.app/Contents/MacOS/Scriibe");
+        assert_eq!(bundle_of(exe), Some(PathBuf::from("/Users/moi/Applications/Scriibe.app")));
+        assert_eq!(bundle_of(Path::new("/code/Scriibe/target/release/scriibe")), None, "cargo run : pas d'application à remplacer");
+        assert_eq!(bundle_of(Path::new("/Applications/Autre.app/Contents/MacOS/Scriibe")).unwrap().file_name().unwrap(), "Autre.app");
+        assert_eq!(bundle_of(Path::new("/x/Dossier/Contents/MacOS/Scriibe")), None, "pas un .app");
+        assert_eq!(sibling(Path::new("/a/Scriibe.app"), ".old"), Path::new("/a/Scriibe.app.old"));
+    }
+
+    fn fake_app(folder: &Path, tag: &str) -> PathBuf {
+        let app = folder.join("Scriibe.app");
+        std::fs::create_dir_all(app.join("Contents/MacOS")).unwrap();
+        std::fs::write(app.join(MAC_PROGRAM), tag).unwrap();
+        std::fs::write(app.join("Contents/Info.plist"), format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>Scriibe</string><key>CFBundleIdentifier</key><string>{MAC_BUNDLE_ID}</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>"#
+            )).unwrap();
+        app
+    }
+
+    #[test]
+    fn the_app_is_replaced_and_the_old_one_kept_aside() {
+        let dir = temp("app-remplace");
+        let (current, fresh_dir) = (fake_app(&dir, "ancienne"), dir.join("pret"));
+        let fresh = fake_app(&fresh_dir, "nouvelle");
+        swap_bundle(&current, &fresh).unwrap();
+        assert_eq!(std::fs::read_to_string(current.join(MAC_PROGRAM)).unwrap(), "nouvelle");
+        assert_eq!(std::fs::read_to_string(dir.join("Scriibe.app.old").join(MAC_PROGRAM)).unwrap(), "ancienne");
+        assert!(!fresh.exists());
+        // Une deuxième mise à jour remplace l'ancienne copie sans erreur.
+        let again = fake_app(&dir.join("encore"), "troisieme");
+        swap_bundle(&current, &again).unwrap();
+        assert_eq!(std::fs::read_to_string(dir.join("Scriibe.app.old").join(MAC_PROGRAM)).unwrap(), "nouvelle");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_failed_swap_puts_the_old_app_back() {
+        let dir = temp("app-echec");
+        let current = fake_app(&dir, "ancienne");
+        let error = swap_bundle(&current, &dir.join("absente")).unwrap_err();
+        assert!(error.contains("l'ancienne est remise"), "{error}");
+        assert_eq!(std::fs::read_to_string(current.join(MAC_PROGRAM)).unwrap(), "ancienne");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Une vraie `Scriibe.app` (signée ad hoc, comme le fait `faire_app_macos.sh` sans certificat) zippée par `ditto`, comme la Release.
+    #[cfg(target_os = "macos")]
+    fn signed_zip(dir: &Path, tag: &str, sign: bool) -> Vec<u8> {
+        let app = fake_app(dir, tag);
+        // `codesign` ne signe qu'un vrai exécutable : une copie d'un programme du système, et la marque dans les ressources.
+        std::fs::copy("/usr/bin/true", app.join(MAC_PROGRAM)).unwrap();
+        std::fs::create_dir_all(app.join("Contents/Resources")).unwrap();
+        std::fs::write(app.join("Contents/Resources/marque"), tag).unwrap();
+        if sign {
+            run_tool(
+                "/usr/bin/codesign",
+                &[Path::new("--force"), Path::new("--sign"), Path::new("-"), Path::new("--identifier"), Path::new(MAC_BUNDLE_ID), &app],
+            )
+            .unwrap();
+        }
+        let zip = dir.join("Scriibe.zip");
+        run_tool("/usr/bin/ditto", &[Path::new("-c"), Path::new("-k"), Path::new("--keepParent"), &app, &zip]).unwrap();
+        std::fs::read(zip).unwrap()
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_signed_release_replaces_the_installed_app_and_leaves_no_trace() {
+        let dir = temp("app-installe");
+        let installed = dir.join("Applications");
+        let current = fake_app(&installed, "ancienne");
+        let zip = signed_zip(&dir.join("release"), "nouvelle", true);
+        install_app(&current.join(MAC_PROGRAM), &zip).unwrap();
+        assert_eq!(std::fs::read_to_string(current.join("Contents/Resources/marque")).unwrap(), "nouvelle");
+        assert_eq!(std::fs::read_to_string(installed.join("Scriibe.app.old").join(MAC_PROGRAM)).unwrap(), "ancienne");
+        assert!(!installed.join(".Scriibe-mise-a-jour").exists(), "le dossier de travail est supprimé");
+        run_tool("/usr/bin/codesign", &[Path::new("--verify"), Path::new("--deep"), Path::new("--strict"), &current]).unwrap();
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn an_unsigned_or_foreign_release_is_refused_and_the_app_stays() {
+        let dir = temp("app-refuse");
+        let installed = dir.join("Applications");
+        let current = fake_app(&installed, "ancienne");
+        let unsigned = signed_zip(&dir.join("sans-signature"), "nouvelle", false);
+        let error = install_app(&current.join(MAC_PROGRAM), &unsigned).unwrap_err();
+        assert!(error.contains("signature"), "{error}");
+        assert!(install_app(&current.join(MAC_PROGRAM), b"pas un zip").is_err());
+        assert_eq!(std::fs::read_to_string(current.join(MAC_PROGRAM)).unwrap(), "ancienne");
+        assert!(!installed.join("Scriibe.app.old").exists() && !installed.join(".Scriibe-mise-a-jour").exists());
+        assert!(install_app(&dir.join("target/release/scriibe"), &unsigned).unwrap_err().contains("Scriibe.app"));
         let _ = std::fs::remove_dir_all(dir);
     }
 
