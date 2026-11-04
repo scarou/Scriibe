@@ -15,10 +15,10 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 
 ## Prochaines étapes
 
-1. ▶ **Publier une v0.2.1** (interface refaite à la manière de Scribe, apparence réglable, dictée sur une sélection sur Mac, documentation anglaise) : numéro dans `Cargo.toml`, compiler, commiter, pousser, `tools/publier_macos.sh 0.2.1` (aperçu puis « oui » de Christophe) ; attendre `release-windows.yml`. Puis **essayer sur le PC la mise à jour par la fenêtre** (0.2.0 → 0.2.1, jamais essayée de bout en bout) et l'alerte de nouvelle version sur le Mac (Scriibe.app à recompiler en 0.2.x).
+1. ▶ **Publier une v0.2.3** (pause des vidéos de Chrome par JavaScript, collage ⌘V corrigé pour le champ Google) : accord de Christophe sur l'aperçu, numéro dans `Cargo.toml`, compiler, commiter, pousser, `tools/publier_macos.sh 0.2.3` ; attendre `release-windows.yml` et `release-linux.yml`. Puis **essayer pour la première fois la mise à jour intégrée du Mac** (0.2.2 → 0.2.3, « Installer et redémarrer »).
 2. Voir sur le PC la nouvelle interface (Réglages à onglets, cartes repliables, Historique groupé par jour).
 3. Détection de la sélection sous Windows et Linux (aujourd'hui Mac seulement) ; cartes de groupes de Modes repliables.
-4. Chantier C de `docs/MISE_A_JOUR.md` (installation intégrée sur Mac), release Linux ; essais Mac restants (combinaison de touches, Fn, traduction personnalisée).
+4. Essais Mac restants (combinaison de touches, Fn, traduction personnalisée).
 
 ## Étape 5 en détail
 

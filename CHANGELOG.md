@@ -1,6 +1,18 @@
 # Journal
 
-Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
+Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
+
+## S15 — 2026-11-03 et 04 · Versions 0.2.1 et 0.2.2, mise à jour Mac, Linux, pause de Chrome, collage
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. Une session séparée (« Version Linux ») a mené la version Linux en parallèle.
+
+- **Releases v0.2.1 et v0.2.2** publiées (zip Mac + `scriibe-windows-x64.zip`). Mise à jour Windows 0.2.0 → 0.2.1 par la fenêtre essayée par Christophe. v0.2.2 contient le correctif du code épelé coupé d'une virgule par Whisper (« 0,926FA6 », `text::join_spelled_code`) et la mise à jour intégrée du Mac.
+- **Mise à jour intégrée sur Mac** (`crates/cli/src/web/update.rs`) : téléchargement de `Scriibe-x.y.z-macos.zip`, décompression par `ditto`, vérification de la signature, remplacement de `Scriibe.app`, relance par `open` (écart noté dans `docs/ECARTS.md`). **Jamais essayée sur le vrai Mac** : à faire avec la v0.2.3.
+- **Version Linux** (session parallèle) : workflow `release-linux.yml`, guides `docs/INSTALLATION_LINUX*.md`, essai Ubuntu 26.04 (Wayland, Xfce), `whisper-server` compilé et `llama-server` remballé par la CI et téléchargés par l'appli, liste des micros gardée 5 s (bruit d'ALSA).
+- **Double installation sur le Mac** : l'ancienne `~/Applications/Scriibe.app` quittée et mise à la corbeille ; seule `/Applications/Scriibe.app` reste.
+- **Pause des vidéos de Chrome** (Mac) : une vidéo arrêtée repartait quand on dictait. Cause mesurée : Chrome garde son flux audio ouvert environ 10 s après la pause, et la touche Lecture/Pause n'atteint pas toujours YouTube. Pour Chrome, Brave, Edge, Vivaldi et Chromium, Scriibe interroge maintenant les pages par AppleScript (`execute javascript`), met en pause les `<video>`/`<audio>` qui jouent et ne relance que ceux-là (`crates/platform/src/macos/media.rs`, `resume_for`). Il faut cocher une fois Chrome → Présentation → Développeur → « Autoriser JavaScript provenant d'Apple Events » et accepter l'automatisation de Chrome ; sans réponse l'ancien comportement reste et le journal le dit. Essayé avec une vidéo qui joue : arrêt, collage, reprise OK.
+- **Collage ignoré par le champ Google de Chrome** : le texte était dans le presse-papiers (⌘V manuel le collait) mais le ⌘V synthétique (V portant seulement le drapeau ⌘) était ignoré 4 fois sur 5. Ni la pause ni le ⌘C d'essai n'étaient en cause (essais en les coupant). Correctif : vraie frappe (⌘ enfoncé, V, V relâché, ⌘ relâché), `paste.rs::send_command_v` ; 5 essais sur 5 collés. Piège noté dans `docs/PIEGES.md`.
+- Mesuré à la clôture (04/11/2026) : 313 tests Rust, 82 tests d'interface, 0 échec ; fmt et clippy propres. Commit `19742c9` poussé ; CI complète lancée sur les trois systèmes (résultat dans la section suivante ou `REPRISE.md`).
 
 ## S14 — 2026-11-02 · Dépôt public, Releases, mise à jour sans jeton, interface à la manière de Scribe
 
