@@ -46,7 +46,7 @@ If Windows asks for microphone access, accept. Otherwise: **Settings → Privacy
 
 In Scriibe: **Settings → Engines** (your choice, can be changed later).
 
-**A. On the PC (nothing leaves your computer).** In the same tab (**Settings → Engines**), the **Installation status**, **Programs** and **Recommended models** cards say what is missing (the `whisper-server` and `llama-server` programs, models) and offer each download with its **size and source before asking for your consent**. Accept them one by one. Then choose **Whisper** (transcription) and **llama.cpp** (cleanup) under **Settings → Engines**.
+**A. On the PC (your voice and text stay on the PC).** In the same tab (**Settings → Engines**), the **Installation status**, **Programs** and **Recommended models** cards say what is missing (the `whisper-server` and `llama-server` programs, models) and offer each download with its **size and source before asking for your consent**. Accept them one by one. Then choose **Whisper** (transcription) and **llama.cpp** (cleanup) under **Settings → Engines**. Only downloads, which you accept one by one, and the update alert, if you turn it on, go through the Internet.
 
 **B. Online (as a fallback).** Quicker on a modest machine, but paid; your voice goes to Deepgram and the text to OpenRouter to be cleaned up. You need an account and a key for each (pay-as-you-go services, a few cents per dictation): paste each key under **Settings → Engines → Cloud keys (fallback)**. Keys are stored in the Windows Credential Manager and are never displayed.
 

@@ -44,7 +44,7 @@ Si Windows demande l'accès au micro, accepter. Sinon : **Paramètres → Confid
 
 Dans Scriibe : **Réglages → Moteurs** (au choix, modifiable plus tard).
 
-**A. Sur le PC (rien ne part sur Internet).** Dans le même onglet (**Réglages → Moteurs**), les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** disent ce qui manque (programmes `whisper-server` et `llama-server`, modèles) et propose chaque téléchargement avec sa **taille et sa source avant de demander l'accord**. Accepter un à un. Choisir ensuite **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
+**A. Sur le PC (votre voix et votre texte restent sur le PC).** Dans le même onglet (**Réglages → Moteurs**), les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** disent ce qui manque (programmes `whisper-server` et `llama-server`, modèles) et propose chaque téléchargement avec sa **taille et sa source avant de demander l'accord**. Accepter un à un. Choisir ensuite **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**. Seuls passent par Internet les téléchargements, que vous acceptez un à un, et l'alerte de mise à jour si vous l'activez.
 
 **B. En ligne (en dépannage).** Plus rapide sur une machine modeste, mais payant ; la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (services payants à l'usage, quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le Gestionnaire d'identifiants de Windows et ne sont jamais affichées.
 
