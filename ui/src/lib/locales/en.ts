@@ -62,6 +62,8 @@ export const en: Record<string, string> = {
   'version {version}': 'version {version}',
   'Scriibe est arrêté. Vous pouvez fermer cette page.': 'Scriibe has stopped. You can close this page.',
   'Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.': 'Scriibe is not responding. Start it again from the notification area icon.',
+  'Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.': 'Scriibe is not responding. Start it again from the menu bar icon.',
+  'Scriibe ne répond plus. Relancez-le depuis le terminal.': 'Scriibe is not responding. Start it again from the terminal.',
 
   // Tableau de bord
   'Mesure l’ordinateur et propose les moteurs qui lui conviennent': 'Measures this computer and suggests the engines that suit it',
@@ -367,6 +369,10 @@ export const en: Record<string, string> = {
 
   // Réglages : indicateur, clés, emplacements
   'Apparence de l’indicateur': 'Indicator appearance',
+  'L’icône de la barre des menus change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'The menu bar icon always changes colour. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
+  'Il n’y a pas encore d’icône sous Linux. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'There is no icon on Linux yet. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
   'L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
     'The icon near the clock always changes colour. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
   'Afficher la pastille à l’écran (bêta)': 'Show the on-screen pill (beta)',
@@ -387,6 +393,9 @@ export const en: Record<string, string> = {
   'Bleu': 'Blue',
   'Noir': 'Black',
   'Clés du cloud (dépannage)': 'Cloud keys (fallback)',
+  'Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.': 'The keys are kept in the Mac’s keychain and are never displayed or written to the log.',
+  'Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.':
+    'On Linux, Scriibe does not store the keys: you give them through environment variables, before launching Scriibe. They are never displayed or written to the log.',
   'Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.':
     'The keys are kept in the Windows Credential Manager and are never displayed or written to the log.',
   '✔ présente': '✔ present',

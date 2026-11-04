@@ -16,6 +16,7 @@
   let { section }: { section: 'dictation' | 'engines' | 'appearance' } = $props();
 
   let s = $derived(status.value);
+  let osName = $derived(s?.os ?? 'windows');
   let v = $derived(settings.value);
   let devices = $state<{ value: string; label: string }[]>([]);
   let listing = $state(false);
@@ -312,7 +313,7 @@
   {/if}
 
   {#if section === 'appearance'}
-  <Card id="indicateur" title={t('Apparence de l’indicateur')} help="indicator" intro={t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}>
+  <Card id="indicateur" title={t('Apparence de l’indicateur')} help="indicator" intro={osName === 'macos' ? t('L’icône de la barre des menus change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : osName === 'linux' ? t('Il n’y a pas encore d’icône sous Linux. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}>
     <div class="row">
       <label><input type="checkbox" checked={v.overlayEnabled} onchange={(e) => settings.change({ overlayEnabled: e.currentTarget.checked })} />
         {t('Afficher la pastille à l’écran (bêta)')}</label>
@@ -346,7 +347,7 @@
 
   {#if section === 'engines'}
   <Card id="cles" title={t('Clés du cloud (dépannage)')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
-    <p class="muted">{t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
+    <p class="muted">{osName === 'macos' ? t('Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.') : osName === 'linux' ? t('Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.') : t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}
       <div class="row">
