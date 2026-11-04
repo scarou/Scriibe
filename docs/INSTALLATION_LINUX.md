@@ -79,8 +79,10 @@ Dans un **terminal**, le collage se fait par Ctrl+Maj+V : Scriibe envoie Ctrl+V,
 
 ## Installer une mise à jour
 
-La mise à jour intégrée (**Réglages → Mise à jour**) **prévient** d'une nouvelle version mais ne l'installe pas encore sous Linux. À la main :
+**Réglages → Mise à jour** : « Chercher une nouvelle version », puis « Installer et redémarrer ». Scriibe télécharge `scriibe-linux-x64.zip` de la dernière Release, remplace son programme (l'ancien reste à côté sous le nom `scriibe.old` jusqu'au lancement suivant) et se relance. Le dossier du programme doit être à vous (c'est le cas de `~/scriibe`). Cette installation intégrée arrive avec la version qui suit la 0.2.2 : depuis la 0.2.2, il faut encore mettre à jour une fois à la main.
 
-1. Quitter Scriibe : Ctrl+C dans le terminal.
+À la main :
+
+1. Quitter Scriibe : menu de l'icône → Quitter (ou Ctrl+C dans le terminal).
 2. Télécharger le dernier `scriibe-linux-x64.zip` comme à l'étape 2 et refaire l'étape 3 (la commande remplace l'ancien programme).
 3. Relancer. Réglages, historique et dictionnaire sont conservés (ils sont rangés dans `~/.local/share/scriibe`).

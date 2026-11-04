@@ -1013,9 +1013,10 @@ fn restart(app: &App) {
     }
     let mut args: Vec<String> = std::env::args().skip(1).filter(|a| a != crate::commands::RESTARTED).collect();
     args.push(crate::commands::RESTARTED.into());
-    match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(args).spawn()) {
+    // `program_path` : sous Linux, le programme qui tourne porte maintenant le nom de l'ancien (`scriibe.old`).
+    match update::program_path().and_then(|exe| std::process::Command::new(exe).args(args).spawn()) {
         Ok(_) => app.log.write("mise à jour: nouvelle version lancée"),
-        Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance scriibe.exe à la main")),
+        Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance Scriibe à la main")),
     }
     std::process::exit(0);
 }

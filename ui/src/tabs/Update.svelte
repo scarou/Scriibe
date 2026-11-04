@@ -22,7 +22,7 @@
     ok: boolean;
     error?: string;
     up_to_date: boolean;
-    /** Faux sous Linux, ou si la Release n'a pas de fichier pour ce système : Scriibe signale la version mais ne l'installe pas. */
+    /** Faux sur un système sans installation intégrée, ou si la Release n'a pas de fichier pour ce système : Scriibe signale la version mais ne l'installe pas. */
     installable: boolean;
     version: string;
     title: string;

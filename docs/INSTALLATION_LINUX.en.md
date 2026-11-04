@@ -79,8 +79,10 @@ In a **terminal**, pasting is done with Ctrl+Shift+V: Scriibe sends Ctrl+V, whic
 
 ## Installing an update
 
-The built-in update (**Settings → Update**) **warns** about a new version but does not install it on Linux yet. By hand:
+**Settings → Update**: “Check for a new version”, then “Install and restart”. Scriibe downloads `scriibe-linux-x64.zip` from the latest Release, replaces its program (the old one stays alongside as `scriibe.old` until the next launch) and restarts. The program's folder must belong to you (`~/scriibe` does). This built-in installation comes with the version after 0.2.2: from 0.2.2, you still have to update by hand once.
 
-1. Quit Scriibe: Ctrl+C in the terminal.
+By hand:
+
+1. Quit Scriibe: icon menu → Quit (or Ctrl+C in the terminal).
 2. Download the latest `scriibe-linux-x64.zip` as in step 2 and redo step 3 (the command replaces the old program).
 3. Launch again. Settings, history and dictionary are kept (they are stored in `~/.local/share/scriibe`).

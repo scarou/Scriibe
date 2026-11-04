@@ -1,6 +1,6 @@
 # Cadrage — mise à jour de Scriibe sur Windows, macOS et Linux (S12)
 
-Statut : **chantier A écrit en S12 et terminé en S13** (alerte, entrée du menu de l'icône) ; **S14 (02/11/2026) : dépôt public, vérification et installation Windows par les Releases, sans jeton** ; **S15 (03/11/2026) : installation intégrée sur Mac** (voir la fin du fichier) ; reste Linux (chantier C).
+Statut : **chantier A écrit en S12 et terminé en S13** (alerte, entrée du menu de l'icône) ; **S14 (02/11/2026) : dépôt public, vérification et installation Windows par les Releases, sans jeton** ; **S15 (03/11/2026) : installation intégrée sur Mac** (voir la fin du fichier) ; reste Linux (chantier C) ; **S15 (04/11/2026) : installation intégrée sous Linux** (`scriibe-linux-x64.zip` remplace `scriibe`, `update::program_path` relance le nouveau programme et non `scriibe.old` ; tests unitaires seulement, à essayer avec une vraie Release postérieure à la 0.2.2).
 
 ## État actuel
 
