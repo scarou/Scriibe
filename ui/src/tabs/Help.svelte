@@ -31,7 +31,7 @@
           ? 'le texte est mis au propre sur cet ordinateur'
           : 'le texte part chez OpenRouter pour être mis au propre';
     const everythingLocal = v.transcriptionEngine === 'whisper' && local;
-    return `Avec tes réglages actuels, ${voice}, et ${text}.${everythingLocal ? ' Rien ne part sur Internet.' : ''}`;
+    return `Avec tes réglages actuels, ${voice}, et ${text}.${everythingLocal ? ' Ta voix et ton texte restent sur cet ordinateur.' : ''}`;
   });
 
   /** L'indicateur dans ses trois états, avec le style, la couleur et la transparence réglés. */
@@ -116,7 +116,7 @@
         <li><b>La qualité.</b> Un gros modèle entend mieux (Whisper « small » plus que « base ») ou rédige mieux (un modèle de 3 milliards de paramètres plus qu’un de 0,5 milliard). Un petit modèle se trompe plus : un mot mal entendu, une phrase mal reformulée, une reprise « non pardon » non corrigée.</li>
         <li><b>La vitesse.</b> Un gros modèle fait plus de calculs, donc il met plus longtemps. Sur un portable sans vraie carte graphique, Whisper « small » prend plusieurs fois plus de temps que « base », et un modèle de rédaction de 3 milliards de paramètres met une dizaine de secondes par phrase. Un service en ligne répond en deux secondes environ, parce qu’il tourne sur des machines puissantes.</li>
         <li><b>La place et la mémoire.</b> Un modèle prend de quelques centaines de Mo à plusieurs Go sur le disque, et autant en mémoire quand il travaille. Une carte graphique de 2 Go ne tient pas un modèle de 2 Go : Scriibe bascule alors tout seul sur le processeur.</li>
-        <li><b>La confidentialité et le coût.</b> En local, rien ne quitte l’ordinateur et c’est gratuit. En ligne (Deepgram, OpenRouter), c’est rapide, mais ta voix ou ton texte part chez le service, et il faut une clé (souvent payante).</li>
+        <li><b>La confidentialité et le coût.</b> En local, ta voix et ton texte restent sur l’ordinateur, et c’est gratuit. En ligne (Deepgram, OpenRouter), c’est rapide, mais ta voix ou ton texte part chez le service, et il faut une clé (souvent payante).</li>
       </ul>
       <p>Sans idée précise, laisse l’assistant choisir : il mesure ton ordinateur et propose la combinaison qui convient, avec les temps qu’on a vraiment mesurés. Tu peux le <b>relancer quand tu veux</b> (bouton ci-dessus, ou Réglages → Moteurs) si tu changes d’ordinateur, de carte graphique ou d’avis.</p>
       <div class="links">
@@ -229,7 +229,7 @@
       <h2>Sur cet ordinateur ou en ligne</h2>
       <p>{privacySummary}</p>
       <ul>
-        <li><b>Whisper</b> (transcription) et <b>llama.cpp</b> (mise au propre) tournent sur cet ordinateur : rien ne part sur Internet.</li>
+        <li><b>Whisper</b> (transcription) et <b>llama.cpp</b> (mise au propre) tournent sur cet ordinateur : ta voix et ton texte restent sur l’ordinateur.</li>
         <li><b>Deepgram</b> reçoit l’enregistrement de chaque dictée, une fois la touche relâchée (rien en dehors de tes dictées) ; <b>OpenRouter</b> reçoit le texte transcrit pour le mettre au propre.</li>
         <li><b>Mémoire</b> : Whisper s’arrête après 10 minutes sans dictée et revient à l’appui de la touche, pendant que tu parles ; le modèle de mise au propre de llama.cpp se libère après 30 minutes par défaut (réglable : 2 h, 8 h ou « tant que Scriibe tourne »). <i>Pourquoi :</i> ils occupent plusieurs Go de mémoire. Après une libération, la première dictée est plus lente : sur un ordinateur sans carte graphique, comptez 15 à 45 s pour le modèle local ; le préchargement au lancement l’évite pour la première.</li>
         <li>Les mots de « Mes mots » accompagnent la dictée : vers Deepgram et OpenRouter si tu les utilises.</li>

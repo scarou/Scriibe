@@ -24,39 +24,6 @@ pub struct Chain {
 
 const CHAINS: [Chain; 4] = [
     Chain {
-        id: "cloud-cleanup",
-        title: "Whisper sur cet ordinateur + mise au propre OpenRouter (cloud)",
-        detail: "La voix reste sur l'ordinateur ; seul le texte transcrit part au cloud pour être mis au propre.",
-        timing: "3,2 à 3,9 s après le relâchement (mesuré sur un portable à 4 cœurs sans carte graphique)",
-        measured: true,
-        transcription: TranscriptionEngine::Whisper,
-        cleanup: CleanupEngine::OpenRouter,
-        needs: &["whisper-server", "whisper-base"],
-        needs_key: Some("openrouter"),
-    },
-    Chain {
-        id: "local-raw",
-        title: "Tout sur cet ordinateur, sans mise au propre",
-        detail: "Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte, rien ne quitte l'ordinateur.",
-        timing: "2,3 à 3,1 s (mesuré sur un portable à 4 cœurs sans carte graphique)",
-        measured: true,
-        transcription: TranscriptionEngine::Whisper,
-        cleanup: CleanupEngine::None,
-        needs: &["whisper-server", "whisper-base"],
-        needs_key: None,
-    },
-    Chain {
-        id: "local-small-model",
-        title: "Tout sur cet ordinateur, avec un petit modèle de mise au propre",
-        detail: "Whisper + Qwen 2.5 1,5 B (llama.cpp). Rien ne quitte l'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.",
-        timing: "4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle",
-        measured: true,
-        transcription: TranscriptionEngine::Whisper,
-        cleanup: CleanupEngine::LlamaCpp,
-        needs: &["whisper-server", "whisper-base", "llama-server", "qwen-1.5b"],
-        needs_key: None,
-    },
-    Chain {
         id: "gpu",
         title: "Tout sur cet ordinateur, avec sa carte graphique",
         detail: "Whisper « small » + Qwen 2.5 3 B sur la carte graphique (llama.cpp Vulkan). Sans doute plus rapide et plus juste que sur le processeur.",
@@ -67,19 +34,50 @@ const CHAINS: [Chain; 4] = [
         needs: &["whisper-server", "whisper-small", "llama-vulkan", "qwen-3b"],
         needs_key: None,
     },
+    Chain {
+        id: "local-raw",
+        title: "Tout sur cet ordinateur, sans mise au propre",
+        detail: "Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte ; votre voix et votre texte restent sur l'ordinateur.",
+        timing: "2,3 à 3,1 s (mesuré sur un portable à 4 cœurs sans carte graphique)",
+        measured: true,
+        transcription: TranscriptionEngine::Whisper,
+        cleanup: CleanupEngine::None,
+        needs: &["whisper-server", "whisper-base"],
+        needs_key: None,
+    },
+    Chain {
+        id: "local-small-model",
+        title: "Tout sur cet ordinateur, avec un petit modèle de mise au propre",
+        detail: "Whisper + Qwen 2.5 1,5 B (llama.cpp). Votre voix et votre texte restent sur l'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.",
+        timing: "4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle",
+        measured: true,
+        transcription: TranscriptionEngine::Whisper,
+        cleanup: CleanupEngine::LlamaCpp,
+        needs: &["whisper-server", "whisper-base", "llama-server", "qwen-1.5b"],
+        needs_key: None,
+    },
+    Chain {
+        id: "cloud-cleanup",
+        title: "En dépannage : Whisper sur cet ordinateur + mise au propre OpenRouter (cloud)",
+        detail: "Pour un ordinateur trop lent pour la mise au propre locale. La voix reste sur l'ordinateur ; seul le texte transcrit part au cloud pour être mis au propre (service payant, clé nécessaire).",
+        timing: "3,2 à 3,9 s après le relâchement (mesuré sur un portable à 4 cœurs sans carte graphique)",
+        measured: true,
+        transcription: TranscriptionEngine::Whisper,
+        cleanup: CleanupEngine::OpenRouter,
+        needs: &["whisper-server", "whisper-base"],
+        needs_key: Some("openrouter"),
+    },
 ];
 
 pub fn chain(id: &str) -> Option<&'static Chain> {
     CHAINS.iter().find(|c| c.id == id)
 }
 
-/// La chaîne conseillée : une vraie carte graphique → la chaîne locale accélérée ; sinon Whisper `base` avec la mise au propre cloud si
-/// une clé OpenRouter existe, sans mise au propre dans le cas contraire (les mesures de S03).
-pub fn recommended(machine: &MachineInfo, has_openrouter_key: bool) -> &'static str {
+/// La chaîne conseillée : le local d'abord. Une vraie carte graphique → la chaîne locale accélérée ; sinon Whisper `base` sans mise au
+/// propre (les mesures de S03). La mise au propre en ligne n'est jamais conseillée d'office : c'est un dépannage, qu'on choisit.
+pub fn recommended(machine: &MachineInfo) -> &'static str {
     if machine.has_capable_gpu() {
         "gpu"
-    } else if has_openrouter_key {
-        "cloud-cleanup"
     } else {
         "local-raw"
     }
@@ -138,8 +136,9 @@ mod tests {
     #[test]
     fn the_test_laptop_without_a_real_card_gets_the_measured_chains() {
         let laptop = machine(vec![gpu("AMD Radeon (TM) 500 Series", 2), gpu("Intel(R) UHD Graphics 620", 1)]);
-        assert_eq!(recommended(&laptop, true), "cloud-cleanup");
-        assert_eq!(recommended(&laptop, false), "local-raw");
+        assert_eq!(recommended(&laptop), "local-raw");
+        let ids: Vec<&str> = offered(&laptop).iter().map(|c| c.id).collect();
+        assert_eq!(ids, ["local-raw", "local-small-model", "cloud-cleanup"], "le local d'abord, l'en ligne en dépannage, à la fin");
         assert!(offered(&laptop).iter().all(|c| c.id != "gpu"), "pas de chaîne pour carte graphique sans vraie carte");
         assert!(offered(&laptop).iter().all(|c| c.measured));
     }
@@ -147,7 +146,9 @@ mod tests {
     #[test]
     fn a_machine_with_a_real_card_is_offered_the_accelerated_chain_first_and_told_it_is_not_measured() {
         let desktop = machine(vec![gpu("NVIDIA GeForce RTX 3060", 12)]);
-        assert_eq!(recommended(&desktop, true), "gpu");
+        assert_eq!(recommended(&desktop), "gpu");
+        assert_eq!(offered(&desktop).first().map(|c| c.id), Some("gpu"));
+        assert_eq!(offered(&desktop).last().map(|c| c.id), Some("cloud-cleanup"));
         assert_eq!(offered(&desktop).len(), 4);
         assert!(!chain("gpu").unwrap().measured);
     }

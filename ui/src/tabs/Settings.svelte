@@ -136,7 +136,7 @@
       <button onclick={() => nav.openAssistant()} title={t('Mesure l’ordinateur et propose les moteurs qui lui conviennent')}>{t('Relancer l’assistant')}</button>
       <button onclick={() => nav.openHelp('start')}>{t('À quoi servent ces choix ?')}</button>
     </div>
-    <p class="muted">{t('La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (rien ne sort) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.')}</p>
+    <p class="muted">{t('La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (votre voix reste sur cet ordinateur) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.')}</p>
     <div class="row">
       <label>{t('Transcription :')}
         <select value={v.transcriptionEngine} onchange={(e) => settings.change({ transcriptionEngine: e.currentTarget.value as never })}>

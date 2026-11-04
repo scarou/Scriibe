@@ -44,7 +44,7 @@
           ? 'the text is cleaned up on this computer'
           : 'the text goes to OpenRouter to be cleaned up';
     const everythingLocal = v.transcriptionEngine === 'whisper' && local;
-    return `With your current settings, ${voice}, and ${text}.${everythingLocal ? ' Nothing goes out on the Internet.' : ''}`;
+    return `With your current settings, ${voice}, and ${text}.${everythingLocal ? ' Your voice and text stay on this computer.' : ''}`;
   });
 
   /** The indicator in its three states, with the style, colour and transparency set. */
@@ -129,7 +129,7 @@
         <li><b>Quality.</b> A big model hears better (Whisper “small” more than “base”) or writes better (a 3-billion-parameter model more than a 0.5-billion one). A small model makes more mistakes: a misheard word, a badly rephrased sentence, a false start (“no, sorry”) left uncorrected.</li>
         <li><b>Speed.</b> A big model does more calculations, so it takes longer. On a laptop without a real graphics card, Whisper “small” takes several times longer than “base”, and a 3-billion-parameter writing model takes about ten seconds per sentence. An online service answers in about two seconds, because it runs on powerful machines.</li>
         <li><b>Space and memory.</b> A model takes from a few hundred MB to several GB on disk, and as much in memory while it works. A 2 GB graphics card cannot hold a 2 GB model: Scriibe then switches to the processor by itself.</li>
-        <li><b>Privacy and cost.</b> Locally, nothing leaves the computer and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
+        <li><b>Privacy and cost.</b> Locally, your voice and text stay on the computer, and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
       </ul>
       <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, or Settings → Engines) if you change computer, graphics card or mind.</p>
       <div class="links">
@@ -242,7 +242,7 @@
       <h2>On this computer or online</h2>
       <p>{privacySummary}</p>
       <ul>
-        <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: nothing goes out on the Internet.</li>
+        <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: your voice and text stay on the computer.</li>
         <li><b>Deepgram</b> receives the recording of each dictation, once the key is released (nothing outside your dictations); <b>OpenRouter</b> receives the transcribed text to clean it up.</li>
         <li><b>Memory</b>: Whisper stops after 10 minutes without dictation and comes back when you press the key, while you speak; llama.cpp’s cleanup model is freed after 30 minutes by default (adjustable: 2 h, 8 h or “as long as Scriibe is running”). <i>Why:</i> they take several GB of memory. After a release, the first dictation is slower: on a computer without a graphics card, count 15 to 45 s for the local model; preloading at launch avoids it for the first one.</li>
         <li>The words in “Words to write exactly” go along with the dictation: to Deepgram and OpenRouter if you use them.</li>
