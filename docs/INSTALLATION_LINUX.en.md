@@ -54,15 +54,15 @@ The terminal stays busy (it is Scriibe's log) and **Scriibe's page opens in the 
 
 In the page: **Settings → Engines**.
 
-**A. Online.** Your voice goes to Deepgram, and the text goes to OpenRouter to be cleaned up. There is no keychain on Linux yet: keys are given through environment variables, **before** launching Scriibe, in the same terminal:
+**A. On the PC (nothing leaves your computer).** Under **Settings → Engines**, the **Programs** and **Recommended models** cards offer, showing size and source before asking for your consent: `whisper-server (Linux)` and `llama-server (Linux, CPU)` (built by GitHub for Linux x86-64 and added to every Release), then a Whisper model and a cleanup model. Accept them one by one, then choose **Whisper** and **llama.cpp**. *(These cards come with the version after 0.2.2; with 0.2.2 you have to build `whisper-server` yourself: see [ESSAI_LINUX.md](ESSAI_LINUX.md), in French.)* The programs are stored in `~/.local/share/Scriibe/engines/`. The processor must support AVX2 (any PC since about 2015).
+
+**B. Online (as a fallback).** Quicker on a modest machine, but paid; your voice goes to Deepgram and the text to OpenRouter to be cleaned up. There is no keychain on Linux yet: keys are given through environment variables, **before** launching Scriibe, in the same terminal:
 
 ```bash
 export DEEPGRAM_API_KEY='…your key…'
 export OPENROUTER_API_KEY='…your key…'
 ~/scriibe/scriibe
 ```
-
-**B. On the PC (nothing leaves your computer).** Under **Settings → Engines**, the **Programs** and **Recommended models** cards offer, showing size and source before asking for your consent: `whisper-server (Linux)` and `llama-server (Linux, CPU)` (built by GitHub for Linux x86-64 and added to every Release), then a Whisper model and a cleanup model. Accept them one by one, then choose **Whisper** and **llama.cpp**. *(These cards come with the version after 0.2.2; with 0.2.2 you have to build `whisper-server` yourself: see [ESSAI_LINUX.md](ESSAI_LINUX.md), in French.)* The programs are stored in `~/.local/share/Scriibe/engines/`. The processor must support AVX2 (any PC since about 2015).
 
 ## 6. Try it
 

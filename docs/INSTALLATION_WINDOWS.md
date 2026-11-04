@@ -6,7 +6,7 @@ Autres systèmes : [macOS](INSTALLATION_MACOS.md) · [Linux](INSTALLATION_LINUX.
 
 Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la programmation nécessaire). Compter 10 minutes avec les moteurs en ligne, 30 minutes avec les moteurs sur le PC (téléchargements compris).
 
-**Ce qu'il faut** : Windows 10 ou 11 (64 bits), une connexion Internet, un micro, et un compte GitHub gratuit (voir l'étape 1).
+**Ce qu'il faut** : Windows 10 ou 11 (64 bits), une connexion Internet, un micro. Un compte GitHub gratuit n'est utile que pour la voie B de l'étape 1.
 
 > **État de cette procédure** : écrite d'après ce qui est essayé sur le PC de Christophe (`docs/ESSAI_WINDOWS.md`). Le fichier Windows est ajouté à chaque Release par la CI quelques minutes après sa publication (la version 0.1.0, publiée avant, n'en a pas : voie B). Les étapes n'ont pas encore été essayées par une autre personne : si l'une ne se passe pas comme écrit, noter laquelle et la dire.
 
@@ -44,9 +44,9 @@ Si Windows demande l'accès au micro, accepter. Sinon : **Paramètres → Confid
 
 Dans Scriibe : **Réglages → Moteurs** (au choix, modifiable plus tard).
 
-**A. En ligne (le plus rapide).** La voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (services payants à l'usage, quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le Gestionnaire d'identifiants de Windows et ne sont jamais affichées.
+**A. Sur le PC (rien ne part sur Internet).** Dans le même onglet (**Réglages → Moteurs**), les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** disent ce qui manque (programmes `whisper-server` et `llama-server`, modèles) et propose chaque téléchargement avec sa **taille et sa source avant de demander l'accord**. Accepter un à un. Choisir ensuite **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
 
-**B. Sur le PC (rien ne part sur Internet).** Dans le même onglet (**Réglages → Moteurs**), les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** disent ce qui manque (programmes `whisper-server` et `llama-server`, modèles) et propose chaque téléchargement avec sa **taille et sa source avant de demander l'accord**. Accepter un à un. Choisir ensuite **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
+**B. En ligne (en dépannage).** Plus rapide sur une machine modeste, mais payant ; la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (services payants à l'usage, quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le Gestionnaire d'identifiants de Windows et ne sont jamais affichées.
 
 ## 6. Essayer
 

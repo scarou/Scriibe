@@ -46,9 +46,7 @@ macOS les demande quand Scriibe en a besoin. À chaque fois, aller dans **Régla
 
 Dans Scriibe : **Réglages → Moteurs**. Deux voies, au choix (on peut changer plus tard).
 
-**A. En ligne (le plus rapide à mettre en place).** La voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (les deux services sont payants à l'usage, à quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le trousseau du Mac et ne sont jamais affichées.
-
-**B. Sur le Mac (rien ne part sur Internet).** Nécessite **Homebrew** (`https://brew.sh`, suivre la page). Puis, dans l'application **Terminal**, une commande après l'autre :
+**A. Sur le Mac (rien ne part sur Internet).** Nécessite **Homebrew** (`https://brew.sh`, suivre la page). Puis, dans l'application **Terminal**, une commande après l'autre :
 
 ```bash
 brew install whisper-cpp
@@ -59,6 +57,8 @@ brew install llama.cpp
 ```
 
 Ensuite, dans Scriibe, les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** (même onglet, **Réglages → Moteurs**) disent ce qui manque (modèle Whisper, modèle de mise au propre) et proposent les téléchargements, avec leur taille et leur source avant de demander l'accord. Choisir enfin **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**.
+
+**B. En ligne (en dépannage).** Plus rapide à mettre en place et sur une machine modeste, mais payant ; la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (les deux services sont payants à l'usage, à quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le trousseau du Mac et ne sont jamais affichées.
 
 ## 6. Essayer
 
