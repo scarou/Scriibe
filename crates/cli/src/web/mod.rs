@@ -262,6 +262,15 @@ fn handle(ctx: &Context, mut request: Request) {
             ok(request, json!({"ok": true}))
         }
         // Le clavier de la fenêtre de Scriibe, relayé par la page : le crochet du système n'y reçoit rien.
+        // Sous Wayland, les touches viennent du raccourci de GNOME ; relayer aussi celles de la page mêlerait deux sources. Seul un
+        // relâchement vu par la page sert : GNOME ne le signale pas quand la fenêtre de Scriibe a le focus (`wayland::release_hint`).
+        (Method::Post, "api/keys/page") if gnome_shortcut().is_some() => {
+            #[cfg(target_os = "linux")]
+            if input["release"].as_bool() == Some(true) || input["down"].as_bool() == Some(false) {
+                scriibe_platform::linux::wayland_release_hint();
+            }
+            ok(request, json!({"ok": true, "wayland": true}))
+        }
         (Method::Post, "api/keys/page") => {
             if input["release"].as_bool() == Some(true) {
                 ctx.app.controller.release_page_keys();

@@ -55,6 +55,17 @@ struct Portal {
     tx: mpsc::UnboundedSender<Command>,
 }
 
+/// Quand la fenêtre de Scriibe a le focus, GNOME envoie l'appui du raccourci mais jamais son relâchement (vu le 04/11 : dictée tenue
+/// 5 min). La page, elle, voit le relâchement des touches : elle le signale ici (`release_hint`).
+static RELEASE_HINT: std::sync::Mutex<Option<mpsc::UnboundedSender<()>>> = std::sync::Mutex::new(None);
+
+/// Une touche relâchée dans la fenêtre de Scriibe : si un raccourci est tenu, il est relâché.
+pub fn release_hint() {
+    if let Some(tx) = RELEASE_HINT.lock().ok().and_then(|t| t.clone()) {
+        let _ = tx.send(());
+    }
+}
+
 static PORTAL: OnceLock<Result<Portal, String>> = OnceLock::new();
 
 fn portal() -> Result<&'static Portal, String> {
@@ -89,7 +100,7 @@ fn ensure_desktop_file() {
     else {
         return;
     };
-    // L'icône du dock : GNOME relie la fenêtre (classe X11 « Scriibe », par XWayland) à ce fichier par `StartupWMClass`, et en prend `Icon`.
+    // L'icône du dock et de la liste des applis, par son chemin complet (par son nom, la liste de GNOME ne la trouvait pas). GNOME relie la fenêtre (classe X11 « Scriibe », par XWayland) à ce fichier par `StartupWMClass`, et en prend `Icon`.
     let icon = base.join("icons/hicolor/scalable/apps").join(format!("{APP_ID}.svg"));
     if std::fs::read(&icon).ok().as_deref() != Some(ICON_SVG) {
         if let Some(dir) = icon.parent() {
@@ -100,8 +111,9 @@ fn ensure_desktop_file() {
     let path = base.join("applications").join(format!("{APP_ID}.desktop"));
     let Ok(exe) = std::env::current_exe() else { return };
     let content = format!(
-        "[Desktop Entry]\nType=Application\nName=Scriibe\nComment=Dictée vocale\nExec=\"{}\" lancer\nIcon={APP_ID}\nStartupWMClass=Scriibe\nTerminal=false\nCategories=Utility;Accessibility;\n",
-        exe.display()
+        "[Desktop Entry]\nType=Application\nName=Scriibe\nComment=Dictée vocale\nExec=\"{}\" lancer\nIcon={}\nStartupWMClass=Scriibe\nTerminal=false\nCategories=Utility;Accessibility;\n",
+        exe.display(),
+        icon.display()
     );
     // Réécrit seulement s'il manque ou a changé (programme déplacé, ancienne version sans icône).
     if std::fs::read_to_string(&path).is_ok_and(|old| old == content) {
@@ -252,14 +264,30 @@ async fn listen(
     let mut held: Vec<Key> = Vec::new();
     let mut pressed: Vec<Key> = Vec::new();
     let mut active = String::new();
+    let (hint_tx, mut hints) = mpsc::unbounded_channel();
+    if let Ok(mut slot) = RELEASE_HINT.lock() {
+        *slot = Some(hint_tx);
+    }
     loop {
         tokio::select! {
             _ = &mut stop => break,
+            Some(()) = hints.recv() => {
+                if !pressed.is_empty() {
+                    eprintln!("portails: raccourci « {active} » relâché dans la fenêtre de Scriibe (GNOME ne l'a pas signalé)");
+                    active.clear();
+                    for key in pressed.drain(..).rev() {
+                        if let Some(event) = translate_key(&mut held, key, false) {
+                            let _ = sink.send(event);
+                        }
+                    }
+                }
+            }
             Some(signal) = activated.next() => {
                 let id = signal.shortcut_id();
                 if pressed.is_empty() && (id == SHORTCUT_DICTATION || id == SHORTCUT_TRANSLATE) {
                     active = id.to_string();
                     pressed = if id == SHORTCUT_TRANSLATE { translate_keys() } else { dictation_keys() };
+                    eprintln!("portails: raccourci « {id} » appuyé");
                     for key in &pressed {
                         if let Some(event) = translate_key(&mut held, *key, true) {
                             let _ = sink.send(event);
@@ -269,6 +297,7 @@ async fn listen(
             }
             Some(signal) = deactivated.next() => {
                 if signal.shortcut_id() == active {
+                    eprintln!("portails: raccourci « {active} » relâché");
                     active.clear();
                     for key in pressed.drain(..).rev() {
                         if let Some(event) = translate_key(&mut held, key, false) {
@@ -332,22 +361,30 @@ async fn run(mut rx: mpsc::UnboundedReceiver<Command>) {
                 }
             }
             Command::PasteKeys { done } => {
-                if remote.is_none() {
-                    match open_remote(&conn).await {
-                        Ok(r) => remote = Some(r),
-                        Err(e) => {
-                            let _ = done.send(Err(e));
-                            continue;
+                // Une session gardée peut avoir été fermée par GNOME (veille, verrouillage, nuit : « Invalid session ») : on la rouvre
+                // aussitôt, une fois (le jeton évite de redemander l'autorisation).
+                let mut result = Err(String::new());
+                for attempt in 0..2 {
+                    if remote.is_none() {
+                        match open_remote(&conn).await {
+                            Ok(r) => remote = Some(r),
+                            Err(e) => {
+                                result = Err(e);
+                                break;
+                            }
                         }
                     }
-                }
-                let result = match &remote {
-                    Some(r) => send_ctrl_v(r).await,
-                    None => Err("pas de session RemoteDesktop".into()),
-                };
-                if result.is_err() {
-                    // Session fermée par GNOME (autorisation retirée…) : la prochaine fois, on la rouvre.
+                    result = match &remote {
+                        Some(r) => send_ctrl_v(r).await,
+                        None => Err("pas de session RemoteDesktop".into()),
+                    };
+                    if result.is_ok() {
+                        break;
+                    }
                     remote = None;
+                    if attempt == 0 {
+                        eprintln!("portails: session RemoteDesktop perdue, rouverte ({})", result.as_ref().err().map_or("", |e| e));
+                    }
                 }
                 let _ = done.send(result);
             }

@@ -13,7 +13,10 @@ mod sounds;
 mod wayland;
 mod x11;
 
-pub use wayland::{current_translate_trigger as wayland_translate_trigger, current_trigger as wayland_trigger, is_wayland};
+pub use wayland::{
+    current_translate_trigger as wayland_translate_trigger, current_trigger as wayland_trigger, is_wayland,
+    release_hint as wayland_release_hint,
+};
 
 pub use keyboard::LinuxKeys;
 
