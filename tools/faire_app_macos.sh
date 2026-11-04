@@ -1,5 +1,5 @@
 #!/bin/bash
-# Assemble Scriibe.app (macOS) depuis target/release/scriibe, la signe avec « Scribe Dev » et l'installe dans ~/Applications.
+# Assemble Scriibe.app (macOS) depuis target/release/scriibe, la signe avec « Scribe Dev » et l'installe dans ~/Applications (ou dans SCRIIBE_INSTALL=chemin/Scriibe.app).
 # Usage : après `cd ui && npm run build` et `cargo build --release`, `tools/faire_app_macos.sh` (ajouter --lancer pour l'ouvrir ensuite).
 #
 # Les autorisations de macOS (Surveillance de l'entrée, Micro, Contrôle de l'appareil et accès aux données) vont à Scriibe.app lui-même, plus
@@ -13,7 +13,7 @@ exe=target/release/scriibe
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 APP="$STAGE/Scriibe.app"
-INSTALL="$HOME/Applications/Scriibe.app"
+INSTALL="${SCRIIBE_INSTALL:-$HOME/Applications/Scriibe.app}"
 
 # Icône : le PNG 1024 vient de logo/scriibe-icone-macos.svg (voir logo/LISEZMOI.md).
 ICONSET="$STAGE/AppIcon.iconset"
@@ -56,7 +56,7 @@ fi
 # Remplace l'ancienne version, après l'avoir fermée (5 s au plus : sinon `open` réactiverait l'ancienne).
 pgrep -x Scriibe | xargs -r kill 2>/dev/null || true
 for _ in $(seq 1 25); do pgrep -x Scriibe >/dev/null || break; sleep 0.2; done
-mkdir -p "$HOME/Applications"
+mkdir -p "$(dirname "$INSTALL")"
 rm -rf "$INSTALL"
 cp -R "$APP" "$INSTALL"
 echo "Installé : $INSTALL"
