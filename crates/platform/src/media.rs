@@ -38,6 +38,10 @@ pub trait AudioSource: Send + Sync + 'static {
         self.play_pause();
         String::new()
     }
+    /// Relance ce que `play_pause_for` a mis en pause (par défaut : la même commande, Lecture/Pause étant un interrupteur).
+    fn resume_for(&self, players: &[AudioProcess]) -> String {
+        self.play_pause_for(players)
+    }
     /// Processus système qui produisent des sons de leur propre chef : ils ne sont pas un média à interrompre.
     fn ignored(&self) -> &'static [&'static str];
     /// Ce que le système voit, en une ligne, pour le journal quand rien n'est mis en pause (comprendre pourquoi).
@@ -214,7 +218,7 @@ impl<S: AudioSource> Shared<S> {
             self.log(&format!("médias: autre chose joue ({}), pas de relance", others.join(", ")));
             return;
         }
-        let how = self.source.play_pause_for(players);
+        let how = self.source.resume_for(players);
         self.log(&format!("médias: relance demandée{how}"));
     }
 }

@@ -684,7 +684,7 @@ fn assistant_view(ctx: &Context) -> Value {
         "done": ctx.app.config.settings().setup_done,
         "machine": assistant::machine_json(&machine),
         "chains": assistant::offered(&machine).into_iter().map(assistant::chain_json).collect::<Vec<_>>(),
-        "recommended": assistant::recommended(&machine, has_key),
+        "recommended": assistant::recommended(&machine),
         "has_openrouter_key": has_key,
     })
 }

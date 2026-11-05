@@ -14,8 +14,26 @@
   let v = $derived(settings.value);
   let open = $derived(nav.helpSection);
   /** Les touches en vigueur (réglables dans Réglages → Dictée). */
-  let dictate = $derived(keyName(s?.dictation_label ?? 'Ctrl droit'));
-  let translate = $derived(keyName(s?.translate_label ?? 'Maj'));
+  /** The system Scriibe runs on: the Help only talks about that one (keys, icon, permissions, keychain). */
+  let os = $derived(s?.os ?? 'windows');
+  let mac = $derived(os === 'macos');
+  let linux = $derived(os === 'linux');
+  let defaultDictate = $derived(mac ? 'right Option' : 'right Ctrl');
+  let defaultTranslate = $derived(mac ? '⌘' : 'Shift');
+  let copyKey = $derived(mac ? '⌘C' : 'Ctrl+C');
+  let pasteKey = $derived(mac ? '⌘V' : 'Ctrl+V');
+  let trayNear = $derived(mac ? 'in the menu bar' : 'near the clock');
+  let trayIcon = $derived(mac ? 'The menu bar icon' : 'The icon near the clock');
+  let editor = $derived(mac ? 'TextEdit' : linux ? 'a text editor' : 'Notepad');
+  let pasteNote = $derived(
+    mac
+      ? 'Most often, the “Accessibility” permission (labelled “Device control and data access” on some macOS versions) is missing, in System Settings → Privacy & Security: turn on Scriibe’s switch, then quit Scriibe and restart it.'
+      : linux
+        ? 'In a terminal, paste with Ctrl+Shift+V.'
+        : 'Pasting is blocked by Windows in a window started as administrator.',
+  );
+  let dictate = $derived(keyName(s?.dictation_label ?? (mac ? 'Option droite' : 'Ctrl droit')));
+  let translate = $derived(keyName(s?.translate_label ?? (mac ? '⌘' : 'Maj')));
   let language = $derived(
     ({ en: 'English', es: 'Spanish', de: 'German', it: 'Italian', pt: 'Portuguese (Brazil)' } as Record<string, string>)[v?.translationLanguage ?? 'en'] ?? 'English',
   );
@@ -39,12 +57,12 @@
     const local = v.cleanupEngine === 'llamaCpp' || v.cleanupEngine === 'lmStudio' || v.cleanupEngine === 'ollama';
     const text =
       v.cleanupEngine === 'none'
-        ? 'no model cleans the text up (but a translation goes through OpenRouter)'
+        ? 'no model cleans the text up (translation is then unavailable)'
         : local
           ? 'the text is cleaned up on this computer'
           : 'the text goes to OpenRouter to be cleaned up';
     const everythingLocal = v.transcriptionEngine === 'whisper' && local;
-    return `With your current settings, ${voice}, and ${text}.${everythingLocal ? ' Nothing goes out on the Internet.' : ''}`;
+    return `With your current settings, ${voice}, and ${text}.${everythingLocal ? ' Your voice and text stay on this computer.' : ''}`;
   });
 
   /** The indicator in its three states, with the style, colour and transparency set. */
@@ -97,7 +115,7 @@
       <h2>Getting started</h2>
       <p>Scriibe writes for you in any app: you hold a key, you speak, you release, and the text, clean and punctuated, is pasted where your cursor is.</p>
       <ol class="steps">
-        <li><b>Install what is needed.</b> To do everything on this computer you need <b>whisper-server</b> and a Whisper model (the transcription), then, if you want cleanup without the Internet, <b>llama-server</b> and a model. The installation cards (Settings → Engines) tell you what is missing and, before any download, shows the name, the real size and the source: nothing is downloaded without your consent.</li>
+        <li><b>Install what is needed.</b> To do everything on this computer you need <b>whisper-server</b> and a Whisper model (the transcription), then, if you want cleanup without the Internet, <b>llama-server</b> and a model. The installation cards (Settings → Engines) tell you what is missing and, before any download, shows the name, the real size and the source: nothing is downloaded without your consent.{#if mac} On Mac, the two programs are installed with Homebrew (“brew install whisper-cpp” then “brew install llama.cpp”, in Terminal); the cards then offer the models.{/if}</li>
         <li><b>Choose your engines.</b> Whisper and llama.cpp do everything on this computer, without the Internet; Deepgram and OpenRouter use online services and need a key: they are a fallback when the computer is too slow. At first launch, the Dashboard assistant measures your computer and suggests the setup that suits it.</li>
         <li><b>Dictate.</b> Click in a document, hold <b>{dictate}</b>, say a sentence, release: it is written.</li>
       </ol>
@@ -129,7 +147,7 @@
         <li><b>Quality.</b> A big model hears better (Whisper “small” more than “base”) or writes better (a 3-billion-parameter model more than a 0.5-billion one). A small model makes more mistakes: a misheard word, a badly rephrased sentence, a false start (“no, sorry”) left uncorrected.</li>
         <li><b>Speed.</b> A big model does more calculations, so it takes longer. On a laptop without a real graphics card, Whisper “small” takes several times longer than “base”, and a 3-billion-parameter writing model takes about ten seconds per sentence. An online service answers in about two seconds, because it runs on powerful machines.</li>
         <li><b>Space and memory.</b> A model takes from a few hundred MB to several GB on disk, and as much in memory while it works. A 2 GB graphics card cannot hold a 2 GB model: Scriibe then switches to the processor by itself.</li>
-        <li><b>Privacy and cost.</b> Locally, nothing leaves the computer and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
+        <li><b>Privacy and cost.</b> Locally, your voice and text stay on the computer, and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
       </ul>
       <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, or Settings → Engines) if you change computer, graphics card or mind.</p>
       <div class="links">
@@ -149,22 +167,22 @@
       <p>Translation always goes through the cleanup engine, even in Literal mode: with OpenRouter, the text then goes online. Without an engine (“None”), {translate} does not translate: the text stays in French. <i>Why:</i> it is the model that translates, in a single call together with the cleanup; without a model, nothing can do it.</p>
       {@render tip('The interface language and the dictation language are two different settings. The first changes Scriibe’s texts; the second (Settings → Dictation → “Dictation language”) says which language you speak: it is the one Whisper listens for, and the one of the Test bench and mode trial phrases. If you dictate in French with an English interface, leave it on “French”; to try the bench in English, choose “English”, then put “French” back afterwards, otherwise Whisper will transcribe your voice as English.')}
       <h3>Choosing your keys</h3>
-      <p>By default: <b>right Ctrl</b> to dictate, <b>Shift</b> in addition to translate. To change: Settings → Dictation → “Change…”, then <b>press directly</b> the key or combination you want (for example left Ctrl + F9, or the Windows key) and release everything: Scriibe remembers it, and “Test my key” checks that it is recognised.</p>
+      <p>By default: <b>{defaultDictate}</b> to dictate, <b>{defaultTranslate}</b> in addition to translate. To change: Settings → Dictation → “Change…”, then <b>press directly</b> the key or combination you want (for example {mac ? 'left Option + F9' : 'left Ctrl + F9, or the Windows key'}) and release everything: Scriibe remembers it, and “Test my key” checks that it is recognised.</p>
       <ul>
-        <li>Possible: Ctrl, left Alt, Shift, the Windows key, function keys, “&lt; &gt;” (left of W), Pause, Insert… Not possible: letters, digits, Space, Enter, and AltGr (it is used to type “@” or “€” on an AZERTY keyboard).</li>
-        <li><b>Modifier keys on their own</b> (left Shift, Windows, Ctrl + Alt…): you must hold them for a fraction of a second (0.3 s) before listening starts. <i>Why:</i> keyboard shortcuts (Ctrl+C, Shift+letter, Windows+E) press them too, and must not open the microphone.</li>
-        <li><b>Left Alt and Windows</b> would normally open the app menu or the Start menu on release, and the paste would lose the focus: Scriibe slips in a harmless key during the press to avoid it.</li>
+        <li>{#if mac}Possible: Option, Command (⌘), Fn, Ctrl, Shift, function keys (F1 to F20), Home, End, Page Up and Page Down. Not possible: letters, digits, Space, Enter and the arrow keys. On most Macs, F1 to F12 need Fn in addition, unless “standard function keys” is turned on.{:else}Possible: Ctrl, left Alt, Shift, the Windows key, function keys, “&lt; &gt;” (left of W), Pause, Insert… Not possible: letters, digits, Space, Enter, and AltGr (it is used to type “@” or “€” on an AZERTY keyboard).{/if}</li>
+        <li>{#if mac}<b>Modifier keys on their own</b>: Ctrl and Shift must be held for a fraction of a second (0.3 s) before listening starts; Option, ⌘ and Fn listen right away. <i>Why:</i> keyboard shortcuts (⌘C, Shift+letter) also press Ctrl and Shift, and must not open the microphone.{:else}<b>Modifier keys on their own</b> (left Shift, Windows, Ctrl + Alt…): you must hold them for a fraction of a second (0.3 s) before listening starts. <i>Why:</i> keyboard shortcuts (Ctrl+C, Shift+letter, Windows+E) press them too, and must not open the microphone.{/if}</li>
+        {#if !mac}<li><b>Left Alt and Windows</b> would normally open the app menu or the Start menu on release, and the paste would lose the focus: Scriibe slips in a harmless key during the press to avoid it.</li>{/if}
         <li>An ordinary key in the combination (F9, “&lt; &gt;”) writes nothing in the app during the dictation.</li>
-        <li><b>The Fn key</b> is not seen by Windows on most laptops: the keyboard handles it itself. If “Change…” receives nothing when you press it, that is the case; choose another key.</li>
+        <li>{#if mac}<b>The Fn key</b> is offered on Mac, but has not yet been tried as a dictation key: if “Change…” receives nothing when you press it, choose another key.{:else}<b>The Fn key</b> is not seen by {linux ? 'Linux' : 'Windows'} on most laptops: the keyboard handles it itself. If “Change…” receives nothing when you press it, that is the case; choose another key.{/if}</li>
       </ul>
       <h3>Good to know</h3>
       <ul>
-        <li>Pressing <b>another key</b> during the press (for example {dictate} + a letter) cancels the dictation: it is a shortcut, not a dictation. <i>Why:</i> Ctrl+C must not open the microphone for nothing.</li>
+        <li>Pressing <b>another key</b> during the press (for example {dictate} + a letter) cancels the dictation: it is a shortcut, not a dictation. <i>Why:</i> {copyKey} must not open the microphone for nothing.</li>
         <li>A dictation of <b>three words or fewer</b> is pasted without going through the model, in Simple mode (translation aside): it is faster, but an “uh” stays.</li>
         <li>What you had copied <b>comes back to the clipboard</b> after the paste (adjustable). <i>Why:</i> Scriibe uses the clipboard to paste, and must not take it from you. Only text is restored: an image or files copied before the dictation are lost.</li>
-        <li><b>“Pause music or video”</b> (Settings → Dictation, off at first): a video or music that is playing stops when you hold the key and resumes when you release. Scriibe looks at which apps are producing sound. A player with its own window (VLC, Spotify…) receives the Play/Pause command directly; browsers receive it through the keyboard’s Play/Pause key. If that key starts a different app from the one that was playing, Scriibe cancels it. During a call (Teams, Meet, Zoom…), Scriibe touches nothing, and if you start something else during the dictation, it does not resume the old media. <i>Why:</i> interrupting a call or resuming the wrong player would be worse than letting it play.</li>
-        <li>The <b>icon menu</b>, near the clock, opens the window, the data folder and the log, or quits Scriibe.</li>
-        <li><b>A selection</b> is replaced by the dictation: if a word or a group of words is selected when you release the key, the dictated text takes its place <b>without a capital letter at the start nor a period, comma or semicolon at the end</b>, since it fits in the middle of a sentence (the “?”, the “!” and ellipses stay; names from your dictionary and acronyms keep their capital). <i>Why:</i> Whisper puts a capital and a period on every dictation, which does not fit in the middle of a sentence. On a Mac only for now; Scriibe sends a ⌘C to find out whether a text is selected and puts your clipboard back right away.</li>
+        <li><b>“Pause music or video”</b> (Settings → Dictation, off at first): a video or music that is playing stops when you hold the key and resumes when you release. Scriibe looks at which apps are producing sound. A player with its own window (VLC, Spotify…) receives the Play/Pause command directly; browsers receive it through the keyboard’s Play/Pause key. {#if mac}<b>With Chrome</b>, Chrome keeps its sound “open” for about ten seconds after a video is paused: so that an already stopped video is not restarted, Scriibe asks Chrome whether a page is really playing something, then pauses and resumes the video itself through the page (the keyboard key does not always stop YouTube). For this, once: in Chrome, View menu → Developer → “Allow JavaScript from Apple Events”, then accept macOS’s “Scriibe wants to control Google Chrome” prompt. Without it, a video paused less than ten seconds earlier may start again during the dictation. {/if}If that key starts a different app from the one that was playing, Scriibe cancels it. During a call (Teams, Meet, Zoom…), Scriibe touches nothing, and if you start something else during the dictation, it does not resume the old media. <i>Why:</i> interrupting a call or resuming the wrong player would be worse than letting it play.</li>
+        <li>{#if linux}There is no icon on Linux yet: Scriibe’s page opens in the browser, and “Quit Scriibe” (in the page) stops the program.{:else}The <b>icon menu</b>, {trayNear}, opens the window, the data folder and the log, or quits Scriibe.{/if}</li>
+        <li><b>A selection</b> is replaced by the dictation: if a word or a group of words is selected when you release the key, the dictated text takes its place <b>without a capital letter at the start nor a period, comma or semicolon at the end</b>, since it fits in the middle of a sentence (the “?”, the “!” and ellipses stay; names from your dictionary and acronyms keep their capital). <i>Why:</i> Whisper puts a capital and a period on every dictation, which does not fit in the middle of a sentence. {#if mac}Scriibe sends a ⌘C to find out whether a text is selected and puts your clipboard back right away.{:else}This only works on a Mac for now.{/if}</li>
       </ul>
       <div class="links">{@render go('Dictation settings', 'settings', 'dictee')}</div>
 
@@ -220,7 +238,7 @@
         <li><b>Listening</b>: “Listening…”, or a dot or a curve that follows your voice depending on the style. “I can’t hear anything…” or “I can barely hear you…” if the microphone is too weak.</li>
         <li><b>Cleaning up</b>: a turning arc (with “Cleaning up…” in the pill), while the text is transcribed and cleaned up. For a translation, the language is announced.</li>
         <li><b>Pasted</b>: a ✓ confirms that the text has arrived.</li>
-        <li><b>The icon near the clock</b> always changes colour: <b>grey</b> at rest, <b>red</b> while listening, <b>orange</b> while processing, <b>green</b> once the text is pasted, <b>blue</b> for a message. It is useful when the pill is turned off.</li>
+        <li>{#if linux}There is no icon on Linux yet: the state can be read in the page’s sidebar.{:else}<b>{trayIcon}</b> always changes colour: <b>grey</b> at rest, <b>red</b> while listening, <b>orange</b> while processing, <b>green</b> once the text is pasted, <b>blue</b> for a message. It is useful when the pill is turned off.{/if}</li>
         <li>Three styles (pill, plain dot, level meter), three positions, five colours and an adjustable transparency. The pill is on by default; it is turned off in the settings. The window appearance (light, dark or the system one) is set in the same place, Settings → Appearance.</li>
       </ul>
       <div class="links">{@render go('Adjust the indicator', 'settings', 'indicateur')}</div>
@@ -242,7 +260,7 @@
       <h2>On this computer or online</h2>
       <p>{privacySummary}</p>
       <ul>
-        <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: nothing goes out on the Internet.</li>
+        <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: your voice and text stay on the computer.</li>
         <li><b>Deepgram</b> receives the recording of each dictation, once the key is released (nothing outside your dictations); <b>OpenRouter</b> receives the transcribed text to clean it up.</li>
         <li><b>Memory</b>: Whisper stops after 10 minutes without dictation and comes back when you press the key, while you speak; llama.cpp’s cleanup model is freed after 30 minutes by default (adjustable: 2 h, 8 h or “as long as Scriibe is running”). <i>Why:</i> they take several GB of memory. After a release, the first dictation is slower: on a computer without a graphics card, count 15 to 45 s for the local model; preloading at launch avoids it for the first one.</li>
         <li>The words in “Words to write exactly” go along with the dictation: to Deepgram and OpenRouter if you use them.</li>
@@ -250,24 +268,25 @@
         <li>Choose “None” as the cleanup to load no model at all: the text is transcribed as is (dictated signs, dictionary, typography). The modes and translation are then unavailable.</li>
         <li>The history, the dictionary, the settings and the bench runs stay on this computer, in the data folder (Settings → Locations).</li>
         <li>History, “History privacy” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for the Dashboard. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
-        <li>The Deepgram and OpenRouter keys are never displayed or written to the log; they are stored in the Windows Credential Manager.</li>
+        <li>The Deepgram and OpenRouter keys are never displayed or written to the log; {#if mac}they are stored in the Mac’s keychain.{:else if linux}on Linux, Scriibe does not store them: you give them through environment variables, before launching Scriibe.{:else}they are stored in the Windows Credential Manager.{/if}</li>
       </ul>
       <div class="links">{@render go('The engines', 'settings', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
 
     {:else}
       <h2>Common problems</h2>
-      {@render question('Nothing is pasted, or a phrase is missing.', 'Look at the log (Settings → Measurements and trials, at the bottom of the tab): each dictation leaves a line there, “collage: … signes envoyés à …”. If the line says “copié seulement”, the text is on the clipboard: Ctrl+V pastes it. Pasting is blocked by Windows in a window started as administrator. If the line says the text was sent but nothing appears, the app did not read the clipboard: try in Notepad to see whether the problem comes from the app, and copy the report.')}
-      {@render question('My key does nothing.', 'Settings → Dictation → “Test my key”, then hold the key: if Scriibe does not switch to listening, another program may be capturing it (macro tool, keyboard software). Choose another key or a combination. If the log mentions a refused keyboard hook, restart Scriibe.')}
-      {@render question('The beginning of my sentence is lost.', 'With a Bluetooth headset, Windows switches to “hands-free” mode when the microphone opens (1 to 3 s): wait until the pill shows “Listening…” before speaking, or better, choose a wired or USB microphone in Settings → Dictation → Microphone. A laptop microphone is often weak: the Test bench shows its level.')}
+      {@render question('Scriibe hears nothing.', `The microphone level shows in the Test bench (Settings → Measurements and trials). ${mac ? 'On Mac, check “Microphone” in System Settings → Privacy & Security: Scriibe’s switch must be on; then quit Scriibe and restart it.' : linux ? 'Check the input volume in the system’s sound settings.' : 'On Windows, check Settings → Privacy → Microphone: microphone access must be allowed.'} Also check the chosen microphone (Settings → Dictation → Microphone).`)}
+      {@render question('Nothing is pasted, or a phrase is missing.', `Look at the log (Settings → Measurements and trials, at the bottom of the tab): each dictation leaves a line there, “collage: … signes envoyés à …”. If the line says “copié seulement”, the text is on the clipboard: ${pasteKey} pastes it. ${pasteNote} If the line says the text was sent but nothing appears, the app did not read the clipboard: try in ${editor} to see whether the problem comes from the app, and copy the report.`)}
+      {@render question('My key does nothing.', `Settings → Dictation → “Test my key”, then hold the key: if Scriibe does not switch to listening, another program may be capturing it (macro tool, keyboard software). Choose another key or a combination. ${mac ? 'On Mac, first check that Scriibe has the “Input Monitoring” permission (System Settings → Privacy & Security), then quit Scriibe and restart it: without it, the log says that macOS refuses the global key.' : linux ? '' : 'If the log mentions a refused keyboard hook, restart Scriibe.'}`)}
+      {@render question('The beginning of my sentence is lost.', `With a Bluetooth headset, the system switches to “hands-free” mode when the microphone opens (1 to 3 s): wait until the pill shows “Listening…” before speaking, or better, choose a wired or USB microphone in Settings → Dictation → Microphone. A laptop microphone is often weak: the Test bench shows its level.`)}
       {@render question('The first phrase after a long pause is slow.', 'To give memory back, Whisper stops after 10 minutes without dictation and llama.cpp’s cleanup model after the set duration (“Keep the model loaded”). They come back when you press the key: Whisper in about a second, the local model in 15 to 45 s without a graphics card. Choose “as long as Scriibe is running” to keep it loaded.')}
-      {@render question('A program or a model is missing.', 'Settings → Engines (installation cards): whisper-server, a Whisper model (ggml-base.bin to begin with), and for local cleanup llama-server and a GGUF model. Each download shows its size and source before asking for your consent; an interrupted connection resumes where it stopped.')}
+      {@render question('A program or a model is missing.', `Settings → Engines (installation cards): whisper-server, a Whisper model (ggml-base.bin to begin with), and for local cleanup llama-server and a GGUF model. Each download shows its size and source before asking for your consent; an interrupted connection resumes where it stopped.${mac ? ' On Mac, the programs come from Homebrew: “brew install whisper-cpp” and “brew install llama.cpp”.' : ''}`)}
       {@render question('With llama.cpp, cleanup does not start.', 'It needs llama-server and a .gguf model file (Settings → Engines, installation cards, which tell you what is missing). If the engine log mentions memory, try “CPU only” in Settings → Engines → Graphics card: on a 2 GB card, the model does not always fit.')}
       {@render question('My question got an answer instead of being written.', 'The safeguard rejects most of these outputs: a mode that rephrases tries again in Simple, otherwise the text is pasted without cleanup. If one gets through with a custom mode, add a question example to that mode.')}
       {@render question('Whisper writes “Mardi” or “Vendredi” with a capital letter.', 'In French the days are written without a capital, but Whisper sometimes writes them the English way. It is only a matter of presentation: the meaning does not change. When a cleanup model is active, it fixes this; without it (Literal mode, cleanup “None”), the capital stays. To avoid it, add an automatic correction “mardi” → “mardi” in the Dictionary (one per day): it replaces any spelling with yours, capital included. Careful, it also puts the day in lower case at the start of a sentence.')}
       {@render question('A word is always misspelled.', 'Add it to “Words to write exactly”, or an automatic correction (what Whisper hears → what it should write). A bigger Whisper model hears better but takes longer: the Test bench lets you measure it on your phrases.')}
-      {@render question('The music or video does not stop.', 'Check that “Pause music or video” is ticked (Settings → Dictation). The log says what Windows sees: “rien ne joue” lists the audio apps and their level, “pause demandée” says who the command went to. During a call, nothing is paused, on purpose.')}
-      {@render question('The window is empty or does not open.', 'Right-click the icon near the clock → “Open Scriibe”. If WebView2 is missing, the same interface opens in your browser. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.')}
-      {@render question('How do I update?', 'Settings → Update: “Check for a new version” tells you whether a version newer than yours is published (version, date, source); no account or token is needed. On Windows, on Mac and on Linux, “Install and restart” asks for confirmation, downloads the new version, replaces the program (on Mac, the Scriibe.app application) and restarts it, keeping the old one alongside. The automatic search (every 6 hours) is unticked at first. That page also explains what goes out on the Internet, which is nothing personal.')}
+      {@render question('The music or video does not stop.', `Check that “Pause music or video” is ticked (Settings → Dictation). The log says what Scriibe sees: “rien ne joue” lists the audio apps and their level, “pause demandée” says who the command went to. During a call, nothing is paused, on purpose.`)}
+      {@render question('The window is empty or does not open.', mac ? 'Click the icon in the menu bar → “Open Scriibe”. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.' : linux ? 'Search for “Scriibe” in the application list, or click its icon at the top right → “Open Scriibe”. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.' : 'Right-click the icon near the clock → “Open Scriibe”. If WebView2 is missing, the same interface opens in your browser. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.')}
+      {@render question('How do I update?', `Settings → Update: “Check for a new version” tells you whether a version newer than yours is published (version, date, source); no account or token is needed. ${mac ? '“Install and restart” asks for confirmation, downloads the new version, replaces the Scriibe.app application and restarts it, keeping the old one alongside.' : linux ? '“Install and restart” asks for confirmation, downloads the new version, replaces the scriibe program and restarts Scriibe, keeping the old one alongside (scriibe.old).' : '“Install and restart” asks for confirmation, downloads the new version, replaces scriibe.exe and restarts Scriibe, keeping the old one alongside (scriibe.exe.old).'} The automatic search (every 6 hours) is unticked at first. That page also explains what goes out on the Internet, which is nothing personal.`)}
       <div class="links">{@render go('Installation', 'install')}{@render go('Report and log', 'journal')}{@render go('Update', 'update')}</div>
     {/if}
   </section>

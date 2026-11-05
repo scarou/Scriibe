@@ -62,6 +62,8 @@ export const en: Record<string, string> = {
   'version {version}': 'version {version}',
   'Scriibe est arrêté. Vous pouvez fermer cette page.': 'Scriibe has stopped. You can close this page.',
   'Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.': 'Scriibe is not responding. Start it again from the notification area icon.',
+  'Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.': 'Scriibe is not responding. Start it again from the menu bar icon.',
+  'Scriibe ne répond plus. Relancez-le depuis la liste des applications.': 'Scriibe is not responding. Start it again from the application list.',
 
   // Tableau de bord
   'Mesure l’ordinateur et propose les moteurs qui lui conviennent': 'Measures this computer and suggests the engines that suit it',
@@ -367,6 +369,10 @@ export const en: Record<string, string> = {
 
   // Réglages : indicateur, clés, emplacements
   'Apparence de l’indicateur': 'Indicator appearance',
+  'L’icône de la barre des menus change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'The menu bar icon always changes colour. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
+  'Il n’y a pas encore d’icône sous Linux. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'There is no icon on Linux yet. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
   'L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
     'The icon near the clock always changes colour. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
   'Afficher la pastille à l’écran (bêta)': 'Show the on-screen pill (beta)',
@@ -387,6 +393,9 @@ export const en: Record<string, string> = {
   'Bleu': 'Blue',
   'Noir': 'Black',
   'Clés du cloud (dépannage)': 'Cloud keys (fallback)',
+  'Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.': 'The keys are kept in the Mac’s keychain and are never displayed or written to the log.',
+  'Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.':
+    'On Linux, Scriibe does not store the keys: you give them through environment variables, before launching Scriibe. They are never displayed or written to the log.',
   'Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.':
     'The keys are kept in the Windows Credential Manager and are never displayed or written to the log.',
   '✔ présente': '✔ present',
@@ -624,7 +633,7 @@ export const en: Record<string, string> = {
   'Local': 'Local',
   'Cloud': 'Cloud',
   'aucune': 'none',
-  'La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (rien ne sort) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.': 'Transcription is the engine that turns your voice into text. Whisper runs on this computer (nothing leaves it); Deepgram is an online service, useful on a computer that is not powerful.',
+  'La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (votre voix reste sur cet ordinateur) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.': 'Transcription is the engine that turns your voice into text. Whisper runs on this computer (your voice stays on it); Deepgram is an online service, useful on a computer that is not powerful.',
   'La mise au propre est le modèle d’IA qui applique le mode choisi : il retire les « euh » et ponctue (voir l’onglet Modes). llama.cpp, LM Studio ou Ollama le font tourner sur cet ordinateur ; OpenRouter donne accès en ligne à de plus gros modèles.': 'Cleanup is the AI model that applies the chosen mode: it removes the “um”s and adds punctuation (see the Modes tab). llama.cpp, LM Studio or Ollama run it on this computer; OpenRouter gives online access to larger models.',
   'Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.': 'How you dictate: you hold the key, you speak, you release, and the text is pasted where your cursor is. The sounds confirm the start and the end, without looking at the screen.',
   'Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.': 'Only for online services: a key is your identifier at Deepgram or OpenRouter. With Whisper and a local model, everything stays on this computer and no key is needed.',

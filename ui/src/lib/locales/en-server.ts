@@ -56,18 +56,18 @@ export const enServer: Record<string, string> = {
   'partie « vision » : inutile pour dicter': '“vision” part: not needed for dictation',
 
   // Chaînes de l'assistant (assistant.rs)
-  'Whisper sur cet ordinateur + mise au propre OpenRouter (cloud)': 'Whisper on this computer + OpenRouter cleanup (cloud)',
-  'La voix reste sur l\'ordinateur ; seul le texte transcrit part au cloud pour être mis au propre.':
-    'Your voice stays on the computer; only the transcribed text goes to the cloud to be cleaned up.',
+  'En dépannage : Whisper sur cet ordinateur + mise au propre OpenRouter (cloud)': 'As a fallback: Whisper on this computer + OpenRouter cleanup (cloud)',
+  'Pour un ordinateur trop lent pour la mise au propre locale. La voix reste sur l\'ordinateur ; seul le texte transcrit part au cloud pour être mis au propre (service payant, clé nécessaire).':
+    'For a computer too slow for local cleanup. Your voice stays on the computer; only the transcribed text goes to the cloud to be cleaned up (paid service, key needed).',
   '3,2 à 3,9 s après le relâchement (mesuré sur un portable à 4 cœurs sans carte graphique)':
     '3.2 to 3.9 s after release (measured on a 4-core laptop with no graphics card)',
   'Tout sur cet ordinateur, sans mise au propre': 'Everything on this computer, without cleanup',
-  'Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte, rien ne quitte l\'ordinateur.':
-    'Whisper alone: the text is pasted as transcribed (dictated signs, dictionary and typography applied). No account, nothing leaves the computer.',
+  'Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte ; votre voix et votre texte restent sur l\'ordinateur.':
+    'Whisper alone: the text is pasted as transcribed (dictated signs, dictionary and typography applied). No account; your voice and text stay on the computer.',
   '2,3 à 3,1 s (mesuré sur un portable à 4 cœurs sans carte graphique)': '2.3 to 3.1 s (measured on a 4-core laptop with no graphics card)',
   'Tout sur cet ordinateur, avec un petit modèle de mise au propre': 'Everything on this computer, with a small cleanup model',
-  'Whisper + Qwen 2.5 1,5 B (llama.cpp). Rien ne quitte l\'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.':
-    'Whisper + Qwen 2.5 1.5 B (llama.cpp). Nothing leaves the computer, but a small model sometimes keeps the “uh”s and may change a word.',
+  'Whisper + Qwen 2.5 1,5 B (llama.cpp). Votre voix et votre texte restent sur l\'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.':
+    'Whisper + Qwen 2.5 1.5 B (llama.cpp). Your voice and text stay on the computer, but a small model sometimes keeps the “uh”s and may change a word.',
   '4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle':
     '4 to 6 s (measured on a 4-core laptop with no graphics card); 15 to 45 s for the first dictation after the model has been released',
   'Tout sur cet ordinateur, avec sa carte graphique': 'Everything on this computer, using its graphics card',

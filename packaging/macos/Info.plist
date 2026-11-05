@@ -31,6 +31,6 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Scriibe écoute ta voix uniquement pendant que tu maintiens la touche de dictée.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Scriibe demande à VLC, Musique ou Spotify s'ils jouent, pour mettre la lecture en pause pendant que tu dictes.</string>
+	<string>Scriibe demande à VLC, Musique, Spotify ou Chrome s'ils jouent, pour mettre la lecture en pause pendant que tu dictes.</string>
 </dict>
 </plist>

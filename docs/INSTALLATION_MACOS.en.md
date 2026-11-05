@@ -50,9 +50,7 @@ The exact names of these sections vary a little between macOS versions and langu
 
 In Scriibe: **Settings → Engines**. Two ways, your choice (you can change later).
 
-**A. Online (the quickest to set up).** Your voice goes to Deepgram, and the text goes to OpenRouter to be cleaned up. You need an account and a key for each (both services are pay-as-you-go, a few cents per dictation): paste each key under **Settings → Engines → Cloud keys (fallback)**. Keys are stored in the Mac's keychain and are never displayed.
-
-**B. On the Mac (nothing leaves your computer).** Requires **Homebrew** (`https://brew.sh`, follow the page). Then, in the **Terminal** application, one command after the other:
+**A. On the Mac (your voice and text stay on the Mac).** Requires **Homebrew** (`https://brew.sh`, follow the page). Then, in the **Terminal** application, one command after the other:
 
 ```bash
 brew install whisper-cpp
@@ -62,7 +60,9 @@ brew install whisper-cpp
 brew install llama.cpp
 ```
 
-Then, in Scriibe, the **Installation status**, **Programs** and **Recommended models** cards (same tab, **Settings → Engines**) tell you what is missing (a Whisper model, a cleanup model) and offer the downloads, showing their size and source before asking for your consent. Finally choose **Whisper** (transcription) and **llama.cpp** (cleanup) under **Settings → Engines**.
+Then, in Scriibe, the **Installation status**, **Programs** and **Recommended models** cards (same tab, **Settings → Engines**) tell you what is missing (a Whisper model, a cleanup model) and offer the downloads, showing their size and source before asking for your consent. Finally choose **Whisper** (transcription) and **llama.cpp** (cleanup) under **Settings → Engines**. Only downloads, which you accept one by one, and the update alert, if you turn it on, go through the Internet.
+
+**B. Online (as a fallback).** Quicker to set up and on a modest machine, but paid; your voice goes to Deepgram and the text to OpenRouter to be cleaned up. You need an account and a key for each (both services are pay-as-you-go, a few cents per dictation): paste each key under **Settings → Engines → Cloud keys (fallback)**. Keys are stored in the Mac's keychain and are never displayed.
 
 ## 6. Try it
 

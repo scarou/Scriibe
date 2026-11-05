@@ -297,7 +297,7 @@ pub fn microphone(seconds: f64) -> Result<(), String> {
     std::thread::sleep(Duration::from_secs_f64(seconds.max(0.5)));
     let recording = platform.recorder.stop();
     let verdict = match MicLevel::assess(recording.level) {
-        MicLevel::Silent => "muet : rien n'est capté (mauvais micro choisi ? micro coupé ? autorisation Windows ?)",
+        MicLevel::Silent => "muet : rien n'est capté (mauvais micro choisi ? micro coupé ? autorisation du système ?)",
         MicLevel::Weak => "faible : rapproche-toi du micro ou monte le volume d'entrée",
         MicLevel::Ok => "correct",
     };

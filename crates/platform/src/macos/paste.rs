@@ -19,6 +19,7 @@ static ASKED: AtomicBool = AtomicBool::new(false);
 
 const KEY_V: u16 = 9;
 const KEY_C: u16 = 8;
+const KEY_COMMAND: u16 = 55;
 /// `kCGEventFlagMaskCommand`.
 const FLAG_COMMAND: u64 = 0x0010_0000;
 
@@ -61,13 +62,17 @@ fn wait_for_modifiers_released() {
 }
 
 fn post_key(key: u16, down: bool) -> Result<(), String> {
+    post_key_flags(key, down, FLAG_COMMAND)
+}
+
+fn post_key_flags(key: u16, down: bool, flags: u64) -> Result<(), String> {
     // SAFETY : une source nulle veut dire « source par défaut » ; l'événement créé est relâché après l'envoi.
     unsafe {
         let event = ffi::CGEventCreateKeyboardEvent(std::ptr::null(), key, down);
         if event.is_null() {
             return Err("macOS n'a pas voulu créer la touche".into());
         }
-        ffi::CGEventSetFlags(event, FLAG_COMMAND);
+        ffi::CGEventSetFlags(event, flags);
         ffi::CGEventPost(ffi::TAP_HID, event);
         ffi::CFRelease(event);
     }
@@ -85,9 +90,14 @@ fn send_command_v() -> Result<(), String> {
     }
     wait_for_modifiers_released();
     std::thread::sleep(Duration::from_millis(40));
+    // Une vraie frappe de ⌘V : la touche ⌘ s'appuie avant V et se relâche après (certaines pages web ignoraient un V portant seulement le drapeau ⌘).
+    post_key_flags(KEY_COMMAND, true, FLAG_COMMAND)?;
+    std::thread::sleep(Duration::from_millis(10));
     post_key(KEY_V, true)?;
     std::thread::sleep(Duration::from_millis(10));
-    post_key(KEY_V, false)
+    post_key(KEY_V, false)?;
+    std::thread::sleep(Duration::from_millis(10));
+    post_key_flags(KEY_COMMAND, false, 0)
 }
 
 /// Combien de temps on laisse à l'appli pour copier sa sélection après ⌘C.

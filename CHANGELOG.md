@@ -1,6 +1,37 @@
 # Journal
 
-Une section par session de travail, la plus récente en haut. Scriibe n'a pas encore de version publiée.
+Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
+
+## S17 — 2026-11-05 · Espace entre deux dictées
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. Pas de nouvelle version publiée : le changement part avec la prochaine (0.2.4 prévue).
+
+- **Espace entre deux dictées** (bug du carnet du 05/11 : deux phrases dictées à la suite se touchaient). Méthode A, mémoire du dernier collage : si la dictée précédente a été collée dans la même appli il y a 60 s au plus et finit par `. ! ? … : ;`, la suivante est collée précédée d'une espace (pas de sélection active, pas de début par une espace ou une ponctuation qui se colle au mot). L'historique et « copier la dernière » gardent le texte sans l'espace. Règle pure dans `crates/core/src/spacing.rs`, branchée dans `Controller::process` ; cadrage, règle, tests et essai dans `docs/ESPACEMENT.md`, écart avec Scribe (qui n'a pas cette fonction) dans `docs/ECARTS.md`.
+- **Constat** (sous-agent de recherche) : Scribe a le même défaut ; il vient du pipeline commun, donc identique sur Mac, Windows et Linux X11.
+- **Tests** : 11 tests de la règle (un par cas) et 7 tests de branchement (`spacing_*`). `cargo test --workspace` : 331 passés, 0 échec ; 399 cas de référence vérifiés ; `cargo fmt --check` et `cargo clippy -D warnings` sans erreur. `FakeApps` permet maintenant de changer l'appli au premier plan dans les tests. Compilation Windows (`--target x86_64-pc-windows-gnu`) et CI non lancées.
+- **Essai réel sur le Mac** : TextEdit, Notes et LibreOffice Writer réussis (un seul espace entre les phrases, rien devant la première). Chrome (page Google) : une dictée sur trois perdue sans erreur au journal, probablement le ⌘V déjà connu de Chrome, **non traité** (noté dans la `ROADMAP.md`). Limite confirmée : Entrée tapée à la main entre deux dictées rapprochées donne une espace en début de ligne. **Essai Windows (Bloc-notes) à faire** après la prochaine mise à jour.
+
+## S16 — 2026-11-04 · Version 0.2.3, première mise à jour intégrée du Mac, correctif du workflow Linux
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié.
+
+- **Release v0.2.3** publiée (commit `143550f`, par `tools/publier_macos.sh 0.2.3` après aperçu et « oui » de Christophe) : pause des vidéos de Chrome par JavaScript, vrai ⌘V pour le collage, version Linux et guides d'installation « local d'abord ». Pièces jointes : `Scriibe-0.2.3-macos.zip` (21 Mo), `scriibe-windows-x64.zip`, `scriibe-linux-x64.zip`, `whisper-server-linux-x64.zip`, `llama-server-linux-x64.zip`. La CI complète vérifiée était celle de `19742c9` (verte sur les trois systèmes) ; les commits suivants (numéro de version, guides) sont restés sans CI complète (`[skip ci]`).
+- **Première mise à jour intégrée du Mac, réussie** : `/Applications/Scriibe.app` 0.2.2 → 0.2.3 par « Chercher une nouvelle version » puis « Installer et redémarrer ». Journal : téléchargement de 20 Mo, installation à 15:55:06, nouvelle version lancée à 15:55:07, serveurs prêts et préchargement en 4 s ; signature vérifiée (`codesign --verify`). Une dictée dans Notes (43 signes collés en 0,08 s) a confirmé que les autorisations ont survécu. Le `Info.plist` de l'ancienne app affichait 0.1.0 (compilée sans `SCRIIBE_VERSION`) : sans effet sur la comparaison, qui lit la version du programme.
+- **Workflow `release-linux.yml` corrigé** : le job `llama-server-linux-x64.zip` a échoué sur la v0.2.3 parce que la dernière version listée de `ggml-org/llama.cpp` (`v0.9.0`) n'avait aucun fichier ; il prend désormais la plus récente des 30 dernières qui a `llama-bNNNN-bin-ubuntu-x64.tar.gz` (`b12110` aujourd'hui). Relancé à la main sur `v0.2.3` : les trois jobs sont verts et le fichier est sur la Release.
+- **Commits d'une autre session sur `main`, après la 0.2.3 (pas dans la Release)** : `2777b03` (assistant « local d'abord », formules exactes sur la confidentialité) et `199136d` (Aide et écrans adaptés au système, résumé de l'Aide sur la traduction corrigé), CI verte sur les deux. Ils partiront avec la prochaine version.
+- Non mesuré dans cette session : le nombre de tests (voir la clôture de S15 pour la dernière mesure).
+
+## S15 — 2026-11-03 et 04 · Versions 0.2.1 et 0.2.2, mise à jour Mac, Linux, pause de Chrome, collage
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. Une session séparée (« Version Linux ») a mené la version Linux en parallèle.
+
+- **Releases v0.2.1 et v0.2.2** publiées (zip Mac + `scriibe-windows-x64.zip`). Mise à jour Windows 0.2.0 → 0.2.1 par la fenêtre essayée par Christophe. v0.2.2 contient le correctif du code épelé coupé d'une virgule par Whisper (« 0,926FA6 », `text::join_spelled_code`) et la mise à jour intégrée du Mac.
+- **Mise à jour intégrée sur Mac** (`crates/cli/src/web/update.rs`) : téléchargement de `Scriibe-x.y.z-macos.zip`, décompression par `ditto`, vérification de la signature, remplacement de `Scriibe.app`, relance par `open` (écart noté dans `docs/ECARTS.md`). **Jamais essayée sur le vrai Mac** : à faire avec la v0.2.3.
+- **Version Linux** (session parallèle) : workflow `release-linux.yml`, guides `docs/INSTALLATION_LINUX*.md`, essai Ubuntu 26.04 (Wayland, Xfce), `whisper-server` compilé et `llama-server` remballé par la CI et téléchargés par l'appli, liste des micros gardée 5 s (bruit d'ALSA).
+- **Double installation sur le Mac** : l'ancienne `~/Applications/Scriibe.app` quittée et mise à la corbeille ; seule `/Applications/Scriibe.app` reste.
+- **Pause des vidéos de Chrome** (Mac) : une vidéo arrêtée repartait quand on dictait. Cause mesurée : Chrome garde son flux audio ouvert environ 10 s après la pause, et la touche Lecture/Pause n'atteint pas toujours YouTube. Pour Chrome, Brave, Edge, Vivaldi et Chromium, Scriibe interroge maintenant les pages par AppleScript (`execute javascript`), met en pause les `<video>`/`<audio>` qui jouent et ne relance que ceux-là (`crates/platform/src/macos/media.rs`, `resume_for`). Il faut cocher une fois Chrome → Présentation → Développeur → « Autoriser JavaScript provenant d'Apple Events » et accepter l'automatisation de Chrome ; sans réponse l'ancien comportement reste et le journal le dit. Essayé avec une vidéo qui joue : arrêt, collage, reprise OK.
+- **Collage ignoré par le champ Google de Chrome** : le texte était dans le presse-papiers (⌘V manuel le collait) mais le ⌘V synthétique (V portant seulement le drapeau ⌘) était ignoré 4 fois sur 5. Ni la pause ni le ⌘C d'essai n'étaient en cause (essais en les coupant). Correctif : vraie frappe (⌘ enfoncé, V, V relâché, ⌘ relâché), `paste.rs::send_command_v` ; 5 essais sur 5 collés. Piège noté dans `docs/PIEGES.md`.
+- Mesuré à la clôture (04/11/2026) : 313 tests Rust, 82 tests d'interface, 0 échec ; fmt et clippy propres. Commit `19742c9` poussé ; **CI complète verte sur Linux, macOS et Windows** (lancement manuel du 04/11/2026), `scriibe.exe` construit.
 
 ## S15 (PC Linux) — 2026-11-03 · Essai sur un vrai bureau Linux, Wayland par les portails
 

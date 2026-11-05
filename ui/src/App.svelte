@@ -91,7 +91,7 @@
     </nav>
     <main>
       {#if status.failed}
-        <div class="card bad">{t('Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.')}</div>
+        <div class="card bad">{status.value?.os === 'macos' ? t('Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.') : status.value?.os === 'linux' ? t('Scriibe ne répond plus. Relancez-le depuis la liste des applications.') : t('Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.')}</div>
       {/if}
       {#if nav.tab === 'dashboard'}<Dashboard goto={choose} />
       {:else if nav.tab === 'history'}<History />

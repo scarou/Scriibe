@@ -105,10 +105,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y zip
       - name: Dernière version de llama.cpp pour Linux (processeur)
         run: |
-          name=$(gh api "repos/ggml-org/llama.cpp/releases?per_page=5" --jq '.[0].assets[].name' | grep -E '^llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz$' | head -1)
-          test -n "$name" || { echo "::error::aucun llama-bNNNN-bin-ubuntu-x64.tar.gz dans la dernière version de llama.cpp"; exit 1; }
-          echo "Fichier : $name"
-          gh release download --repo ggml-org/llama.cpp "$(gh api "repos/ggml-org/llama.cpp/releases?per_page=1" --jq '.[0].tag_name')" --pattern "$name" --dir dl
+          # La liste peut commencer par une version sans fichier (ex. « v0.9.0 » le 04/11/2026) : on prend la plus récente qui a le fichier.
+          line=$(gh api "repos/ggml-org/llama.cpp/releases?per_page=30" --jq '.[] | .tag_name as $t | .assets[] | select(.name | test("^llama-b[0-9]+-bin-ubuntu-x64\\.tar\\.gz$")) | "\($t) \(.name)"' | head -1)
+          test -n "$line" || { echo "::error::aucun llama-bNNNN-bin-ubuntu-x64.tar.gz dans les 30 dernières versions de llama.cpp"; exit 1; }
+          tag=${line% *}; name=${line#* }
+          echo "Version : $tag, fichier : $name"
+          gh release download --repo ggml-org/llama.cpp "$tag" --pattern "$name" --dir dl
           mkdir src && tar -xzf "dl/$name" -C src
       - name: Remballage à plat
         run: |
