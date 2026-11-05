@@ -2,6 +2,16 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S16 — 2026-11-04 · Version 0.2.3, première mise à jour intégrée du Mac, correctif du workflow Linux
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié.
+
+- **Release v0.2.3** publiée (commit `143550f`, par `tools/publier_macos.sh 0.2.3` après aperçu et « oui » de Christophe) : pause des vidéos de Chrome par JavaScript, vrai ⌘V pour le collage, version Linux et guides d'installation « local d'abord ». Pièces jointes : `Scriibe-0.2.3-macos.zip` (21 Mo), `scriibe-windows-x64.zip`, `scriibe-linux-x64.zip`, `whisper-server-linux-x64.zip`, `llama-server-linux-x64.zip`. La CI complète vérifiée était celle de `19742c9` (verte sur les trois systèmes) ; les commits suivants (numéro de version, guides) sont restés sans CI complète (`[skip ci]`).
+- **Première mise à jour intégrée du Mac, réussie** : `/Applications/Scriibe.app` 0.2.2 → 0.2.3 par « Chercher une nouvelle version » puis « Installer et redémarrer ». Journal : téléchargement de 20 Mo, installation à 15:55:06, nouvelle version lancée à 15:55:07, serveurs prêts et préchargement en 4 s ; signature vérifiée (`codesign --verify`). Une dictée dans Notes (43 signes collés en 0,08 s) a confirmé que les autorisations ont survécu. Le `Info.plist` de l'ancienne app affichait 0.1.0 (compilée sans `SCRIIBE_VERSION`) : sans effet sur la comparaison, qui lit la version du programme.
+- **Workflow `release-linux.yml` corrigé** : le job `llama-server-linux-x64.zip` a échoué sur la v0.2.3 parce que la dernière version listée de `ggml-org/llama.cpp` (`v0.9.0`) n'avait aucun fichier ; il prend désormais la plus récente des 30 dernières qui a `llama-bNNNN-bin-ubuntu-x64.tar.gz` (`b12110` aujourd'hui). Relancé à la main sur `v0.2.3` : les trois jobs sont verts et le fichier est sur la Release.
+- **Commits d'une autre session sur `main`, après la 0.2.3 (pas dans la Release)** : `2777b03` (assistant « local d'abord », formules exactes sur la confidentialité) et `199136d` (Aide et écrans adaptés au système, résumé de l'Aide sur la traduction corrigé), CI verte sur les deux. Ils partiront avec la prochaine version.
+- Non mesuré dans cette session : le nombre de tests (voir la clôture de S15 pour la dernière mesure).
+
 ## S15 — 2026-11-03 et 04 · Versions 0.2.1 et 0.2.2, mise à jour Mac, Linux, pause de Chrome, collage
 
 Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. Une session séparée (« Version Linux ») a mené la version Linux en parallèle.

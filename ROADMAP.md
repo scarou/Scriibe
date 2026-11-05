@@ -15,7 +15,7 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 
 ## Prochaines étapes
 
-1. ▶ **Publier une v0.2.3** (pause des vidéos de Chrome par JavaScript, collage ⌘V corrigé pour le champ Google) : accord de Christophe sur l'aperçu, numéro dans `Cargo.toml`, compiler, commiter, pousser, `tools/publier_macos.sh 0.2.3` ; attendre `release-windows.yml` et `release-linux.yml`. Puis **essayer pour la première fois la mise à jour intégrée du Mac** (0.2.2 → 0.2.3, « Installer et redémarrer »).
+1. ▶ **Publier une v0.2.4** (assistant « local d'abord » et Aide adaptée au système, déjà sur `main` : commits `2777b03` et `199136d`) : d'abord faire relire l'Aide par Christophe, vérifier que l'autre session n'a plus de changements en cours, puis aperçu et « oui », numéro dans `Cargo.toml`, compiler, commiter, pousser, `tools/publier_macos.sh 0.2.4`, attendre `release-windows.yml` et `release-linux.yml`. Puis **deuxième mise à jour intégrée du Mac** (0.2.3 → 0.2.4) pour confirmer. *(La 0.2.3 et la première mise à jour intégrée du Mac sont faites : S16.)*
 2. Voir sur le PC la nouvelle interface (Réglages à onglets, cartes repliables, Historique groupé par jour).
 3. Détection de la sélection sous Windows et Linux (aujourd'hui Mac seulement) ; cartes de groupes de Modes repliables.
 4. Essais Mac restants (combinaison de touches, Fn, traduction personnalisée).
