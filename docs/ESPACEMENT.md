@@ -80,3 +80,21 @@ Tâche 3, le 05/11/2026, sur le Mac de Christophe (Scriibe.app de développement
 **Limite connue confirmée** : avec un retour à la ligne tapé à la main entre deux dictées rapprochées, la deuxième commence par une espace (observé par Christophe).
 
 **Décisions de Christophe (05/11/2026)** : le cas Chrome est **noté pour plus tard, non traité dans cette session** (piste : série de 5 à 6 dictées courtes dans le champ de recherche de Google, comptées et comparées au journal, pour savoir si le ⌘V seul explique les pertes ; voir aussi l'effet de bord sur la mémoire du dernier collage). L'essai Windows (Bloc-notes) **attend la prochaine mise à jour** : les changements ne sont pas commités, donc pas dans la version Windows.
+
+## Relecture et points à reprendre
+
+Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de bloquant**. Décision de Christophe : tout noter, ne rien coder dans cette session. CI Linux du commit : verte ; Windows et macOS complets et compilation Windows croisée non lancés.
+
+**À corriger plus tard**
+1. Le test `spacing_a_paste_that_only_copied_forgets_the_last_dictation` ne prouve pas l'effacement de la mémoire. Scénario à écrire : A collée, B en `CopiedOnly`, C sans espace (`pasted()[2]`).
+2. Un texte vide efface la mémoire (`remember` renvoie `None`, le contrôleur écrase `last_paste`). Correctif : ne pas toucher à la mémoire si `text` est vide ; ajouter un test du pipeline.
+
+**À décider**
+3. Phrase qui finit par un guillemet ou une parenthèse fermante (`… fin. »`, `(voir plus haut.)`, `"Fini."`) : aucun espace n'est ajouté, car le dernier caractère n'est pas dans la liste. Conforme à la règle validée, mais lacune probable en français : regarder le caractère avant `» ) "`.
+
+**À noter, sans action**
+4. Le délai de 60 s court de la fin du collage au début du collage suivant : il inclut l'enregistrement et la transcription de la dictée suivante. La limite exacte (60 s accepté, 61 s refusé) n'est testée que dans la règle pure.
+5. L'identifiant d'appli est comparé sans tolérer la casse : à surveiller à l'essai Windows.
+6. Début de dictée en tiret ou en puce : reçoit une espace (cohérent) ; à vérifier à la main après « Voici la liste : ». Signes de fin d'autres langues (`¿`, `؟`, `。`) non gérés : sans effet en français et en anglais.
+7. Chrome : voir Essai réel.
+

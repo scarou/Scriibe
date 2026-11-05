@@ -59,6 +59,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 ## Plus tard, sans date
 
 - Mode par application, transcription en continu pour l'indicateur « défilant » (idées du carnet de Scribe, à reprendre une fois la parité atteinte).
+- **Espacement, reprises après relecture** (`docs/ESPACEMENT.md`, « Relecture et points à reprendre ») : test de l'effacement après un collage manqué ; texte vide qui ne doit pas effacer la mémoire ; décision à prendre sur le guillemet ou la parenthèse fermante après le point.
 - **Chrome : dictées perdues** (vu le 05/11 pendant l'essai de l'espacement, Mac, page Google : une dictée sur trois n'apparaît pas alors que le journal ne montre aucune erreur) ; piste : irrégularité du ⌘V dans Chrome déjà connue (`docs/ECARTS.md`, 04/11). À traiter dans une autre session ; voir `docs/ESPACEMENT.md`, Essai réel. Si le collage n'a pas abouti, la mémoire du dernier collage (`last_paste`) devrait l'ignorer, ce que Scriibe ne sait pas détecter aujourd'hui.
 - Idées du carnet du 03/11 (venues de Scribe, à cadrer avant tout code), dans l'ordre proposé :
   1. **Filtre des phrases inventées sur du silence** (Scribe n°6 bis) : vérifier apostrophe typographique, espaces ou points en plus, phrases de plus de 8 mots, version q8_0 ; un cas de test par variante. Le plus proche d'un correctif : à faire en premier.
