@@ -19,6 +19,8 @@ Légende : ✔ fait · ▶ prochaine étape · ○ à venir.
 2. Voir sur le PC la nouvelle interface (Réglages à onglets, cartes repliables, Historique groupé par jour).
 3. Détection de la sélection sous Windows et Linux (aujourd'hui Mac seulement) ; cartes de groupes de Modes repliables.
 4. Essais Mac restants (combinaison de touches, Fn, traduction personnalisée).
+5. ✔ **Espace manquant entre deux dictées** *(S17, essayé sur Mac ; Windows à essayer après la prochaine mise à jour ; Chrome : voir « Plus tard »)* (bug, carnet du 05/11) : le collage se fait juste après le point, sans espace avant la phrase suivante. Décision : méthode A (mémoire de la dernière dictée : si elle finit par `. ! ? … : ;` et que la suivante arrive dans la même fenêtre peu après, ajouter un espace). Ordre : 0 reproduire et localiser (sous-agent, Scribe a-t-il le même défaut ?) → 1 règle d'espacement validée par Christophe (cas : premier collage, espace déjà présent, retour à la ligne, autre fenêtre, délai long, ponctuation initiale, traduction) → 2 code et tests (un test par cas, 399 cas de référence verts) → 3 essai réel de Christophe (Word/Bloc-notes et TextEdit) → livraison → 4 suivi du carnet. Écart éventuel avec Scribe dans `docs/ECARTS.md`.
+6. ○ **Dossier de modèles partagé** (carnet du 01/11) : réglage pour pointer Scriibe vers le dossier central du projet `magasin-modeles` ; défaut inchangé. Ordre : 0 cadrage (sous-agent : formats lus, Gemma E4B identique à celui de LM Studio ?, ce que couvre le Magasin) → 1 conception validée par Christophe (Scriibe ne modifie ni ne supprime rien hors de son dossier) → 2 lecture du chemin (valide, invalide, vide) → 3 écran de réglage → 4 tests et relecture par sous-agent (chemin absent, sans droits, vide, fichier iCloud non téléchargé, formats mélangés) → livraison → 5 suivi.
 
 ## Étape 5 en détail
 
@@ -57,6 +59,14 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
 ## Plus tard, sans date
 
 - Mode par application, transcription en continu pour l'indicateur « défilant » (idées du carnet de Scribe, à reprendre une fois la parité atteinte).
+- **Chrome : dictées perdues** (vu le 05/11 pendant l'essai de l'espacement, Mac, page Google : une dictée sur trois n'apparaît pas alors que le journal ne montre aucune erreur) ; piste : irrégularité du ⌘V dans Chrome déjà connue (`docs/ECARTS.md`, 04/11). À traiter dans une autre session ; voir `docs/ESPACEMENT.md`, Essai réel. Si le collage n'a pas abouti, la mémoire du dernier collage (`last_paste`) devrait l'ignorer, ce que Scriibe ne sait pas détecter aujourd'hui.
+- Idées du carnet du 03/11 (venues de Scribe, à cadrer avant tout code), dans l'ordre proposé :
+  1. **Filtre des phrases inventées sur du silence** (Scribe n°6 bis) : vérifier apostrophe typographique, espaces ou points en plus, phrases de plus de 8 mots, version q8_0 ; un cas de test par variante. Le plus proche d'un correctif : à faire en premier.
+  2. **Limites du banc de dictée** (Scribe n°10 ter) : « ? » ajouté ou oublié ; reprise en « enfin » corrigée en partie en traduction (3/4 anglais, 1/4 allemand).
+  3. **Moteurs de transcription alternatifs** (Scribe n°35 et 36, de `veille-voix`) : Parakeet v3, Apple SpeechTranscriber (macOS 26+ seulement) ; verdict « surveiller ».
+  4. **Extraits à raccourcis vocaux** (Scribe n°33) : « insérer mon adresse email » ; carte « Extraits », reconnaissance tolérante.
+  5. **Épeler à la voix** (Scribe n°30 et 30 bis) : mesurer d'abord Whisper sur des lettres épelées ; mode dédié sans historique pour un mot de passe.
+  6. **Mode commande sur du texte sélectionné** (Scribe n°12 ter) : touche dédiée, garde-fou propre, annulation, confidentialité de la sélection ; dépend de la détection de la sélection sous Windows et Linux (étape 3).
 - Windows : signature du binaire (Authenticode) et SmartScreen ; installateur.
 - Linux : Wayland (portails, `libei`, repli « copie seule »).
 - Moteur **Kyutai STT** (`stt-1b-en_fr`, en continu, 0,5 s de délai) comme option pour Mac (MLX) et PC NVIDIA ; non viable sur processeur d'après la documentation lue (S02, taux d'erreur en français non vérifié : relire la fiche du modèle quand les pages seront accessibles). Serveur WebSocket à part.

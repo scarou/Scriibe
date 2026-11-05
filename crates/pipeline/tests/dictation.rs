@@ -110,6 +110,8 @@ struct Rig {
     executor: Arc<ManualExecutor>,
     /// Le moteur de mise au propre répond « erreur serveur ».
     cleanup_fails: Arc<AtomicBool>,
+    /// L'appli au premier plan (modifiable).
+    apps: Arc<FakeApps>,
 }
 
 fn transcript(text: &str) -> HttpResponse {
@@ -187,6 +189,7 @@ fn rig_full(
         fs,
         warm_ups: Default::default(),
     });
+    let apps = Arc::new(FakeApps::new(AppInfo { name: "notepad".into(), id: Some("notepad.exe".into()) }));
     let recorder = Arc::new(FakeRecorder::default());
     let paster = Arc::new(FakePaster::default());
     let media = Arc::new(FakeMedia::default());
@@ -201,7 +204,7 @@ fn rig_full(
         recorder: recorder.clone(),
         paster: paster.clone(),
         media: media.clone(),
-        apps: Arc::new(FakeApps(AppInfo { name: "notepad".into(), id: Some("notepad.exe".into()) })),
+        apps: apps.clone(),
         sounds: sounds.clone(),
         indicator: indicator.clone(),
         config: config.clone(),
@@ -213,7 +216,7 @@ fn rig_full(
         log: world.log.clone() as Arc<dyn Log>,
         executor: executor_dyn,
     });
-    Rig { world, clock, controller, recorder, paster, media, indicator, sounds, history, config, executor, cleanup_fails }
+    Rig { world, clock, controller, recorder, paster, media, indicator, sounds, history, config, executor, cleanup_fails, apps }
 }
 
 /// Dictée complète : tout s'exécute tout de suite.
@@ -902,4 +905,85 @@ fn losing_the_focus_releases_the_keys_relayed_by_the_page() {
     assert!(!r.controller.is_recording());
     // Sans touche tenue, ne fait rien.
     r.controller.release_page_keys();
+}
+
+// --- Espace entre deux dictées (docs/ESPACEMENT.md). La règle elle-même est testée dans `scriibe_core::spacing` ;
+// ici, le branchement : mémoire, appli active, délai, historique, collage manqué.
+
+/// Deux dictées à la suite (la seconde `delay` secondes après la fin de la première) : ce qui a été collé.
+fn two_dictations(r: &Rig, delay: u64) -> Vec<String> {
+    r.dictate();
+    r.clock.advance(Duration::from_secs(delay));
+    r.dictate();
+    r.paster.pasted().into_iter().map(|(text, _)| text).collect()
+}
+
+#[test]
+fn spacing_case_1_the_first_paste_has_no_leading_space() {
+    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
+    r.dictate();
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence.");
+}
+
+#[test]
+fn spacing_the_second_dictation_in_the_same_app_gets_a_space_but_the_history_does_not() {
+    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
+    let pasted = two_dictations(&r, 10);
+    assert_eq!(pasted, vec!["Bonjour tout le monde, on commence.", " Bonjour tout le monde, on commence."]);
+    let items = r.history.items();
+    assert_eq!(items.len(), 2);
+    assert!(items.iter().all(|d| d.final_text == "Bonjour tout le monde, on commence."), "l'historique n'a pas l'espace ajoutée");
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("collage: 35 signes") && log.contains("collage: 36 signes"), "{log}");
+}
+
+#[test]
+fn spacing_case_4_another_app_in_front_gets_no_space() {
+    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
+    r.dictate();
+    r.apps.set(AppInfo { name: "chrome".into(), id: Some("chrome.exe".into()) });
+    r.dictate();
+    assert_eq!(r.paster.pasted()[1].0, "Bonjour tout le monde, on commence.");
+}
+
+#[test]
+fn spacing_case_5_a_long_delay_gets_no_space() {
+    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
+    let pasted = two_dictations(&r, 120);
+    assert_eq!(pasted[1], "Bonjour tout le monde, on commence.");
+}
+
+#[test]
+fn spacing_case_7_a_translation_into_english_gets_the_space_too() {
+    let r = rig("bonjour tout le monde on commence", "Hello everyone, let's get started.");
+    r.key_down();
+    r.shift_down();
+    r.key_up();
+    r.clock.advance(Duration::from_secs(10));
+    r.key_down();
+    r.shift_down();
+    r.key_up();
+    let pasted = r.paster.pasted();
+    assert_eq!(pasted[0].0, "Hello everyone, let's get started.");
+    assert_eq!(pasted[1].0, " Hello everyone, let's get started.");
+    assert_eq!(r.history.items()[1].final_text, "Hello everyone, let's get started.");
+}
+
+#[test]
+fn spacing_a_selection_replacement_gets_no_space() {
+    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
+    r.dictate();
+    r.paster.set_selection(true);
+    r.dictate();
+    assert_eq!(r.paster.pasted()[1].0, "bonjour tout le monde, on commence");
+}
+
+#[test]
+fn spacing_a_paste_that_only_copied_forgets_the_last_dictation() {
+    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
+    r.paster.set_outcome(PasteOutcome::CopiedOnly("fenêtre en administrateur".into()));
+    r.dictate();
+    r.paster.set_outcome(PasteOutcome::Pasted);
+    r.dictate();
+    assert_eq!(r.paster.pasted()[1].0, "Bonjour tout le monde, on commence.", "rien n'a été collé la première fois");
 }

@@ -182,17 +182,29 @@ impl MediaControl for FakeMedia {
     }
 }
 
-pub struct FakeApps(pub AppInfo);
+/// L'appli active, que les tests peuvent changer en cours de route.
+pub struct FakeApps(Mutex<AppInfo>);
+
+impl FakeApps {
+    pub fn new(app: AppInfo) -> Self {
+        Self(Mutex::new(app))
+    }
+
+    /// Fait passer une autre appli au premier plan.
+    pub fn set(&self, app: AppInfo) {
+        *lock(&self.0) = app;
+    }
+}
 
 impl Default for FakeApps {
     fn default() -> Self {
-        Self(AppInfo { name: "Bloc-notes".into(), id: Some("notepad".into()) })
+        Self::new(AppInfo { name: "Bloc-notes".into(), id: Some("notepad".into()) })
     }
 }
 
 impl ForegroundApp for FakeApps {
     fn current(&self) -> AppInfo {
-        self.0.clone()
+        lock(&self.0).clone()
     }
 }
 

@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S17 — 2026-11-05 · Espace entre deux dictées
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. Pas de nouvelle version publiée : le changement part avec la prochaine (0.2.4 prévue).
+
+- **Espace entre deux dictées** (bug du carnet du 05/11 : deux phrases dictées à la suite se touchaient). Méthode A, mémoire du dernier collage : si la dictée précédente a été collée dans la même appli il y a 60 s au plus et finit par `. ! ? … : ;`, la suivante est collée précédée d'une espace (pas de sélection active, pas de début par une espace ou une ponctuation qui se colle au mot). L'historique et « copier la dernière » gardent le texte sans l'espace. Règle pure dans `crates/core/src/spacing.rs`, branchée dans `Controller::process` ; cadrage, règle, tests et essai dans `docs/ESPACEMENT.md`, écart avec Scribe (qui n'a pas cette fonction) dans `docs/ECARTS.md`.
+- **Constat** (sous-agent de recherche) : Scribe a le même défaut ; il vient du pipeline commun, donc identique sur Mac, Windows et Linux X11.
+- **Tests** : 11 tests de la règle (un par cas) et 7 tests de branchement (`spacing_*`). `cargo test --workspace` : 331 passés, 0 échec ; 399 cas de référence vérifiés ; `cargo fmt --check` et `cargo clippy -D warnings` sans erreur. `FakeApps` permet maintenant de changer l'appli au premier plan dans les tests. Compilation Windows (`--target x86_64-pc-windows-gnu`) et CI non lancées.
+- **Essai réel sur le Mac** : TextEdit, Notes et LibreOffice Writer réussis (un seul espace entre les phrases, rien devant la première). Chrome (page Google) : une dictée sur trois perdue sans erreur au journal, probablement le ⌘V déjà connu de Chrome, **non traité** (noté dans la `ROADMAP.md`). Limite confirmée : Entrée tapée à la main entre deux dictées rapprochées donne une espace en début de ligne. **Essai Windows (Bloc-notes) à faire** après la prochaine mise à jour.
+
 ## S16 — 2026-11-04 · Version 0.2.3, première mise à jour intégrée du Mac, correctif du workflow Linux
 
 Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié.
