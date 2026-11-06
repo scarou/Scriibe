@@ -42,7 +42,43 @@ Tâche 0, faite le 05/11/2026 par un sous-agent de recherche (lecture seule). Le
 - Limite connue : on ne sait pas si le curseur a bougé, si le champ a changé dans la même appli ou si le texte a été effacé. Un délai court et l'identité de l'appli atténuent le risque sans l'annuler.
 - Décision de Christophe (tâche 1) : l'espace ajouté ne figure **ni dans l'historique ni dans « copier la dernière »** ; il est ajouté à une variable séparée, envoyée seule à `paste()`.
 
-### Tests
+### Tests proches
+
+- `crates/pipeline/tests/dictation.rs` : bancs `rig` / `rig_with` / `rig_full` (l.125-220), assertions sur `r.paster.pasted()[0].0` (par ex. `without_a_selection_the_text_is_pasted_as_written` l.315). Deux `r.dictate()` à la suite y tiendraient.
+- `FakePaster` et `FakeApps` (`crates/platform/src/testing.rs:126`, `:185`) simulent le collage et le changement d'appli.
+- `crates/core/src/inline.rs` : tests unitaires modèles pour la fonction pure.
+- `fixtures/` : une règle de ce genre irait en fixture JSON, mais comme Scribe n'a pas ce comportement, il n'y a pas de cas issu de Scribe. `fixtures/README.md` et `A_FAIRE.md` n'ont pas été lus : à voir en tâche 1.
+
+## Règle
+
+Validée par Christophe le 05/11/2026 (tâche 1), **élargie le 06/11/2026** (condition 4, voir « Règle élargie » en fin de fichier). Méthode A : mémoire de la dernière dictée.
+
+**Mémoire** : après un collage réussi (`Pasted`, pas `CopiedOnly`), Scriibe retient l'identifiant de l'appli active, l'heure et le dernier caractère du texte collé (sans l'espace ajouté). Après un `CopiedOnly`, la mémoire est effacée. Elle est vide au démarrage.
+
+**Une espace est ajoutée devant la dictée si, et seulement si, ces 6 conditions sont vraies** :
+1. une mémoire existe ;
+2. l'identifiant de l'appli active est le même et non vide ;
+3. le délai depuis le dernier collage est d'au plus **60 s** (constante `MAX_GAP`) ;
+4. le dernier caractère collé n'est **ni une espace ou un saut de ligne, ni un signe qui s'attache au mot suivant** : `( [ { « “ ‘ ¿ ¡ - – — / @ #` (toute autre fin, point ou pas, lettre, chiffre, virgule, guillemet fermant, appelle une espace) ; *(règle d'origine du 05/11 : seulement après `. ! ? … : ;`)* ;
+5. aucune sélection n'est active pour la nouvelle dictée ;
+6. la nouvelle dictée ne commence ni par une espace ou un saut de ligne, ni par une ponctuation qui se colle au mot précédent (`, . ; : ! ? … ) ] } »` et `%`).
+
+La règle est une fonction pure (`crates/core/src/spacing.rs`). L'espace n'est ajoutée qu'à ce qui part vers `paste()`, juste avant le collage, jamais au texte de l'historique ni de « copier la dernière ». Le journal compte 1 signe de plus.
+
+| # | Cas | Résultat |
+|---|---|---|
+| 1 | Premier collage (ou après redémarrage) | Pas d'espace : pas de mémoire |
+| 2 | Le texte précédent finit déjà par un espace (ou la nouvelle dictée commence par un espace) | Pas d'espace |
+| 2 bis | Le texte précédent ne finit pas par un point (modèle qui n'en met pas) | **Espace ajoutée** (règle élargie du 06/11) |
+| 3 | Retour à la ligne : le précédent finit par `\n` | Pas d'espace |
+| 4 | Autre fenêtre ou autre appli | Pas d'espace |
+| 5 | Délai long (plus de 60 s) | Pas d'espace |
+| 6 | La phrase commence par une ponctuation | Pas d'espace |
+| 7 | Traduction en anglais | Même règle, sur le texte final collé |
+
+**Limites assumées** : la méthode A ne voit pas le curseur. Une touche Entrée tapée à la main entre deux dictées, ou un changement de champ ou d'onglet dans la même appli en moins de 60 s, donne une espace en début de ligne ou de champ. Écart avec Scribe (qui n'a pas cette fonction) : noté dans `docs/ECARTS.md`.
+
+## Tests
 
 Tâche 2, faite le 05/11/2026. Code : `crates/core/src/spacing.rs` (règle pure, constante `MAX_GAP` = 60 s), branchement dans `Controller::process` (`crates/pipeline/src/controller.rs`, mémoire `last_paste` dans `Inner`). Pour les tests, `FakeApps` (`crates/platform/src/testing.rs`) permet maintenant de changer l'appli au premier plan.
 
@@ -58,7 +94,7 @@ Tâche 2, faite le 05/11/2026. Code : `crates/core/src/spacing.rs` (règle pure,
 | 6 | Ponctuation initiale | `case_6_a_phrase_starting_with_punctuation_gets_no_space` | (le nettoyage ne laisse pas passer ce cas : règle seule) |
 | 7 | Traduction anglaise | `case_7_a_translation_into_english_follows_the_same_rule` | `spacing_case_7_a_translation_into_english_gets_the_space_too` |
 
-Autres tests : cas normal pour chacun des six signes de fin ; pas d'espace sans point final ; sélection active ; texte vide ; la deuxième dictée dans la même appli est collée avec l'espace **mais l'historique ne l'a pas** (`spacing_the_second_dictation_in_the_same_app_gets_a_space_but_the_history_does_not`, qui vérifie aussi le compte du journal) ; un collage qui n'a fait que copier efface la mémoire.
+Autres tests : cas normal pour chacun des six signes de fin ; (d'origine : pas d'espace sans point final, remplacé le 06/11 par les tests de la règle élargie) ; sélection active ; texte vide ; la deuxième dictée dans la même appli est collée avec l'espace **mais l'historique ne l'a pas** (`spacing_the_second_dictation_in_the_same_app_gets_a_space_but_the_history_does_not`, qui vérifie aussi le compte du journal) ; un collage qui n'a fait que copier efface la mémoire.
 
 **Résultat** (mesuré le 05/11/2026) : `cargo test --workspace` : **331 tests passés, 0 échec** (dont 11 pour la règle et 7 `spacing_*` du pipeline). Les cas de référence sont rejoués par `reference_cases` (core et engines), tous deux passés ; `python3 tools/verifier_fixtures.py` : 399 cas, 0 erreur. `cargo fmt --all --check` et `cargo clippy --all-targets -- -D warnings` : sans erreur. **Non fait** : vérification de compilation Windows (`--target x86_64-pc-windows-gnu`), CI, essai réel (tâche 3).
 
@@ -98,3 +134,14 @@ Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de blo
 6. Début de dictée en tiret ou en puce : reçoit une espace (cohérent) ; à vérifier à la main après « Voici la liste : ». Signes de fin d'autres langues (`¿`, `؟`, `。`) non gérés : sans effet en français et en anglais.
 7. Chrome : voir Essai réel.
 
+## Règle élargie (06/11/2026)
+
+**Constat** (essai Windows, Bloc-notes, Scriibe 0.2.4, puis reproduit sous Linux) : avec le modèle Whisper `ggml-small.bin`, les dictées courtes n'ont pas de point final ; la règle d'origine (espace seulement après `. ! ? … : ;`) n'ajoutait alors rien et les phrases se collaient. Avec `ggml-large-v3-turbo-q8_0.bin` sur Mac, le problème n'apparaît pas. Cause du point manquant : le modèle, d'après Christophe ; non mesuré ici.
+
+**Décision de Christophe (06/11/2026)** : élargir la règle (condition 4), **sans la publier tout de suite** : elle part avec la prochaine version après la 0.2.4. Il essaie le modèle `large-v3-turbo-q8_0` sur Windows et Linux.
+
+**Code et tests** : `crates/core/src/spacing.rs` (`JOINING_ENDINGS` remplace `SENTENCE_ENDINGS` ; tests `a_dictation_without_a_final_stop_still_gets_a_space` et `a_previous_text_ending_with_an_opening_or_joining_sign_gets_no_space`) et `spacing_a_model_that_writes_no_final_stop_does_not_glue_the_phrases` dans `crates/pipeline/tests/dictation.rs`.
+
+**Risque connu** : une espace en trop si l'on continue à la main une phrase au même endroit en moins de 60 s ; les guillemets droits `"` et `'` ne figurent pas dans la liste des signes qui collent (ils peuvent fermer une phrase).
+
+**Résultat** (mesuré le 06/11/2026) : `cargo test --workspace` : **335 tests passés, 0 échec** ; 399 cas de référence vérifiés ; `cargo fmt --check` et `cargo clippy -D warnings` sans erreur. Non lancés : CI complète, essai sur le PC (à faire avec le modèle `large-v3-turbo-q8_0` et avec `small`).

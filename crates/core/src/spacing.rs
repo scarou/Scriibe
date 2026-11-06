@@ -1,16 +1,20 @@
 //! Espace entre deux dictées (S17, propre à Scriibe ; Scribe n'a pas cette fonction, voir `docs/ESPACEMENT.md`).
 //!
 //! Deux dictées collées à la suite dans la même appli se touchaient (« Bonjour.Comment ça va ? »). Scriibe ne lit pas le curseur de
-//! l'appli cible : il retient la dernière dictée collée et, si la suivante arrive dans la même appli peu après et que la précédente
-//! finissait une phrase, ajoute une espace devant. Fonctions pures : le chef d'orchestre garde la mémoire et l'horloge.
+//! l'appli cible : il retient la dernière dictée collée et, si la suivante arrive dans la même appli peu après, ajoute une espace
+//! devant, sauf si la précédente finissait par une espace, un saut de ligne ou un signe qui s'attache au mot suivant. Un modèle
+//! Whisper qui n'écrit pas de point final (essai de Christophe avec `ggml-small`) ne colle donc pas les phrases. Fonctions pures :
+//! le chef d'orchestre garde la mémoire et l'horloge.
 
 use std::time::Duration;
 
 /// Au-delà de ce délai depuis le dernier collage, on ne suppose plus que le curseur est resté au même endroit.
 pub const MAX_GAP: Duration = Duration::from_secs(60);
 
-/// Les fins de phrase après lesquelles la dictée suivante a besoin d'une espace.
-const SENTENCE_ENDINGS: &str = ".!?…:;";
+/// Les derniers signes après lesquels la dictée suivante se colle sans espace : ouvrants (parenthèse, guillemet ouvrant, point d'interrogation
+/// ou d'exclamation espagnol) et signes qui relient (tiret, barre oblique, arobase, dièse). Tout autre signe, lettre ou chiffre appelle une espace
+/// (les guillemets droits ne figurent pas ici : ils peuvent fermer une phrase).
+const JOINING_ENDINGS: &str = "([{«“‘¿¡-–—/@#";
 
 /// Ce qui, au début d'une dictée, se colle au mot précédent : pas d'espace devant.
 const ATTACHED_START: &str = ",.;:!?…)]}»%";
@@ -40,7 +44,7 @@ pub fn needs_leading_space(last: Option<&LastPaste>, app_id: Option<&str>, now: 
     if replaces_selection || last.app_id != app_id {
         return false;
     }
-    if now.saturating_sub(last.at) > MAX_GAP || !SENTENCE_ENDINGS.contains(last.last_char) {
+    if now.saturating_sub(last.at) > MAX_GAP || last.last_char.is_whitespace() || JOINING_ENDINGS.contains(last.last_char) {
         return false;
     }
     match text.chars().next() {
@@ -86,9 +90,21 @@ mod tests {
     }
 
     #[test]
-    fn a_sentence_without_a_final_stop_gets_no_space() {
-        assert_eq!(spaced(after("Bonjour tout le monde", 10).as_ref(), 20, "Suite."), "Suite.");
-        assert_eq!(spaced(after("Bonjour,", 10).as_ref(), 20, "Suite."), "Suite.");
+    fn a_dictation_without_a_final_stop_still_gets_a_space() {
+        // Whisper « small » n'écrit pas toujours le point final : les phrases ne doivent pas se coller.
+        assert_eq!(spaced(after("Bonjour tout le monde", 10).as_ref(), 20, "Suite"), " Suite");
+        assert_eq!(spaced(after("Bonjour,", 10).as_ref(), 20, "Suite."), " Suite.");
+        assert_eq!(spaced(after("Deux fois 12", 10).as_ref(), 20, "Suite."), " Suite.");
+        assert_eq!(spaced(after("Il a dit \"Fini.\"", 10).as_ref(), 20, "Suite."), " Suite.");
+        assert_eq!(spaced(after("Il a dit « fini. »", 10).as_ref(), 20, "Suite."), " Suite.");
+    }
+
+    #[test]
+    fn a_previous_text_ending_with_an_opening_or_joining_sign_gets_no_space() {
+        for end in ['(', '[', '{', '«', '“', '‘', '¿', '¡', '-', '–', '—', '/', '@', '#'] {
+            let last = after(&format!("Voici {end}"), 10);
+            assert_eq!(spaced(last.as_ref(), 20, "suite"), "suite", "après « {end} »");
+        }
     }
 
     #[test]
