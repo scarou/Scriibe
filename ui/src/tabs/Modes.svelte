@@ -76,8 +76,8 @@
     {#key trial.key}<ModeTrial choice={trial.choice} label={trial.label} onclose={() => (trial = null)} />{/key}
   {/if}
 
-  {#each modes.groups as group (group.join())}
-    <section class="card">
+  {#each modes.groups as group, i (group.join())}
+    <Card id={'modes-groupe-' + i} title={i === 0 ? t('Modes de base') : t('Modes professionnels')} help="modes">
       {#each group as id (id)}
         {@const m = modes.built_in.find((x) => x.id === id)!}
         <div class="mode">
@@ -95,7 +95,7 @@
           {/if}
         </div>
       {/each}
-    </section>
+    </Card>
   {/each}
 
   <Card id="modes-mes-modes" title={t('Mes modes')} help="modes" intro={t('Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), créez votre mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.')}>
@@ -116,8 +116,7 @@
   </Card>
 
   {#if editing}
-    <section class="card edit">
-      <h2>{custom.some((m) => m.id === editing!.id) ? t('Modifier le mode') : t('Nouveau mode')}</h2>
+    <Card id="mode-edition" accent title={custom.some((m) => m.id === editing!.id) ? t('Modifier le mode') : t('Nouveau mode')} help="modes">
       <div class="row"><label>{t('Nom :')} <input type="text" bind:value={editing.name} style="width: 22em" /></label></div>
       <div class="row"><label style="flex: 1">{t('Consigne de style :')}<br />
         <textarea rows="3" style="width: 100%" bind:value={editing.style} placeholder={t('Écris comme un ingénieur : phrases courtes, précises.')}></textarea></label></div>
@@ -140,7 +139,7 @@
         <button onclick={() => (editing = null)}>{t('Annuler')}</button>
         <button class="primary" onclick={saveCustom}>{t('Enregistrer')}</button>
       </div>
-    </section>
+    </Card>
   {/if}
 {:else}
   <p class="muted">{t('Chargement…')}</p>
@@ -151,5 +150,4 @@
   .mode:last-child { border-bottom: 0; }
   .pick { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 320px; cursor: pointer; }
   .style { width: 100%; }
-  .edit { border-color: var(--accent); }
 </style>

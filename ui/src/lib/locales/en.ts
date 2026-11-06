@@ -166,6 +166,8 @@ export const en: Record<string, string> = {
   'Essayer sur les phrases types': 'Try on the sample phrases',
   'Rétablir la consigne d’origine': 'Restore the original instruction',
   'Mes modes': 'My modes',
+  'Modes de base': 'Basic modes',
+  'Modes professionnels': 'Professional modes',
   'Mode sans nom': 'Unnamed mode',
   'Reformule': 'Rephrases',
   'Garde tes mots': 'Keeps your words',

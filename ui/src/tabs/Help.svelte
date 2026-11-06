@@ -12,7 +12,7 @@
   let open = $derived(nav.helpSection);
   /** Les touches en vigueur (réglables dans Réglages → Dictée). */
   /** Le système sur lequel tourne Scriibe : l’Aide ne parle que de lui (touches, icône, autorisations, trousseau). */
-  let os = $derived(s?.os ?? 'windows');
+  let os = $derived(status.os);
   let mac = $derived(os === 'macos');
   let linux = $derived(os === 'linux');
   let defaultDictate = $derived(mac ? 'Option droite' : 'Ctrl droit');

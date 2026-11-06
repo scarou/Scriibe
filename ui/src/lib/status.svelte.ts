@@ -1,4 +1,5 @@
 import { api, type Status } from './api';
+import { guessOs } from './theme';
 
 /** L'état de l'installation et des réglages, relu toutes les 8 s et après chaque changement. */
 class StatusStore {
@@ -6,6 +7,11 @@ class StatusStore {
   failed = $state(false);
   /** La dictée en cours, relue chaque seconde par la ligne d'état de la barre latérale. */
   activity = $state<{ recording: boolean; busy: boolean; keys_error: string | null } | null>(null);
+
+  /** Le système : celui du programme dès qu'il a répondu, deviné d'après le navigateur de la fenêtre d'ici là (logo, touches et couleur ne restent pas à Windows pendant l'attente). */
+  get os(): string {
+    return this.value?.os ?? guessOs(navigator.userAgent);
+  }
 
   async refreshActivity(): Promise<void> {
     try {

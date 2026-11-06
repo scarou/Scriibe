@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from '../lib/api';
   import { t } from '../lib/i18n.svelte';
+  import Card from './Card.svelte';
 
   interface Row {
     output: string;
@@ -48,9 +49,8 @@
   let failedChecks = $derived(Object.values(rows).reduce((n, r) => n + r.checks.filter((c) => !c.ok).length, 0));
 </script>
 
-<section class="card trial">
+<Card id="essai-mode" accent title={t('Essai : {label}', { label })}>
   <div class="row">
-    <h2>{t('Essai : {label}', { label })}</h2>
     <span class="grow"></span>
     <button onclick={onclose}>{running ? t('Arrêter') : t('Fermer')}</button>
   </div>
@@ -73,10 +73,9 @@
       {/if}
     </div>
   {/each}
-</section>
+</Card>
 
 <style>
-  .trial { border-color: var(--accent); }
   .sample { padding: 8px 0; border-bottom: 1px solid var(--line); }
   .sample:last-child { border-bottom: 0; }
   .out { margin: 2px 0; }

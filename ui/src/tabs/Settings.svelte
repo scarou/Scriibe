@@ -16,7 +16,7 @@
   let { section }: { section: 'dictation' | 'engines' | 'appearance' } = $props();
 
   let s = $derived(status.value);
-  let osName = $derived(s?.os ?? 'windows');
+  let osName = $derived(status.os);
   let v = $derived(settings.value);
   let devices = $state<{ value: string; label: string }[]>([]);
   let listing = $state(false);

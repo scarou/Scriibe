@@ -157,9 +157,7 @@
 </div>
 
 {#each groups as g (g.day)}
-  <div class="day">
-    <h2>{dayTitle(g.day)} <span class="muted">{t('{n} dictée(s) · {words} mots', { n: g.items.length, words: g.items.reduce((sum, d) => sum + d.words, 0) })}</span></h2>
-    <div class="card list">
+  <Card id={'historique-' + g.day} title={dayTitle(g.day) + ' · ' + t('{n} dictée(s) · {words} mots', { n: g.items.length, words: g.items.reduce((sum, d) => sum + d.words, 0) })}>
       {#each g.items as d (d.id)}
         <div class="item">
           <span class="muted time">{timeOf(d.date)}</span>
@@ -184,8 +182,7 @@
           </span>
         </div>
       {/each}
-    </div>
-  </div>
+  </Card>
 {:else}
   <p class="muted">{items.length ? t('Aucune dictée ne correspond.') : t('Aucune dictée pour l’instant.')}</p>
 {/each}
@@ -201,10 +198,6 @@
   .seg button { border: 0; border-radius: 0; padding: 6px 12px; background: var(--card); }
   .seg button + button { border-left: 1px solid var(--line); }
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
-  .day { margin: 18px 0 0; }
-  .day h2 { font-size: 1rem; margin: 0 0 6px 4px; }
-  .day h2 .muted { font-weight: 400; margin-left: 6px; font-size: .85rem; }
-  .list { padding: 4px 14px; }
   .item { display: flex; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
   .item:first-child { border-top: 0; }
   .time { width: 46px; flex: none; font-variant-numeric: tabular-nums; padding-top: 2px; }

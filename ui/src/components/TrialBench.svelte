@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import HelpButton from './HelpButton.svelte';
   import { api, type Settings } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
   import { t } from '../lib/i18n.svelte';
+  import Card from './Card.svelte';
 
   interface Candidate {
     id: string;
@@ -92,14 +92,12 @@
 </script>
 
 {#if v && s}
-  <section class="card">
+  <Card id="banc-essai-mise-au-propre" title={t('Banc d’essai de la mise au propre')} help="measures">
     <div class="row">
-      <h2>{t('Banc d’essai de la mise au propre')}</h2>
       <span class="grow"></span>
       <button class="primary" onclick={runAll} disabled={running !== null || !candidates.length || !(text ?? v.trialText).trim()}>
         {running ? t('Essais en cours…') : t('Lancer les essais')}
       </button>
-      <HelpButton section="measures" />
     </div>
     <p class="muted">{t('Écris une phrase comme tu la dirais, puis compare plusieurs modèles (mode en cours : {mode}). Pour choisir le modèle de mise au propre : même phrase, textes et temps côte à côte.', { mode: v.rewriteMode === 'literal' ? t('Simple') : String(v.rewriteMode) })}</p>
     <textarea rows="3" style="width: 100%" value={text ?? String(v.trialText)} oninput={(e) => (text = e.currentTarget.value)}
@@ -143,7 +141,7 @@
       </div>
     {/each}
     <div class="row"><button onclick={add}>{t('+ Ajouter un modèle')}</button></div>
-  </section>
+  </Card>
 {/if}
 
 <style>

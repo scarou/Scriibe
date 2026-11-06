@@ -10,13 +10,15 @@
    * son titre. `id` sert d'ancre (nav.go) et de clé de mémoire du pli ; `intro` est le texte d'explication sous le titre.
    * Le contenu reste dans la page quand la carte est repliée (un brouillon ou un chrono en cours n'est pas perdu).
    */
-  let { title, id, help = undefined, intro = undefined, folded: initiallyFolded = false, children }: {
+  let { title, id, help = undefined, intro = undefined, folded: initiallyFolded = false, accent = false, children }: {
     title: string;
     id: string;
     help?: HelpId;
     intro?: string;
     /** Repliée tant que l'utilisateur n'a pas choisi. */
     folded?: boolean;
+    /** Carte mise en avant (bordure de la couleur d'accent) : un essai en cours, un formulaire d'édition, l'assistant. */
+    accent?: boolean;
     children: Snippet;
   } = $props();
 
@@ -28,7 +30,7 @@
   }
 </script>
 
-<section class="card fold-card" {id} data-folded={folded}>
+<section class="card fold-card" class:accent {id} data-folded={folded}>
   <div class="head">
     <h2>
       <button class="fold" type="button" aria-expanded={!folded} onclick={toggle} title={folded ? t('Déplier') : t('Replier')}>
@@ -45,6 +47,7 @@
 
 <style>
   .fold-card { padding: 14px 18px; }
+  .accent { border-color: var(--accent); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   h2 { margin: 0; flex: 1; font-size: 1.05rem; }
   .fold { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 700; width: 100%; }

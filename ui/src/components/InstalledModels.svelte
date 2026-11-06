@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { api, type InstalledModel } from '../lib/api';
   import { confirmBox, notice } from '../lib/dialog.svelte';
-  import HelpButton from './HelpButton.svelte';
+  import Card from './Card.svelte';
   import { taille } from '../lib/display.svelte';
   import { t, tx } from '../lib/i18n.svelte';
   import { status } from '../lib/status.svelte';
@@ -34,8 +34,7 @@
   });
 </script>
 
-<section class="card">
-  <div class="help-head"><h2>{t('Modèles installés')}</h2><HelpButton section="start" /></div>
+<Card id="modeles-installes" title={t('Modèles installés')} help="start">
   {#if models.length}
     <table>
       <tbody>
@@ -53,4 +52,4 @@
     <p class="muted">{t('Aucun modèle dans le dossier de Scriibe pour l’instant.')}</p>
   {/if}
   <p class="muted">{t('Dossier : {folder}. Les modèles d’autres programmes (LM Studio…) sont aussi utilisables, mais ne sont pas listés ici : Scriibe ne les supprime jamais.', { folder })}</p>
-</section>
+</Card>

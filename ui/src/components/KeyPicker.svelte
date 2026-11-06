@@ -24,7 +24,7 @@
   let testing = $state(false);
   let detected = $state(false);
 
-  let mac = $derived(s?.os === 'macos');
+  let mac = $derived(status.os === 'macos');
   /** La touche de dictée par défaut du système (Ctrl droit sous Windows, Option droite sur Mac) : on la rétablit en vidant la liste. */
   let defaultId = $derived(s?.default_dictation_id ?? 'right_control');
 

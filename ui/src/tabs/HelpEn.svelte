@@ -15,7 +15,7 @@
   let open = $derived(nav.helpSection);
   /** Les touches en vigueur (réglables dans Réglages → Dictée). */
   /** The system Scriibe runs on: the Help only talks about that one (keys, icon, permissions, keychain). */
-  let os = $derived(s?.os ?? 'windows');
+  let os = $derived(status.os);
   let mac = $derived(os === 'macos');
   let linux = $derived(os === 'linux');
   let defaultDictate = $derived(mac ? 'right Option' : 'right Ctrl');

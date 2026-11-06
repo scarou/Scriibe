@@ -6,6 +6,7 @@
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
   import { t } from '../lib/i18n.svelte';
+  import Card from './Card.svelte';
 
   let { onclose, ongoto }: { onclose: () => void; ongoto: (tab: 'install' | 'settings') => void } = $props();
 
@@ -38,8 +39,7 @@
   });
 </script>
 
-<section class="card assistant">
-  <h2>{t('Assistant de premier lancement')}</h2>
+<Card id="assistant-premier-lancement" accent title={t('Assistant de premier lancement')}>
   {#if !data}
     <p class="muted">{t('Mesure de l’ordinateur…')}</p>
   {:else}
@@ -85,10 +85,9 @@
       {/if}
     {/if}
   {/if}
-</section>
+</Card>
 
 <style>
-  .assistant { border-color: var(--accent); }
   .chain { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; cursor: pointer; }
   .chain.picked { border-color: var(--accent); background: var(--bg); }
   .timing { font-size: 0.85rem; }

@@ -5,6 +5,7 @@
   import { bench } from '../lib/bench.svelte';
   import { fmt, when } from '../lib/display.svelte';
   import { t } from '../lib/i18n.svelte';
+  import Card from './Card.svelte';
   import BenchCompare from './BenchCompare.svelte';
 
   let runs = $state<RunSummary[]>([]);
@@ -52,8 +53,7 @@
   });
 </script>
 
-<section class="card">
-  <h2>{t('Passages gardés')}</h2>
+<Card id="passages-gardes" title={t('Passages gardés')} help="measures">
   <p class="muted">{t('Chaque passage est gardé avec ses réglages (version, moteurs, mode, micro) : on compare deux passages phrase par phrase, avant et après un changement.')}</p>
   {#each runs as r (r.id)}
     <div class="run">
@@ -69,11 +69,10 @@
   {:else}
     <p class="muted">{t('Aucun passage gardé : lisez quelques phrases ci-dessus.')}</p>
   {/each}
-</section>
+</Card>
 
 {#if runs.length >= 2}
-  <section class="card">
-    <h2>{t('Comparer deux passages')}</h2>
+  <Card id="comparer-deux-passages" title={t('Comparer deux passages')} help="measures">
     <div class="row">
       <label>{t('Ancien :')}
         <select bind:value={older} onchange={() => compare(older, newer)}>{#each runs as r (r.id)}<option value={r.id}>{when(r.date)} · {r.summary}</option>{/each}</select>
@@ -84,7 +83,7 @@
     </div>
     {#if message}<div class="warn">{message}</div>{/if}
     {#if comparison}<BenchCompare {comparison} />{/if}
-  </section>
+  </Card>
 {/if}
 
 <style>

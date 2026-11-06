@@ -3,8 +3,8 @@
   import { api, type HistoryItem } from '../lib/api';
   import { fmt, when } from '../lib/display.svelte';
   import { t } from '../lib/i18n.svelte';
+  import Card from './Card.svelte';
   import { outcomeLabels, summarize } from '../lib/timings';
-  import HelpButton from './HelpButton.svelte';
 
   let items = $state<HistoryItem[]>([]);
   let summary = $derived(summarize(items));
@@ -16,9 +16,7 @@
   const sec = (v: number | null) => (v === null ? '—' : fmt(v) + ' s');
 </script>
 
-<section class="card">
-  <div class="help-head"><h2>{t('Temps des dictées')}</h2><HelpButton section="measures" /></div>
-  <p class="muted">{t('Du relâchement de la touche au collage, sur tes vraies dictées : utile pour voir si un réglage ou un modèle te fait gagner du temps.')}</p>
+<Card id="temps-des-dictees" title={t('Temps des dictées')} help="measures" intro={t('Du relâchement de la touche au collage, sur tes vraies dictées : utile pour voir si un réglage ou un modèle te fait gagner du temps.')}>
   {#if !summary.count}
     <p class="muted">{t('Les temps s’afficheront après ta prochaine dictée.')}</p>
   {:else}
@@ -42,7 +40,7 @@
       </tbody>
     </table>
   {/if}
-</section>
+</Card>
 
 <style>
   .stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; }
