@@ -2,9 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
-## S17 — 2026-11-05 · Espace entre deux dictées
+## S17 — 2026-11-05 et 06 · Version 0.2.4 : espace entre deux dictées, Aide, fusion de Linux
 
-Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. Pas de nouvelle version publiée : le changement part avec la prochaine (0.2.4 prévue).
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. **Version 0.2.4** (numéro dans `Cargo.toml`).
+
+- **Fusion de `linux-pc` dans `main`** (06/11, commit `dab84e7`, sans conflit) : Linux Wayland (touche globale et collage par les portails, raccourci de GNOME), fenêtre propre et icône dans la barre du haut, pastille sous XWayland, assistant qui propose les moteurs de Linux, mise à jour intégrée sous Linux. CI verte sur les trois systèmes après la fusion. La branche `linux-pc` reste en place.
+- **Assistant « local d'abord » et Aide adaptée au système** (déjà sur `main` depuis `2777b03` et `199136d`, hors de la 0.2.3).
 
 - **Espace entre deux dictées** (bug du carnet du 05/11 : deux phrases dictées à la suite se touchaient). Méthode A, mémoire du dernier collage : si la dictée précédente a été collée dans la même appli il y a 60 s au plus et finit par `. ! ? … : ;`, la suivante est collée précédée d'une espace (pas de sélection active, pas de début par une espace ou une ponctuation qui se colle au mot). L'historique et « copier la dernière » gardent le texte sans l'espace. Règle pure dans `crates/core/src/spacing.rs`, branchée dans `Controller::process` ; cadrage, règle, tests et essai dans `docs/ESPACEMENT.md`, écart avec Scribe (qui n'a pas cette fonction) dans `docs/ECARTS.md`.
 - **Constat** (sous-agent de recherche) : Scribe a le même défaut ; il vient du pipeline commun, donc identique sur Mac, Windows et Linux X11.

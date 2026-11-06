@@ -3497,7 +3497,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scriibe-cli"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "chrono",
  "rust-embed",
@@ -3515,7 +3515,7 @@ dependencies = [
 
 [[package]]
 name = "scriibe-core"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "chrono",
  "fancy-regex",
@@ -3527,7 +3527,7 @@ dependencies = [
 
 [[package]]
 name = "scriibe-engines"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "fancy-regex",
  "scriibe-core",
@@ -3538,7 +3538,7 @@ dependencies = [
 
 [[package]]
 name = "scriibe-pipeline"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "chrono",
  "scriibe-core",
@@ -3549,7 +3549,7 @@ dependencies = [
 
 [[package]]
 name = "scriibe-platform"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "arboard",
  "ashpd",
