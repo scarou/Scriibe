@@ -63,7 +63,7 @@ export const en: Record<string, string> = {
   'Scriibe est arrêté. Vous pouvez fermer cette page.': 'Scriibe has stopped. You can close this page.',
   'Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.': 'Scriibe is not responding. Start it again from the notification area icon.',
   'Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.': 'Scriibe is not responding. Start it again from the menu bar icon.',
-  'Scriibe ne répond plus. Relancez-le depuis le terminal.': 'Scriibe is not responding. Start it again from the terminal.',
+  'Scriibe ne répond plus. Relancez-le depuis la liste des applications.': 'Scriibe is not responding. Start it again from the application list.',
 
   // Tableau de bord
   'Mesure l’ordinateur et propose les moteurs qui lui conviennent': 'Measures this computer and suggests the engines that suit it',
@@ -639,4 +639,9 @@ export const en: Record<string, string> = {
   'Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.': 'Only for online services: a key is your identifier at Deepgram or OpenRouter. With Whisper and a local model, everything stays on this computer and no key is needed.',
   'Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode (en Littéral, sans modèle : seulement les signes dictés et le dictionnaire). En Simple, « euh, je pense qu’on pourrait, euh, décaler à jeudi » devient « Je pense qu’on pourrait décaler à jeudi. » ; en Soutenu, la phrase est en plus reformulée dans un français soigné.': 'After transcription, an AI model removes the “um”s and adds punctuation, depending on the mode (in Literal, with no model: only the dictated signs and the dictionary). In Simple, “um, I think we could, um, move it to Thursday” becomes “I think we could move it to Thursday.”; in Formal, the sentence is also reworded in polished language.',
   'Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), créez votre mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.': 'A mode is an instruction and a few examples given to the model. For a specific use (text messages, session reports…), create your own mode with two or three examples dictation → expected text: they set the style.',
+  'Pour dicter et traduire : {shortcut} (même endroit pour le changer).': 'To dictate and translate: {shortcut} (change it in the same place).',
+  'Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.':
+    'No translation shortcut yet: restart Scriibe, and GNOME will ask you to choose one.',
+  'Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.':
+    'On GNOME (Wayland), you dictate with a GNOME shortcut: {shortcut}. GNOME does not accept a single key such as Right Ctrl: it needs a combination with an ordinary key (a letter, an arrow, Space). To change it: GNOME Settings → Apps → Scriibe → Global Shortcuts, then restart Scriibe.',
 };

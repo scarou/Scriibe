@@ -1,10 +1,10 @@
-//! La fenêtre de Scriibe vient de Tauri sous Windows (WebView2) et macOS (WKWebView) : son contexte (icône, identifiant) est généré ici. Linux
-//! garde le navigateur jusqu'à son étape. Le commit compilé est aussi noté ici (`SCRIIBE_COMMIT`) : la CI le donne par `GITHUB_SHA`, une
+//! La fenêtre de Scriibe vient de Tauri sous Windows (WebView2), macOS (WKWebView) et Linux (WebKitGTK) : son contexte (icône, identifiant)
+//! est généré ici. Le commit compilé est aussi noté ici (`SCRIIBE_COMMIT`) : la CI le donne par `GITHUB_SHA`, une
 //! compilation à la main le lit dans git ; il sert à reconnaître la version installée (alerte de nouvelle version).
 
 fn main() {
     // `cfg!(windows)` désignerait la machine qui compile, pas la cible (compilation croisée depuis Linux).
-    if matches!(std::env::var("CARGO_CFG_TARGET_OS").as_deref(), Ok("windows" | "macos")) {
+    if matches!(std::env::var("CARGO_CFG_TARGET_OS").as_deref(), Ok("windows" | "macos" | "linux")) {
         tauri_build::build();
     }
     let commit = std::env::var("GITHUB_SHA").ok().filter(|s| !s.is_empty()).or_else(|| {

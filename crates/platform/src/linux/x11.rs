@@ -7,12 +7,8 @@ use x11rb::rust_connection::RustConnection;
 /// Ouvre une connexion à l'écran X11 (variable `DISPLAY`). Une session Wayland est refusée avec un message qui l'explique : XWayland
 /// connecte bien, mais ne montre à Scriibe ni les touches des autres fenêtres ni leur focus.
 pub fn connect() -> Result<(RustConnection, xproto::Window), String> {
-    if std::env::var("XDG_SESSION_TYPE").is_ok_and(|t| t.eq_ignore_ascii_case("wayland")) && std::env::var_os("SCRIIBE_FORCE_X11").is_none()
-    {
-        return Err(
-            "session Wayland : la touche globale et le collage ne sont pas encore pris en charge (ouvrez une session « X11 » ou « Xorg »)"
-                .into(),
-        );
+    if super::wayland::is_wayland() {
+        return Err("session Wayland : X11 ne montre ni les touches ni la fenêtre active des autres applis".into());
     }
     let (conn, screen) = RustConnection::connect(None).map_err(|e| format!("écran X11 introuvable ({e}) : variable DISPLAY ?"))?;
     let root = conn.setup().roots[screen].root;

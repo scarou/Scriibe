@@ -6,9 +6,9 @@ Autres systèmes : [Windows](INSTALLATION_WINDOWS.md) · [macOS](INSTALLATION_MA
 
 > **État de cette procédure (S15)** : le programme Linux est **expérimental**. La touche globale, le collage et la fenêtre active ont été vérifiés sur un écran virtuel (`docs/ESSAI_LINUX.md`) ; l'essai sur un vrai bureau est en cours sur Ubuntu 26.04. Les étapes ci-dessous sont à confirmer par cet essai : si l'une ne se passe pas comme écrit, noter laquelle et la dire.
 
-**Ce qu'il faut** : un PC Linux 64 bits (x86-64) avec une **session X11**, une connexion Internet, un micro. **Wayland n'est pas pris en charge** (voir l'étape 1).
+**Ce qu'il faut** : un PC Linux 64 bits (x86-64) avec une session **X11**, ou **GNOME 48 ou plus récent en Wayland** (Ubuntu 25.04 et suivantes ; à partir de la version publiée après la 0.2.2), une connexion Internet, un micro (voir l'étape 1).
 
-## 1. Vérifier qu'on est en X11
+## 1. Vérifier le type de session
 
 Ouvrir un **terminal** (touches Ctrl+Alt+T) et taper :
 
@@ -17,7 +17,10 @@ echo $XDG_SESSION_TYPE
 ```
 
 - **`x11`** : c'est bon, passer à l'étape 2.
-- **`wayland`** : Scriibe ne peut pas voir la touche de dictée ni coller dans les autres applications. Il faut ouvrir une session X11 :
+- **`wayland`** avec **GNOME 48 ou plus récent** (Ubuntu 26.04) : ça marche, par les « portails » de GNOME (essayé le 03/11/2026). Au premier lancement, GNOME ouvre deux fenêtres, une seule fois :
+  - un **raccourci clavier** pour dicter : GNOME n'accepte pas une touche seule comme Ctrl droit, choisir une combinaison avec une touche ordinaire (par exemple Ctrl + flèche gauche, ou Ctrl + Alt + Espace), puis valider. Pour le changer ensuite : **Paramètres → Applications → Scriibe → Raccourcis clavier**, puis relancer Scriibe ;
+  - au premier collage, l'autorisation de **contrôler le clavier** (c'est ce qui permet de coller) : l'accepter.
+- **`wayland`** avec un autre bureau (KDE, ou GNOME plus ancien) : pas encore pris en charge. Il faut ouvrir une session X11 :
   - Sur beaucoup de distributions, à l'écran de connexion, cliquer sur la **petite roue dentée** à côté du bouton de connexion et choisir une session **Xorg** / **X11** (par exemple « Ubuntu sur Xorg »).
   - **Ubuntu 25.10 et suivantes (dont 26.04)** n'ont plus de session X11 avec le bureau GNOME. Installer un autre bureau, par exemple Xfce (qui tourne en X11) : `sudo apt update && sudo apt install -y xfce4`, puis, à l'écran de connexion, choisir **Xfce Session** avec la roue dentée. GNOME reste installé.
 
@@ -42,13 +45,15 @@ chmod +x ~/scriibe/scriibe
 
 Le micro demande la bibliothèque ALSA, présente sur les bureaux courants. Si le lancement se plaint de `libasound.so.2` : `sudo apt install -y libasound2t64` (ou `libasound2` sur les versions plus anciennes).
 
+La fenêtre et l'icône demandent WebKitGTK et AppIndicator, présents d'office sur Ubuntu avec GNOME. S'il manque `libwebkit2gtk-4.1.so.0` ou `libayatana-appindicator3.so.1` : `sudo apt install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1`.
+
 ## 4. Lancer
 
 ```bash
 ~/scriibe/scriibe
 ```
 
-Le terminal reste occupé (c'est le journal de Scriibe) et **la page de Scriibe s'ouvre dans le navigateur**. Il n'y a pas encore d'icône près de l'horloge ni de fenêtre propre à Scriibe sous Linux. Pour quitter : **Ctrl+C** dans le terminal. Pour relancer la page : ouvrir l'adresse affichée par le terminal.
+Le terminal reste occupé (c'est le journal de Scriibe). **La fenêtre de Scriibe s'ouvre**, et une **icône** apparaît dans la barre du haut, près du son et de la batterie : son menu rouvre la fenêtre ou quitte Scriibe. Pendant la dictée, une **pastille** s'affiche en bas de l'écran. Sous GNOME (Wayland), au premier lancement, GNOME fait choisir deux raccourcis : un pour dicter, un pour dicter et traduire (une combinaison avec une touche ordinaire, par exemple Ctrl + ← et Ctrl + →), puis cliquer **Add**. Fermer la fenêtre ne quitte pas Scriibe, qui continue d'écouter la touche. (Sur un GNOME sans l'extension AppIndicator, comme Fedora, l'icône n'apparaît pas : rouvrir la page par l'adresse affichée par le terminal.) Pour quitter : menu de l'icône, ou **Ctrl+C** dans le terminal.
 
 ## 5. Choisir comment Scriibe transcrit
 
@@ -74,8 +79,10 @@ Dans un **terminal**, le collage se fait par Ctrl+Maj+V : Scriibe envoie Ctrl+V,
 
 ## Installer une mise à jour
 
-La mise à jour intégrée (**Réglages → Mise à jour**) **prévient** d'une nouvelle version mais ne l'installe pas encore sous Linux. À la main :
+**Réglages → Mise à jour** : « Chercher une nouvelle version », puis « Installer et redémarrer ». Scriibe télécharge `scriibe-linux-x64.zip` de la dernière Release, remplace son programme (l'ancien reste à côté sous le nom `scriibe.old` jusqu'au lancement suivant) et se relance. Le dossier du programme doit être à vous (c'est le cas de `~/scriibe`). Cette installation intégrée arrive avec la version qui suit la 0.2.2 : depuis la 0.2.2, il faut encore mettre à jour une fois à la main.
 
-1. Quitter Scriibe : Ctrl+C dans le terminal.
+À la main :
+
+1. Quitter Scriibe : menu de l'icône → Quitter (ou Ctrl+C dans le terminal).
 2. Télécharger le dernier `scriibe-linux-x64.zip` comme à l'étape 2 et refaire l'étape 3 (la commande remplace l'ancien programme).
 3. Relancer. Réglages, historique et dictionnaire sont conservés (ils sont rangés dans `~/.local/share/scriibe`).

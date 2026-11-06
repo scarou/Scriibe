@@ -24,10 +24,10 @@ ureq = "2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
 rust-embed = "8"
 
-# La fenêtre (WebView2 sous Windows, WKWebView sous macOS) ; sous macOS aussi l'icône de la barre des menus (`tray-icon`) et la pastille
+# La fenêtre (WebView2 sous Windows, WKWebView sous macOS, WebKitGTK sous Linux) ; sous macOS et Linux aussi l'icône de la barre des menus (`tray-icon`) et la pastille
 # transparente (`macos-private-api`, réglé aussi dans tauri.conf.json). Une seule section : `tauri-build` exige que les fonctions de la
 # dépendance correspondent à tauri.conf.json dans chacune.
-[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+[target.'cfg(any(windows, target_os = "macos", target_os = "linux"))'.dependencies]
 tauri = { version = "2", default-features = false, features = ["wry", "tray-icon", "macos-private-api"] }
 
 [build-dependencies]

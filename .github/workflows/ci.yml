@@ -50,7 +50,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Paquets Linux (micro ALSA ; écran virtuel pour les essais X11)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev xvfb xdotool xclip
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev xvfb xdotool xclip
       - name: Format
         run: cargo fmt --all -- --check
       - name: Clippy

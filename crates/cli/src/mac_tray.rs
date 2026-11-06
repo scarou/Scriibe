@@ -1,4 +1,4 @@
-//! macOS : l'icône de la barre des menus et son menu, par l'API d'icône de Tauri (NSStatusItem exige le fil principal, que Tauri garde).
+//! macOS et Linux (AppIndicator, barre du haut de GNOME) : l'icône de la barre des menus et son menu, par l'API d'icône de Tauri (NSStatusItem exige le fil principal, que Tauri garde).
 //! Même contenu que sous Windows (`scriibe_platform::windows::tray`) : un disque dont la couleur dit l'état, une infobulle, le menu décrit
 //! par `tray_source` (touches, mode en un clic, copier la dernière dictée, ouvrir la fenêtre, quitter).
 //!
@@ -112,6 +112,7 @@ pub struct Shell {
 
 static SHELL: OnceLock<Shell> = OnceLock::new();
 
+#[cfg(target_os = "macos")]
 /// Le menu de l'appli (invisible, l'appli n'a pas de Dock) : il sert aux raccourcis ⌘C, ⌘V, ⌘A, ⌘Z, ⌘W et ⌘Q dans la fenêtre.
 pub fn app_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let quit = MenuItem::with_id(app, APP_QUIT, "Quitter Scriibe", true, Some("CmdOrCtrl+Q"))?;

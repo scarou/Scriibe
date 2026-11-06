@@ -1,7 +1,7 @@
 //! Mise à jour de Scriibe : la dernière Release publiée sur GitHub (le dépôt est public : aucune clé ni aucun jeton). La version installée
 //! est celle du programme (`CARGO_PKG_VERSION`), comparée au numéro de l'étiquette de la Release (`v0.2.0`). Sous Windows, le zip
 //! `scriibe-windows-x64.zip` de la Release remplace `scriibe.exe` ; sur Mac, `Scriibe-x.y.z-macos.zip` remplace `Scriibe.app` (S15) ;
-//! Linux est seulement prévenu. Comme pour les téléchargements, rien ne part sans que la personne ait vu la version, la taille et la
+//! sous Linux, `scriibe-linux-x64.zip` remplace le programme `scriibe` (S15). Comme pour les téléchargements, rien ne part sans que la personne ait vu la version, la taille et la
 //! source, puis confirmé.
 
 use scriibe_engines::runtime::Log;
@@ -15,6 +15,9 @@ pub const REPO: &str = "scarou/Scriibe";
 /// Le fichier de la Release qui contient `scriibe.exe`.
 const ASSET: &str = "scriibe-windows-x64.zip";
 const PROGRAM: &str = "scriibe.exe";
+/// Le fichier de la Release qui contient le programme Linux `scriibe` (`release-linux.yml`).
+const LINUX_ASSET: &str = "scriibe-linux-x64.zip";
+const LINUX_PROGRAM: &str = "scriibe";
 /// Le programme à l'intérieur de `Scriibe.app`, et l'identifiant que `tools/faire_app_macos.sh` donne à l'application.
 const MAC_PROGRAM: &str = "Contents/MacOS/Scriibe";
 const MAC_BUNDLE_ID: &str = "fr.scriibe.app";
@@ -24,12 +27,15 @@ const MAC_BUNDLE_ID: &str = "fr.scriibe.app";
 enum Platform {
     Windows,
     Mac,
+    Linux,
 }
 
 impl Platform {
     fn this() -> Platform {
         if cfg!(target_os = "macos") {
             Platform::Mac
+        } else if cfg!(target_os = "linux") {
+            Platform::Linux
         } else {
             Platform::Windows
         }
@@ -40,13 +46,39 @@ impl Platform {
         match self {
             Platform::Windows => asset == ASSET,
             Platform::Mac => asset.starts_with("Scriibe-") && asset.ends_with("-macos.zip"),
+            Platform::Linux => asset == LINUX_ASSET,
+        }
+    }
+
+    /// Le programme dans le zip, et le début de fichier qui prouve que c'en est un (Windows : « MZ » ; Linux : ELF).
+    fn program(self) -> (&'static str, &'static [u8]) {
+        match self {
+            Platform::Linux => (LINUX_PROGRAM, b"\x7fELF"),
+            _ => (PROGRAM, b"MZ"),
         }
     }
 }
 
-/// Vrai là où Scriibe sait s'installer seul (Windows et Mac) ; ailleurs il prévient seulement.
+/// Vrai là où Scriibe sait s'installer seul (Windows, Mac et Linux) ; ailleurs il prévient seulement.
 pub fn can_install() -> bool {
-    cfg!(windows) || cfg!(target_os = "macos")
+    cfg!(any(windows, target_os = "macos", target_os = "linux"))
+}
+
+/// Le programme en cours, tel qu'il faut le relancer. Linux : une fois l'ancien renommé en `scriibe.old`, le système donne ce nom-là
+/// (ou « … (deleted) ») pour le programme qui tourne ; la nouvelle version est à l'emplacement d'origine.
+pub fn program_path() -> std::io::Result<PathBuf> {
+    std::env::current_exe().map(original_program)
+}
+
+fn original_program(exe: PathBuf) -> PathBuf {
+    let name = exe.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let original = name.strip_suffix(" (deleted)").unwrap_or(&name);
+    let original = original.strip_suffix(".old").unwrap_or(original);
+    if original == name {
+        exe
+    } else {
+        exe.with_file_name(original)
+    }
 }
 
 /// La version installée : celle du programme (`Cargo.toml`), qui est aussi le numéro de la Release dont il vient.
@@ -224,21 +256,29 @@ fn download(url: &str, expected: u64, progress: &dyn Fn(u64, u64)) -> Result<Vec
 
 /// Le programme contenu dans le zip de la Release.
 fn extract_program(zip_bytes: &[u8]) -> Result<Vec<u8>, String> {
+    extract_program_for(zip_bytes, Platform::this())
+}
+
+fn extract_program_for(zip_bytes: &[u8], platform: Platform) -> Result<Vec<u8>, String> {
+    let (program_name, magic) = platform.program();
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip_bytes)).map_err(|e| format!("zip illisible ({e})"))?;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
-        let is_program = entry.enclosed_name().and_then(|p| p.file_name().map(|n| n.to_owned())).is_some_and(|n| n == PROGRAM);
+        let is_program = entry.enclosed_name().and_then(|p| p.file_name().map(|n| n.to_owned())).is_some_and(|n| n == program_name);
         if entry.is_file() && is_program {
             let mut program = Vec::new();
             entry.read_to_end(&mut program).map_err(|e| e.to_string())?;
-            // Un exécutable Windows commence par « MZ » ; un fichier minuscule n'est pas un programme.
-            if program.len() < 100_000 || !program.starts_with(b"MZ") {
-                return Err("le fichier du zip ne ressemble pas à un programme Windows".into());
+            // Un exécutable Windows commence par « MZ », un exécutable Linux par « \x7fELF » ; un fichier minuscule n'est pas un programme.
+            if program.len() < 100_000 || !program.starts_with(magic) {
+                return Err(format!(
+                    "le fichier du zip ne ressemble pas à un programme {}",
+                    if magic == b"MZ" { "Windows" } else { "Linux" }
+                ));
             }
             return Ok(program);
         }
     }
-    Err(format!("{PROGRAM} n'est pas dans le zip"))
+    Err(format!("{program_name} n'est pas dans le zip"))
 }
 
 fn sibling(path: &Path, suffix: &str) -> PathBuf {
@@ -253,7 +293,13 @@ fn replace_program(current: &Path, program: &[u8]) -> Result<(), String> {
     let folder = current.parent().map(|p| p.display().to_string()).unwrap_or_default();
     std::fs::File::create(&fresh)
         .and_then(|mut f| f.write_all(program).and_then(|()| f.flush()))
-        .map_err(|e| format!("écriture impossible dans {folder} ({e}) : place scriibe.exe dans un dossier où tu peux écrire"))?;
+        .map_err(|e| format!("écriture impossible dans {folder} ({e}) : place Scriibe dans un dossier où tu peux écrire"))?;
+    // Linux : le programme écrit doit pouvoir s'exécuter.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&fresh, std::fs::Permissions::from_mode(0o755));
+    }
     let _ = std::fs::remove_file(&old);
     if let Err(e) = std::fs::rename(current, &old) {
         let _ = std::fs::remove_file(&fresh);
@@ -372,16 +418,18 @@ impl Updater {
     /// Télécharge, installe, puis appelle `restart` (qui relance le programme). Le journal reçoit le commit, la taille et la source.
     pub fn start(self: &Arc<Self>, latest: Latest, log: Arc<dyn Log>, restart: impl FnOnce() + Send + 'static) -> Result<(), String> {
         if !can_install() {
-            return Err("la mise à jour intégrée ne marche que sous Windows et sur Mac".into());
+            return Err("la mise à jour intégrée ne marche que sous Windows, sur Mac et sous Linux".into());
         }
         if latest.download_url.is_empty() {
             return Err(if cfg!(windows) {
                 format!("cette version ne contient pas de fichier pour Windows ({ASSET})")
+            } else if cfg!(target_os = "linux") {
+                format!("cette version ne contient pas de fichier pour Linux ({LINUX_ASSET})")
             } else {
                 "cette version ne contient pas de fichier pour Mac (Scriibe-…-macos.zip)".into()
             });
         }
-        let current = std::env::current_exe().map_err(|e| format!("emplacement du programme inconnu ({e})"))?;
+        let current = program_path().map_err(|e| format!("emplacement du programme inconnu ({e})"))?;
         {
             let mut state = lock(&self.state);
             if matches!(*state, Some(State::Running { .. } | State::Installed)) {
@@ -400,7 +448,7 @@ impl Updater {
         std::thread::spawn(move || {
             let outcome =
                 download(&latest.download_url, latest.size, &|done, total| me.set(State::Running { done, total })).and_then(|zip| {
-                    if cfg!(windows) {
+                    if cfg!(any(windows, target_os = "linux")) {
                         extract_program(&zip).and_then(|program| replace_program(&current, &program))
                     } else {
                         install_app(&current, &zip)
@@ -507,11 +555,43 @@ mod tests {
     #[test]
     fn the_program_is_taken_from_the_zip_and_checked() {
         let good = zip_with(&[("LISEZMOI.txt", b"x".to_vec()), ("scriibe.exe", fake_program(1))]);
-        assert_eq!(extract_program(&good).unwrap(), fake_program(1));
-        assert!(extract_program(&zip_with(&[("autre.exe", fake_program(1))])).is_err(), "pas de scriibe.exe");
-        assert!(extract_program(&zip_with(&[("scriibe.exe", b"MZ".to_vec())])).unwrap_err().contains("programme"), "trop petit");
-        assert!(extract_program(&zip_with(&[("scriibe.exe", vec![b'x'; 200_000])])).is_err(), "pas un exécutable");
-        assert!(extract_program(b"pas un zip").is_err());
+        assert_eq!(extract_program_for(&good, Platform::Windows).unwrap(), fake_program(1));
+        assert!(extract_program_for(&zip_with(&[("autre.exe", fake_program(1))]), Platform::Windows).is_err(), "pas de scriibe.exe");
+        assert!(
+            extract_program_for(&zip_with(&[("scriibe.exe", b"MZ".to_vec())]), Platform::Windows).unwrap_err().contains("programme"),
+            "trop petit"
+        );
+        assert!(extract_program_for(&zip_with(&[("scriibe.exe", vec![b'x'; 200_000])]), Platform::Windows).is_err(), "pas un exécutable");
+        assert!(extract_program_for(b"pas un zip", Platform::Windows).is_err());
+    }
+
+    #[test]
+    fn after_the_swap_the_new_program_is_relaunched_not_the_old_one() {
+        let at = |p: &str| original_program(PathBuf::from(p));
+        assert_eq!(at("/home/moi/scriibe/scriibe.old"), PathBuf::from("/home/moi/scriibe/scriibe"));
+        assert_eq!(at("/home/moi/scriibe/scriibe.old (deleted)"), PathBuf::from("/home/moi/scriibe/scriibe"));
+        assert_eq!(at("/home/moi/scriibe/scriibe"), PathBuf::from("/home/moi/scriibe/scriibe"));
+        assert_eq!(at("C:\\scriibe\\scriibe.exe"), PathBuf::from("C:\\scriibe\\scriibe.exe"));
+    }
+
+    #[test]
+    fn the_linux_program_is_taken_from_its_zip() {
+        let elf = |tag: u8| {
+            let mut p = b"\x7fELF".to_vec();
+            p.extend(vec![tag; 200_000]);
+            p
+        };
+        let release = json!({"tag_name": "v0.3.0", "assets": [
+            {"name": ASSET, "size": 1, "browser_download_url": "https://x/w.zip"},
+            {"name": LINUX_ASSET, "size": 19, "browser_download_url": "https://x/l.zip"}]});
+        assert_eq!(parse_release_for(&release, Platform::Linux).unwrap().download_url, "https://x/l.zip");
+        let good = zip_with(&[("scriibe", elf(1))]);
+        assert_eq!(extract_program_for(&good, Platform::Linux).unwrap(), elf(1));
+        assert!(
+            extract_program_for(&zip_with(&[("scriibe", fake_program(1))]), Platform::Linux).is_err(),
+            "un .exe n'est pas un programme Linux"
+        );
+        assert!(extract_program_for(&zip_with(&[("scriibe.exe", elf(1))]), Platform::Linux).is_err(), "pas de scriibe");
     }
 
     #[test]

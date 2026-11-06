@@ -5,7 +5,7 @@
 mod assets;
 mod bench_view;
 mod data;
-mod downloads;
+pub(crate) mod downloads;
 mod hub;
 mod sinks;
 mod trial;
@@ -262,6 +262,15 @@ fn handle(ctx: &Context, mut request: Request) {
             ok(request, json!({"ok": true}))
         }
         // Le clavier de la fenêtre de Scriibe, relayé par la page : le crochet du système n'y reçoit rien.
+        // Sous Wayland, les touches viennent du raccourci de GNOME ; relayer aussi celles de la page mêlerait deux sources. Seul un
+        // relâchement vu par la page sert : GNOME ne le signale pas quand la fenêtre de Scriibe a le focus (`wayland::release_hint`).
+        (Method::Post, "api/keys/page") if gnome_shortcut().is_some() => {
+            #[cfg(target_os = "linux")]
+            if input["release"].as_bool() == Some(true) || input["down"].as_bool() == Some(false) {
+                scriibe_platform::linux::wayland_release_hint();
+            }
+            ok(request, json!({"ok": true, "wayland": true}))
+        }
         (Method::Post, "api/keys/page") => {
             if input["release"].as_bool() == Some(true) {
                 ctx.app.controller.release_page_keys();
@@ -553,8 +562,10 @@ fn status(ctx: &Context) -> Value {
         "keys_error": lock(&ctx.keys_error).clone(),
         "update": update::available().as_ref().map(|v| json!({"version": v.version, "title": v.title, "date": v.date})),
         "hotkey": format!("{:?}", settings.hotkey),
-        "dictation_label": if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
-        "translate_label": if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
+        "gnome_shortcut": gnome_shortcut(),
+        "dictation_label": if let Some(shortcut) = gnome_shortcut() { shortcut } else if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
+        "gnome_translate_shortcut": gnome_translate_shortcut(),
+        "translate_label": if let Some(shortcut) = gnome_translate_shortcut() { shortcut } else if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
         "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "default_dictation_label": scriibe_platform::keys::default_dictation_label(),
         "default_translate_label": scriibe_platform::keys::default_translate_label(),
@@ -1002,9 +1013,10 @@ fn restart(app: &App) {
     }
     let mut args: Vec<String> = std::env::args().skip(1).filter(|a| a != crate::commands::RESTARTED).collect();
     args.push(crate::commands::RESTARTED.into());
-    match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(args).spawn()) {
+    // `program_path` : sous Linux, le programme qui tourne porte maintenant le nom de l'ancien (`scriibe.old`).
+    match update::program_path().and_then(|exe| std::process::Command::new(exe).args(args).spawn()) {
         Ok(_) => app.log.write("mise à jour: nouvelle version lancée"),
-        Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance scriibe.exe à la main")),
+        Err(e) => app.log.write(&format!("mise à jour: relance impossible ({e}) : relance Scriibe à la main")),
     }
     std::process::exit(0);
 }
@@ -1069,6 +1081,30 @@ fn llama_devices(ctx: &Context) -> Vec<String> {
         }
         Ok(Err(e)) => vec![format!("lecture impossible ({e})")],
         Err(_) => vec!["pas de réponse en 20 s".into()],
+    }
+}
+
+/// Sous Wayland (GNOME), la touche de dictée est le raccourci que GNOME a fait choisir (« Ctrl + ← ») ; aucun ailleurs.
+fn gnome_shortcut() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        scriibe_platform::linux::wayland_trigger()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// Sous Wayland (GNOME), le raccourci de traduction accepté par GNOME ; aucun ailleurs.
+fn gnome_translate_shortcut() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        scriibe_platform::linux::wayland_translate_trigger()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
     }
 }
 
