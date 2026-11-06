@@ -107,7 +107,7 @@
 
 {#if s && v}
   {#if section === 'appearance'}
-  <Card id="theme" title={t('Apparence de la fenêtre')} intro={t('Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.')}>
+  <Card help="start" id="theme" title={t('Apparence de la fenêtre')} intro={t('Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.')}>
     <label>{t('Apparence :')}
       <select value={v.theme} onchange={(e) => settings.change({ theme: e.currentTarget.value as never })}>
         <option value="auto">{t('Automatique (apparence du système)')}</option>
@@ -117,7 +117,7 @@
     </label>
   </Card>
 
-  <Card id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}>
+  <Card help="dictate" id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}>
     <label>{t('Langue :')}
       <select value={v.uiLanguage} onchange={(e) => settings.change({ uiLanguage: e.currentTarget.value as never })}>
         <option value="auto">{t('Automatique (celle du système)')}</option>
@@ -304,7 +304,7 @@
   {/if}
 
   {#if section === 'dictation'}
-  <Card id="texte" title={t('Ce que devient ton texte')} intro={t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (onglet Modes). Le moteur de cette mise au propre se choisit dans l’onglet Moteurs.')}>
+  <Card help="modes" id="texte" title={t('Ce que devient ton texte')} intro={t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (onglet Modes). Le moteur de cette mise au propre se choisit dans l’onglet Moteurs.')}>
     <div class="row">
       <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
         {t('Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)')}</label>
@@ -361,7 +361,7 @@
   {/if}
 
   {#if section === 'engines'}
-  <Card id="reglages-emplacements" title={t('Emplacements')}>
+  <Card help="privacy" id="reglages-emplacements" title={t('Emplacements')}>
     <div class="muted">{t('Réglages : {path}', { path: s.paths.settings })}<br />{t('Modèles : {path}', { path: s.paths.models })}<br />{t('Journal : {path}', { path: s.paths.log })}</div>
   </Card>
   {/if}

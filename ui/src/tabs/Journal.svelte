@@ -42,7 +42,7 @@
   });
 </script>
 
-<Card id="journal-dictee-avec-la-touche-dans-une-vraie-app" title={t('Dictée avec la touche, dans une vraie appli')}>
+<Card help="problems" id="journal-dictee-avec-la-touche-dans-une-vraie-app" title={t('Dictée avec la touche, dans une vraie appli')}>
   <p>{t('Ouvrez le Bloc-notes, maintenez Ctrl droit, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.')}</p>
   <div class="muted">{t('Journal en direct (une ligne par étape, jamais le texte dicté) :')}</div>
   <pre bind:this={logBox}>{lines.join('\n') || t('(vide)')}</pre>

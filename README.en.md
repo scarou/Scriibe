@@ -35,7 +35,7 @@ Scriibe is the cross-platform successor of [Scribe](https://github.com/scarou/sc
 
 Step by step, for someone who has never built a program:
 
-- **Mac** (Apple silicon, macOS 14 or later): [docs/INSTALLATION_MACOS.en.md](docs/INSTALLATION_MACOS.en.md) · [français](docs/INSTALLATION_MACOS.md)
+- **Mac** (Apple silicon, macOS 14 or later): [step by step for beginners](docs/INSTALLATION_MACOS.en.md) · [français](docs/INSTALLATION_MACOS.md) · [guide for experienced users](docs/INSTALLATION_MACOS_EXPERT.en.md) · [français](docs/INSTALLATION_MACOS_EXPERT.md)
 - **Windows** (10 or 11, 64-bit): [docs/INSTALLATION_WINDOWS.en.md](docs/INSTALLATION_WINDOWS.en.md) · [français](docs/INSTALLATION_WINDOWS.md)
 - **Linux** (X11; Wayland is not supported; experimental): [docs/INSTALLATION_LINUX.en.md](docs/INSTALLATION_LINUX.en.md) · [français](docs/INSTALLATION_LINUX.md). The `scriibe-linux-x64.zip` file is added to the Releases from the next published version; the state of the trial is in [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md) (French), and you can also build it yourself (see below).
 

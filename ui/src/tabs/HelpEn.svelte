@@ -125,7 +125,7 @@
         {@render go('The key and the microphone', 'settings', 'dictee')}
         {@render go('Dashboard', 'dashboard')}
       </div>
-      <p>The window has five pages: <b>Dashboard</b>, <b>History</b>, <b>Dictionary</b>, <b>Settings</b> and <b>Help</b>. Settings has tabs: Dictation, Engines, Appearance, Modes, Measurements and trials, and Update. Each card folds with a click on its title (the fold is remembered).</p>
+      <p>The window has five pages: <b>Dashboard</b>, <b>History</b>, <b>Dictionary</b>, <b>Settings</b> and <b>Help</b>. Settings has tabs: Dictation, Engines, Appearance, Modes, Measurements and trials, and Update. Each card folds with a click on its title (the fold is remembered), and its “?” button opens the Help section that covers it. Settings → Appearance: light, dark or automatic (the system’s) theme, and the interface language.</p>
       {@render tip('To check the microphone and see what Whisper hears, read a phrase of the dictation bench (Settings → Measurements and trials): it shows the microphone level before you go and dictate in a real app.')}
       <div class="links"><button class="go" onclick={() => nav.openAssistant()} title="Open the assistant on the Dashboard">→ Run the first-launch assistant again</button></div>
 
@@ -277,6 +277,7 @@
       {@render question('Scriibe hears nothing.', `The microphone level shows in the Test bench (Settings → Measurements and trials). ${mac ? 'On Mac, check “Microphone” in System Settings → Privacy & Security: Scriibe’s switch must be on; then quit Scriibe and restart it.' : linux ? 'Check the input volume in the system’s sound settings.' : 'On Windows, check Settings → Privacy → Microphone: microphone access must be allowed.'} Also check the chosen microphone (Settings → Dictation → Microphone).`)}
       {@render question('Nothing is pasted, or a phrase is missing.', `Look at the log (Settings → Measurements and trials, at the bottom of the tab): each dictation leaves a line there, “collage: … signes envoyés à …”. If the line says “copié seulement”, the text is on the clipboard: ${pasteKey} pastes it. ${pasteNote} If the line says the text was sent but nothing appears, the app did not read the clipboard: try in ${editor} to see whether the problem comes from the app, and copy the report.`)}
       {@render question('My key does nothing.', `Settings → Dictation → “Test my key”, then hold the key: if Scriibe does not switch to listening, another program may be capturing it (macro tool, keyboard software). Choose another key or a combination. ${mac ? 'On Mac, first check that Scriibe has the “Input Monitoring” permission (System Settings → Privacy & Security), then quit Scriibe and restart it: without it, the log says that macOS refuses the global key.' : linux ? '' : 'If the log mentions a refused keyboard hook, restart Scriibe.'}`)}
+      {@render question('The indicator stays stuck waiting although I released the key.', 'Most of the time, pressing the dictation key again and releasing it is enough: the indicator unblocks. If it stays stuck anyway, open the journal (Settings → Measurements and trials, at the bottom of the tab) to see the last step recorded, or quit Scriibe and start it again.')}
       {@render question('The beginning of my sentence is lost.', `With a Bluetooth headset, the system switches to “hands-free” mode when the microphone opens (1 to 3 s): wait until the pill shows “Listening…” before speaking, or better, choose a wired or USB microphone in Settings → Dictation → Microphone. A laptop microphone is often weak: the Test bench shows its level.`)}
       {@render question('The first phrase after a long pause is slow.', 'To give memory back, Whisper stops after 10 minutes without dictation and llama.cpp’s cleanup model after the set duration (“Keep the model loaded”). They come back when you press the key: Whisper in about a second, the local model in 15 to 45 s without a graphics card. Choose “as long as Scriibe is running” to keep it loaded.')}
       {@render question('A program or a model is missing.', `Settings → Engines (installation cards): whisper-server, a Whisper model (ggml-base.bin to begin with), and for local cleanup llama-server and a GGUF model. Each download shows its size and source before asking for your consent; an interrupted connection resumes where it stopped.${mac ? ' On Mac, the programs come from Homebrew: “brew install whisper-cpp” and “brew install llama.cpp”.' : ''}`)}
@@ -299,7 +300,7 @@
   .toc button { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .toc button:hover { background: var(--line); }
   .toc button.active { background: var(--accent); color: var(--accent-ink); }
-  .body { flex: 1 1 360px; margin: 0; }
+  .body { flex: 1 1 360px; margin: 0; max-width: 1100px; }
   .body h3 { margin: 18px 0 6px; font-size: 1rem; }
   .body p, .body li { line-height: 1.5; }
   .body ul, .body ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 8px; }

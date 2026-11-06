@@ -1,92 +1,163 @@
-# Installer Scriibe sur un Mac — pas à pas
+# Installer Scriibe sur un Mac — pas à pas, pour débutants
 
 🇬🇧 [English version](INSTALLATION_MACOS.en.md)
 
 Autres systèmes : [Windows](INSTALLATION_WINDOWS.md) · [Linux](INSTALLATION_LINUX.md)
 
-Pour une personne qui reçoit Scriibe d'un tiers (aucune connaissance de la programmation nécessaire). Compter 10 minutes avec les moteurs en ligne, 30 minutes avec les moteurs sur le Mac (téléchargements compris).
+**Vous êtes à l'aise avec le Terminal, ou vous voulez les moteurs en ligne, la compilation ou la mise à jour à la main ?** Voir le [guide pour connaisseurs](INSTALLATION_MACOS_EXPERT.md). Ce guide-ci n'en a pas besoin.
 
-**Ce qu'il faut** : un Mac à puce Apple (M1 ou plus récent), macOS 14 ou plus récent, une connexion Internet, un micro.
+Ce guide est écrit pour une personne qui n'a jamais installé ce genre de programme. Aucune connaissance en informatique n'est nécessaire. Faites les étapes **dans l'ordre**, une à la fois. Chaque étape se termine par une phrase « **C'est réussi quand…** » : si ce n'est pas le cas, ne passez pas à la suivante, allez à la rubrique « Si ça ne marche pas » à la fin.
 
-> La version 0.1.0 est publiée dans les « Releases » (les suivantes se créent avec `tools/publier_macos.sh`, voir la fin de ce fichier).
->
-> **État de cette procédure (S13)** : écrite d'après ce qui est essayé sur le Mac de Christophe (autorisations, première dictée, moteurs). Les étapes 1 à 3 (téléchargement d'une version publiée, avertissement de macOS au premier lancement) **n'ont pas encore été essayées sur un autre Mac** : si une étape ne se passe pas comme écrit, noter laquelle et la dire.
+**Ce qu'il faut** : un Mac à puce Apple (M1 ou plus récent), macOS 14 ou plus récent, une connexion Internet, un micro (celui du Mac suffit). **Durée** : environ 30 minutes, dont une grande partie d'attente pendant les téléchargements.
 
-## 1. Télécharger Scriibe
+> **État de ce guide** : écrit d'après ce qui est essayé sur le Mac de son auteur. Il n'a **pas encore été suivi à la lettre par une personne débutante sur un Mac neuf** (les étapes 1 à 3 et l'installation de Homebrew à l'étape 5 en particulier). Si une étape ne se passe pas comme écrit, notez laquelle et le message affiché, et dites-le à la personne qui vous a donné Scriibe.
 
-1. Ouvrir la page des versions : `https://github.com/scarou/Scriibe/releases` (page publique : aucun compte GitHub n'est nécessaire).
-2. Sous la version la plus récente (le numéro le plus haut, en haut de la page), cliquer sur le fichier **`Scriibe-…-macos.zip`** dans la rubrique « Assets ». Le téléchargement arrive dans le dossier **Téléchargements**.
+## Étape 0 — Vérifier votre Mac
 
-## 2. Installer
+1. Cliquez sur la pomme  en haut à gauche de l'écran, puis sur **À propos de ce Mac**.
+2. Regardez la ligne **Puce** : elle doit commencer par **Apple M** (par exemple « Apple M1 »). Regardez aussi la version de **macOS** : 14 ou plus.
 
-1. Dans le Finder, ouvrir **Téléchargements** et double-cliquer sur le zip : **Scriibe** (une icône de plume) apparaît à côté.
-2. Faire glisser **Scriibe** dans le dossier **Applications** de la barre latérale du Finder.
+**C'est réussi quand** la puce est une « Apple M… » et que macOS est en version 14 ou plus. Si la puce est « Intel », Scriibe ne fonctionne pas encore sur ce Mac : arrêtez-vous là.
 
-## 3. Premier lancement (avertissement de macOS)
+## Étape 1 — Télécharger Scriibe
 
-Scriibe n'est pas signé par Apple (cela coûte 99 $ par an) : macOS le dit au premier lancement. C'est normal et sans danger pour une application dont on connaît la source.
+1. Ouvrez votre navigateur (Safari, par exemple) et allez à l'adresse `https://github.com/scarou/Scriibe/releases`. C'est une page publique : vous n'avez besoin d'aucun compte.
+2. Repérez la version la plus récente : c'est celle **tout en haut de la page** (le numéro le plus élevé).
+3. Sous cette version, cherchez la rubrique **Assets**. Cliquez sur le fichier dont le nom finit par **`-macos.zip`** (il commence par « Scriibe »). Ne cliquez pas sur « Source code ».
+4. Le fichier arrive dans le dossier **Téléchargements**.
 
-1. Dans **Applications**, double-cliquer sur **Scriibe**. macOS affiche un message disant qu'il ne peut pas vérifier le développeur : cliquer sur **OK** (ou **Terminé**).
-2. Ouvrir **Réglages Système → Confidentialité et sécurité**, descendre jusqu'à la rubrique **Sécurité** : une ligne dit que « Scriibe » a été bloqué. Cliquer sur **Ouvrir quand même**, saisir le mot de passe du Mac si macOS le demande, puis confirmer.
-3. La fenêtre de Scriibe s'ouvre et une petite icône apparaît dans la **barre des menus** (en haut à droite, près de l'horloge). Il n'y a pas d'icône dans le Dock : c'est voulu.
+**C'est réussi quand** le fichier `Scriibe-…-macos.zip` est dans votre dossier **Téléchargements**.
 
-Cet avertissement n'apparaît qu'une fois.
+## Étape 2 — Installer Scriibe
 
-## 4. Donner les trois autorisations
+1. Ouvrez le **Finder** (l'icône en forme de visage bleu et blanc, dans le Dock en bas de l'écran), puis cliquez sur **Téléchargements** dans la colonne de gauche.
+2. Double-cliquez sur le fichier zip : une icône **Scriibe** (une plume) apparaît à côté.
+3. Faites glisser cette icône **Scriibe** sur le dossier **Applications**, dans la colonne de gauche du Finder (maintenez le clic, déplacez, relâchez).
 
-macOS les demande quand Scriibe en a besoin. À chaque fois, aller dans **Réglages Système → Confidentialité et sécurité**, ouvrir la rubrique indiquée, **activer l'interrupteur de Scriibe**, puis **quitter Scriibe** (icône de la barre des menus → « Quitter Scriibe ») et le **relancer**.
+**C'est réussi quand** vous voyez **Scriibe** en ouvrant le dossier **Applications**.
+
+## Étape 3 — Ouvrir Scriibe pour la première fois
+
+macOS affiche un avertissement au premier lancement, parce que Scriibe n'est pas signé par Apple. C'est normal, et cela n'arrive qu'une seule fois.
+
+1. Dans **Applications**, double-cliquez sur **Scriibe**. macOS affiche un message qui dit qu'il ne peut pas vérifier le développeur. Cliquez sur **OK** (ou **Terminé**). Scriibe ne s'ouvre pas : c'est attendu.
+2. Cliquez sur la pomme , puis **Réglages Système**. Dans la colonne de gauche, cliquez sur **Confidentialité et sécurité**.
+3. Faites défiler la page vers le bas jusqu'à la rubrique **Sécurité**. Une ligne dit que « Scriibe » a été bloqué. Cliquez sur **Ouvrir quand même**.
+4. Si le Mac demande votre mot de passe (celui de votre session), saisissez-le. Confirmez en cliquant sur **Ouvrir**.
+
+**C'est réussi quand** la fenêtre de Scriibe s'ouvre **et** qu'une petite icône apparaît en haut à droite de l'écran, près de l'horloge (c'est la « barre des menus »). Il n'y a pas d'icône de Scriibe dans le Dock : c'est voulu.
+
+## Étape 4 — Donner les trois autorisations
+
+Scriibe a besoin de trois autorisations. Pour **chacune**, faites ceci :
+
+1. Cliquez sur la pomme , **Réglages Système**, puis **Confidentialité et sécurité**.
+2. Cliquez sur la rubrique indiquée dans le tableau ci-dessous.
+3. Dans la liste, **activez l'interrupteur de Scriibe**. Si Scriibe n'est pas dans la liste, il apparaît en général après la première demande de macOS ; sinon cliquez sur le **+** en bas de la liste et choisissez Scriibe dans **Applications**.
+4. Cliquez sur l'icône de Scriibe dans la barre des menus, puis sur **Quitter Scriibe**. Rouvrez-le (double-clic sur Scriibe dans **Applications**). Sans cette relance, l'autorisation n'est pas prise en compte.
 
 | Rubrique | À quoi ça sert |
 |---|---|
 | **Microphone** | Entendre votre voix. |
-| **Surveillance de l'entrée** | Savoir quand vous maintenez la touche de dictée (Option droite par défaut). |
-| **Contrôle de l'appareil et accès aux données** | Coller le texte dans l'application ouverte (⌘V envoyé par Scriibe). Sans elle, le texte reste dans le presse-papiers : ⌘V le colle à la main. |
+| **Surveillance de l'entrée** | Savoir quand vous maintenez la touche de dictée (la touche **Option de droite**). |
+| **Contrôle de l'appareil et accès aux données** (selon la version de macOS, elle s'appelle parfois **Accessibilité**) | Coller le texte là où vous écrivez. Sans elle, le texte reste en attente : la combinaison **⌘V** le colle à la main. |
 
-## 5. Choisir comment Scriibe transcrit
+macOS peut aussi afficher lui-même une fenêtre de demande : cliquez alors sur **Autoriser**, puis quittez et rouvrez Scriibe comme ci-dessus.
 
-Dans Scriibe : **Réglages → Moteurs**. Deux voies, au choix (on peut changer plus tard).
+**C'est réussi quand** les trois interrupteurs de Scriibe sont activés et que vous avez rouvert Scriibe après le dernier.
 
-**A. Sur le Mac (votre voix et votre texte restent sur le Mac).** Nécessite **Homebrew** (`https://brew.sh`, suivre la page). Puis, dans l'application **Terminal**, une commande après l'autre :
+## Étape 5 — Installer deux petits programmes
+
+Scriibe transcrit votre voix grâce à deux programmes qui tournent **sur votre Mac** (votre voix et votre texte ne sortent pas du Mac). Sur un Mac, ils s'installent par le **Terminal**, une fenêtre où l'on tape des commandes. Vous n'avez rien à comprendre : il suffit de **copier** chaque commande et de la **coller**.
+
+**Comment ouvrir le Terminal** : appuyez sur les touches **⌘ (Commande) et Espace** en même temps, tapez **Terminal**, puis appuyez sur **Entrée**. Une fenêtre blanche ou noire s'ouvre.
+
+**Comment lancer une commande** : sélectionnez la commande dans ce guide, copiez-la (**⌘C**), cliquez dans la fenêtre du Terminal, collez (**⌘V**), puis appuyez sur **Entrée**. Attendez que le Terminal « ait fini » : c'est le cas quand une nouvelle ligne se termine par le signe **%** et que le curseur attend. Ne fermez pas la fenêtre avant.
+
+### 5a — Vérifier si Homebrew est déjà là
+
+Homebrew est un programme qui installe les autres. Collez cette commande, puis Entrée :
+
+```bash
+brew --version
+```
+
+- Si le Terminal répond par un numéro (par exemple « Homebrew 4… »), **passez directement à l'étape 5c**.
+- S'il répond « **command not found: brew** » (commande introuvable), faites l'étape 5b.
+
+### 5b — Installer Homebrew (seulement si l'étape 5a a répondu « command not found »)
+
+1. Ouvrez `https://brew.sh` dans le navigateur. La commande à copier est affichée en haut de la page, sous « Install Homebrew ». Elle est aussi reproduite ici :
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+2. Collez-la dans le Terminal, puis Entrée.
+3. Le Terminal demande un **mot de passe** : c'est celui de votre session Mac. **Rien ne s'affiche quand vous tapez**, pas même des points : c'est normal. Tapez-le, puis Entrée.
+4. Il demande ensuite d'appuyer sur **Entrée** pour continuer (« Press RETURN »). Faites-le. macOS peut proposer d'installer des « outils de développement en ligne de commande » : acceptez, et attendez la fin (plusieurs minutes).
+5. À la fin, Homebrew affiche un texte avec les mots **Next steps** (« Étapes suivantes »). Faites alors ces deux commandes, l'une après l'autre (collez, Entrée, puis collez la suivante, Entrée) :
+
+```bash
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+```
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+6. Refaites l'étape 5a : cette fois, `brew --version` doit répondre par un numéro.
+
+### 5c — Installer le programme de transcription
 
 ```bash
 brew install whisper-cpp
 ```
 
+Attendez la fin (quelques minutes ; beaucoup de lignes défilent, c'est normal).
+
+### 5d — Installer le programme de mise au propre
+
 ```bash
 brew install llama.cpp
 ```
 
-Ensuite, dans Scriibe, les cartes **État de l'installation**, **Les programmes** et **Modèles recommandés** (même onglet, **Réglages → Moteurs**) disent ce qui manque (modèle Whisper, modèle de mise au propre) et proposent les téléchargements, avec leur taille et leur source avant de demander l'accord. Choisir enfin **Whisper** (transcription) et **llama.cpp** (mise au propre) dans **Réglages → Moteurs**. Seuls passent par Internet les téléchargements, que vous acceptez un à un, et l'alerte de mise à jour si vous l'activez.
+Attendez la fin, de la même façon.
 
-**B. En ligne (en dépannage).** Plus rapide à mettre en place et sur une machine modeste, mais payant ; la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun (les deux services sont payants à l'usage, à quelques centimes la dictée) : coller chaque clé dans **Réglages → Moteurs → Clés**. Les clés sont rangées dans le trousseau du Mac et ne sont jamais affichées.
+**C'est réussi quand** les deux commandes sont terminées (le signe **%** est revenu) sans le mot **Error** en rouge dans les dernières lignes. Vous pouvez fermer le Terminal.
 
-## 6. Essayer
+## Étape 6 — Télécharger les modèles dans Scriibe
 
-1. Ouvrir **TextEdit** (ou Notes) et cliquer dans une page vide.
-2. **Maintenir Option droite** (en bas à droite du clavier), dire une phrase, **relâcher** : le texte apparaît.
-3. Si rien ne se passe : **Réglages → Mesures et essais** → carte « Rapport à me coller » → « Copier le rapport », puis le transmettre à la personne qui vous a donné Scriibe.
+Les « modèles » sont les fichiers qui contiennent l'intelligence de la transcription et de la mise au propre. Scriibe les télécharge pour vous et **ne télécharge rien sans votre accord** : avant chaque téléchargement, il montre le nom, la taille et la source.
 
-## Installer une mise à jour
+1. Ouvrez Scriibe (icône de la barre des menus → **Ouvrir Scriibe**, ou la fenêtre est déjà ouverte).
+2. Cliquez sur **Réglages**, puis sur l'onglet **Moteurs**. Cherchez la carte **État de l'installation** : elle dit ce qui manque.
+3. Plus bas, dans la carte **Modèles recommandés**, repérez le **Modèle Whisper « base »**. Cliquez sur **Voir la taille et la source**, lisez, puis cliquez sur **Télécharger**. Attendez la fin de la barre de progression.
+4. Dans la même carte, faites de même pour un modèle de mise au propre : **« Qwen 2.5 1,5 B »** (environ 1 Go) convient pour commencer.
+5. **Ne tenez pas compte de la carte « Les programmes »** : elle propose surtout des programmes pour Windows et Linux, déjà remplacés ici par l'étape 5.
+6. Plus haut dans le même onglet **Moteurs**, choisissez **Whisper** pour la transcription et **llama.cpp** pour la mise au propre.
 
-**Depuis la version qui contient la mise à jour intégrée (S15)** : dans Scriibe, **Réglages → Mise à jour** → **Chercher une nouvelle version** → **Installer et redémarrer**, puis confirmer. Scriibe télécharge le zip de la Release, vérifie la signature de la nouvelle application, remplace `Scriibe.app` (l'ancienne reste à côté, sous le nom `Scriibe.app.old`, jusqu'au lancement suivant) et se rouvre tout seul. Rien à faire à la main.
+**C'est réussi quand** la carte **État de l'installation** ne signale plus rien qui manque.
 
-**Depuis une version plus ancienne, ou si l'installation intégrée échoue** (par exemple `Scriibe.app` n'est pas dans un dossier où vous pouvez écrire) :
+## Étape 7 — Essayer
 
-1. Quitter Scriibe : icône de la barre des menus → **Quitter Scriibe**.
-2. Retourner sur `https://github.com/scarou/Scriibe/releases` et télécharger le zip de la **version la plus récente** (comparer son numéro et son code à ceux de **Réglages → Mise à jour** dans Scriibe).
-3. Double-cliquer sur le zip dans **Téléchargements**, puis faire glisser **Scriibe** dans **Applications** et cliquer sur **Remplacer**.
-4. Ouvrir Scriibe. Réglages, historique et dictionnaire sont conservés (ils sont rangés à part). Les autorisations sont normalement conservées ; si macOS les redemande, les redonner comme à l'étape 4.
+1. Ouvrez **TextEdit** (cherchez-le avec **⌘ + Espace**, comme le Terminal) et choisissez **Fichier → Nouveau** : une page vide s'ouvre. Cliquez dedans pour y mettre le curseur.
+2. **Maintenez la touche Option de droite** (en bas à droite du clavier, à droite de la barre d'espace). Une petite pastille apparaît : attendez qu'elle affiche « J'écoute… ».
+3. Dites une phrase complète, par exemple « Bonjour, je teste Scriibe. »
+4. **Relâchez** la touche. Au bout d'une ou deux secondes, le texte apparaît dans la page.
 
-L'onglet **Réglages → Mise à jour** de Scriibe prévient quand une version plus récente existe (voir « Alerte automatique » dans cet onglet).
+**C'est réussi quand** votre phrase s'écrit dans TextEdit.
 
----
+## Si ça ne marche pas
 
-## Pour le créateur : publier une version (Mac de Christophe)
+| Ce que vous voyez | Ce qu'il faut faire |
+|---|---|
+| Rien ne se passe quand vous maintenez la touche | Vérifiez l'autorisation **Surveillance de l'entrée** (étape 4), puis quittez et rouvrez Scriibe. |
+| La pastille s'affiche, mais le texte n'apparaît pas | Vérifiez l'autorisation **Contrôle de l'appareil et accès aux données** (étape 4). En attendant, le texte est prêt à coller : appuyez sur **⌘V**. |
+| La pastille reste bloquée en attente alors que vous avez relâché la touche | Le plus souvent, appuyez de nouveau sur la touche, puis relâchez-la : la pastille se débloque. |
+| Le texte est vide ou faux | Vérifiez l'autorisation **Microphone** (étape 4) et que vous avez téléchargé un modèle Whisper (étape 6). |
+| Autre chose | Dans Scriibe : **Réglages → Mesures et essais**, carte **Rapport à me coller**, bouton **Copier le rapport**. Collez-le dans un message à la personne qui vous a donné Scriibe : le rapport ne contient pas le texte de vos dictées. |
 
-Une version se compile et se signe sur le Mac de Christophe (certificat « Scribe Dev »), puis se publie en une commande :
+## Plus tard : installer une mise à jour
 
-```bash
-tools/publier_macos.sh 0.2.0
-```
-
-Le script exige une compilation à jour (`cd ui && npm ci && npm run build`, puis `cargo build --release`), assemble `Scriibe.app`, la zippe, **montre l'aperçu** (nom, version, taille) et ne publie qu'après un « oui ». Il crée une étiquette et une publication (Release) sur `scarou/Scriibe` avec le zip en pièce jointe.
+Dans Scriibe : **Réglages → Mise à jour** → **Chercher une nouvelle version** → **Installer et redémarrer**, puis confirmez. Scriibe se rouvre tout seul. Réglages, historique et dictionnaire sont conservés. Si cela échoue, voir le [guide pour connaisseurs](INSTALLATION_MACOS_EXPERT.md) (mise à jour à la main).

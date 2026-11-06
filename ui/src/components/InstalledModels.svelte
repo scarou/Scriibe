@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { api, type InstalledModel } from '../lib/api';
   import { confirmBox, notice } from '../lib/dialog.svelte';
+  import HelpButton from './HelpButton.svelte';
   import { taille } from '../lib/display.svelte';
   import { t, tx } from '../lib/i18n.svelte';
   import { status } from '../lib/status.svelte';
@@ -34,7 +35,7 @@
 </script>
 
 <section class="card">
-  <h2>{t('Modèles installés')}</h2>
+  <div class="help-head"><h2>{t('Modèles installés')}</h2><HelpButton section="start" /></div>
   {#if models.length}
     <table>
       <tbody>

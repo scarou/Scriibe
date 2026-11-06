@@ -126,13 +126,13 @@
   </div>
 {/snippet}
 
-<Card id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
+<Card help="start" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
   {#each items.filter((i) => i.kind === 'program') as it (it.id)}{@render offer(it)}{/each}
 </Card>
 
 <InstalledModels />
 
-<Card id="install-modeles-recommandes" title={t('Modèles recommandés')} intro={t('Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.')}>
+<Card help="start" id="install-modeles-recommandes" title={t('Modèles recommandés')} intro={t('Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.')}>
   {#each items.filter((i) => i.kind !== 'program') as it (it.id)}{@render offer(it)}{/each}
 </Card>
 

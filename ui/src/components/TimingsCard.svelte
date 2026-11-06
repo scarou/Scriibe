@@ -17,7 +17,7 @@
 </script>
 
 <section class="card">
-  <h2>{t('Temps des dictées')} <HelpButton section="measures" /></h2>
+  <div class="help-head"><h2>{t('Temps des dictées')}</h2><HelpButton section="measures" /></div>
   <p class="muted">{t('Du relâchement de la touche au collage, sur tes vraies dictées : utile pour voir si un réglage ou un modèle te fait gagner du temps.')}</p>
   {#if !summary.count}
     <p class="muted">{t('Les temps s’afficheront après ta prochaine dictée.')}</p>

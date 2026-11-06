@@ -218,7 +218,7 @@
 </Card>
 
 {#if bench.results.length}
-  <Card id="bench-ce-passage" title={t('Ce passage')}>
+  <Card help="measures" id="bench-ce-passage" title={t('Ce passage')}>
     <div class="muted">{bench.results[0].setup.transcription} · {bench.results[0].setup.cleanup} · {bench.results[0].setup.mode}</div>
     <p class="muted">{summary}</p>
     {#each bench.results as r (r.index)}

@@ -3,6 +3,7 @@
   import { notice } from '../lib/dialog.svelte';
   import { percent } from '../lib/format';
   import { compte, taille } from '../lib/display.svelte';
+  import HelpButton from './HelpButton.svelte';
   import { t } from '../lib/i18n.svelte';
 
   interface Props {
@@ -38,7 +39,7 @@
 </script>
 
 <section class="card">
-  <h2>{t('Ajouter un modèle depuis Hugging Face')}</h2>
+  <div class="help-head"><h2>{t('Ajouter un modèle depuis Hugging Face')}</h2><HelpButton section="start" /></div>
   <p class="muted">
     {t('Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Réglages → Moteurs.')}
   </p>

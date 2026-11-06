@@ -66,7 +66,7 @@
 </script>
 
 {#if u}
-  <Card id="update-version" title={t('Version de Scriibe')}>
+  <Card help="problems" id="update-version" title={t('Version de Scriibe')}>
     <div class="muted">
       {t('Version installée : {version}', { version: u.current })}{u.installs ? '' : t(' — sur ce système, Scriibe signale une nouvelle version mais ne l’installe pas encore')}
     </div>
@@ -116,7 +116,7 @@
       <div class="bad">{t('Échec : {error}', { error: u.progress.error ?? '' })}</div>
     {/if}
   </Card>
-  <Card id="update-guide" folded title={t('Comment ça marche ?')}>
+  <Card help="problems" id="update-guide" folded title={t('Comment ça marche ?')}>
     <p>{t('Scriibe est amélioré de temps en temps. Cette page dit si une version plus récente que la tienne existe. Rien n’est jamais changé sans que tu le demandes.')}</p>
     <ul>
       <li><b>{t('Version installée')}</b> — {t('c’est le numéro de la version que tu utilises (par exemple 0.1.0). Il sert à la comparer avec la dernière version publiée.')}</li>

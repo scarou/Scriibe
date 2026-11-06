@@ -94,11 +94,12 @@
 {#if v && s}
   <section class="card">
     <div class="row">
-      <h2>{t('Banc d’essai de la mise au propre')} <HelpButton section="measures" /></h2>
+      <h2>{t('Banc d’essai de la mise au propre')}</h2>
       <span class="grow"></span>
       <button class="primary" onclick={runAll} disabled={running !== null || !candidates.length || !(text ?? v.trialText).trim()}>
         {running ? t('Essais en cours…') : t('Lancer les essais')}
       </button>
+      <HelpButton section="measures" />
     </div>
     <p class="muted">{t('Écris une phrase comme tu la dirais, puis compare plusieurs modèles (mode en cours : {mode}). Pour choisir le modèle de mise au propre : même phrase, textes et temps côte à côte.', { mode: v.rewriteMode === 'literal' ? t('Simple') : String(v.rewriteMode) })}</p>
     <textarea rows="3" style="width: 100%" value={text ?? String(v.trialText)} oninput={(e) => (text = e.currentTarget.value)}

@@ -78,7 +78,7 @@
   </div>
 
   <div class="two">
-    <Card id="dashboard-mots-par-jour" title={t('Mots dictés par jour')}>
+    <Card help="measures" id="dashboard-mots-par-jour" title={t('Mots dictés par jour')}>
       {#if s.streak > 0}<div class="streak">🔥 {t('{n} jour(s) d’affilée', { n: s.streak })}</div>{/if}
       <p class="muted">{t('14 derniers jours. Les chiffres restent justes même si l’historique est limité dans le temps.')}</p>
       <div class="chart">
@@ -91,7 +91,7 @@
       </div>
     </Card>
 
-    <Card id="dashboard-ou-je-dicte" title={t('Où je dicte')}>
+    <Card help="measures" id="dashboard-ou-je-dicte" title={t('Où je dicte')}>
       <p class="muted">{t('Part des mots par appli')}</p>
       {#each s.top_apps as a (a.name)}
         <div class="app"><div class="line"><span>{a.name}</span><span class="pct">{Math.round(a.share * 100)} %</span></div><div class="share"><div style="width: {Math.round(a.share * 100)}%"></div></div></div>
@@ -101,7 +101,7 @@
     </Card>
   </div>
 
-  <Card id="dashboard-dernieres-dictees" title={t('Dernières dictées')}>
+  <Card help="measures" id="dashboard-dernieres-dictees" title={t('Dernières dictées')}>
     <div class="row head"><span class="muted">{t('Les cinq dernières, sur cet ordinateur.')}</span><button onclick={() => goto('history')} disabled={!recent.length}>{t('Tout voir')}</button></div>
     {#each recent as d (d.id)}
       <div class="recent">

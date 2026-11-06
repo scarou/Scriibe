@@ -119,7 +119,8 @@
   .dot.off { background: var(--bad); opacity: 1; }
   .news { color: var(--accent); font-size: .85rem; font-weight: 600; }
   .version { padding: 4px 10px; font-size: .78rem; word-break: break-all; }
-  main { flex: 1; min-width: 0; padding: 20px; max-width: 900px; }
+  /* Tous les onglets (cartes comprises) suivent la largeur de la fenêtre. */
+  main { flex: 1; min-width: 0; padding: 20px; }
   main.stopped { padding: 40px; }
   @media (max-width: 640px) {
     .shell { flex-direction: column; }
