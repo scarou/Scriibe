@@ -17,6 +17,50 @@
   let weekCorrections = $state(0);
   let v = $derived(settings.value);
 
+  /** Hauteur commune des deux cartes (px), réglée par la poignée ; `null` = hauteur naturelle. Retenue d'une visite à l'autre. */
+  const HEIGHT_KEY = 'dictionary:height';
+  const MIN_H = 180;
+  const MAX_H = 1400;
+  function savedHeight(): number | null {
+    try {
+      const n = Number(localStorage.getItem(HEIGHT_KEY));
+      return n >= MIN_H && n <= MAX_H ? n : null;
+    } catch {
+      return null;
+    }
+  }
+  let height = $state<number | null>(savedHeight());
+  let pair = $state<HTMLElement>();
+  let drag: { y: number; h: number } | null = null;
+
+  function setHeight(h: number | null) {
+    height = h === null ? null : Math.min(MAX_H, Math.max(MIN_H, Math.round(h)));
+    try {
+      if (height === null) localStorage.removeItem(HEIGHT_KEY);
+      else localStorage.setItem(HEIGHT_KEY, String(height));
+    } catch {
+      /* le stockage peut être refusé : la hauteur reste celle de la page */
+    }
+  }
+  function dragStart(e: PointerEvent) {
+    drag = { y: e.clientY, h: height ?? pair?.getBoundingClientRect().height ?? MIN_H };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function dragMove(e: PointerEvent) {
+    if (drag) setHeight(drag.h + e.clientY - drag.y);
+  }
+  function dragEnd() {
+    drag = null;
+  }
+  function handleKey(e: KeyboardEvent) {
+    const now = height ?? pair?.getBoundingClientRect().height ?? MIN_H;
+    if (e.key === 'ArrowDown') setHeight(now + 24);
+    else if (e.key === 'ArrowUp') setHeight(now - 24);
+    else if (e.key === 'Home' || e.key === 'Escape') setHeight(null);
+    else return;
+    e.preventDefault();
+  }
+
   const bullets = [
     { id: 'dash', symbol: '-', label: tx('Tiret  -') },
     { id: 'dot', symbol: '•', label: tx('Pastille  •') },
@@ -90,11 +134,11 @@
   <div><b>{weekCorrections}</b> <span class="muted">{t('corrections du dictionnaire cette semaine')}</span></div>
 </div>
 
-<div class="two">
+<div class="two" class:sized={height !== null} style:height={height === null ? undefined : `${height}px`} bind:this={pair}>
 
 <Card id="dictionary-mots-a-ecrire-exactement" title={t('Mots à écrire exactement')} help="dictionary" intro={t('Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.')}>
   <div class="row">
-    <input type="text" class="grow" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
     <button onclick={addWord} disabled={!newWord.trim()}>{t('Ajouter')}</button>
   </div>
   <div class="chips scroll">
@@ -108,9 +152,9 @@
 
 <Card id="dictionary-corrections-entendu-ecrit" title={t('Corrections « entendu → écrit »')} help="dictionary" intro={t('Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.')}>
   <div class="row">
-    <input type="text" class="grow" placeholder={t('Entendu')} bind:value={heard} />
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Entendu')} bind:value={heard} />
     <span>→</span>
-    <input type="text" class="grow" placeholder={t('Écrit')} bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Écrit')} bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
     <button onclick={addCorrection} disabled={!heard.trim() || !written.trim()}>{t('Ajouter')}</button>
   </div>
   {#if corrections.length}
@@ -130,6 +174,24 @@
 </Card>
 
 </div>
+
+<div
+  class="grip"
+  role="slider"
+  aria-orientation="vertical"
+  aria-valuemin={MIN_H}
+  aria-valuemax={MAX_H}
+  aria-valuenow={height ?? undefined}
+  aria-label={t('Hauteur des deux cartes')}
+  title={t('Glisser pour régler la hauteur des deux cartes ; double-clic pour revenir à la hauteur naturelle')}
+  tabindex="0"
+  onpointerdown={dragStart}
+  onpointermove={dragMove}
+  onpointerup={dragEnd}
+  onpointercancel={dragEnd}
+  ondblclick={() => setHeight(null)}
+  onkeydown={handleKey}
+><span></span></div>
 
 <Card id="dictionary-signes-dictes" title={t('Signes dictés')} help="dictionary" intro={t('Toujours reconnus, avec leurs variantes (« ouvre » ou « ouvrez », « ferme » ou « fermez la parenthèse », « retour » ou « passe à la ligne »…). Pour un signe à toi, ajoute une correction : « trois points d’exclamation » → !!!')}>
   <div class="chips">
@@ -158,8 +220,18 @@
 <style>
   .figures { display: flex; gap: 32px; flex-wrap: wrap; padding: 12px 18px; }
   .figures b { font-size: 1.5rem; }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
   @media (max-width: 860px) { .two { grid-template-columns: 1fr; } }
+  /* Hauteur réglée par la poignée : chaque carte la remplit et sa liste défile ; si une carte est repliée, la hauteur redevient naturelle. */
+  .two.sized:not(:has(:global([data-folded='true']))) { grid-template-rows: minmax(0, 1fr); }
+  .two.sized:not(:has(:global([data-folded='true']))) :global(.fold-card) { display: flex; flex-direction: column; min-height: 0; }
+  .two.sized:not(:has(:global([data-folded='true']))) :global(.content) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .two.sized:not(:has(:global([data-folded='true']))) .scroll { flex: 1; max-height: none; min-height: 0; }
+  .two:has(:global([data-folded='true'])) { height: auto !important; }
+  .grip { display: flex; justify-content: center; align-items: center; height: 18px; margin: 2px 0 10px; cursor: row-resize; touch-action: none; border-radius: 6px; }
+  .grip span { width: 56px; height: 5px; border-radius: 3px; background: var(--line); }
+  .grip:hover span, .grip:focus-visible span { background: var(--accent); }
+  .grip:focus-visible { outline: 2px solid var(--accent); }
   /* Au-delà d'une quinzaine d'entrées, la liste défile dans sa carte au lieu d'allonger la page. */
   .scroll { max-height: 17rem; overflow-y: auto; padding-right: 6px; }
   .sign { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }

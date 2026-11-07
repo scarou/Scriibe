@@ -141,6 +141,8 @@ export const en: Record<string, string> = {
   'Ajouter': 'Add',
   'Retirer': 'Remove',
   'Aucun mot pour l’instant.': 'No words yet.',
+  'Hauteur des deux cartes': 'Height of the two cards',
+  'Glisser pour régler la hauteur des deux cartes ; double-clic pour revenir à la hauteur naturelle': 'Drag to set the height of the two cards; double-click to go back to the natural height',
   'Corrections « entendu → écrit »': 'Corrections “heard → written”',
   'Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.':
     'When Whisper always hears “scree bee”, write “Scriibe”. Whole word, capital letters ignored.',
