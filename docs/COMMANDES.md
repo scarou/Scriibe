@@ -102,3 +102,13 @@ Une seule couche de commandes « verbe + objet », en logique pure (`crates/core
 - Sonde ⌘C dans Chrome et Electron (copie en deux temps de Chrome) : tâche 5.
 - Messages d'erreur des moteurs et `llama-server.log` : peuvent-ils contenir du texte ? tâche 4.
 - Windows et Linux : après la ROADMAP n°3 (carnets Windows et Linux).
+
+## Tests
+
+Tâche 2 (07/11/2026) : couche de reconnaissance codée dans `crates/core/src/commands.rs` (module pur), réglages `voiceCommandsEnabled` (actif par défaut) et `voiceCommands` (phrases par langue, nettoyées à la lecture) dans `settings.rs`. **Pas encore branchée** au contrôleur : c'est la tâche 3 (appel de `recognize_for` après `controller.rs:714`).
+
+- **Fonctions** : `normalize` (minuscules, accents retirés, œ → oe, ponctuation/apostrophes/tirets/espaces → un espace), `recognize` / `recognize_for` (phrase = toute la transcription ; complément non vide pour une fiche `Argument::Rest` ; phrase la plus longue d'abord ; moins de 2 mots ignoré), `effective_phrases` (phrases de la personne, sinon celles par défaut), `validate_phrase` (au moins 2 mots, pas déjà prise), `builtin()` (une fiche : `dictionnaire.ajouter`, 7 phrases en français, 6 en anglais).
+- **Un test par cas de la Conception** (dans `commands::tests`) : `commands_001_exact_phrase` (cas 1), `commands_002_punctuation_case_and_accents_are_ignored` (2), `commands_003_a_longer_sentence_is_not_a_command` (3), `commands_004_the_definition_says_whether_a_selection_is_needed` (4 : la reconnaissance ne dépend pas de la sélection ; sans sélection, c'est l'appelant qui colle la phrase, testé en tâche 3), `commands_005_english_and_both_languages` (5), `commands_006_custom_phrase_replaces_the_defaults_and_is_checked` et `commands_006_one_word_phrases_from_a_file_are_ignored` (6).
+- **Tests en plus** : `commands_extra_argument_is_the_rest_of_the_sentence`, `commands_extra_the_longest_phrase_wins`, `commands_extra_settings_switch_and_file` (interrupteur, fichier de réglages, valeurs incorrectes).
+- **Pas dans cette couche** : cas 7 (presse-papiers restauré, image ou fichiers) et cas 8 (aucune trace de la sélection), qui relèvent de la lecture de la sélection et de l'exécution : tâches 3 et 4.
+- **Résultat mesuré** : `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings` sans erreur ; `cargo test --workspace` : 345 tests passés, 0 échec (dont 10 de `commands`) ; `python3 tools/verifier_fixtures.py` : 399 cas, 0 erreur (les cas de référence sont rejoués par `crates/core/tests/fixtures.rs` et `crates/engines/tests/fixtures.rs`, verts). Non lancés : clippy pour Windows (aucun code propre à un système touché), tests de l'interface (aucun fichier de `ui/` touché).

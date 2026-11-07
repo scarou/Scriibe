@@ -296,6 +296,12 @@ pub struct AppSettings {
     /// Caractère mis devant un élément de liste dicté (« tiret du lait »).
     #[serde(rename = "listBullet")]
     pub list_bullet: ListBullet,
+    /// Commandes vocales sur du texte sélectionné (`docs/COMMANDES.md`) : interrupteur général, actif par défaut. Propre à Scriibe.
+    #[serde(rename = "voiceCommandsEnabled")]
+    pub voice_commands_enabled: bool,
+    /// Phrases de commande choisies par la personne (elles remplacent celles par défaut). Propre à Scriibe.
+    #[serde(rename = "voiceCommands")]
+    pub voice_commands: crate::commands::VoicePhrases,
     /// Nombre de jours d'historique gardés (aujourd'hui compris) ; `None` : tout garder.
     #[serde(rename = "historyKeepDays", skip_serializing_if = "Option::is_none")]
     pub history_keep_days: Option<i64>,
@@ -371,6 +377,8 @@ impl Default for AppSettings {
             keep_dictation_text: true,
             whisper_idle_minutes: 10,
             list_bullet: ListBullet::Dash,
+            voice_commands_enabled: true,
+            voice_commands: Default::default(),
             history_keep_days: None,
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
@@ -471,6 +479,8 @@ impl AppSettings {
                 .and_then(|v| WHISPER_IDLE_CHOICES.into_iter().min_by_key(|c| (c - v).abs()))
                 .unwrap_or(d.whisper_idle_minutes),
             list_bullet: get(o, "listBullet").unwrap_or(d.list_bullet),
+            voice_commands_enabled: get(o, "voiceCommandsEnabled").unwrap_or(d.voice_commands_enabled),
+            voice_commands: get::<crate::commands::VoicePhrases>(o, "voiceCommands").map_or(d.voice_commands, |v| v.cleaned()),
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
             llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
             llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),
