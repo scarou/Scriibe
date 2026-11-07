@@ -208,6 +208,8 @@
       <p>Noms, marques, jargon (« Claude Code », le nom d’un client) : ajoutés ici, ils sont donnés comme <b>indices</b> à la transcription et au modèle, et donc mieux reconnus. Pour une écriture certaine, ajoute aussi une correction automatique : un indice aide, il ne garantit rien.</p>
       <h3>Corrections automatiques</h3>
       <p>Un mot entendu est remplacé par celui que tu choisis : utile pour un mot toujours mal entendu (« cloud code » → « Claude Code »), ou pour un signe à toi (« trois points d’exclamation » → !!!). La correction s’applique toujours, à chaque dictée.</p>
+      <h3>Adresses e-mail : règle ton dictionnaire</h3>
+      <p>Whisper entend mal les adresses : il efface souvent « arobase » et « gmail », ou écrit ton nom autrement (« christophe point campin point com »). Les signes ne peuvent pas le deviner. Dicte en détachant bien chaque mot (« jean arobase gmail point com »), et pour <b>ta propre adresse</b>, ajoute une correction : « Entendu » ce que Whisper écrit (relis-le dans l’historique), « Écrit » ton adresse complète. Ajoute de la même façon plusieurs « Entendu » pour « @ » (« arobase », « aro base », « a rond »…) et, si Whisper écrit ton nom autrement, une correction pour ton nom : le dictionnaire se règle au fil de l’eau, avec tes propres erreurs d’écoute.</p>
       <h3>Commandes vocales</h3>
       <p>Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots autour, la phrase reste du texte ordinaire. Ni le texte sélectionné ni la commande ne sont gardés dans l’historique.</p>
       <ul>
