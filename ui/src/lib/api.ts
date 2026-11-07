@@ -76,7 +76,7 @@ export interface Settings {
   /** Commandes vocales sur du texte sélectionné : interrupteur, phrases choisies (par langue puis par commande) et raccourcis de gras, italique, souligné. */
   voiceCommandsEnabled: boolean;
   voiceCommands: { fr: Record<string, string[]>; en: Record<string, string[]> };
-  formatShortcuts: { bold: string; italic: string; underline: string };
+  formatShortcuts: { bold: string; italic: string; underline: string; strikethrough: string };
   trialText: string;
   trialCandidates: { id: string; engine: string; model: string }[];
   startSoundName: string;

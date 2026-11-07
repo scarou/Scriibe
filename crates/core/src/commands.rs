@@ -124,6 +124,8 @@ pub struct FormatShortcuts {
     pub italic: String,
     #[serde(default = "FormatShortcuts::default_underline")]
     pub underline: String,
+    #[serde(default = "FormatShortcuts::default_strikethrough")]
+    pub strikethrough: String,
 }
 
 impl FormatShortcuts {
@@ -136,6 +138,10 @@ impl FormatShortcuts {
     fn default_underline() -> String {
         "Mod+U".into()
     }
+    /// Le barré n'a pas de raccourci commun à toutes les applis ; ⌘⇧X est celui de Notes, de Google Docs et de Word pour Mac.
+    fn default_strikethrough() -> String {
+        "Mod+Shift+X".into()
+    }
 
     /// Les raccourcis lus dans un fichier écrit à la main : un raccourci illisible (ou sans modificateur) redevient celui par défaut.
     pub fn cleaned(self) -> Self {
@@ -145,6 +151,7 @@ impl FormatShortcuts {
             bold: good(self.bold, Self::default_bold()),
             italic: good(self.italic, Self::default_italic()),
             underline: good(self.underline, Self::default_underline()),
+            strikethrough: good(self.strikethrough, Self::default_strikethrough()),
         }
     }
 
@@ -154,6 +161,7 @@ impl FormatShortcuts {
             "gras" => Some(&self.bold),
             "italique" => Some(&self.italic),
             "souligne" => Some(&self.underline),
+            "barre" => Some(&self.strikethrough),
             _ => None,
         }
     }
@@ -161,7 +169,12 @@ impl FormatShortcuts {
 
 impl Default for FormatShortcuts {
     fn default() -> Self {
-        Self { bold: Self::default_bold(), italic: Self::default_italic(), underline: Self::default_underline() }
+        Self {
+            bold: Self::default_bold(),
+            italic: Self::default_italic(),
+            underline: Self::default_underline(),
+            strikethrough: Self::default_strikethrough(),
+        }
     }
 }
 
@@ -244,6 +257,11 @@ pub fn builtin() -> Vec<CommandDef> {
                 "souligne ça",
             ],
             &["make it underlined", "underline it", "underline this", "put in underline"],
+        ),
+        format(
+            "barre",
+            &["mettre en barré", "mets en barré", "met en barré", "mais en barré", "mettez en barré", "barre le texte", "barrer le texte"],
+            &["strike it through", "strike through", "make it strikethrough", "put in strikethrough"],
         ),
         around(
             "parentheses",
@@ -723,6 +741,8 @@ mod tests {
             ("Mais en gras.", "format.gras"),
             ("mais en italique", "format.italique"),
             ("Mais en souligné", "format.souligne"),
+            ("Mettre en barré.", "format.barre"),
+            ("mets en barre", "format.barre"),
         ] {
             assert_eq!(id_of(raw, DictationLanguage::Fr), Some((id.to_string(), Lang::Fr)), "{raw}");
         }
@@ -730,6 +750,7 @@ mod tests {
             ("Make it bold.", "format.gras"),
             ("make italic", "format.italique"),
             ("Underline it", "format.souligne"),
+            ("Strike it through", "format.barre"),
             ("In bold", "format.gras"),
         ] {
             assert_eq!(id_of(raw, DictationLanguage::En), Some((id.to_string(), Lang::En)), "{raw}");
@@ -743,7 +764,7 @@ mod tests {
     fn commands_302_format_commands_need_a_selection_and_have_no_argument() {
         let defs = builtin();
         let format: Vec<_> = defs.iter().filter(|d| d.id.starts_with(FORMAT_PREFIX)).collect();
-        assert_eq!(format.len(), 3);
+        assert_eq!(format.len(), 4);
         assert!(format.iter().all(|d| d.needs == Needs::Selection && d.argument == Argument::None));
     }
 
@@ -755,8 +776,10 @@ mod tests {
             (Some("Mod+B"), Some("Mod+I"), Some("Mod+U"))
         );
         assert_eq!(d.for_command("entourer.parentheses"), None);
-        let fixed = FormatShortcuts { bold: "G".into(), italic: " Ctrl+Alt+I ".into(), underline: "".into() }.cleaned();
+        let fixed =
+            FormatShortcuts { bold: "G".into(), italic: " Ctrl+Alt+I ".into(), underline: "".into(), strikethrough: "x".into() }.cleaned();
         assert_eq!((fixed.bold.as_str(), fixed.italic.as_str(), fixed.underline.as_str()), ("Mod+B", "Ctrl+Alt+I", "Mod+U"));
+        assert_eq!(fixed.strikethrough, "Mod+Shift+X");
     }
 
     #[test]

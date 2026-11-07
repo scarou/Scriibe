@@ -1324,6 +1324,17 @@ fn commands_301_bold_italic_underline_press_the_app_shortcut_and_paste_nothing()
 }
 
 #[test]
+fn commands_308_strikethrough_presses_command_shift_x() {
+    use scriibe_core::settings::DictationLanguage::{En, Fr};
+    let expected = scriibe_core::shortcut::Shortcut::parse("Mod+Shift+X").unwrap().to_string();
+    for (raw, language) in [("Mettre en barré.", Fr), ("Mais en barré", Fr), ("Strike it through", En)] {
+        let r = formatted(raw, language, local_settings());
+        assert_eq!(r.paster.shortcuts(), vec![expected.clone()], "{raw}");
+        assert!(r.paster.pasted().is_empty(), "{raw}");
+    }
+}
+
+#[test]
 fn commands_302_the_shortcut_is_the_one_in_the_settings() {
     let mut settings = local_settings();
     settings.format_shortcuts.bold = "Ctrl+Alt+G".into();

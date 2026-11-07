@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
-  import { t, tx } from '../lib/i18n.svelte';
+  import { i18n, t, tx } from '../lib/i18n.svelte';
 
   type Lang = 'fr' | 'en';
   type Command = { id: string; fr_default: string[]; en_default: string[]; fr: string[]; en: string[] };
@@ -29,16 +29,17 @@
       ],
     },
     {
-      title: tx('Gras, italique, souligné'),
+      title: tx('Gras, italique, souligné, barré'),
       commands: [
         { id: 'format.gras', label: tx('Gras'), shortcut: 'bold' },
         { id: 'format.italique', label: tx('Italique'), shortcut: 'italic' },
         { id: 'format.souligne', label: tx('Souligné'), shortcut: 'underline' },
+        { id: 'format.barre', label: tx('Barré'), shortcut: 'strikethrough' },
       ],
     },
   ];
   const labelOf = (id: string) => groups.flatMap((g) => g.commands).find((c) => c.id === id)?.label ?? id;
-  const defaults: Record<string, string> = { bold: 'Mod+B', italic: 'Mod+I', underline: 'Mod+U' };
+  const defaults: Record<string, string> = { bold: 'Mod+B', italic: 'Mod+I', underline: 'Mod+U', strikethrough: 'Mod+Shift+X' };
 
   const byId = (id: string) => commands.find((c) => c.id === id);
   const customized = (c: Command) => c.fr.join('\n') !== c.fr_default.join('\n') || c.en.join('\n') !== c.en_default.join('\n');
@@ -101,7 +102,7 @@
     errors['shortcut:' + name] = '';
     shortcutLabels[name] = check.label ?? '';
     const current = (v?.formatShortcuts ?? defaults) as Record<string, string>;
-    await settings.change({ formatShortcuts: { ...defaults, ...current, [name]: text.trim() } as { bold: string; italic: string; underline: string } });
+    await settings.change({ formatShortcuts: { ...defaults, ...current, [name]: text.trim() } as { bold: string; italic: string; underline: string; strikethrough: string } });
   }
 
   async function refreshLabels() {
@@ -124,7 +125,7 @@
   id="dictionary-commandes-vocales"
   title={t('Commandes vocales')}
   help="dictionary"
-  intro={t('Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Sur Mac pour l’instant.')}
+  intro={t('Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Sur Mac pour l’instant. Les phrases affichées sont celles de la langue de l’interface (Réglages, onglet Apparence).')}
 >
   {#if v}
     <div class="row">
@@ -145,9 +146,9 @@
               <b>{t(def.label)}</b>
               {#if customized(c)}<button class="link" onclick={() => restore(c)}>{t('Rétablir')}</button>{/if}
             </div>
-            {#each ['fr', 'en'] as const as lang (lang)}
+            {#each [i18n.lang] as lang (lang)}
               <div class="langrow">
-                <span class="lang muted">{lang === 'fr' ? t('Français') : t('Anglais')}</span>
+                <span class="lang muted">{t('Phrases')}</span>
                 <div class="chips">
                   {#each c[lang] as phrase, i (phrase)}
                     <span class="chip">{phrase}<button class="x" title={c[lang].length < 2 ? t('Une commande garde au moins une phrase') : t('Retirer')} disabled={c[lang].length < 2} onclick={() => remove(c, lang, i)}>×</button></span>

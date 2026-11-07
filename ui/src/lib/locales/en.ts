@@ -159,8 +159,8 @@ export const en: Record<string, string> = {
 
   // Commandes vocales (carte du Dictionnaire)
   'Commandes vocales': 'Voice commands',
-  'Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Sur Mac pour l’instant.':
-    'When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words, it stays text. On Mac for now.',
+  'Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Sur Mac pour l’instant. Les phrases affichées sont celles de la langue de l’interface (Réglages, onglet Apparence).':
+    'When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words, it stays text. On Mac for now. The phrases shown are those of the interface language (Settings, Appearance tab).',
   'Activer les commandes vocales': 'Turn voice commands on',
   'Ajouter au dictionnaire': 'Add to dictionary',
   'Entourer la sélection': 'Wrap the selection',
@@ -168,10 +168,12 @@ export const en: Record<string, string> = {
   'Entre guillemets': 'In quotes',
   'Entre crochets': 'In brackets',
   'Entre accolades': 'In braces',
-  'Gras, italique, souligné': 'Bold, italic, underline',
+  'Gras, italique, souligné, barré': 'Bold, italic, underline, strikethrough',
   'Gras': 'Bold',
   'Italique': 'Italic',
   'Souligné': 'Underlined',
+  'Barré': 'Strikethrough',
+  'Phrases': 'Phrases',
   'Rétablir': 'Restore',
   'Raccourci': 'Shortcut',
   'Ajouter une phrase': 'Add a phrase',
