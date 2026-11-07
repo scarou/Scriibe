@@ -96,6 +96,12 @@ sign_test!(forward_slash_en, Active::EN, "folder forward slash file" => "folder/
 sign_test!(antislash_both, Active::FR, "dossier antislash fichier" => "dossier\\fichier", keeps: ["Mon antislash est cassé."]);
 sign_test!(backslash_en, Active::EN, "folder backslash file" => "folder\\file", keeps: ["The backslash leans."]);
 sign_test!(barre_oblique_inverse_fr, Active::FR, "dossier barre oblique inverse fichier" => "dossier\\fichier", keeps: []);
+sign_test!(baroblique_whisper_fr, Active::FR, "Va dans le dossier baroblique documents" => "Va dans le dossier/documents",
+    keeps: ["Une barre de fer.", "L'obliquité est faible."]);
+sign_test!(barre_oblique_tiret_fr, Active::FR, "dossier barre-oblique fichier" => "dossier/fichier", keeps: []);
+sign_test!(arobase_dropped_by_whisper, Active::FR, "Écris-moi à jean.gmail.com" => "Écris-moi à jean@gmail.com",
+    keeps: ["Va sur gmail.com", "Écris à jean@gmail.com", "Ouvre www.gmail.com", "Va sur mail.gmail.com", "Voir jean.dupont.fr", "Un test.gmailing.com"]);
+sign_test!(arobase_dropped_with_dotted_name, Active::BOTH, "Mail to jean.dupont.hotmail.fr please" => "Mail to jean.dupont@hotmail.fr please", keeps: []);
 sign_test!(underscore_both, Active::FR, "nom underscore fichier" => "nom_fichier", keeps: ["Le underscore est un signe.", "Un tiret bas du mur."]);
 sign_test!(tiret_bas_fr, Active::FR, "nom tiret bas fichier" => "nom_fichier", keeps: ["Il fait bas."]);
 sign_test!(tilde_both, Active::EN, "dossier tilde utilisateur" => "dossier~utilisateur", keeps: ["The tilde is above the n.", "Un tilde est un signe."]);

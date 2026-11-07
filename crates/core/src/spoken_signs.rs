@@ -225,13 +225,13 @@ pub const ALL: &[Sign] = &[
     Sign { said: "dot eu", pattern: r"dot\s+eu", written: ".eu", kind: Kind::Suffix, isolated: false, langs: Langs::En },
     Sign {
         said: "antislash",
-        pattern: r"anti-?slash|back-?slash|barre\s+oblique\s+inverse",
+        pattern: r"anti-?slash|back-?slash|bar(?:re)?[\s-]*oblique\s+inverse",
         written: "\\",
         kind: Kind::Glued,
         isolated: false,
         langs: Langs::Both,
     },
-    Sign { said: "barre oblique", pattern: r"barre\s+oblique", written: "/", kind: Kind::Glued, isolated: false, langs: Langs::Fr },
+    Sign { said: "barre oblique", pattern: r"bar(?:re)?[\s-]*oblique", written: "/", kind: Kind::Glued, isolated: false, langs: Langs::Fr },
     Sign { said: "forward slash", pattern: r"forward\s+slash", written: "/", kind: Kind::Glued, isolated: false, langs: Langs::En },
     Sign {
         said: "underscore",
@@ -424,6 +424,13 @@ pub fn apply_for(text: &str, bullet: ListBullet, lists: bool, active: Active) ->
         t = out;
         changed = changed || n > 0;
     }
+    if active.fr || active.en {
+        let restored = restore_dropped_at(&t);
+        if restored != t {
+            t = restored;
+            changed = true;
+        }
+    }
     let alone = lone_line(&t);
     if alone != t {
         t = alone;
@@ -441,6 +448,20 @@ pub fn apply_for(text: &str, bullet: ListBullet, lists: bool, active: Active) ->
     } else {
         t
     }
+}
+
+// Whisper efface souvent « arobase » et écrit « jean.gmail.com » (essai réel du 07/11/2026). Un site « jean.gmail.com » n'existe pas : une adresse
+// d'un fournisseur de courriel courant, précédée d'un seul nom collé par un point, retrouve son « @ ». Hors « www », « mail », « accounts »…
+regex!(
+    DROPPED_AT,
+    r"(?i)(?<![\p{L}\p{N}_.@%+-])(?!(?:www|mail|accounts|support|help)\.(?:gmail|googlemail|hotmail|icloud)\.)([\p{L}\p{N}_-]+(?:\.[\p{L}\p{N}_-]+)*)\.(gmail|googlemail|hotmail|icloud)\.(com|fr|net)(?![\p{L}\p{N}])"
+);
+
+fn restore_dropped_at(text: &str) -> String {
+    if !text.contains('.') {
+        return text.to_string();
+    }
+    DROPPED_AT.replace_all(text, "${1}@${2}.${3}").into_owned()
 }
 
 /// « à la ligne » dit seul (« Les courses, à la ligne, du lait ») coupe la ligne comme « retour à la ligne » ;
