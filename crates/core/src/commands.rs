@@ -312,6 +312,9 @@ pub fn builtin() -> Vec<CommandDef> {
                 "met en souligné",
                 "mais en souligné",
                 "mettez en souligné",
+                "mettre en souligner",
+                "mets en souligner",
+                "mais en souligner",
                 "souligne le texte",
                 "souligne ça",
             ],
@@ -796,6 +799,8 @@ mod tests {
             ("Mais en gras.", "format.gras"),
             ("mais en italique", "format.italique"),
             ("Mais en souligné", "format.souligne"),
+            // Whisper écrit aussi « souligner » (essai réel du 07/11/2026, Notes).
+            ("Mettre en souligner.", "format.souligne"),
         ] {
             assert_eq!(id_of(raw, DictationLanguage::Fr), Some((id.to_string(), Lang::Fr)), "{raw}");
         }
