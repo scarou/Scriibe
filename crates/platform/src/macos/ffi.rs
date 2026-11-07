@@ -212,7 +212,15 @@ pub fn selected_text() -> SelectedByAx {
     let copied = unsafe { CFStringGetCString(selected.0, buffer.as_mut_ptr().cast(), capacity + 1, UTF8) };
     let text = if copied {
         let end = buffer.iter().position(|b| *b == 0).unwrap_or(buffer.len());
-        String::from_utf8(buffer[..end].to_vec()).ok()
+        match String::from_utf8(buffer[..end].to_vec()) {
+            Ok(t) => Some(t),
+            Err(e) => {
+                // Octets invalides : on les écrase avant de les laisser tomber.
+                let mut bytes = e.into_bytes();
+                bytes.fill(0);
+                None
+            }
+        }
     } else {
         None
     };

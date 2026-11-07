@@ -102,6 +102,18 @@ fn send_command_v() -> Result<(), String> {
 
 /// Combien de temps on laisse à l'appli pour copier sa sélection après ⌘C.
 const COPY_WAIT: Duration = Duration::from_millis(150);
+/// Pour une commande vocale (déjà reconnue), on attend plus longtemps : une appli lente (Electron) qui copie après le délai laisserait la
+/// sélection dans le presse-papiers.
+const COMMAND_COPY_WAIT: Duration = Duration::from_millis(400);
+
+/// Écrase un texte qui a contenu la sélection avant de le laisser tomber.
+fn wipe(text: Option<String>) {
+    if let Some(text) = text {
+        let mut bytes = text.into_bytes();
+        bytes.fill(0);
+        std::hint::black_box(&bytes);
+    }
+}
 
 /// Attend (au plus `max`) que le presse-papiers contienne `wanted`.
 fn wait_for_text(slot: &Mutex<Option<Clipboard>>, wanted: &Option<String>, max: Duration) -> bool {
@@ -169,57 +181,73 @@ fn clipboard_holds_non_text() -> Option<bool> {
     if !output.status.success() {
         return None;
     }
-    let info = String::from_utf8_lossy(&output.stdout);
-    Some(NON_TEXT_CLIPBOARD_MARKERS.iter().any(|m| info.contains(m)))
+    Some(has_non_text_type(&String::from_utf8_lossy(&output.stdout)))
+}
+
+/// La sortie de `clipboard info` (« «class utf8», 90, string, 0, … ») cite-t-elle une image ou des fichiers ?
+fn has_non_text_type(info: &str) -> bool {
+    NON_TEXT_CLIPBOARD_MARKERS.iter().any(|m| info.contains(m))
 }
 
 impl MacPaster {
-    /// Lecture du texte sélectionné par ⌘C d'essai (applis qui n'exposent pas leur sélection) : le presse-papiers texte est sauvegardé puis
-    /// remis. S'il contient une image ou des fichiers (ou si on ne sait pas), pas de ⌘C : on les perdrait.
+    /// Lecture du texte sélectionné par ⌘C d'essai (applis qui n'exposent pas leur sélection). Le presse-papiers texte est sauvegardé puis
+    /// remis. S'il contient une image ou des fichiers (même avec du texte à côté), ou si on ne sait pas le dire, pas de ⌘C : on les
+    /// perdrait. Limite : la mise en forme (RTF, HTML) d'un presse-papiers texte n'est pas rendue, comme au collage d'une dictée.
     fn selected_text_by_copy(&self) -> SelectedRead {
-        let before = read_text(&self.clipboard);
-        if before.is_none() && clipboard_holds_non_text() != Some(false) {
+        if clipboard_holds_non_text() != Some(false) {
             return SelectedRead::Unreadable(Unreadable::ClipboardNotText);
         }
+        let before = read_text(&self.clipboard);
         wait_for_modifiers_released();
         std::thread::sleep(Duration::from_millis(40));
         if post_key(KEY_C, true).is_err() || post_key(KEY_C, false).is_err() {
             return SelectedRead::Unreadable(Unreadable::Failed);
         }
         let mut waited = Duration::ZERO;
-        let mut found = None;
-        while waited < COPY_WAIT {
+        let mut changed = false;
+        let mut found: Option<String> = None;
+        while waited < COMMAND_COPY_WAIT {
             std::thread::sleep(Duration::from_millis(10));
             waited += Duration::from_millis(10);
             let now = read_text(&self.clipboard);
             if now == before {
+                wipe(now);
                 continue;
             }
-            // L'appli a copié : on la laisse finir (même valeur deux fois de suite).
+            // L'appli a copié (du texte ou autre chose) : on la laisse finir (même valeur deux fois de suite).
+            changed = true;
             let mut copied = now;
             for _ in 0..10 {
                 std::thread::sleep(Duration::from_millis(15));
                 let again = read_text(&self.clipboard);
                 if again == copied {
+                    wipe(again);
                     break;
                 }
-                copied = again;
+                wipe(std::mem::replace(&mut copied, again));
             }
             found = copied;
             break;
         }
-        // Le presse-papiers d'avant est remis, et la remise vérifiée avant de rendre la main.
-        if found.is_some() {
+        // Le presse-papiers d'avant est remis dès qu'il a changé, quoi qu'ait copié l'appli, et la remise est vérifiée avant de rendre la
+        // main. Si elle échoue, on vide le presse-papiers : mieux vaut le perdre que laisser la sélection dedans.
+        if changed {
             match &before {
                 Some(saved) => drop(write_text(&self.clipboard, saved)),
                 None => drop(with_clipboard(&self.clipboard, |c| c.clear().map_err(|e| e.to_string()))),
             }
-            wait_for_text(&self.clipboard, &before, Duration::from_millis(200));
+            if !wait_for_text(&self.clipboard, &before, Duration::from_millis(200)) {
+                drop(with_clipboard(&self.clipboard, |c| c.clear().map_err(|e| e.to_string())));
+            }
             std::thread::sleep(Duration::from_millis(60));
         }
+        wipe(before);
         match found {
             Some(text) if !text.is_empty() => SelectedRead::Text(SelectedText::new(text)),
-            _ => SelectedRead::NoSelection,
+            other => {
+                wipe(other);
+                SelectedRead::NoSelection
+            }
         }
     }
 }
@@ -273,5 +301,26 @@ impl Paster for MacPaster {
             });
         }
         PasteOutcome::Pasted
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clipboard_info_tells_text_from_images_and_files() {
+        // Texte seul, tel que `osascript -e 'clipboard info'` le rend.
+        assert!(!has_non_text_type("«class utf8», 90, «class ut16», 176, string, 0, Unicode text, 174"));
+        // Image, fichiers copiés dans le Finder, texte accompagné d'une image : pas de ⌘C.
+        assert!(has_non_text_type("«class PNGf», 48210, «class TIFF», 99000"));
+        assert!(has_non_text_type("«class furl», 120, «class utf8», 14"));
+        assert!(has_non_text_type("«class utf8», 12, «class JPEG», 30000"));
+    }
+
+    #[test]
+    fn wipe_accepts_nothing_and_text() {
+        wipe(None);
+        wipe(Some("secret".into()));
     }
 }
