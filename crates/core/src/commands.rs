@@ -216,25 +216,41 @@ pub fn builtin() -> Vec<CommandDef> {
     vec![
         format(
             "gras",
-            &["mets en gras", "mettre en gras", "mettez en gras", "passe en gras", "en gras"],
+            &["mettre en gras", "mets en gras", "met en gras", "mais en gras", "mettez en gras", "passe en gras", "en gras"],
             &["make it bold", "make bold", "put in bold", "in bold"],
         ),
         format(
             "italique",
-            &["mets en italique", "mettre en italique", "mettez en italique", "passe en italique", "en italique"],
+            &[
+                "mettre en italique",
+                "mets en italique",
+                "met en italique",
+                "mais en italique",
+                "mettez en italique",
+                "passe en italique",
+                "en italique",
+            ],
             &["make it italic", "make italic", "put in italics", "in italics"],
         ),
         format(
             "souligne",
-            &["mets en souligné", "mettre en souligné", "mettez en souligné", "souligne le texte", "souligne ça"],
+            &[
+                "mettre en souligné",
+                "mets en souligné",
+                "met en souligné",
+                "mais en souligné",
+                "mettez en souligné",
+                "souligne le texte",
+                "souligne ça",
+            ],
             &["make it underlined", "underline it", "underline this", "put in underline"],
         ),
         around(
             "parentheses",
             &[
-                "entre parenthèses",
-                "mets entre parenthèses",
                 "mettre entre parenthèses",
+                "mets entre parenthèses",
+                "entre parenthèses",
                 "mettez entre parenthèses",
                 "entoure de parenthèses",
                 "entourer de parenthèses",
@@ -244,9 +260,9 @@ pub fn builtin() -> Vec<CommandDef> {
         around(
             "guillemets",
             &[
-                "entre guillemets",
-                "mets entre guillemets",
                 "mettre entre guillemets",
+                "mets entre guillemets",
+                "entre guillemets",
                 "mettez entre guillemets",
                 "entoure de guillemets",
                 "entourer de guillemets",
@@ -256,9 +272,9 @@ pub fn builtin() -> Vec<CommandDef> {
         around(
             "crochets",
             &[
-                "entre crochets",
-                "mets entre crochets",
                 "mettre entre crochets",
+                "mets entre crochets",
+                "entre crochets",
                 "mettez entre crochets",
                 "entoure de crochets",
                 "entourer de crochets",
@@ -268,9 +284,9 @@ pub fn builtin() -> Vec<CommandDef> {
         around(
             "accolades",
             &[
-                "entre accolades",
-                "mets entre accolades",
                 "mettre entre accolades",
+                "mets entre accolades",
+                "entre accolades",
                 "mettez entre accolades",
                 "entoure d'accolades",
                 "entourer d'accolades",
@@ -703,6 +719,10 @@ mod tests {
             ("Passe en italique", "format.italique"),
             ("Mets en souligné !", "format.souligne"),
             ("En gras", "format.gras"),
+            // Whisper entend souvent « mets » comme « mais » (essai réel du 07/11/2026).
+            ("Mais en gras.", "format.gras"),
+            ("mais en italique", "format.italique"),
+            ("Mais en souligné", "format.souligne"),
         ] {
             assert_eq!(id_of(raw, DictationLanguage::Fr), Some((id.to_string(), Lang::Fr)), "{raw}");
         }
