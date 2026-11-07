@@ -174,6 +174,7 @@ Essai guidé par Christophe, une étape à la fois, Scriibe.app compilée en rel
 - **Ajouts demandés pendant l'essai** : « mettre en barré », ajouté puis **retiré** (ni TextEdit ni Notes n'ont de raccourci pour le barré, seulement le menu Format ; Christophe : anecdotique, à recréer au besoin par « Mes commandes ») ; la carte « Commandes vocales » et la liste des signes dictés n'affichent que la langue de l'interface (les signes et phrases de l'autre langue restent actifs en dictée) ; **commandes de la personne** (« Mes commandes » : un titre, une ou plusieurs phrases, un raccourci de l'appli, avec ou sans sélection exigée ; réglage `customCommands`, identifiants `perso.<n>`, mêmes règles de phrase que les autres).
 - **Notes, « mettre entre parenthèses »** : marche, un seul ⌘Z suffit pour revenir au texte d'origine (essayé par Christophe).
 - **Notes, gras, italique, souligné** : marchent. Whisper écrit parfois « souligner » au lieu de « souligné » : « mettre en souligner » ajouté aux phrases par défaut (Christophe l'avait ajouté à la main dans la carte).
+- **Google Docs (Chrome), gras, italique, souligné** : marchent tous les trois (lecture de la sélection comprise).
 - **Reste à essayer** : Notes (barré, commande de la personne), Google Docs dans Chrome (gras, italique, souligné, barré), « mettre entre parenthèses » et les autres « caractères autour », et les nouveaux signes dictés tels que Whisper les écrit.
 
 ## Relecture
