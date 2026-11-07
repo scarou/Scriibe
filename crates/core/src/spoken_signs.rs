@@ -11,6 +11,12 @@ pub enum Kind {
     Opening,
     Closing,
     Line,
+    /// Collé des deux côtés : « jean arobase gmail » → « jean@gmail ».
+    Glued,
+    /// Espace de chaque côté : « tom esperluette jerry » → « tom & jerry ».
+    Spaced,
+    /// Collé au mot qui précède : « gmail point com » → « gmail.com ».
+    Suffix,
 }
 
 /// Un signe de la liste intégrée.
@@ -22,16 +28,58 @@ pub struct Sign {
     pub kind: Kind,
     /// Reconnu seulement quand il est dit seul, entre deux ponctuations (voir [`lone_line`]) : `pattern` n'est pas utilisé.
     pub isolated: bool,
+    /// Langues de dictée où le signe est actif (S18 : les signes anglais ne s'appliquent pas à une dictée française).
+    pub langs: Langs,
+}
+
+/// Langue d'un signe : français, anglais, ou les deux (symboles que les deux langues disent pareil : « underscore », « tilde »).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Langs {
+    Fr,
+    En,
+    Both,
+}
+
+/// Quelles langues de signes sont actives. `Neutral` : texte traduit ou langue inconnue, seuls les signes `Both` s'appliquent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Active {
+    pub fr: bool,
+    pub en: bool,
+}
+
+impl Active {
+    pub const NEUTRAL: Active = Active { fr: false, en: false };
+    pub const FR: Active = Active { fr: true, en: false };
+    pub const EN: Active = Active { fr: false, en: true };
+    pub const BOTH: Active = Active { fr: true, en: true };
+
+    pub fn of(language: crate::settings::DictationLanguage) -> Active {
+        use crate::settings::DictationLanguage as D;
+        match language {
+            D::Fr => Active::FR,
+            D::En => Active::EN,
+            D::Multi => Active::BOTH,
+        }
+    }
+
+    fn allows(self, langs: Langs) -> bool {
+        match langs {
+            Langs::Both => true,
+            Langs::Fr => self.fr,
+            Langs::En => self.en,
+        }
+    }
 }
 
 // Impératifs seulement : « fermer la parenthèse des vacances » parle d'une parenthèse, ce n'est pas une commande.
-pub const ALL: [Sign; 11] = [
+pub const ALL: &[Sign] = &[
     Sign {
         said: "ouvrez la parenthèse",
         pattern: r"(?:ouvre|ouvrez)(?:\s+la)?\s+parenth[eè]ses?",
         written: "(",
         kind: Kind::Opening,
         isolated: false,
+        langs: Langs::Both,
     },
     Sign {
         said: "fermez la parenthèse",
@@ -39,6 +87,7 @@ pub const ALL: [Sign; 11] = [
         written: ")",
         kind: Kind::Closing,
         isolated: false,
+        langs: Langs::Both,
     },
     Sign {
         said: "ouvrez les guillemets",
@@ -46,6 +95,7 @@ pub const ALL: [Sign; 11] = [
         written: "«\u{00A0}",
         kind: Kind::Opening,
         isolated: false,
+        langs: Langs::Both,
     },
     Sign {
         said: "fermez les guillemets",
@@ -53,6 +103,7 @@ pub const ALL: [Sign; 11] = [
         written: "\u{00A0}»",
         kind: Kind::Closing,
         isolated: false,
+        langs: Langs::Both,
     },
     Sign {
         said: "ouvrez le crochet",
@@ -60,6 +111,7 @@ pub const ALL: [Sign; 11] = [
         written: "[",
         kind: Kind::Opening,
         isolated: false,
+        langs: Langs::Both,
     },
     Sign {
         said: "fermez le crochet",
@@ -67,10 +119,25 @@ pub const ALL: [Sign; 11] = [
         written: "]",
         kind: Kind::Closing,
         isolated: false,
+        langs: Langs::Both,
     },
-    Sign { said: "points de suspension", pattern: r"points\s+de\s+suspension", written: "…", kind: Kind::Closing, isolated: false },
+    Sign {
+        said: "points de suspension",
+        pattern: r"points\s+de\s+suspension",
+        written: "…",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::Both,
+    },
     // Whisper avale parfois le « à » : « point la ligne ».
-    Sign { said: "point à la ligne", pattern: r"point(?:\s+[àa])?\s+la\s+ligne", written: ".\n", kind: Kind::Line, isolated: false },
+    Sign {
+        said: "point à la ligne",
+        pattern: r"point(?:\s+[àa])?\s+la\s+ligne",
+        written: ".\n",
+        kind: Kind::Line,
+        isolated: false,
+        langs: Langs::Both,
+    },
     // « passe la ligne » sans « à » se dit au sport (« le coureur passe la ligne ») : le « à » reste obligatoire pour lui.
     Sign {
         said: "retour à la ligne",
@@ -78,10 +145,191 @@ pub const ALL: [Sign; 11] = [
         written: "\n",
         kind: Kind::Line,
         isolated: false,
+        langs: Langs::Both,
     },
-    Sign { said: "nouveau paragraphe", pattern: r"nouveau\s+paragraphe", written: "\n\n", kind: Kind::Line, isolated: false },
+    Sign {
+        said: "nouveau paragraphe",
+        pattern: r"nouveau\s+paragraphe",
+        written: "\n\n",
+        kind: Kind::Line,
+        isolated: false,
+        langs: Langs::Both,
+    },
     // « à la ligne » dit seul : « aller à la ligne 5 » ou « arrivé à la ligne d'arrivée » se disent aussi, donc pas de remplacement partout.
-    Sign { said: "à la ligne (dit seul)", pattern: "", written: "\n", kind: Kind::Line, isolated: true },
+    Sign { said: "à la ligne (dit seul)", pattern: "", written: "\n", kind: Kind::Line, isolated: true, langs: Langs::Both },
+    // S18 (tâche 6) : signes ajoutés (docs/COMMANDES.md § 4, docs/ECARTS.md). Jamais un nom nu courant (« point », « plus », « virgule »,
+    // « étoile »…) : des mots composés peu ambigus, ou un impératif. L'ordre compte : « barre oblique inverse » avant « barre oblique ».
+    // Singulier seulement : « trois points d'exclamation » (pluriel) est la correction du dictionnaire (« !!! »), pas un signe.
+    // A. Ponctuation (fermants : la typographie française ajoute l'espace insécable devant « ! ? : ; »).
+    Sign {
+        said: "point d'exclamation",
+        pattern: r"point\s+d['’]exclamation",
+        written: "!",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::Fr,
+    },
+    Sign {
+        said: "exclamation mark",
+        pattern: r"exclamation\s+(?:mark|point)",
+        written: "!",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign {
+        said: "point d'interrogation",
+        pattern: r"point\s+d['’]interrogation",
+        written: "?",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::Fr,
+    },
+    Sign { said: "question mark", pattern: r"question\s+mark", written: "?", kind: Kind::Closing, isolated: false, langs: Langs::En },
+    Sign { said: "point-virgule", pattern: r"point[\s-]+virgule", written: ";", kind: Kind::Closing, isolated: false, langs: Langs::Fr },
+    Sign { said: "semicolon", pattern: r"semi-?\s?colon", written: ";", kind: Kind::Closing, isolated: false, langs: Langs::En },
+    // « deux points » en deux mots est un nombre (« j'ai marqué deux points ») : le trait d'union, ou un impératif, est obligatoire.
+    Sign {
+        said: "deux-points",
+        pattern: r"(?:(?:[ée]cris|[ée]crivez|tape|tapez|mets|mettez)\s+deux\s+points|deux-points)",
+        written: ":",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::Fr,
+    },
+    // « colon cancer » parle du côlon : exclu.
+    Sign {
+        said: "colon",
+        pattern: r"(?<!semi-)(?<!semi )colon(?!\s+(?:cancer|polyps?|surgery|screening|cleanse))",
+        written: ":",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::En,
+    },
+    // B. Symboles de l'écriture d'adresses, de chemins et de code.
+    Sign { said: "arobase", pattern: r"arr?obase", written: "@", kind: Kind::Glued, isolated: false, langs: Langs::Fr },
+    Sign { said: "at sign", pattern: r"at\s+(?:sign|symbol)", written: "@", kind: Kind::Glued, isolated: false, langs: Langs::En },
+    Sign { said: "point com", pattern: r"point\s+com", written: ".com", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point fr", pattern: r"point\s+fr", written: ".fr", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point org", pattern: r"point\s+org", written: ".org", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point net", pattern: r"point\s+net", written: ".net", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point io", pattern: r"point\s+io", written: ".io", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point eu", pattern: r"point\s+eu", written: ".eu", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point be", pattern: r"point\s+be", written: ".be", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "point ch", pattern: r"point\s+ch", written: ".ch", kind: Kind::Suffix, isolated: false, langs: Langs::Fr },
+    Sign { said: "dot com", pattern: r"dot\s+com", written: ".com", kind: Kind::Suffix, isolated: false, langs: Langs::En },
+    Sign { said: "dot org", pattern: r"dot\s+org", written: ".org", kind: Kind::Suffix, isolated: false, langs: Langs::En },
+    Sign { said: "dot net", pattern: r"dot\s+net", written: ".net", kind: Kind::Suffix, isolated: false, langs: Langs::En },
+    Sign { said: "dot io", pattern: r"dot\s+io", written: ".io", kind: Kind::Suffix, isolated: false, langs: Langs::En },
+    Sign { said: "dot fr", pattern: r"dot\s+fr", written: ".fr", kind: Kind::Suffix, isolated: false, langs: Langs::En },
+    Sign { said: "dot eu", pattern: r"dot\s+eu", written: ".eu", kind: Kind::Suffix, isolated: false, langs: Langs::En },
+    Sign {
+        said: "antislash",
+        pattern: r"anti-?slash|back-?slash|barre\s+oblique\s+inverse",
+        written: "\\",
+        kind: Kind::Glued,
+        isolated: false,
+        langs: Langs::Both,
+    },
+    Sign { said: "barre oblique", pattern: r"barre\s+oblique", written: "/", kind: Kind::Glued, isolated: false, langs: Langs::Fr },
+    Sign { said: "forward slash", pattern: r"forward\s+slash", written: "/", kind: Kind::Glued, isolated: false, langs: Langs::En },
+    Sign {
+        said: "underscore",
+        pattern: r"underscore|tiret\s+bas|tiret\s+du\s+(?:8|huit)",
+        written: "_",
+        kind: Kind::Glued,
+        isolated: false,
+        langs: Langs::Both,
+    },
+    Sign { said: "tilde", pattern: r"tilde", written: "~", kind: Kind::Glued, isolated: false, langs: Langs::Both },
+    Sign { said: "esperluette", pattern: r"esperluette|ampersand", written: "&", kind: Kind::Spaced, isolated: false, langs: Langs::Both },
+    Sign { said: "astérisque", pattern: r"ast[ée]risque|asterisk", written: "*", kind: Kind::Glued, isolated: false, langs: Langs::Both },
+    // Collé au mot qui suit : « hashtag scriibe » → « #scriibe ».
+    Sign {
+        said: "hashtag",
+        pattern: r"hashtag|croisillon|(?:hash|pound|number)\s+sign",
+        written: "#",
+        kind: Kind::Opening,
+        isolated: false,
+        langs: Langs::Both,
+    },
+    Sign {
+        said: "ouvrez l'accolade",
+        pattern: r"(?:ouvre|ouvrez)(?:\s+l['’]|\s+la\s+|\s+les\s+|\s+)accolades?",
+        written: "{",
+        kind: Kind::Opening,
+        isolated: false,
+        langs: Langs::Fr,
+    },
+    Sign {
+        said: "fermez l'accolade",
+        pattern: r"(?:ferme|fermez)(?:\s+l['’]|\s+la\s+|\s+les\s+|\s+)accolades?",
+        written: "}",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::Fr,
+    },
+    Sign {
+        said: "open curly bracket",
+        pattern: r"open\s+(?:a\s+)?(?:curly\s+(?:bracket|brace)|brace)s?",
+        written: "{",
+        kind: Kind::Opening,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign {
+        said: "close curly bracket",
+        pattern: r"close\s+(?:a\s+)?(?:curly\s+(?:bracket|brace)|brace)s?",
+        written: "}",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::En,
+    },
+    // C. Anglais : équivalents des signes français déjà présents.
+    Sign {
+        said: "open parenthesis",
+        pattern: r"open\s+(?:a\s+)?(?:parenthesis|parentheses|paren)",
+        written: "(",
+        kind: Kind::Opening,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign {
+        said: "close parenthesis",
+        pattern: r"close\s+(?:a\s+)?(?:parenthesis|parentheses|paren)",
+        written: ")",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign {
+        said: "open bracket",
+        pattern: r"open\s+(?:a\s+)?(?:square\s+)?brackets?",
+        written: "[",
+        kind: Kind::Opening,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign {
+        said: "close bracket",
+        pattern: r"close\s+(?:a\s+)?(?:square\s+)?brackets?",
+        written: "]",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign { said: "open quote", pattern: r"open\s+(?:a\s+)?quotes?", written: "\"", kind: Kind::Opening, isolated: false, langs: Langs::En },
+    Sign {
+        said: "close quote",
+        pattern: r"close\s+(?:a\s+)?quotes?",
+        written: "\"",
+        kind: Kind::Closing,
+        isolated: false,
+        langs: Langs::En,
+    },
+    Sign { said: "ellipsis", pattern: r"ellipsis|dot\s+dot\s+dot", written: "…", kind: Kind::Closing, isolated: false, langs: Langs::En },
+    Sign { said: "new paragraph", pattern: r"new\s+paragraph", written: "\n\n", kind: Kind::Line, isolated: false, langs: Langs::En },
+    Sign { said: "new line", pattern: r"new\s+line", written: "\n", kind: Kind::Line, isolated: false, langs: Langs::En },
 ];
 
 /// Le caractère mis devant un élément de liste dicté (« tiret du lait » → « - du lait »).
@@ -164,9 +412,14 @@ regex!(
 
 /// Remplace les signes dictés de la liste intégrée, puis les débuts d'éléments de liste (« tiret », « point un »…).
 pub fn apply(text: &str, bullet: ListBullet, lists: bool) -> String {
+    apply_for(text, bullet, lists, Active::FR)
+}
+
+/// Comme [`apply`], avec les signes des langues `active` (français seul pour `apply`, qui garde le comportement de Scribe).
+pub fn apply_for(text: &str, bullet: ListBullet, lists: bool, active: Active) -> String {
     let mut t = text.to_string();
     let mut changed = false;
-    for sign in ALL.iter().filter(|s| !s.isolated) {
+    for sign in ALL.iter().filter(|s| !s.isolated && active.allows(s.langs)) {
         let (out, n) = replace(sign.pattern, sign.kind, sign.written, &t);
         t = out;
         changed = changed || n > 0;
@@ -318,10 +571,13 @@ pub fn kind_of(written: &str) -> Option<Kind> {
 
 /// Mots qui, juste avant la commande, montrent qu'on parle d'un signe au lieu de le dicter :
 /// « je ferme la parenthèse », « un nouveau paragraphe », « il faut passer… ».
-const DESCRIBING_WORDS: [&str; 45] = [
+const DESCRIBING_WORDS: [&str; 72] = [
     "je", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles", "un", "une", "le", "la", "les", "ce", "cet", "cette", "du", "de",
     "des", "au", "aux", "à", "mon", "ton", "son", "notre", "votre", "leur", "pour", "sans", "quel", "quelle", "tel", "telle", "faut",
     "dois", "doit", "peux", "peut", "veux", "veut", "vais", "vas", "va",
+    // Anglais (S18) : « the colon is part of… », « I open a bracket ».
+    "i", "you", "he", "she", "we", "they", "the", "a", "an", "my", "your", "his", "her", "our", "their", "to", "will", "can", "must",
+    "should", "need", "want", "have", "has", "this", "that", "of",
 ];
 
 /// Remplace `core` (motif, sans tenir compte des majuscules) en absorbant la ponctuation que Whisper met autour.
@@ -337,13 +593,16 @@ pub fn replace(core: &str, kind: Kind, written: &str, text: &str) -> (String, us
             let keeps = r"(?:mais|puis|et|donc|car|alors|ou|qui|que|qu'|quand|si|parce|lorsque)";
             let after = if "!?.…".contains(last) {
                 format!(r"(?:[ \t]*[{}])?", fancy_regex::escape(&format!(".{last}")))
-            } else if ")]»".contains(last) {
+            } else if ")]»}".contains(last) {
                 format!(r"(?:[ \t]*,(?=[ \t]+(?!{keeps}(?![\p{{L}}]))))?")
             } else {
                 String::new()
             };
             (r"[ \t]*[,.;]?[ \t]*".to_string(), after)
         }
+        // Collé : les blancs autour sont absorbés, la ponctuation de Whisper reste (la fin de phrase ne disparaît pas).
+        Kind::Glued | Kind::Spaced => (r"[ \t]*".to_string(), r"[ \t]*".to_string()),
+        Kind::Suffix => (r"[ \t]*".to_string(), String::new()),
         Kind::Line => {
             // Les sauts de ligne que Whisper a déjà mis autour de la commande (un par segment, deux après une pause) sont absorbés.
             // Atomiques : sans cela, une longue suite d'espaces et de sauts de ligne ralentit la recherche de façon cubique.
@@ -364,6 +623,12 @@ pub fn replace(core: &str, kind: Kind, written: &str, text: &str) -> (String, us
         let preceding = text[..whole.0].chars().last();
         let replacement = match kind {
             Kind::Opening => format!(" {written}"),
+            Kind::Glued | Kind::Suffix => written.to_string(),
+            // Espace après seulement devant un mot : « tom & jerry », mais « tom & » en fin de phrase ou devant une ponctuation.
+            Kind::Spaced => match text[whole.1..].chars().next() {
+                Some(c) if c.is_alphanumeric() => format!(" {written} "),
+                _ => format!(" {written}"),
+            },
             // « Tu viens ? Point à la ligne » : le point d'interrogation suffit.
             Kind::Line if written.starts_with('.') && preceding.is_some_and(|p| "?!….".contains(p)) => written[1..].to_string(),
             _ => written.to_string(),

@@ -798,7 +798,9 @@ impl Controller {
             CommandOutcome::Text(note) => note,
         };
 
-        let applied = dictionary::apply(&dictionary, &join_spelled_code(&raw), settings.list_bullet, settings.lists_on());
+        // S18 : signes dictés des langues de la dictée (les signes anglais ne s'appliquent pas à une dictée française).
+        let signs_for = scriibe_core::spoken_signs::Active::of(settings.language);
+        let applied = dictionary::apply_for(&dictionary, &join_spelled_code(&raw), settings.list_bullet, settings.lists_on(), signs_for);
         let mut text = applied.text;
         let mut corrections = applied.count as i64;
         let mut note: Option<String> = command_note;
@@ -813,7 +815,8 @@ impl Controller {
             let start = deps.clock.now();
             match deps.cleaner.translate(&text, language, settings, &dictionary.words) {
                 Ok(out) => {
-                    let fixed = dictionary::apply(&dictionary, &out, settings.list_bullet, false);
+                    let fixed =
+                        dictionary::apply_for(&dictionary, &out, settings.list_bullet, false, scriibe_core::spoken_signs::Active::NEUTRAL);
                     text = fixed.text;
                     corrections += fixed.count as i64;
                     translated = Some(language);
@@ -852,7 +855,7 @@ impl Controller {
             let start = deps.clock.now();
             match deps.cleaner.cleanup(&text, settings, &dictionary.words) {
                 Ok(cleaned) => {
-                    let fixed = dictionary::apply(&dictionary, &cleaned, settings.list_bullet, settings.lists_on());
+                    let fixed = dictionary::apply_for(&dictionary, &cleaned, settings.list_bullet, settings.lists_on(), signs_for);
                     text = fixed.text;
                     corrections += fixed.count as i64;
                     // Après une traduction écartée, la décision reste « Traduction écartée ».

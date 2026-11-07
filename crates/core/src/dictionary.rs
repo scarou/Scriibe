@@ -2,7 +2,7 @@
 //! Port de `TextFixer.apply` (Scribe).
 
 use crate::re::{cached, matches_with_group};
-use crate::spoken_signs::{self, ListBullet};
+use crate::spoken_signs::{self, Active, ListBullet};
 use crate::text::word_count;
 use serde::Serialize;
 
@@ -49,8 +49,13 @@ pub struct Applied {
 /// Applique les corrections « entendu → écrit », mot entier, sans tenir compte des majuscules.
 /// `lists` : les listes dictées (« tiret », « point 2 »…) sont du français ; faux pour une dictée en anglais ou le résultat d'une traduction.
 pub fn apply(dictionary: &UserDictionary, text: &str, bullet: ListBullet, lists: bool) -> Applied {
+    apply_for(dictionary, text, bullet, lists, Active::FR)
+}
+
+/// Comme [`apply`], avec les signes dictés des langues `active` (S18 : signes anglais seulement en dictée anglaise ou multilingue).
+pub fn apply_for(dictionary: &UserDictionary, text: &str, bullet: ListBullet, lists: bool, active: Active) -> Applied {
     // Signes dictés de la liste intégrée (« ouvrez la parenthèse » → « ( », « tiret » → « - »), sans compter.
-    let mut result = spoken_signs::apply(text, bullet, lists);
+    let mut result = spoken_signs::apply_for(text, bullet, lists, active);
     let mut count = 0;
     let mut signs = false;
     for correction in &dictionary.corrections {
@@ -74,7 +79,7 @@ pub fn apply(dictionary: &UserDictionary, text: &str, bullet: ListBullet, lists:
     }
     // Une correction du dictionnaire peut avoir écrit un signe (« à la ligne » → « retour à la ligne ») ou créé le saut de ligne :
     // signes et listes se refont après elle.
-    let signed = spoken_signs::apply(&result, bullet, lists);
+    let signed = spoken_signs::apply_for(&result, bullet, lists, active);
     if signed != result {
         result = signed;
         signs = true;
