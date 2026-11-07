@@ -213,7 +213,7 @@
       <ul>
         <li><b>Ajouter au dictionnaire</b> : « ajouter au dictionnaire » ouvre cet onglet avec le texte sélectionné dans « Entendu ».</li>
         <li><b>Caractères autour</b> : « entre parenthèses », « entre guillemets » (« » en français, " " en anglais), « entre crochets » ou « entre accolades » entourent la sélection ; un seul ⌘Z l’annule.</li>
-        <li><b>Gras, italique, souligné, barré</b> : « mettre en gras », « mettre en italique », « mettre en souligné », « mettre en barré » appuient le raccourci de l’appli (⌘B, ⌘I, ⌘U, ⌘⇧X sur Mac, modifiables). Scriibe n’écrit pas de Markdown : il se sert de l’appli.</li>
+        <li><b>Gras, italique, souligné</b> : « mettre en gras », « mettre en italique », « mettre en souligné » appuient le raccourci de l’appli (⌘B, ⌘I, ⌘U sur Mac, modifiables). Scriibe n’écrit pas de Markdown : il se sert de l’appli.</li>
         <li><b>Mes commandes</b> : dans la carte « Commandes vocales » (onglet Dictionnaire), donne un titre, une phrase et un raccourci de l’appli (par exemple ⌘⇧X) : dire la phrase appuie ce raccourci, avec ou sans texte sélectionné selon ton choix.</li>
       </ul>
       {@render tip('Les phrases se changent dans la carte « Commandes vocales » de l’onglet Dictionnaire : deux mots au moins, et une phrase ne peut pas servir à deux commandes. Un interrupteur coupe toutes les commandes. Elles ne marchent pour l’instant que sur Mac.')}

@@ -30,17 +30,16 @@
       ],
     },
     {
-      title: tx('Gras, italique, souligné, barré'),
+      title: tx('Gras, italique, souligné'),
       commands: [
         { id: 'format.gras', label: tx('Gras'), shortcut: 'bold' },
         { id: 'format.italique', label: tx('Italique'), shortcut: 'italic' },
         { id: 'format.souligne', label: tx('Souligné'), shortcut: 'underline' },
-        { id: 'format.barre', label: tx('Barré'), shortcut: 'strikethrough' },
       ],
     },
   ];
   const labelOf = (id: string) => groups.flatMap((g) => g.commands).find((c) => c.id === id)?.label ?? id;
-  const defaults: Record<string, string> = { bold: 'Mod+B', italic: 'Mod+I', underline: 'Mod+U', strikethrough: 'Mod+Shift+X' };
+  const defaults: Record<string, string> = { bold: 'Mod+B', italic: 'Mod+I', underline: 'Mod+U' };
 
   const byId = (id: string) => commands.find((c) => c.id === id);
   const customized = (c: Command) => c.fr.join('\n') !== c.fr_default.join('\n') || c.en.join('\n') !== c.en_default.join('\n');
@@ -103,7 +102,7 @@
     errors['shortcut:' + name] = '';
     shortcutLabels[name] = check.label ?? '';
     const current = (v?.formatShortcuts ?? defaults) as Record<string, string>;
-    await settings.change({ formatShortcuts: { ...defaults, ...current, [name]: text.trim() } as { bold: string; italic: string; underline: string; strikethrough: string } });
+    await settings.change({ formatShortcuts: { ...defaults, ...current, [name]: text.trim() } as { bold: string; italic: string; underline: string } });
   }
 
   async function refreshLabels() {

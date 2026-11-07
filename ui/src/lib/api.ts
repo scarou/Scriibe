@@ -77,7 +77,7 @@ export interface Settings {
   voiceCommandsEnabled: boolean;
   voiceCommands: { fr: Record<string, string[]>; en: Record<string, string[]> };
   customCommands: { id: string; name: string; phrases: string[]; shortcut: string; needsSelection: boolean }[];
-  formatShortcuts: { bold: string; italic: string; underline: string; strikethrough: string };
+  formatShortcuts: { bold: string; italic: string; underline: string };
   trialText: string;
   trialCandidates: { id: string; engine: string; model: string }[];
   startSoundName: string;

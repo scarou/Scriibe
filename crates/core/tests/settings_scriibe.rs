@@ -73,6 +73,5 @@ fn format_shortcuts_default_round_trip_and_are_corrected_when_unreadable() {
         (own.format_shortcuts.bold.as_str(), own.format_shortcuts.italic.as_str(), own.format_shortcuts.underline.as_str()),
         ("Ctrl+Alt+G", "Mod+I", "Mod+U")
     );
-    assert_eq!(d.format_shortcuts.strikethrough, "Mod+Shift+X");
     assert_eq!(AppSettings::from_json(r#"{"formatShortcuts": 3}"#).unwrap().format_shortcuts, d.format_shortcuts);
 }
