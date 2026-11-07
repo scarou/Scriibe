@@ -227,6 +227,7 @@
         <li><b>Add to dictionary</b>: “add to dictionary” opens this tab with the selected text in “Heard”.</li>
         <li><b>Characters around</b>: “in parentheses”, “in quotes” (« » in French, " " in English), “in brackets” or “in braces” wrap the selection; a single ⌘Z undoes it.</li>
         <li><b>Bold, italic, underline, strikethrough</b>: “make it bold”, “make it italic”, “make it underlined”, “strike it through” press the app’s own shortcut (⌘B, ⌘I, ⌘U, ⌘⇧X on Mac, adjustable). Scriibe does not write Markdown: it uses the app.</li>
+        <li><b>My commands</b>: in the “Voice commands” card (Dictionary tab), give a title, a phrase and an app shortcut (for example ⌘⇧X): saying the phrase presses that shortcut, with or without selected text as you choose.</li>
       </ul>
       {@render tip('The phrases are changed in the “Voice commands” card of the Dictionary tab: at least two words, and a phrase cannot serve two commands. A switch turns all the commands off. For now they only work on Mac.')}
       <div class="links">{@render go('Open the dictionary', 'dictionary')}</div>

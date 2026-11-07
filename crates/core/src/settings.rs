@@ -305,6 +305,9 @@ pub struct AppSettings {
     /// Raccourcis de l'appli appuyés par les commandes gras, italique et souligné (« Mod+B » : ⌘B sur Mac, Ctrl+B ailleurs). Propre à Scriibe.
     #[serde(rename = "formatShortcuts")]
     pub format_shortcuts: crate::commands::FormatShortcuts,
+    /// Commandes créées par la personne : un titre, une phrase, un raccourci de l'appli à appuyer. Propre à Scriibe.
+    #[serde(rename = "customCommands")]
+    pub custom_commands: Vec<crate::commands::CustomCommand>,
     /// Nombre de jours d'historique gardés (aujourd'hui compris) ; `None` : tout garder.
     #[serde(rename = "historyKeepDays", skip_serializing_if = "Option::is_none")]
     pub history_keep_days: Option<i64>,
@@ -383,6 +386,7 @@ impl Default for AppSettings {
             voice_commands_enabled: true,
             voice_commands: Default::default(),
             format_shortcuts: Default::default(),
+            custom_commands: Vec::new(),
             history_keep_days: None,
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
@@ -486,6 +490,8 @@ impl AppSettings {
             voice_commands_enabled: get(o, "voiceCommandsEnabled").unwrap_or(d.voice_commands_enabled),
             voice_commands: get::<crate::commands::VoicePhrases>(o, "voiceCommands").map_or(d.voice_commands, |v| v.cleaned()),
             format_shortcuts: get::<crate::commands::FormatShortcuts>(o, "formatShortcuts").map_or(d.format_shortcuts, |v| v.cleaned()),
+            custom_commands: get::<Vec<crate::commands::CustomCommand>>(o, "customCommands")
+                .map_or(d.custom_commands, crate::commands::CustomCommand::cleaned),
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
             llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
             llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),

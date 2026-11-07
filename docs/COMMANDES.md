@@ -165,6 +165,15 @@ Branchée de bout en bout, **jamais essayée dans une vraie appli** (tâche 9) ;
 - **Résultat mesuré** : `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings` sans erreur ; `cargo test --workspace` : 428 tests passés, 0 échec ; interface : `npm run check` sans erreur, `npm test` 83 passés, `npm run build` ; routes essayées sur un Scriibe lancé avec des données jetables (phrase prise, phrase trop courte, raccourci lisible et illisible, enregistrement et rétablissement).
 - **Pas fait / non vérifié** : le raccourci n'a jamais été envoyé à une vraie appli (⌘B dans TextEdit, Notes, Google Docs : tâche 9) ; la saisie et la suppression des phrases dans la carte n'ont pas été cliquées une à une (seulement les routes) ; Google Docs peut avoir d'autres raccourcis (réglables).
 
+### Essai réel b-c (tâche 9, 07/11/2026, Mac Studio)
+
+Essai guidé par Christophe, une étape à la fois, Scriibe.app compilée en release.
+
+- **TextEdit, gras (⌘B)** : marche. Premier essai raté : l'aiguillage `SwitchPaster` (`crates/cli/src/web/sinks.rs`) ne transmettait pas `press_shortcut` (« non pris en charge sur ce système ») ; corrigé (`f7c84b1`). Les tests n'utilisent pas cet aiguillage : un test de bout en bout par la page reste à écrire.
+- **Reconnaissance par Whisper** : « mets en gras » est souvent entendu « mais en gras » (ou autre) ; la phrase ratée est collée par-dessus la sélection (⌘Z la ramène). Décision de Christophe : phrase principale « **mettre** en gras / italique / souligné / barré » (plus facile à articuler et à distinguer), « mets », « met », « mais » gardées en variantes. Essai : « mettre en italique » et « mettre en souligné » reconnus du premier coup.
+- **Ajouts demandés pendant l'essai** : « mettre en barré » (⌘⇧X par défaut, réglable ; TextEdit n'a pas de raccourci pour le barré, donc non essayable là) ; la carte « Commandes vocales » et la liste des signes dictés n'affichent que la langue de l'interface (les signes et phrases de l'autre langue restent actifs en dictée) ; **commandes de la personne** (« Mes commandes » : un titre, une ou plusieurs phrases, un raccourci de l'appli, avec ou sans sélection exigée ; réglage `customCommands`, identifiants `perso.<n>`, mêmes règles de phrase que les autres).
+- **Reste à essayer** : Notes (barré, commande de la personne), Google Docs dans Chrome (gras, italique, souligné, barré), « mettre entre parenthèses » et les autres « caractères autour », et les nouveaux signes dictés tels que Whisper les écrit.
+
 ## Relecture
 
 Tâche 4 (07/11/2026) : relecture du commit 3e6724b par un sous-agent Sonnet qui n'avait pas écrit le code (lecture seule, rien exécuté), puis corrections. Chemins suivis : types de la sélection, lecture Mac (accessibilité et ⌘C), contrôleur, canal vers la page, serveur local, banc de dictée, interface, rapport, messages d'erreur.

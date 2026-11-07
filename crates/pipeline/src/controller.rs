@@ -756,11 +756,22 @@ impl Controller {
             }
             // Gras, italique, souligné (tâche 8) : pas de texte à écrire, on appuie le raccourci de l'appli, qui agit sur la sélection restée active
             // (un seul ⌘Z l'annule). Pas de Markdown : il s'écrirait tel quel dans un traitement de texte.
-            id if id.starts_with(scriibe_core::commands::FORMAT_PREFIX) => {
-                let Some(text) = selected else { return CommandOutcome::Text(None) };
-                deps.log.write(&format!("commande: {id} (sélection : {} signes)", text.char_count()));
-                drop(text);
-                let Some(shortcut) = settings.format_shortcuts.for_command(id).and_then(scriibe_core::shortcut::Shortcut::parse) else {
+            id if id.starts_with(scriibe_core::commands::FORMAT_PREFIX) || id.starts_with(scriibe_core::commands::CUSTOM_PREFIX) => {
+                // Les commandes de la personne (`perso.*`) n'exigent une sélection que si elle l'a demandé.
+                let length = selected.as_ref().map(|t| t.char_count());
+                if command.needs == scriibe_core::commands::Needs::Selection && selected.is_none() {
+                    return CommandOutcome::Text(None);
+                }
+                match length {
+                    Some(n) => deps.log.write(&format!("commande: {id} (sélection : {n} signes)")),
+                    None => deps.log.write(&format!("commande: {id}")),
+                }
+                drop(selected);
+                let text_of_shortcut = match id.strip_prefix(scriibe_core::commands::CUSTOM_PREFIX) {
+                    Some(_) => settings.custom_commands.iter().find(|c| c.id == id).map(|c| c.shortcut.as_str()),
+                    None => settings.format_shortcuts.for_command(id),
+                };
+                let Some(shortcut) = text_of_shortcut.and_then(scriibe_core::shortcut::Shortcut::parse) else {
                     deps.indicator.flash(IndicatorState::Message("Raccourci invalide dans les réglages (exemple : Mod+B)".into()), 3.5);
                     return CommandOutcome::Handled;
                 };

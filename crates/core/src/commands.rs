@@ -178,6 +178,78 @@ impl Default for FormatShortcuts {
     }
 }
 
+/// Préfixe des identifiants des commandes de la personne : `perso.<numéro>`.
+pub const CUSTOM_PREFIX: &str = "perso.";
+
+/// Une commande de la personne : une phrase (ou plusieurs) qui appuie un raccourci de l'appli active, avec le titre qu'elle lui donne.
+/// Les phrases valent pour toutes les langues de dictée (c'est la personne qui les écrit).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CustomCommand {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub phrases: Vec<String>,
+    /// Raccourci lu par [`crate::shortcut::Shortcut::parse`] (« Mod+Shift+X »).
+    pub shortcut: String,
+    /// `true` (par défaut) : la commande n'agit que si du texte est sélectionné ; sinon elle appuie le raccourci dans tous les cas.
+    #[serde(default = "CustomCommand::default_needs_selection", rename = "needsSelection")]
+    pub needs_selection: bool,
+}
+
+impl CustomCommand {
+    fn default_needs_selection() -> bool {
+        true
+    }
+
+    /// Les commandes lues dans un fichier de réglages : titre, phrases (au moins deux mots) et raccourci lisible exigés, identifiants
+    /// uniques et préfixés ; une commande incomplète est écartée.
+    pub fn cleaned(list: Vec<CustomCommand>) -> Vec<CustomCommand> {
+        let mut out: Vec<CustomCommand> = Vec::new();
+        for mut c in list {
+            c.name = c.name.split_whitespace().collect::<Vec<_>>().join(" ");
+            c.shortcut = c.shortcut.trim().to_string();
+            let mut seen = Vec::new();
+            c.phrases = c
+                .phrases
+                .into_iter()
+                .map(|p| p.split_whitespace().collect::<Vec<_>>().join(" "))
+                .filter(|p| {
+                    let n = normalize(p);
+                    let keep = word_count(&n) >= MIN_WORDS && !seen.contains(&n);
+                    seen.push(n);
+                    keep
+                })
+                .collect();
+            if c.id.starts_with(CUSTOM_PREFIX)
+                && !c.name.is_empty()
+                && !c.phrases.is_empty()
+                && crate::shortcut::Shortcut::parse(&c.shortcut).is_some()
+                && !out.iter().any(|o| o.id == c.id)
+            {
+                out.push(c);
+            }
+        }
+        out
+    }
+
+    fn def(&self) -> CommandDef {
+        CommandDef {
+            id: self.id.clone(),
+            needs: if self.needs_selection { Needs::Selection } else { Needs::Nothing },
+            argument: Argument::None,
+            phrases_fr: self.phrases.clone(),
+            phrases_en: self.phrases.clone(),
+        }
+    }
+}
+
+/// Toutes les commandes en vigueur : celles du programme, puis celles de la personne (à phrase égale, celles du programme l'emportent).
+pub fn all_defs(settings: &AppSettings) -> Vec<CommandDef> {
+    let mut defs = builtin();
+    defs.extend(settings.custom_commands.iter().map(CustomCommand::def));
+    defs
+}
+
 /// Préfixe des identifiants des commandes « caractères autour » (tâche 7) : `entourer.parentheses`, `entourer.guillemets`, `entourer.crochets`,
 /// `entourer.accolades`.
 pub const SURROUND_PREFIX: &str = "entourer.";
@@ -450,13 +522,14 @@ pub fn recognize_for(raw: &str, settings: &AppSettings) -> Option<Recognized> {
     if !settings.voice_commands_enabled {
         return None;
     }
-    recognize(raw, &builtin(), &settings.voice_commands, settings.language)
+    recognize(raw, &all_defs(settings), &settings.voice_commands, settings.language)
 }
 
 /// Contrôle d'une phrase que la personne veut donner à la commande `id` (dans la langue `lang`) : au moins deux mots, et pas déjà
 /// celle d'une autre commande (comparée sous forme normalisée, phrases par défaut ou choisies). Rend la phrase nettoyée.
 pub fn validate_phrase(phrase: &str, id: &str, lang: Lang, defs: &[CommandDef], custom: &VoicePhrases) -> Result<String, PhraseError> {
-    if !defs.iter().any(|d| d.id == id) {
+    // Une commande de la personne pas encore créée (« perso.nouveau ») se contrôle comme les autres.
+    if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) {
         return Err(PhraseError::UnknownCommand);
     }
     let normalized = normalize(phrase);
@@ -758,6 +831,52 @@ mod tests {
         for raw in ["Mets le titre en gras", "gras", "bold", "make the title bold"] {
             assert!(id_of(raw, DictationLanguage::Multi).is_none(), "{raw}");
         }
+    }
+
+    fn mine(id: &str, name: &str, phrases: &[&str], shortcut: &str) -> CustomCommand {
+        CustomCommand {
+            id: id.into(),
+            name: name.into(),
+            phrases: phrases.iter().map(|p| (*p).to_string()).collect(),
+            shortcut: shortcut.into(),
+            needs_selection: true,
+        }
+    }
+
+    #[test]
+    fn commands_310_custom_commands_are_recognized_in_every_dictation_language_and_cleaned() {
+        let settings = AppSettings {
+            custom_commands: CustomCommand::cleaned(vec![
+                mine("perso.1", "Titre 1", &["  appliquer   le titre ", "titre"], "Mod+Alt+1"),
+                mine("perso.1", "Doublon", &["autre phrase ici"], "Mod+Alt+2"),
+                mine("autre.3", "Mauvais préfixe", &["phrase préfixe"], "Mod+Alt+3"),
+                mine("perso.4", "", &["sans titre ici"], "Mod+Alt+4"),
+                mine("perso.5", "Sans raccourci lisible", &["raccourci illisible"], "B"),
+            ]),
+            ..AppSettings::default()
+        };
+        assert_eq!(settings.custom_commands.len(), 1);
+        assert_eq!(settings.custom_commands[0].phrases, vec!["appliquer le titre"], "espaces ramenés à un, mot seul écarté");
+        for language in [DictationLanguage::Fr, DictationLanguage::En, DictationLanguage::Multi] {
+            let s = AppSettings { language, ..settings.clone() };
+            assert_eq!(recognize_for("Appliquer le titre.", &s).map(|r| r.id), Some("perso.1".to_string()));
+        }
+    }
+
+    #[test]
+    fn commands_311_a_custom_phrase_cannot_take_a_phrase_of_another_command_and_a_new_one_is_checked() {
+        let settings =
+            AppSettings { custom_commands: vec![mine("perso.1", "T", &["appliquer le titre"], "Mod+Alt+1")], ..AppSettings::default() };
+        let defs = all_defs(&settings);
+        let custom = VoicePhrases::default();
+        assert!(
+            matches!(validate_phrase("mettre en gras", "perso.nouveau", Lang::Fr, &defs, &custom), Err(PhraseError::Taken(id)) if id == "format.gras")
+        );
+        assert!(
+            matches!(validate_phrase("Appliquer le titre", "perso.nouveau", Lang::Fr, &defs, &custom), Err(PhraseError::Taken(id)) if id == "perso.1")
+        );
+        assert_eq!(validate_phrase("  faire   ceci ", "perso.nouveau", Lang::Fr, &defs, &custom), Ok("faire ceci".to_string()));
+        assert_eq!(validate_phrase("faire ceci", "inconnue.x", Lang::Fr, &defs, &custom), Err(PhraseError::UnknownCommand));
     }
 
     #[test]

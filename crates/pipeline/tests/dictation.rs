@@ -1400,3 +1400,43 @@ fn commands_307_the_general_switch_turns_the_format_commands_off() {
     r.dictate();
     assert_eq!((r.paster.selected_reads(), r.paster.shortcuts().len(), r.paster.pasted().len()), (0, 0, 1));
 }
+
+fn custom(id: &str, phrase: &str, shortcut: &str, needs_selection: bool) -> scriibe_core::commands::CustomCommand {
+    scriibe_core::commands::CustomCommand {
+        id: id.into(),
+        name: "Mon raccourci".into(),
+        phrases: vec![phrase.into()],
+        shortcut: shortcut.into(),
+        needs_selection,
+    }
+}
+
+#[test]
+fn commands_309_a_custom_command_presses_its_own_shortcut_on_a_selection() {
+    let settings = AppSettings { custom_commands: vec![custom("perso.1", "appliquer le titre", "Mod+Alt+1", true)], ..local_settings() };
+    let r = formatted("Appliquer le titre.", scriibe_core::settings::DictationLanguage::Fr, settings);
+    let expected = scriibe_core::shortcut::Shortcut::parse("Mod+Alt+1").unwrap().to_string();
+    assert_eq!(r.paster.shortcuts(), vec![expected]);
+    assert!(r.paster.pasted().is_empty());
+    assert!(r.history.items().is_empty());
+}
+
+#[test]
+fn commands_310_a_custom_command_without_selection_requirement_acts_with_nothing_selected() {
+    let settings = AppSettings { custom_commands: vec![custom("perso.2", "enregistrer le fichier", "Mod+S", false)], ..local_settings() };
+    let r = rig_with(settings, "Enregistrer le fichier", "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::NoSelection);
+    r.dictate();
+    let expected = scriibe_core::shortcut::Shortcut::parse("Mod+S").unwrap().to_string();
+    assert_eq!((r.paster.shortcuts(), r.paster.selected_reads(), r.paster.pasted().len()), (vec![expected], 0, 0));
+}
+
+#[test]
+fn commands_311_a_custom_command_that_needs_a_selection_stays_text_without_one() {
+    let settings = AppSettings { custom_commands: vec![custom("perso.1", "appliquer le titre", "Mod+Alt+1", true)], ..local_settings() };
+    let r = rig_with(settings, "Appliquer le titre", "Appliquer le titre.", true);
+    r.paster.set_selected(FakeSelected::NoSelection);
+    r.dictate();
+    assert!(r.paster.shortcuts().is_empty());
+    assert_eq!(r.paster.pasted().len(), 1);
+}

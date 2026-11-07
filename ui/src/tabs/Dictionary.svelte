@@ -6,7 +6,7 @@
   import { nav } from '../lib/nav.svelte';
   import { api, type Dictionary, type Stats } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
-  import { t, tx } from '../lib/i18n.svelte';
+  import { i18n, t, tx } from '../lib/i18n.svelte';
 
   let words = $state<string[]>([]);
   let corrections = $state<{ heard: string; written: string }[]>([]);
@@ -16,7 +16,9 @@
   let writtenInput = $state<HTMLInputElement>();
   let saved = $state('');
   let loaded = false;
-  let signs = $state<{ said: string; written: string }[]>([]);
+  let allSigns = $state<{ said: string; written: string; langs: 'fr' | 'en' | 'both' }[]>([]);
+  /** Seuls les signes de la langue de l'interface (et les symboles communs) s'affichent ; les autres restent actifs en dictée dans leur langue. */
+  let signs = $derived(allSigns.filter((s) => s.langs === 'both' || s.langs === i18n.lang));
   let weekCorrections = $state(0);
   let v = $derived(settings.value);
 
@@ -130,7 +132,7 @@
   onMount(() => {
     void settings.load();
     void api<Stats>('stats').then((r) => (weekCorrections = r.corrections_this_week));
-    void api<{ signs: { said: string; written: string }[] }>('signs').then((out) => (signs = out.signs));
+    void api<{ signs: { said: string; written: string; langs: 'fr' | 'en' | 'both' }[] }>('signs').then((out) => (allSigns = out.signs));
     void api<Dictionary>('dictionary').then((d) => {
       apply(d);
       loaded = true;

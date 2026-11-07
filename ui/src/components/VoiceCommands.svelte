@@ -115,6 +115,86 @@
     }
   }
 
+  // ---- Mes commandes : un titre, une phrase, un raccourci de l'appli active ----
+  type Custom = { id: string; name: string; phrases: string[]; shortcut: string; needsSelection: boolean };
+  let customs = $derived((v?.customCommands ?? []) as Custom[]);
+  let customDraft = $state({ name: '', phrase: '', shortcut: '', needsSelection: true });
+  let customError = $state('');
+  let customLabels = $state<Record<string, string>>({});
+  let customShortcutDrafts = $state<Record<string, string>>({});
+
+  const nameOf = (id: string) => customs.find((c) => c.id === id)?.name;
+  const takenMessage = (other?: string) => t('Cette phrase sert déjà à la commande « {name} ».', { name: nameOf(other ?? '') ?? t(labelOf(other ?? '')) });
+  const tooShortMessage = () => t('Une phrase compte au moins deux mots : un mot seul est trop souvent du texte à coller.');
+  const badShortcutMessage = () => t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec au moins Mod, Ctrl ou Alt.');
+
+  async function shortcutLabel(text: string): Promise<{ ok: boolean; label?: string }> {
+    return api<{ ok: boolean; label?: string }>('commands/validate-shortcut', { text });
+  }
+
+  async function addCustom() {
+    const name = customDraft.name.trim();
+    const phrase = customDraft.phrase.trim();
+    const shortcut = customDraft.shortcut.trim();
+    if (!name || !phrase || !shortcut) {
+      customError = t('Donne un titre, une phrase à dire et un raccourci.');
+      return;
+    }
+    const check = await api<Check>('commands/validate-phrase', { id: 'perso.nouveau', lang: i18n.lang, phrase });
+    if (!check.ok) {
+      customError = check.error === 'taken' ? takenMessage(check.other) : tooShortMessage();
+      return;
+    }
+    if (!(await shortcutLabel(shortcut)).ok) {
+      customError = badShortcutMessage();
+      return;
+    }
+    customError = '';
+    const entry: Custom = { id: 'perso.' + Date.now(), name, phrases: [check.phrase!], shortcut, needsSelection: customDraft.needsSelection };
+    await settings.change({ customCommands: [...customs, entry] });
+    customDraft = { name: '', phrase: '', shortcut: '', needsSelection: true };
+  }
+
+  async function updateCustom(id: string, patch: Partial<Custom>) {
+    await settings.change({ customCommands: customs.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  }
+
+  async function removeCustom(id: string) {
+    await settings.change({ customCommands: customs.filter((c) => c.id !== id) });
+  }
+
+  async function addCustomPhrase(c: Custom) {
+    const key = c.id + ':phrase';
+    const typed = (drafts[key] ?? '').trim();
+    if (!typed) return;
+    const check = await api<Check>('commands/validate-phrase', { id: c.id, lang: i18n.lang, phrase: typed });
+    if (!check.ok) {
+      errors[key] = check.error === 'taken' ? takenMessage(check.other) : tooShortMessage();
+      return;
+    }
+    errors[key] = '';
+    drafts[key] = '';
+    if (!c.phrases.some((p) => p.toLowerCase() === check.phrase!.toLowerCase())) await updateCustom(c.id, { phrases: [...c.phrases, check.phrase!] });
+  }
+
+  async function setCustomShortcut(c: Custom, text: string) {
+    const check = await shortcutLabel(text);
+    if (!check.ok) {
+      errors[c.id + ':shortcut'] = badShortcutMessage();
+      return;
+    }
+    errors[c.id + ':shortcut'] = '';
+    await updateCustom(c.id, { shortcut: text.trim() });
+  }
+
+  // Le raccourci lu (« ⌘⇧X ») de chaque commande, redemandé quand le raccourci change.
+  $effect(() => {
+    for (const c of customs) {
+      customShortcutDrafts[c.id] ??= c.shortcut;
+      void shortcutLabel(c.shortcut).then((r) => (customLabels[c.id] = r.label ?? ''));
+    }
+  });
+
   onMount(() => {
     void settings.load().then(refreshLabels);
     void reload();
@@ -195,6 +275,52 @@
         {/if}
       {/each}
     {/each}
+
+    <h3>{t('Mes commandes')}</h3>
+    <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple « Mod+Shift+X » (⌘⇧X sur Mac, Ctrl+Maj+X ailleurs). Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>
+    {#each customs as c (c.id)}
+      <div class="command">
+        <div class="head">
+          <b>{c.name}</b>
+          <label class="inline">
+            <input type="checkbox" checked={c.needsSelection} onchange={(e) => updateCustom(c.id, { needsSelection: e.currentTarget.checked })} />
+            {t('Seulement si du texte est sélectionné')}
+          </label>
+          <button class="link" onclick={() => removeCustom(c.id)}>{t('Supprimer')}</button>
+        </div>
+        <div class="langrow">
+          <span class="lang muted">{t('Phrases')}</span>
+          <div class="chips">
+            {#each c.phrases as phrase, i (phrase)}
+              <span class="chip">{phrase}<button class="x" title={c.phrases.length < 2 ? t('Une commande garde au moins une phrase') : t('Retirer')} disabled={c.phrases.length < 2} onclick={() => updateCustom(c.id, { phrases: c.phrases.filter((_, j) => j !== i) })}>×</button></span>
+            {/each}
+            <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter une phrase')} bind:value={drafts[c.id + ':phrase']} onkeydown={(e) => e.key === 'Enter' && addCustomPhrase(c)} />
+            <button onclick={() => addCustomPhrase(c)} disabled={!(drafts[c.id + ':phrase'] ?? '').trim()}>{t('Ajouter')}</button>
+          </div>
+        </div>
+        {#if errors[c.id + ':phrase']}<p class="error">{errors[c.id + ':phrase']}</p>{/if}
+        <div class="langrow">
+          <span class="lang muted">{t('Raccourci')}</span>
+          <div class="chips">
+            <input type="text" class="shortcut" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" bind:value={customShortcutDrafts[c.id]} onchange={() => setCustomShortcut(c, customShortcutDrafts[c.id] ?? '')} />
+            <span class="muted">→ {customLabels[c.id] ?? ''}</span>
+          </div>
+        </div>
+        {#if errors[c.id + ':shortcut']}<p class="error">{errors[c.id + ':shortcut']}</p>{/if}
+      </div>
+    {/each}
+    {#if customs.length === 0}<p class="muted">{t('Aucune commande à toi pour l’instant.')}</p>{/if}
+    <div class="command newcommand">
+      <div class="head"><b>{t('Nouvelle commande')}</b></div>
+      <div class="chips">
+        <input type="text" placeholder={t('Titre (ex. : Barré)')} bind:value={customDraft.name} />
+        <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Phrase à dire (ex. : mettre en barré)')} bind:value={customDraft.phrase} />
+        <input type="text" class="shortcut" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="Mod+Shift+X" bind:value={customDraft.shortcut} onkeydown={(e) => e.key === 'Enter' && addCustom()} />
+        <label class="inline"><input type="checkbox" bind:checked={customDraft.needsSelection} /> {t('Seulement si du texte est sélectionné')}</label>
+        <button onclick={addCustom}>{t('Ajouter la commande')}</button>
+      </div>
+      {#if customError}<p class="error nomargin">{customError}</p>{/if}
+    </div>
   </div>
   <p class="muted">{t('Une phrase compte au moins deux mots et ne sert qu’à une commande. Majuscules, accents et ponctuation sont ignorés. « Rétablir » remet les phrases d’origine.')}</p>
 </Card>
@@ -214,5 +340,8 @@
   .shortcut { width: 10rem; }
   .link { border: 0; background: transparent; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; }
   .error { color: var(--bad); margin: 4px 0 0 5.5rem; }
+  .inline { display: inline-flex; align-items: center; gap: 6px; }
+  .error.nomargin { margin-left: 0; }
+  .newcommand { margin-top: 10px; }
   .off { opacity: 0.5; pointer-events: none; }
 </style>

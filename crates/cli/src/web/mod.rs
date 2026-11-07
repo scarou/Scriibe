@@ -201,7 +201,16 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Get, "api/phrases") => ok(request, phrases(ctx.app.config.settings().language)),
         (Method::Get, "api/signs") => ok(
             request,
-            json!({"signs": scriibe_core::spoken_signs::ALL.iter().map(|s| json!({"said": s.said, "written": s.written})).collect::<Vec<_>>()}),
+            json!({"signs": scriibe_core::spoken_signs::ALL.iter().map(|s| json!({
+                "said": s.said,
+                "written": s.written,
+                // Pour n'afficher que les signes de la langue de l'interface (les signes anglais restent actifs en dictée anglaise).
+                "langs": match s.langs {
+                    scriibe_core::spoken_signs::Langs::Fr => "fr",
+                    scriibe_core::spoken_signs::Langs::En => "en",
+                    scriibe_core::spoken_signs::Langs::Both => "both",
+                },
+            })).collect::<Vec<_>>()}),
         ),
         // Carte « Commandes vocales » : les commandes, leurs phrases par défaut et en vigueur, puis le contrôle d'une phrase ou d'un raccourci.
         (Method::Get, "api/commands") => ok(request, commands_view(&ctx.app.config.settings())),
@@ -1141,10 +1150,19 @@ fn commands_view(settings: &scriibe_core::settings::AppSettings) -> Value {
 
 /// Contrôle d'une phrase que la personne veut donner à une commande : au moins deux mots, pas déjà prise par une autre commande.
 fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input: &Value) -> Value {
-    use scriibe_core::commands::{builtin, validate_phrase, Lang, PhraseError};
+    use scriibe_core::commands::{all_defs, validate_phrase, Lang, PhraseError, CUSTOM_PREFIX};
     let lang = if input["lang"].as_str() == Some("en") { Lang::En } else { Lang::Fr };
     let phrase = input["phrase"].as_str().unwrap_or("");
-    match validate_phrase(phrase, input["id"].as_str().unwrap_or(""), lang, &builtin(), &settings.voice_commands) {
+    let id = input["id"].as_str().unwrap_or("");
+    let defs = all_defs(settings);
+    // Une phrase de commande de la personne vaut pour les deux langues de dictée : elle ne doit être prise dans aucune des deux.
+    let result = if id.starts_with(CUSTOM_PREFIX) {
+        validate_phrase(phrase, id, Lang::Fr, &defs, &settings.voice_commands)
+            .and_then(|_| validate_phrase(phrase, id, Lang::En, &defs, &settings.voice_commands))
+    } else {
+        validate_phrase(phrase, id, lang, &defs, &settings.voice_commands)
+    };
+    match result {
         Ok(clean) => json!({"ok": true, "phrase": clean}),
         Err(PhraseError::TooShort) => json!({"ok": false, "error": "too_short"}),
         Err(PhraseError::Taken(other)) => json!({"ok": false, "error": "taken", "other": other}),
