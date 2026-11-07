@@ -75,3 +75,16 @@ fn format_shortcuts_default_round_trip_and_are_corrected_when_unreadable() {
     );
     assert_eq!(AppSettings::from_json(r#"{"formatShortcuts": 3}"#).unwrap().format_shortcuts, d.format_shortcuts);
 }
+
+#[test]
+fn one_badly_written_custom_command_is_dropped_alone() {
+    use scriibe_core::settings::AppSettings;
+    let json = r#"{"customCommands": [
+        {"id": "perso.1", "name": "Nouveau", "phrases": ["nouveau document"], "shortcut": "Mod+N"},
+        {"id": "perso.2", "name": "Sans raccourci", "phrases": ["sans raccourci ici"]},
+        {"id": "perso.3", "name": "Quitter", "phrases": ["quitter tout"], "shortcut": "Mod+Q"}
+    ]}"#;
+    let s = AppSettings::from_json(json).unwrap();
+    let ids: Vec<_> = s.custom_commands.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, vec!["perso.1"], "la commande sans raccourci et celle qui quitte l'appli sont écartées, pas la liste entière");
+}

@@ -96,7 +96,7 @@
   async function setShortcut(name: string, text: string) {
     const check = await api<{ ok: boolean; label?: string }>('commands/validate-shortcut', { text });
     if (!check.ok) {
-      errors['shortcut:' + name] = t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec au moins Mod, Ctrl ou Alt.');
+      errors['shortcut:' + name] = t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec Mod ou Ctrl ; Mod+Q (quitter) est refusé.');
       return;
     }
     errors['shortcut:' + name] = '';
@@ -126,7 +126,7 @@
   const nameOf = (id: string) => customs.find((c) => c.id === id)?.name;
   const takenMessage = (other?: string) => t('Cette phrase sert déjà à la commande « {name} ».', { name: nameOf(other ?? '') ?? t(labelOf(other ?? '')) });
   const tooShortMessage = () => t('Une phrase compte au moins deux mots : un mot seul est trop souvent du texte à coller.');
-  const badShortcutMessage = () => t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec au moins Mod, Ctrl ou Alt.');
+  const badShortcutMessage = () => t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec Mod ou Ctrl ; Mod+Q (quitter) est refusé.');
 
   async function shortcutLabel(text: string): Promise<{ ok: boolean; label?: string }> {
     return api<{ ok: boolean; label?: string }>('commands/validate-shortcut', { text });

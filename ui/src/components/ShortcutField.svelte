@@ -21,7 +21,7 @@
     if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return;
     const text = shortcutOf(e, isMac);
     if (!text) {
-      hint = t('Tiens ⌘, Ctrl ou Alt avec une lettre ou un chiffre.');
+      hint = t('Tiens ⌘ ou Ctrl avec une lettre ou un chiffre (⌘Q est refusé).');
       return;
     }
     hint = '';

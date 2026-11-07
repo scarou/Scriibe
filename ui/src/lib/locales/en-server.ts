@@ -99,6 +99,7 @@ export const enServer: Record<string, string> = {
   'Raccourci non envoyé — {reason}': 'Shortcut not sent — {reason}',
   'autorisation Accessibilité manquante': 'Accessibility permission missing',
   'touche non prise en charge': 'key not supported',
+  'macOS n\'a pas pu envoyer la touche': 'macOS could not send the key',
   'non pris en charge sur ce système': 'not supported on this system',
   'Rien à entourer (la sélection est vide)': 'Nothing to wrap (the selection is empty)',
   'Scriibe n\'a pas pu ouvrir sa fenêtre': 'Scriibe could not open its window',

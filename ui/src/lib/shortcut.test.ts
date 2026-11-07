@@ -25,5 +25,9 @@ describe('shortcutOf', () => {
     expect(shortcutOf(press('KeyX', { shiftKey: true }), true)).toBeNull();
     expect(shortcutOf(press('Enter', { metaKey: true }), true)).toBeNull();
     expect(shortcutOf(press('KeyN', { metaKey: true }), false)).toBeNull();
+    expect(shortcutOf(press('KeyB', { altKey: true }), true)).toBeNull();
+    expect(shortcutOf(press('KeyQ', { metaKey: true }), true)).toBeNull();
+    expect(shortcutOf(press('KeyQ', { ctrlKey: true }), false)).toBeNull();
+    expect(shortcutOf(press('KeyW', { metaKey: true }), true)).toBe('Mod+W');
   });
 });

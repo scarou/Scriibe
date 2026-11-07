@@ -179,6 +179,22 @@ Essai guidé par Christophe, une étape à la fois, Scriibe.app compilée en rel
 - **Signes dictés, 2e série (adresses)** : `jean.gmail.com` → `jean@gmail.com` marche quand les mots sont bien détachés (plusieurs essais de Christophe) ; `Va dans le dossier baroblique document` → `Va dans le dossier/document`. **Échec avec sa propre adresse** : Whisper écrit `christophe.campin.com` (« arobase » et « gmail » effacés, « Campain » écrit « Campin »), ce qu'aucune règle ne peut deviner ; le mot `CAMPAIN` en majuscules du dictionnaire force en plus `christophe.CAMPAIN.com`. Piste : une correction du dictionnaire (entendu `christophe.campin.com` → écrit son adresse) plutôt qu'une règle.
 - **Verdict b-c** : gras, italique, souligné (TextEdit, Notes, Google Docs), entourer par parenthèses (Notes, un seul ⌘Z) et commandes de la personne (⌘N) fonctionnent sur le Mac. **Non essayés à la main** : guillemets « », crochets, accolades, ⌘C d'essai de lecture dans d'autres navigateurs, Windows et Linux (pas de lecture de sélection).
 
+### Relecture de la livraison (tâche 10, 07/11/2026, agent distinct, R18)
+
+Aucun bloquant, aucune fuite du texte sélectionné (journal, historique, rapport, pastille, messages). **Corrigés** : raccourcis de « Mes commandes » (⌘ ou Ctrl exigé, donc plus d'Option seul qui écrirait un caractère ; ⌘Q, ⌘⇧Q et ⌃⌘Q refusés ; ⌘W reste permis, « fermer l'onglet » est un usage normal) ; message d'erreur fixe « macOS n'a pas pu envoyer la touche » à la place de « touche non prise en charge » ; une commande mal écrite dans `settings.json` n'efface plus toute la liste `customCommands`.
+
+**Limites connues, non corrigées** :
+- **Éditeur qui copie la ligne courante sans sélection** (VS Code, Sublime, JetBrains par défaut) : le ⌘C de repli lit la ligne comme une sélection ; « entre parenthèses » l'entoure, ⌘B ouvre la barre latérale de VS Code. À vérifier dans VS Code ; pas de garde simple.
+- **Sélection identique au presse-papiers** (⌘C juste avant, repli ⌘C) : vue comme « aucune sélection », la phrase est collée à la place (⌘Z la retire).
+- **« Caractères autour »** colle du texte brut : une sélection enrichie (liens, gras) perd sa mise en forme ; ⌘Z la rend.
+- **Gras, italique, souligné et commandes de la personne** lisent toute la sélection alors qu'il leur suffit de savoir qu'elle existe (0,2 à 0,5 s de plus dans Google Docs et Chrome ; tampon sans plafond sur un ⌘A de gros document).
+- **Codes de touche QWERTY** : un raccourci écrit à la main dans `settings.json` vise la touche à cette position sur un clavier AZERTY ; le champ de saisie de la page prend la position physique, donc reste cohérent. Une commande de la personne sans sélection exigée avale la dictée sous Windows et Linux (`press_shortcut` y répond « non pris en charge »).
+- **Signes dictés** : faux positifs possibles (« trending hashtag » → `#`, « releasing new line of shoes » → saut de ligne, « faire point net » → `.net`) ; les mots anglais de `DESCRIBING_WORDS` s'appliquent aussi à une dictée française (« plan A point à la ligne » sans virgule n'est plus converti).
+- **Essai de modèle, banc et verdict « sauter la mise au propre »** (`web/trial.rs`, `bench_view.rs`, `web/mod.rs`) appellent `dictionary::apply` (français seul) : en dictée anglaise ou multilingue, ils ne voient pas les mêmes signes que la vraie dictée.
+- `core/src/shortcut.rs` contient `cfg!(target_os = "macos")` (règle : code propre à un système derrière `crates/platform`) ; ne casse rien, à ranger.
+- `PrefillSink` ignore l'échec d'ouverture de la fenêtre (`open::open` ne rend rien) : la pastille dit « complète « Écrit » » même si elle ne s'ouvre pas.
+- Le refus d'une phrase trop courte ou déjà prise n'est fait que par la page (`validate-phrase`), pas à l'enregistrement des réglages ; un doublon entre langues n'est pas détecté (le reconnaisseur reste sûr).
+
 ## Relecture
 
 Tâche 4 (07/11/2026) : relecture du commit 3e6724b par un sous-agent Sonnet qui n'avait pas écrit le code (lecture seule, rien exécuté), puis corrections. Chemins suivis : types de la sélection, lecture Mac (accessibilité et ⌘C), contrôleur, canal vers la page, serveur local, banc de dictée, interface, rapport, messages d'erreur.

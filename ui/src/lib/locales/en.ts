@@ -175,7 +175,7 @@ export const en: Record<string, string> = {
   'Phrases': 'Phrases',
   'Mes commandes': 'My commands',
   'Appuie sur le raccourci…': 'Press the shortcut…',
-  'Tiens ⌘, Ctrl ou Alt avec une lettre ou un chiffre.': 'Hold ⌘, Ctrl or Alt with a letter or a digit.',
+  'Tiens ⌘ ou Ctrl avec une lettre ou un chiffre (⌘Q est refusé).': 'Hold ⌘ or Ctrl with a letter or a digit (⌘Q is refused).',
   'Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.':
     'Give a title to a phrase that presses a shortcut of the active app, for example ⌘⇧X on Mac. Click the shortcut field, then press the combination you want. A shortcut that already exists in an app can be called by voice this way.',
   'Seulement si du texte est sélectionné': 'Only when text is selected',
@@ -192,8 +192,8 @@ export const en: Record<string, string> = {
   'Cette phrase sert déjà à la commande « {name} ».': 'This phrase is already used by the “{name}” command.',
   'Une phrase compte au moins deux mots : un mot seul est trop souvent du texte à coller.':
     'A phrase has at least two words: a single word is too often text to paste.',
-  'Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec au moins Mod, Ctrl ou Alt.':
-    'Unreadable shortcut: write for example “Mod+B” (⌘B on Mac, Ctrl+B elsewhere), with at least Mod, Ctrl or Alt.',
+  'Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec Mod ou Ctrl ; Mod+Q (quitter) est refusé.':
+    'Unreadable shortcut: write for example “Mod+B” (⌘B on Mac, Ctrl+B elsewhere), with Mod or Ctrl; Mod+Q (quit) is refused.',
   'Une phrase compte au moins deux mots et ne sert qu’à une commande. Majuscules, accents et ponctuation sont ignorés. « Rétablir » remet les phrases d’origine.':
     'A phrase has at least two words and serves only one command. Capitals, accents and punctuation are ignored. “Restore” puts the original phrases back.',
 

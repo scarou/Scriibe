@@ -39,3 +39,5 @@ Tout ce qui est dans `Checks.swift` mais pas dans `fixtures/`, avec la raison. �
 ## Sans objet pour le cœur
 
 Sélecteur de fichiers, `llama-server --help` (cas `invariant` : à vérifier à l'exécution), cartes et rubriques de l'interface (reprises dans `ui_logic.json` quand elles ont une logique testable).
+
+- **Commandes sur sélection (S18)** : limites connues de la relecture du 07/11/2026 listées dans `docs/COMMANDES.md` (« Relecture de la livraison ») : VS Code (copie de ligne sans sélection), sélection identique au presse-papiers, faux positifs de signes, `dictionary::apply` encore appelé par l'essai de modèle et le banc.

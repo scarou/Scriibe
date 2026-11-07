@@ -2,6 +2,20 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S18 — 2026-11-07 · Commandes vocales sur du texte sélectionné (Mac, non publié)
+
+Sessions locales sur le Mac Studio de Christophe (tâches 0 à 9 de la ligne du 03/11 du carnet) ; `scarou/scribe` non modifié. **Aucune version publiée** (ROADMAP n°14) ; le détail de conception, de relecture et d'essai est dans `docs/COMMANDES.md`.
+
+- **Commandes vocales** : quand du texte est sélectionné, une phrase dite seule (rien d'autre dans la dictée) agit sur lui au lieu d'être collée. Sans sélection, ou avec d'autres mots, elle reste du texte. Interrupteur général dans la carte « Commandes vocales » (onglet Dictionnaire). **Sur Mac seulement** pour l'instant (Windows et Linux : pas de lecture de la sélection, la phrase reste du texte).
+- **Ajouter au dictionnaire** : « ajouter au dictionnaire » ouvre l'onglet avec la sélection dans « Entendu ».
+- **Caractères autour** : « mettre entre parenthèses / guillemets (« » en français, " " en anglais) / crochets / accolades » entourent la sélection en un seul collage : un seul ⌘Z annule.
+- **Gras, italique, souligné** : « mettre en gras / italique / souligné » appuient le raccourci de l'appli (⌘B, ⌘I, ⌘U, réglables), sans écrire de Markdown. Variantes pour les erreurs d'écoute de Whisper (« mais en gras », « mettre en souligner »).
+- **Mes commandes** : la personne crée une commande avec un titre, une ou plusieurs phrases et un raccourci de l'appli saisi **au clavier**, avec ou sans sélection exigée (réglage `customCommands`).
+- **Signes dictés ajoutés** (français et anglais) : `!`, `?`, `;`, `:`, `@`, `/`, `\`, `_`, `~`, `&`, `*`, `#`, accolades, `.com`… avec une langue par signe (les signes anglais ne s'appliquent pas à une dictée française). La liste affichée et les phrases des commandes ne montrent que la langue de l'interface. Whisper efface souvent « arobase » : une adresse `jean.gmail.com` (gmail, googlemail, hotmail, icloud) retrouve son `@`. Aide : section « Adresses e-mail : règle ton dictionnaire ».
+- **Technique** : `crates/core/src/commands.rs` (reconnaissance sur la transcription entière, phrases par défaut et choisies), `shortcut.rs` ; `Paster::selected_text` et `Paster::press_shortcut` (macOS : ⌘C d'essai avec presse-papiers remis dans tous les cas, ⌘C refusé si image ou fichiers ; raccourci par CGEvent) ; la sélection n'est ni journalisée, ni dans l'historique ou le rapport, et son texte est effacé de la mémoire. Routes `api/commands`, `api/commands/validate-phrase`, `api/commands/validate-shortcut`.
+- **Corrigé à l'essai réel** : l'aiguillage de collage de la page (`SwitchPaster`) ne transmettait pas `press_shortcut` (« non pris en charge sur ce système »).
+- **Essayé à la main** (Christophe) : gras, italique, souligné dans TextEdit, Notes et Google Docs ; parenthèses dans Notes ; une commande à lui (⌘N). **Non essayé** : guillemets, crochets, accolades à la main ; Windows et Linux. « Mettre en barré » a été ajouté puis retiré (aucun raccourci dans TextEdit ni Notes).
+
 ## S17 — 2026-11-05 et 06 · Version 0.2.4 : espace entre deux dictées, Aide, fusion de Linux
 
 Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié. **Version 0.2.4** (numéro dans `Cargo.toml`).

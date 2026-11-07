@@ -20,8 +20,8 @@ pub struct Shortcut {
 impl Shortcut {
     /// Lit un raccourci : modificateurs et touche séparés par `+` (espaces ignorés), dans n'importe quel ordre, sans tenir compte des
     /// majuscules. `Mod` (ou `Cmd`, `⌘`) est ⌘ sur Mac et Ctrl ailleurs ; `Ctrl`, `Alt`, `Option`, `Maj`, `Shift`, `⌃`, `⌥`, `⇧` aussi.
-    /// Refuse : pas de modificateur (une lettre seule s'écrirait dans le texte), pas de touche, deux touches, touche autre qu'une lettre
-    /// ou un chiffre.
+    /// Refuse : pas de ⌘ ni de Ctrl (une lettre seule, ou Option + lettre, s'écrirait dans le texte), pas de touche, deux touches, touche
+    /// autre qu'une lettre ou un chiffre, et ⌘Q (Ctrl+Q hors Mac) sous toutes ses formes : il quitte l'appli (avec Maj, il ferme la session).
     pub fn parse(text: &str) -> Option<Shortcut> {
         Self::parse_for(text, cfg!(target_os = "macos"))
     }
@@ -51,7 +51,8 @@ impl Shortcut {
             }
         }
         out.key = key?;
-        (out.command || out.control || out.alt).then_some(out)
+        let quits = out.key == 'q' && (out.command || (!mac && out.control));
+        ((out.command || out.control) && !quits).then_some(out)
     }
 }
 
@@ -114,8 +115,31 @@ mod tests {
     }
 
     #[test]
+    fn option_alone_and_quit_are_refused_but_close_tab_and_option_with_command_are_not() {
+        assert_eq!(sc("Ctrl+Q", false), None);
+        assert!(sc("Ctrl+W", false).is_some() && sc("Mod+W", true).is_some(), "fermer l'onglet reste un raccourci possible");
+        assert!(sc("Mod+Alt+B", true).is_some());
+        assert!(sc("Ctrl+Q", true).is_some(), "sur Mac, Ctrl+Q n'est pas « quitter »");
+    }
+
+    #[test]
     fn refuses_what_cannot_be_sent_safely() {
-        for bad in ["", "B", "Mod", "Mod+", "Mod+B+I", "Mod+Entrée", "Shift+B", "Mod+é", "Mod++", "Truc+B"] {
+        for bad in [
+            "",
+            "B",
+            "Mod",
+            "Mod+",
+            "Mod+B+I",
+            "Mod+Entrée",
+            "Shift+B",
+            "Mod+é",
+            "Mod++",
+            "Truc+B",
+            "Alt+B",
+            "Mod+Q",
+            "Mod+Shift+Q",
+            "Ctrl+Mod+Q",
+        ] {
             assert_eq!(sc(bad, true), None, "{bad}");
         }
     }

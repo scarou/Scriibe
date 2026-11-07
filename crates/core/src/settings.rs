@@ -490,8 +490,10 @@ impl AppSettings {
             voice_commands_enabled: get(o, "voiceCommandsEnabled").unwrap_or(d.voice_commands_enabled),
             voice_commands: get::<crate::commands::VoicePhrases>(o, "voiceCommands").map_or(d.voice_commands, |v| v.cleaned()),
             format_shortcuts: get::<crate::commands::FormatShortcuts>(o, "formatShortcuts").map_or(d.format_shortcuts, |v| v.cleaned()),
-            custom_commands: get::<Vec<crate::commands::CustomCommand>>(o, "customCommands")
-                .map_or(d.custom_commands, crate::commands::CustomCommand::cleaned),
+            // Une commande mal écrite est écartée seule : les autres sont gardées.
+            custom_commands: o.get("customCommands").and_then(Value::as_array).map_or(d.custom_commands, |list| {
+                crate::commands::CustomCommand::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            }),
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
             llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
             llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),

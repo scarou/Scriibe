@@ -8,7 +8,9 @@
 
 use super::ffi;
 use crate::apple::PASTE_BLOCKING_FLAGS;
-use crate::paste::{PasteOutcome, Paster, SelectedRead, SelectedText, Selection, Unreadable, SHORTCUT_KEY_UNKNOWN, SHORTCUT_NOT_TRUSTED};
+use crate::paste::{
+    PasteOutcome, Paster, SelectedRead, SelectedText, Selection, Unreadable, SHORTCUT_KEY_UNKNOWN, SHORTCUT_NOT_SENT, SHORTCUT_NOT_TRUSTED,
+};
 use arboard::Clipboard;
 use scriibe_core::shortcut::Shortcut;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -194,7 +196,7 @@ fn send_shortcut(shortcut: &Shortcut) -> Result<(), &'static str> {
         let _ = post_key_flags(*code, false, flags);
         pause();
     }
-    result.map_err(|_| SHORTCUT_KEY_UNKNOWN)
+    result.map_err(|_| SHORTCUT_NOT_SENT)
 }
 
 /// Combien de temps on laisse à l'appli pour copier sa sélection après ⌘C.

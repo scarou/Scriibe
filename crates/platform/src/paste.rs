@@ -84,6 +84,7 @@ pub enum SelectedRead {
 pub const SHORTCUT_UNSUPPORTED: &str = "non pris en charge sur ce système";
 pub const SHORTCUT_NOT_TRUSTED: &str = "autorisation Accessibilité manquante";
 pub const SHORTCUT_KEY_UNKNOWN: &str = "touche non prise en charge";
+pub const SHORTCUT_NOT_SENT: &str = "macOS n'a pas pu envoyer la touche";
 
 pub trait Paster: Send + Sync {
     /// Met `text` dans le presse-papiers, attend que les touches de modification soient relâchées, envoie le collage.
