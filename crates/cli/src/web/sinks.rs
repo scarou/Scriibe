@@ -84,6 +84,15 @@ impl Paster for SwitchPaster {
         }
     }
 
+    // Pendant une capture d'essai, aucun raccourci n'est envoyé à l'appli active (et il n'y a pas de commande vocale).
+    fn press_shortcut(&self, shortcut: &scriibe_core::shortcut::Shortcut) -> Result<(), &'static str> {
+        if self.0.capturing() {
+            Err(scriibe_platform::paste::SHORTCUT_UNSUPPORTED)
+        } else {
+            self.0.paster.press_shortcut(shortcut)
+        }
+    }
+
     // Pendant une capture d'essai rien n'est collé : il n'y a pas de sélection à remplacer.
     fn selection(&self) -> Selection {
         if self.0.capturing() {
