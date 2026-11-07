@@ -175,8 +175,10 @@ export const en: Record<string, string> = {
   'Barré': 'Strikethrough',
   'Phrases': 'Phrases',
   'Mes commandes': 'My commands',
-  'Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple « Mod+Shift+X » (⌘⇧X sur Mac, Ctrl+Maj+X ailleurs). Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.':
-    'Give a title to a phrase that presses a shortcut of the active app, for example “Mod+Shift+X” (⌘⇧X on Mac, Ctrl+Shift+X elsewhere). A shortcut that already exists in an app can be called by voice this way.',
+  'Appuie sur le raccourci…': 'Press the shortcut…',
+  'Tiens ⌘, Ctrl ou Alt avec une lettre ou un chiffre.': 'Hold ⌘, Ctrl or Alt with a letter or a digit.',
+  'Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.':
+    'Give a title to a phrase that presses a shortcut of the active app, for example ⌘⇧X on Mac. Click the shortcut field, then press the combination you want. A shortcut that already exists in an app can be called by voice this way.',
   'Seulement si du texte est sélectionné': 'Only when text is selected',
   'Aucune commande à toi pour l’instant.': 'No command of your own yet.',
   'Nouvelle commande': 'New command',

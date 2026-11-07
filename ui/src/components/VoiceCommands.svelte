@@ -1,5 +1,6 @@
 <script lang="ts">
   import Card from './Card.svelte';
+  import ShortcutField from './ShortcutField.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
@@ -253,16 +254,7 @@
               <div class="langrow">
                 <span class="lang muted">{t('Raccourci')}</span>
                 <div class="chips">
-                  <input
-                    type="text"
-                    class="shortcut"
-                    autocapitalize="off"
-                    autocorrect="off"
-                    autocomplete="off"
-                    spellcheck="false"
-                    bind:value={shortcutDrafts[def.shortcut]}
-                    onchange={() => setShortcut(def.shortcut, shortcutDrafts[def.shortcut] ?? '')}
-                  />
+                  <ShortcutField value={shortcutDrafts[def.shortcut] ?? ''} onset={(s) => { shortcutDrafts[def.shortcut] = s; void setShortcut(def.shortcut, s); }} />
                   <span class="muted">→ {shortcutLabels[def.shortcut] ?? ''}</span>
                   {#if (shortcutDrafts[def.shortcut] ?? '') !== defaults[def.shortcut]}
                     <button class="link" onclick={() => { shortcutDrafts[def.shortcut] = defaults[def.shortcut]; void setShortcut(def.shortcut, defaults[def.shortcut]); }}>{t('Rétablir')}</button>
@@ -277,7 +269,7 @@
     {/each}
 
     <h3>{t('Mes commandes')}</h3>
-    <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple « Mod+Shift+X » (⌘⇧X sur Mac, Ctrl+Maj+X ailleurs). Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>
+    <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>
     {#each customs as c (c.id)}
       <div class="command">
         <div class="head">
@@ -302,7 +294,7 @@
         <div class="langrow">
           <span class="lang muted">{t('Raccourci')}</span>
           <div class="chips">
-            <input type="text" class="shortcut" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" bind:value={customShortcutDrafts[c.id]} onchange={() => setCustomShortcut(c, customShortcutDrafts[c.id] ?? '')} />
+            <ShortcutField value={customShortcutDrafts[c.id] ?? c.shortcut} onset={(s) => { customShortcutDrafts[c.id] = s; void setCustomShortcut(c, s); }} />
             <span class="muted">→ {customLabels[c.id] ?? ''}</span>
           </div>
         </div>
@@ -315,7 +307,7 @@
       <div class="chips">
         <input type="text" placeholder={t('Titre (ex. : Barré)')} bind:value={customDraft.name} />
         <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Phrase à dire (ex. : mettre en barré)')} bind:value={customDraft.phrase} />
-        <input type="text" class="shortcut" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="Mod+Shift+X" bind:value={customDraft.shortcut} onkeydown={(e) => e.key === 'Enter' && addCustom()} />
+        <ShortcutField value={customDraft.shortcut} onset={(s) => (customDraft.shortcut = s)} />
         <label class="inline"><input type="checkbox" bind:checked={customDraft.needsSelection} /> {t('Seulement si du texte est sélectionné')}</label>
         <button onclick={addCustom}>{t('Ajouter la commande')}</button>
       </div>
@@ -337,7 +329,6 @@
   .x:hover:not(:disabled) { color: var(--bad); }
   .x:disabled { opacity: 0.35; cursor: not-allowed; }
   .phrase { min-width: 12rem; }
-  .shortcut { width: 10rem; }
   .link { border: 0; background: transparent; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; }
   .error { color: var(--bad); margin: 4px 0 0 5.5rem; }
   .inline { display: inline-flex; align-items: center; gap: 6px; }
