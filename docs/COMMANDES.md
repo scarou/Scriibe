@@ -54,3 +54,51 @@ Aucun. `Paster.swift` ne fait que copier et coller (⌘V) ; pas de lecture de la
 - **Faux positifs** : « ajouter au dictionnaire » dit sans sélection doit rester du texte ; une sélection fantôme est possible si `selection_by_copy` voit un changement dû à une autre copie en même temps.
 - **Limites du Mac** : accessibilité obligatoire (sinon `NotTrusted`, aucune commande) ; Electron et pages web retombent sur ⌘C ; presse-papiers conservé en texte seulement.
 - **Non vérifié** : comportement réel de la sonde ⌘C dans Chrome et Electron (le code mentionne une copie en deux temps de Chrome, `macos/paste.rs:122`) ; aucun test lancé.
+
+## Conception
+
+Validée par Christophe le 07/11/2026 (tâche 1), avec les 6 points ci-dessous et les 8 cas. Cible : Mac d'abord (tâches 2 à 5) ; Windows et Linux dépendent de la détection de la sélection (ROADMAP n°3) et sont portés dans leurs carnets.
+
+### Principe
+
+Une seule couche de commandes « verbe + objet », en logique pure (`crates/core/src/commands.rs`, rien de propre à un système). Elle est réutilisée par les extraits (ROADMAP n°4) et la recherche web (n°7), qui ajouteront leurs fiches sans toucher à la reconnaissance.
+
+- **Fiche de commande** : identifiant « verbe.objet » (ex. `dictionnaire.ajouter`), phrases par défaut en français et en anglais (au moins 2 mots), `needs` (sélection exigée ou non), `argument` (aucun, ou « le reste de la phrase » pour la recherche web). Les extraits et les sites de recherche de l'utilisateur ajoutent des fiches à l'exécution.
+- **Reconnaissance** : la phrase doit être **toute** la transcription (option A). Comparaison sur une forme normalisée : minuscules, accents retirés (œ → oe), apostrophes, tirets, ponctuation et espaces ramenés à un seul espace. Une fiche avec argument reconnaît « phrase + reste non vide ».
+- **Où** : sur `raw`, juste après le filtre des phrases inventées (`controller.rs:714`), **avant** `dictionary::apply` (les signes dictés ou les corrections réécriraient la phrase). Un module pur `recognize(raw, catalogue, langue, …)` rend la fiche et l'argument.
+- **Sélection lue seulement après la correspondance** : une dictée ordinaire ne déclenche jamais de ⌘C. Une commande à sélection sans sélection lisible → la phrase est collée comme du texte (sans message ; avec un message dans la pastille si la lecture est impossible : accessibilité refusée, presse-papiers non textuel). Une fiche sans `needs` s'exécute avec ou sans sélection.
+- **Langues** : catalogue de la langue de dictée ; « plusieurs langues » (`multi`) teste les deux. Sur `raw`, donc la langue parlée, avant toute traduction.
+- **Phrases réglables** : réglage par commande et par langue (clé `voiceCommands`, plus un interrupteur général, **activé par défaut**), carte « Commandes vocales » dans l'onglet Dictionnaire. Les phrases de l'utilisateur **remplacent** celles par défaut (bouton « Rétablir »). Refusées : une phrase déjà prise par une autre commande (comparée sous forme normalisée), une phrase de moins de 2 mots.
+- **Lecture de la sélection** : nouvelle méthode du trait `Paster`, `selected_text()`, qui rend un type dédié (`SelectedText`) : ni `Debug`/`Display` du contenu, ni `Serialize`, effacé de la mémoire à la fin. Mac : accessibilité (`AXSelectedText`, sans toucher au presse-papiers) ; **repli ⌘C** si l'appli n'expose pas sa sélection, avec presse-papiers texte sauvegardé puis remis (vérifié). **Si le presse-papiers contient autre chose que du texte (image, fichiers), pas de ⌘C** : la commande n'est pas exécutée, la phrase est collée comme du texte et la pastille le dit. Marquer la copie comme « masquée » pour les gestionnaires de presse-papiers (`org.nspasteboard.ConcealedType`) : à examiner en tâche 3, non garanti.
+- **Exécution** : un seul répartiteur par identifiant. « Ajouter au dictionnaire » : le texte passe à la page par un **canal en mémoire lu une seule fois** (jamais écrit sur disque ni journalisé) ; la fenêtre s'ouvre sur l'onglet Dictionnaire, « Entendu » prérempli, curseur dans « Écrit ». Refus si la sélection dépasse 80 caractères ou fait plusieurs lignes (message dans la pastille).
+- **Retour** : message court dans la pastille, **sans jamais afficher le texte sélectionné** (ex. « Ajouter au dictionnaire — complète « Écrit » »). Les messages venus de Rust ont leur traduction dans `locales/en-server.ts`.
+- **⌘Z** : « ajouter au dictionnaire » ne modifie pas le texte (rien à annuler) ; les commandes b et c (caractères autour, gras/italique/souligné) passent par un collage ou un raccourci de l'appli, que ⌘Z annule en une fois, comme une dictée.
+- **Aucune trace** : journal = identifiant de la commande et longueur de la sélection seulement ; **pas d'entrée d'historique** pour une commande ; messages d'erreur à texte fixe (jamais `{e}` pouvant contenir du texte) ; rapport inchangé. Un test injecte une sélection piège (« SECRET-123 ») et vérifie son absence du journal, de l'historique, de la pastille, des erreurs et du rapport.
+
+### Les 8 cas (sélection active, sauf le 4)
+
+| # | Tu dis | Ce qui se passe |
+|---|---|---|
+| 1 | « Ajouter au dictionnaire » | La commande s'exécute, rien n'est collé. |
+| 2 | « Ajoute au *Dictionnaire* ! » / « Ajouter au dictionnaire. » | Idem : ponctuation, majuscules et accents sont ignorés. |
+| 3 | « Ajouter au dictionnaire le mot cri be » | Phrase plus longue : pas une commande, la dictée remplace la sélection (⌘Z la restaure). |
+| 4 | « Ajouter au dictionnaire » sans sélection | La phrase est collée comme du texte, sans message. |
+| 5 | « Add to dictionary » (langue anglaise) | Idem en anglais ; en « plusieurs langues », les deux catalogues sont testés. |
+| 6 | Phrase changée dans les réglages (« mémorise ») | La nouvelle marche, l'ancienne non ; phrase déjà prise ou d'un seul mot : refusée. |
+| 7 | Presse-papiers occupé, repli ⌘C | Le texte est sauvegardé puis remis ; image ou fichiers : pas de ⌘C, commande non exécutée. |
+| 8 | Une commande s'exécute | Rien de la sélection dans le journal (longueur seulement), l'historique, le rapport, la pastille ou les erreurs. |
+
+### Les 6 points validés
+
+1. Activé par défaut, avec un interrupteur dans les réglages.
+2. Phrases de l'utilisateur d'au moins 2 mots (les phrases par défaut aussi).
+3. Lecture par l'accessibilité d'abord, ⌘C en repli (la Décision du 07/11 disait « par ⌘C simulé » : plus privé, un gestionnaire de presse-papiers ne voit rien passer).
+4. Presse-papiers non textuel : pas de ⌘C, commande non exécutée.
+5. Une commande n'entre pas dans l'historique des dictées.
+6. Une fiche déclare si elle exige une sélection et si elle prend un argument (extraits et recherche web n'exigent pas de sélection ; la règle « sans sélection, la phrase reste du texte » vaut pour les commandes sur sélection).
+
+### À vérifier plus tard
+
+- Sonde ⌘C dans Chrome et Electron (copie en deux temps de Chrome) : tâche 5.
+- Messages d'erreur des moteurs et `llama-server.log` : peuvent-ils contenir du texte ? tâche 4.
+- Windows et Linux : après la ROADMAP n°3 (carnets Windows et Linux).
