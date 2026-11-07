@@ -176,7 +176,8 @@ Essai guidé par Christophe, une étape à la fois, Scriibe.app compilée en rel
 - **Notes, gras, italique, souligné** : marchent. Whisper écrit parfois « souligner » au lieu de « souligné » : « mettre en souligner » ajouté aux phrases par défaut (Christophe l'avait ajouté à la main dans la carte).
 - **Google Docs (Chrome), gras, italique, souligné** : marchent tous les trois (lecture de la sélection comprise).
 - **Signes dictés (Notes), texte brut de Whisper lu dans l'historique** : « jean arobase gmail point com » → Whisper écrit `jean.gmail.com` (« arobase » effacé) ; « barre oblique » → `baroblique` ; « point d'interrogation » → bien reconnu au 2e essai (1er : `pour une interrogation`). Corrigés dans `spoken_signs.rs` (voir `ECARTS.md`).
-- **Reste à essayer** : Notes (barré, commande de la personne), Google Docs dans Chrome (gras, italique, souligné, barré), « mettre entre parenthèses » et les autres « caractères autour », et les nouveaux signes dictés tels que Whisper les écrit.
+- **Signes dictés, 2e série (adresses)** : `jean.gmail.com` → `jean@gmail.com` marche quand les mots sont bien détachés (plusieurs essais de Christophe) ; `Va dans le dossier baroblique document` → `Va dans le dossier/document`. **Échec avec sa propre adresse** : Whisper écrit `christophe.campin.com` (« arobase » et « gmail » effacés, « Campain » écrit « Campin »), ce qu'aucune règle ne peut deviner ; le mot `CAMPAIN` en majuscules du dictionnaire force en plus `christophe.CAMPAIN.com`. Piste : une correction du dictionnaire (entendu `christophe.campin.com` → écrit son adresse) plutôt qu'une règle.
+- **Verdict b-c** : gras, italique, souligné (TextEdit, Notes, Google Docs), entourer par parenthèses (Notes, un seul ⌘Z) et commandes de la personne (⌘N) fonctionnent sur le Mac. **Non essayés à la main** : guillemets « », crochets, accolades, ⌘C d'essai de lecture dans d'autres navigateurs, Windows et Linux (pas de lecture de sélection).
 
 ## Relecture
 
