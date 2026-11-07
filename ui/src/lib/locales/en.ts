@@ -157,6 +157,33 @@ export const en: Record<string, string> = {
     'To dictate a list, say “retour à la ligne”, then “tiret” or “puce” before each item, or “point un”, “numéro suivant”… Only recognised at the start of a line: “un tiret entre les deux mots” stays text.',
   'Caractère devant chaque élément :': 'Character before each item:',
 
+  // Commandes vocales (carte du Dictionnaire)
+  'Commandes vocales': 'Voice commands',
+  'Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Sur Mac pour l’instant.':
+    'When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words, it stays text. On Mac for now.',
+  'Activer les commandes vocales': 'Turn voice commands on',
+  'Ajouter au dictionnaire': 'Add to dictionary',
+  'Entourer la sélection': 'Wrap the selection',
+  'Entre parenthèses': 'In parentheses',
+  'Entre guillemets': 'In quotes',
+  'Entre crochets': 'In brackets',
+  'Entre accolades': 'In braces',
+  'Gras, italique, souligné': 'Bold, italic, underline',
+  'Gras': 'Bold',
+  'Italique': 'Italic',
+  'Souligné': 'Underlined',
+  'Rétablir': 'Restore',
+  'Raccourci': 'Shortcut',
+  'Ajouter une phrase': 'Add a phrase',
+  'Une commande garde au moins une phrase': 'A command keeps at least one phrase',
+  'Cette phrase sert déjà à la commande « {name} ».': 'This phrase is already used by the “{name}” command.',
+  'Une phrase compte au moins deux mots : un mot seul est trop souvent du texte à coller.':
+    'A phrase has at least two words: a single word is too often text to paste.',
+  'Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec au moins Mod, Ctrl ou Alt.':
+    'Unreadable shortcut: write for example “Mod+B” (⌘B on Mac, Ctrl+B elsewhere), with at least Mod, Ctrl or Alt.',
+  'Une phrase compte au moins deux mots et ne sert qu’à une commande. Majuscules, accents et ponctuation sont ignorés. « Rétablir » remet les phrases d’origine.':
+    'A phrase has at least two words and serves only one command. Capitals, accents and punctuation are ignored. “Restore” puts the original phrases back.',
+
   // Modes
   'sans nom': 'unnamed',
   'Supprimer le mode « {name} » ?': 'Delete the mode “{name}”?',

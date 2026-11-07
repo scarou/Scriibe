@@ -8,8 +8,9 @@
 
 use super::ffi;
 use crate::apple::PASTE_BLOCKING_FLAGS;
-use crate::paste::{PasteOutcome, Paster, SelectedRead, SelectedText, Selection, Unreadable};
+use crate::paste::{PasteOutcome, Paster, SelectedRead, SelectedText, Selection, Unreadable, SHORTCUT_KEY_UNKNOWN, SHORTCUT_NOT_TRUSTED};
 use arboard::Clipboard;
+use scriibe_core::shortcut::Shortcut;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -98,6 +99,102 @@ fn send_command_v() -> Result<(), String> {
     post_key(KEY_V, false)?;
     std::thread::sleep(Duration::from_millis(10));
     post_key_flags(KEY_COMMAND, false, 0)
+}
+
+/// Code de touche macOS d'une lettre ou d'un chiffre, à sa place QWERTY (même limite que ⌘C et ⌘V : Dvorak et Colemak la déplacent).
+fn key_code(key: char) -> Option<u16> {
+    Some(match key {
+        'a' => 0,
+        's' => 1,
+        'd' => 2,
+        'f' => 3,
+        'h' => 4,
+        'g' => 5,
+        'z' => 6,
+        'x' => 7,
+        'c' => 8,
+        'v' => 9,
+        'b' => 11,
+        'q' => 12,
+        'w' => 13,
+        'e' => 14,
+        'r' => 15,
+        'y' => 16,
+        't' => 17,
+        '1' => 18,
+        '2' => 19,
+        '3' => 20,
+        '4' => 21,
+        '6' => 22,
+        '5' => 23,
+        '9' => 25,
+        '7' => 26,
+        '8' => 28,
+        '0' => 29,
+        'o' => 31,
+        'u' => 32,
+        'i' => 34,
+        'p' => 35,
+        'l' => 37,
+        'j' => 38,
+        'k' => 40,
+        'n' => 45,
+        'm' => 46,
+        _ => return None,
+    })
+}
+
+const FLAG_SHIFT: u64 = 0x0002_0000;
+const FLAG_CONTROL: u64 = 0x0004_0000;
+const FLAG_OPTION: u64 = 0x0008_0000;
+const KEY_SHIFT: u16 = 56;
+const KEY_CONTROL: u16 = 59;
+const KEY_OPTION: u16 = 58;
+
+/// Envoie `shortcut` comme une vraie frappe : chaque modificateur s'appuie avant la touche et se relâche après (comme ⌘V).
+fn send_shortcut(shortcut: &Shortcut) -> Result<(), &'static str> {
+    let key = key_code(shortcut.key).ok_or(SHORTCUT_KEY_UNKNOWN)?;
+    // SAFETY : fonction sans paramètre.
+    if !unsafe { ffi::AXIsProcessTrusted() } {
+        if !ASKED.swap(true, Ordering::SeqCst) {
+            ffi::ask_accessibility();
+        }
+        return Err(SHORTCUT_NOT_TRUSTED);
+    }
+    let mut modifiers: Vec<(u16, u64)> = Vec::new();
+    if shortcut.control {
+        modifiers.push((KEY_CONTROL, FLAG_CONTROL));
+    }
+    if shortcut.alt {
+        modifiers.push((KEY_OPTION, FLAG_OPTION));
+    }
+    if shortcut.shift {
+        modifiers.push((KEY_SHIFT, FLAG_SHIFT));
+    }
+    if shortcut.command {
+        modifiers.push((KEY_COMMAND, FLAG_COMMAND));
+    }
+    wait_for_modifiers_released();
+    std::thread::sleep(Duration::from_millis(40));
+    let pause = || std::thread::sleep(Duration::from_millis(10));
+    let mut flags = 0;
+    let mut result = Ok(());
+    for (code, flag) in &modifiers {
+        flags |= flag;
+        result = result.and_then(|()| post_key_flags(*code, true, flags));
+        pause();
+    }
+    result = result.and_then(|()| post_key_flags(key, true, flags));
+    pause();
+    result = result.and_then(|()| post_key_flags(key, false, flags));
+    pause();
+    // Les modificateurs se relâchent toujours, même après une erreur : une touche restée appuyée gênerait tout le reste.
+    for (code, flag) in modifiers.iter().rev() {
+        flags &= !flag;
+        let _ = post_key_flags(*code, false, flags);
+        pause();
+    }
+    result.map_err(|_| SHORTCUT_KEY_UNKNOWN)
 }
 
 /// Combien de temps on laisse à l'appli pour copier sa sélection après ⌘C.
@@ -273,6 +370,10 @@ impl Paster for MacPaster {
             },
             ffi::SelectionState::NotTrusted => Selection { active: false, report: ffi::SelectionState::NotTrusted.describe() },
         }
+    }
+
+    fn press_shortcut(&self, shortcut: &Shortcut) -> Result<(), &'static str> {
+        send_shortcut(shortcut)
     }
 
     fn copy(&self, text: &str) -> bool {

@@ -208,6 +208,14 @@
       <p>Noms, marques, jargon (« Claude Code », le nom d’un client) : ajoutés ici, ils sont donnés comme <b>indices</b> à la transcription et au modèle, et donc mieux reconnus. Pour une écriture certaine, ajoute aussi une correction automatique : un indice aide, il ne garantit rien.</p>
       <h3>Corrections automatiques</h3>
       <p>Un mot entendu est remplacé par celui que tu choisis : utile pour un mot toujours mal entendu (« cloud code » → « Claude Code »), ou pour un signe à toi (« trois points d’exclamation » → !!!). La correction s’applique toujours, à chaque dictée.</p>
+      <h3>Commandes vocales</h3>
+      <p>Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots autour, la phrase reste du texte ordinaire. Ni le texte sélectionné ni la commande ne sont gardés dans l’historique.</p>
+      <ul>
+        <li><b>Ajouter au dictionnaire</b> : « ajouter au dictionnaire » ouvre cet onglet avec le texte sélectionné dans « Entendu ».</li>
+        <li><b>Caractères autour</b> : « entre parenthèses », « entre guillemets » (« » en français, " " en anglais), « entre crochets » ou « entre accolades » entourent la sélection ; un seul ⌘Z l’annule.</li>
+        <li><b>Gras, italique, souligné</b> : « mets en gras », « mets en italique », « mets en souligné » appuient le raccourci de l’appli (⌘B, ⌘I, ⌘U sur Mac, modifiables). Scriibe n’écrit pas de Markdown : il se sert de l’appli.</li>
+      </ul>
+      {@render tip('Les phrases se changent dans la carte « Commandes vocales » de l’onglet Dictionnaire : deux mots au moins, et une phrase ne peut pas servir à deux commandes. Un interrupteur coupe toutes les commandes. Elles ne marchent pour l’instant que sur Mac.')}
       <div class="links">{@render go('Ouvrir le dictionnaire', 'dictionary')}</div>
 
     {:else if open === 'indicator'}

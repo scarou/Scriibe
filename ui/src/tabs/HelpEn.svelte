@@ -221,6 +221,14 @@
       <p>Names, brands, jargon (“Claude Code”, a client’s name): added here, they are given as <b>hints</b> to the transcription and to the model, and so are better recognised. For a certain spelling, also add an automatic correction: a hint helps, it guarantees nothing.</p>
       <h3>Automatic corrections</h3>
       <p>A word that is heard is replaced by the one you choose: useful for a word that is always misheard (“cloud code” → “Claude Code”), or for a sign of your own (“trois points d’exclamation” → !!!). The correction always applies, at every dictation.</p>
+      <h3>Voice commands</h3>
+      <p>When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words around it, the phrase stays ordinary text. Neither the selected text nor the command is kept in the history.</p>
+      <ul>
+        <li><b>Add to dictionary</b>: “add to dictionary” opens this tab with the selected text in “Heard”.</li>
+        <li><b>Characters around</b>: “in parentheses”, “in quotes” (« » in French, " " in English), “in brackets” or “in braces” wrap the selection; a single ⌘Z undoes it.</li>
+        <li><b>Bold, italic, underline</b>: “make it bold”, “make it italic”, “make it underlined” press the app’s own shortcut (⌘B, ⌘I, ⌘U on Mac, adjustable). Scriibe does not write Markdown: it uses the app.</li>
+      </ul>
+      {@render tip('The phrases are changed in the “Voice commands” card of the Dictionary tab: at least two words, and a phrase cannot serve two commands. A switch turns all the commands off. For now they only work on Mac.')}
       <div class="links">{@render go('Open the dictionary', 'dictionary')}</div>
 
     {:else if open === 'indicator'}

@@ -203,6 +203,16 @@ fn handle(ctx: &Context, mut request: Request) {
             request,
             json!({"signs": scriibe_core::spoken_signs::ALL.iter().map(|s| json!({"said": s.said, "written": s.written})).collect::<Vec<_>>()}),
         ),
+        // Carte « Commandes vocales » : les commandes, leurs phrases par défaut et en vigueur, puis le contrôle d'une phrase ou d'un raccourci.
+        (Method::Get, "api/commands") => ok(request, commands_view(&ctx.app.config.settings())),
+        (Method::Post, "api/commands/validate-phrase") => ok(request, validate_command_phrase(&ctx.app.config.settings(), &input)),
+        (Method::Post, "api/commands/validate-shortcut") => ok(
+            request,
+            match scriibe_core::shortcut::Shortcut::parse(input["text"].as_str().unwrap_or("")) {
+                Some(shortcut) => json!({"ok": true, "label": shortcut.to_string()}),
+                None => json!({"ok": false}),
+            },
+        ),
         (Method::Get, "api/trial/samples") => {
             ok(request, json!({"samples": scriibe_core::clean_test::samples_for(ctx.app.config.settings().language)}))
         }
@@ -1108,6 +1118,37 @@ fn gnome_translate_shortcut() -> Option<String> {
     #[cfg(not(target_os = "linux"))]
     {
         None
+    }
+}
+
+/// Les commandes vocales pour la carte des réglages : identifiant, phrases par défaut et phrases en vigueur, en français et en anglais.
+fn commands_view(settings: &scriibe_core::settings::AppSettings) -> Value {
+    use scriibe_core::commands::{builtin, effective_phrases, Lang};
+    let commands: Vec<Value> = builtin()
+        .iter()
+        .map(|def| {
+            json!({
+                "id": def.id,
+                "fr_default": def.phrases_fr,
+                "en_default": def.phrases_en,
+                "fr": effective_phrases(def, &settings.voice_commands, Lang::Fr),
+                "en": effective_phrases(def, &settings.voice_commands, Lang::En),
+            })
+        })
+        .collect();
+    json!({"enabled": settings.voice_commands_enabled, "commands": commands})
+}
+
+/// Contrôle d'une phrase que la personne veut donner à une commande : au moins deux mots, pas déjà prise par une autre commande.
+fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input: &Value) -> Value {
+    use scriibe_core::commands::{builtin, validate_phrase, Lang, PhraseError};
+    let lang = if input["lang"].as_str() == Some("en") { Lang::En } else { Lang::Fr };
+    let phrase = input["phrase"].as_str().unwrap_or("");
+    match validate_phrase(phrase, input["id"].as_str().unwrap_or(""), lang, &builtin(), &settings.voice_commands) {
+        Ok(clean) => json!({"ok": true, "phrase": clean}),
+        Err(PhraseError::TooShort) => json!({"ok": false, "error": "too_short"}),
+        Err(PhraseError::Taken(other)) => json!({"ok": false, "error": "taken", "other": other}),
+        Err(PhraseError::UnknownCommand) => json!({"ok": false, "error": "unknown"}),
     }
 }
 

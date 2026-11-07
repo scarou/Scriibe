@@ -754,6 +754,25 @@ impl Controller {
                 deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
                 CommandOutcome::Handled
             }
+            // Gras, italique, souligné (tâche 8) : pas de texte à écrire, on appuie le raccourci de l'appli, qui agit sur la sélection restée active
+            // (un seul ⌘Z l'annule). Pas de Markdown : il s'écrirait tel quel dans un traitement de texte.
+            id if id.starts_with(scriibe_core::commands::FORMAT_PREFIX) => {
+                let Some(text) = selected else { return CommandOutcome::Text(None) };
+                deps.log.write(&format!("commande: {id} (sélection : {} signes)", text.char_count()));
+                drop(text);
+                let Some(shortcut) = settings.format_shortcuts.for_command(id).and_then(scriibe_core::shortcut::Shortcut::parse) else {
+                    deps.indicator.flash(IndicatorState::Message("Raccourci invalide dans les réglages (exemple : Mod+B)".into()), 3.5);
+                    return CommandOutcome::Handled;
+                };
+                match deps.paster.press_shortcut(&shortcut) {
+                    Ok(()) => deps.indicator.flash(IndicatorState::Done, 0.9),
+                    Err(reason) => {
+                        deps.log.write(&format!("commande: {id} — raccourci non envoyé ({reason})"));
+                        deps.indicator.flash(IndicatorState::Message(format!("Raccourci non envoyé — {reason}")), 3.5);
+                    }
+                }
+                CommandOutcome::Handled
+            }
             // Caractères autour (tâche 7) : la sélection, restée active, est remplacée par un collage (un seul ⌘Z l'annule, comme une dictée).
             id if id.starts_with(scriibe_core::commands::SURROUND_PREFIX) => {
                 let Some(text) = selected else { return CommandOutcome::Text(None) };

@@ -1,6 +1,7 @@
 <script lang="ts">
   import Card from '../components/Card.svelte';
   import HelpButton from '../components/HelpButton.svelte';
+  import VoiceCommands from '../components/VoiceCommands.svelte';
   import { onMount, tick } from 'svelte';
   import { nav } from '../lib/nav.svelte';
   import { api, type Dictionary, type Stats } from '../lib/api';
@@ -228,6 +229,8 @@
     </div>
   {/if}
 </Card>
+
+<VoiceCommands />
 
 <style>
   .figures { display: flex; gap: 32px; flex-wrap: wrap; padding: 12px 18px; }

@@ -80,6 +80,11 @@ pub enum SelectedRead {
     Unreadable(Unreadable),
 }
 
+/// Raisons à texte fixe d'un raccourci non envoyé (`Paster::press_shortcut`).
+pub const SHORTCUT_UNSUPPORTED: &str = "non pris en charge sur ce système";
+pub const SHORTCUT_NOT_TRUSTED: &str = "autorisation Accessibilité manquante";
+pub const SHORTCUT_KEY_UNKNOWN: &str = "touche non prise en charge";
+
 pub trait Paster: Send + Sync {
     /// Met `text` dans le presse-papiers, attend que les touches de modification soient relâchées, envoie le collage.
     /// `restore_clipboard` : remet ensuite l'ancien contenu (en arrière-plan), s'il n'a pas changé entre-temps.
@@ -93,6 +98,11 @@ pub trait Paster: Send + Sync {
     /// passer par un ⌘C d'essai). Le presse-papiers est remis tel qu'il était. Par défaut : le système ne sait pas.
     fn selected_text(&self) -> SelectedRead {
         SelectedRead::Unreadable(Unreadable::Failed)
+    }
+    /// Appuie un raccourci de l'appli active (gras, italique, souligné) sur la sélection, qui reste telle quelle. Renvoie la raison, à texte fixe
+    /// (elle peut aller dans le journal et la pastille), si le raccourci n'a pas pu être envoyé. Par défaut : le système ne sait pas.
+    fn press_shortcut(&self, _shortcut: &scriibe_core::shortcut::Shortcut) -> Result<(), &'static str> {
+        Err(SHORTCUT_UNSUPPORTED)
     }
     /// Met `text` dans le presse-papiers, sans coller (« Copier la dernière dictée »). Faux si le système n'a pas pu.
     fn copy(&self, _text: &str) -> bool {

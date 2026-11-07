@@ -56,3 +56,22 @@ fn the_update_check_is_off_by_default_and_can_be_turned_on() {
     assert!(back.check_updates);
     assert!(!AppSettings::from_json("{}").unwrap().check_updates);
 }
+
+#[test]
+fn format_shortcuts_default_round_trip_and_are_corrected_when_unreadable() {
+    use scriibe_core::settings::AppSettings;
+    let d = AppSettings::default();
+    assert_eq!(
+        (d.format_shortcuts.bold.as_str(), d.format_shortcuts.italic.as_str(), d.format_shortcuts.underline.as_str()),
+        ("Mod+B", "Mod+I", "Mod+U")
+    );
+    let json = serde_json::to_string(&d).unwrap();
+    assert!(json.contains("\"formatShortcuts\""));
+    assert_eq!(AppSettings::from_json(&json).unwrap().format_shortcuts, d.format_shortcuts);
+    let own = AppSettings::from_json(r#"{"formatShortcuts": {"bold": "Ctrl+Alt+G", "italic": "x"}}"#).unwrap();
+    assert_eq!(
+        (own.format_shortcuts.bold.as_str(), own.format_shortcuts.italic.as_str(), own.format_shortcuts.underline.as_str()),
+        ("Ctrl+Alt+G", "Mod+I", "Mod+U")
+    );
+    assert_eq!(AppSettings::from_json(r#"{"formatShortcuts": 3}"#).unwrap().format_shortcuts, d.format_shortcuts);
+}

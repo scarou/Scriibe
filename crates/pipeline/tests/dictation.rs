@@ -1288,3 +1288,104 @@ fn commands_210_custom_phrase_replaces_the_default_for_a_wrapping_command() {
     r.dictate();
     assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses", "l'ancienne phrase ne marche plus");
 }
+
+// ---- Gras, italique, souligné (tâche 8, docs/COMMANDES.md) ----
+
+/// Ce que la commande fait : aucun collage, un raccourci appuyé (sous sa forme lue, « Ctrl+B » ici : ces tests ne tournent pas sur Mac seulement).
+fn formatted(raw: &'static str, language: scriibe_core::settings::DictationLanguage, settings: AppSettings) -> Rig {
+    let r = rig_with(AppSettings { language, ..settings }, raw, "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    r
+}
+
+fn mod_key(letter: char) -> String {
+    scriibe_core::shortcut::Shortcut::parse(&format!("Mod+{letter}")).unwrap().to_string()
+}
+
+#[test]
+fn commands_301_bold_italic_underline_press_the_app_shortcut_and_paste_nothing() {
+    use scriibe_core::settings::DictationLanguage::{En, Fr};
+    for (raw, language, letter) in [
+        ("Mets en gras.", Fr, 'B'),
+        ("Mets en italique", Fr, 'I'),
+        ("Mets en souligné !", Fr, 'U'),
+        ("Make it bold.", En, 'B'),
+        ("Make it italic", En, 'I'),
+        ("Underline it", En, 'U'),
+    ] {
+        let r = formatted(raw, language, local_settings());
+        assert_eq!(r.paster.shortcuts(), vec![mod_key(letter)], "{raw}");
+        assert!(r.paster.pasted().is_empty(), "rien n'est collé : le raccourci agit sur la sélection restée active ({raw})");
+        assert!(r.history.items().is_empty(), "une commande n'entre pas dans l'historique");
+        assert!(r.cleanup_requests().is_empty());
+        assert!(r.indicator.states().contains(&IndicatorState::Done), "{:?}", r.indicator.states());
+    }
+}
+
+#[test]
+fn commands_302_the_shortcut_is_the_one_in_the_settings() {
+    let mut settings = local_settings();
+    settings.format_shortcuts.bold = "Ctrl+Alt+G".into();
+    let r = formatted("Mets en gras", scriibe_core::settings::DictationLanguage::Fr, settings);
+    let expected = scriibe_core::shortcut::Shortcut::parse("Ctrl+Alt+G").unwrap().to_string();
+    assert_eq!(r.paster.shortcuts(), vec![expected]);
+}
+
+#[test]
+fn commands_303_an_unreadable_shortcut_in_the_settings_is_said_and_nothing_is_sent() {
+    let mut settings = local_settings();
+    settings.format_shortcuts.bold = "G".into(); // construit à la main : le fichier de réglages le corrigerait à la lecture
+    let r = formatted("Mets en gras", scriibe_core::settings::DictationLanguage::Fr, settings);
+    assert!(r.paster.shortcuts().is_empty() && r.paster.pasted().is_empty());
+    assert!(
+        r.indicator.states().contains(&message("Raccourci invalide dans les réglages (exemple : Mod+B)")),
+        "{:?}",
+        r.indicator.states()
+    );
+}
+
+#[test]
+fn commands_304_a_shortcut_that_cannot_be_sent_says_why_with_a_fixed_text() {
+    let r = rig_with(local_settings(), "Mets en gras", "x", true);
+    r.paster.set_selected(FakeSelected::Text(SECRET.into()));
+    r.paster.set_shortcut_error(Some("autorisation Accessibilité manquante"));
+    r.dictate();
+    assert!(r.paster.pasted().is_empty());
+    let states = r.indicator.states();
+    assert!(states.contains(&message("Raccourci non envoyé — autorisation Accessibilité manquante")), "{states:?}");
+    assert!(!format!("{states:?}{:?}", r.world.log.lines()).contains("SECRET"));
+}
+
+#[test]
+fn commands_305_without_a_selection_or_with_a_longer_sentence_the_phrase_is_dictated() {
+    let r = rig("Mets en gras", "Mets en gras.");
+    r.dictate();
+    assert!(r.paster.shortcuts().is_empty());
+    assert_eq!(r.paster.pasted().len(), 1);
+    let r = rig("Mets en gras le titre", "Mets en gras le titre.");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert!(r.paster.shortcuts().is_empty());
+    assert_eq!(r.paster.selected_reads(), 0, "pas de ⌘C pour une dictée qui n'est pas une commande");
+}
+
+#[test]
+fn commands_306_no_trace_of_the_selection_for_a_format_command() {
+    let r = rig("Mets en italique", "x");
+    r.paster.set_selected(FakeSelected::Text(SECRET.into()));
+    r.dictate();
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: format.italique (sélection : 14 signes)"), "{log}");
+    let everything = format!("{log}|{:?}|{:?}|{:?}|{:?}", r.history.items(), r.indicator.states(), r.paster.pasted(), r.paster.shortcuts());
+    assert!(!everything.contains("SECRET"), "{everything}");
+}
+
+#[test]
+fn commands_307_the_general_switch_turns_the_format_commands_off() {
+    let off = AppSettings { voice_commands_enabled: false, ..local_settings() };
+    let r = rig_with(off, "Mets en gras", "Mets en gras.", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!((r.paster.selected_reads(), r.paster.shortcuts().len(), r.paster.pasted().len()), (0, 0, 1));
+}

@@ -136,6 +136,8 @@ pub struct FakePaster {
     outcome: Mutex<PasteOutcome>,
     selection: Mutex<bool>,
     selected: Mutex<FakeSelected>,
+    shortcuts: Mutex<Vec<String>>,
+    shortcut_error: Mutex<Option<&'static str>>,
     reads: std::sync::atomic::AtomicUsize,
 }
 
@@ -146,6 +148,8 @@ impl Default for FakePaster {
             outcome: Mutex::new(PasteOutcome::Pasted),
             selection: Mutex::new(false),
             selected: Mutex::new(FakeSelected::NoSelection),
+            shortcuts: Mutex::new(Vec::new()),
+            shortcut_error: Mutex::new(None),
             reads: std::sync::atomic::AtomicUsize::new(0),
         }
     }
@@ -170,6 +174,16 @@ impl FakePaster {
         *lock(&self.selected) = selected;
     }
 
+    /// Les raccourcis appuyés (sous leur forme lue : « Ctrl+B », « ⌘B »…).
+    pub fn shortcuts(&self) -> Vec<String> {
+        lock(&self.shortcuts).clone()
+    }
+
+    /// Fait échouer les prochains raccourcis avec cette raison.
+    pub fn set_shortcut_error(&self, error: Option<&'static str>) {
+        *lock(&self.shortcut_error) = error;
+    }
+
     /// Combien de fois la lecture du texte sélectionné a été demandée (une dictée ordinaire ne doit jamais la demander).
     pub fn selected_reads(&self) -> usize {
         self.reads.load(std::sync::atomic::Ordering::SeqCst)
@@ -177,6 +191,14 @@ impl FakePaster {
 }
 
 impl Paster for FakePaster {
+    fn press_shortcut(&self, shortcut: &scriibe_core::shortcut::Shortcut) -> Result<(), &'static str> {
+        if let Some(error) = *lock(&self.shortcut_error) {
+            return Err(error);
+        }
+        lock(&self.shortcuts).push(shortcut.to_string());
+        Ok(())
+    }
+
     fn selected_text(&self) -> crate::paste::SelectedRead {
         self.reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         match lock(&self.selected).clone() {

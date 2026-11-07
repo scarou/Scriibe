@@ -112,6 +112,59 @@ pub enum PhraseError {
     UnknownCommand,
 }
 
+/// Préfixe des identifiants des commandes gras, italique et souligné (tâche 8) : `format.gras`, `format.italique`, `format.souligne`.
+pub const FORMAT_PREFIX: &str = "format.";
+
+/// Les raccourcis de l'appli que les commandes gras, italique et souligné appuient (réglables ; `Mod` = ⌘ sur Mac, Ctrl ailleurs).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FormatShortcuts {
+    #[serde(default = "FormatShortcuts::default_bold")]
+    pub bold: String,
+    #[serde(default = "FormatShortcuts::default_italic")]
+    pub italic: String,
+    #[serde(default = "FormatShortcuts::default_underline")]
+    pub underline: String,
+}
+
+impl FormatShortcuts {
+    fn default_bold() -> String {
+        "Mod+B".into()
+    }
+    fn default_italic() -> String {
+        "Mod+I".into()
+    }
+    fn default_underline() -> String {
+        "Mod+U".into()
+    }
+
+    /// Les raccourcis lus dans un fichier écrit à la main : un raccourci illisible (ou sans modificateur) redevient celui par défaut.
+    pub fn cleaned(self) -> Self {
+        let good =
+            |own: String, default: String| if crate::shortcut::Shortcut::parse(&own).is_some() { own.trim().to_string() } else { default };
+        Self {
+            bold: good(self.bold, Self::default_bold()),
+            italic: good(self.italic, Self::default_italic()),
+            underline: good(self.underline, Self::default_underline()),
+        }
+    }
+
+    /// Le raccourci (texte) de la commande `id` ; `None` : pas une commande de mise en forme.
+    pub fn for_command(&self, id: &str) -> Option<&str> {
+        match id.strip_prefix(FORMAT_PREFIX)? {
+            "gras" => Some(&self.bold),
+            "italique" => Some(&self.italic),
+            "souligne" => Some(&self.underline),
+            _ => None,
+        }
+    }
+}
+
+impl Default for FormatShortcuts {
+    fn default() -> Self {
+        Self { bold: Self::default_bold(), italic: Self::default_italic(), underline: Self::default_underline() }
+    }
+}
+
 /// Préfixe des identifiants des commandes « caractères autour » (tâche 7) : `entourer.parentheses`, `entourer.guillemets`, `entourer.crochets`,
 /// `entourer.accolades`.
 pub const SURROUND_PREFIX: &str = "entourer.";
@@ -153,7 +206,29 @@ pub fn builtin() -> Vec<CommandDef> {
         phrases_fr: v(fr),
         phrases_en: v(en),
     };
+    let format = |id: &str, fr: &[&str], en: &[&str]| CommandDef {
+        id: format!("{FORMAT_PREFIX}{id}"),
+        needs: Needs::Selection,
+        argument: Argument::None,
+        phrases_fr: v(fr),
+        phrases_en: v(en),
+    };
     vec![
+        format(
+            "gras",
+            &["mets en gras", "mettre en gras", "mettez en gras", "passe en gras", "en gras"],
+            &["make it bold", "make bold", "put in bold", "in bold"],
+        ),
+        format(
+            "italique",
+            &["mets en italique", "mettre en italique", "mettez en italique", "passe en italique", "en italique"],
+            &["make it italic", "make italic", "put in italics", "in italics"],
+        ),
+        format(
+            "souligne",
+            &["mets en souligné", "mettre en souligné", "mettez en souligné", "souligne le texte", "souligne ça"],
+            &["make it underlined", "underline it", "underline this", "put in underline"],
+        ),
         around(
             "parentheses",
             &[
@@ -617,5 +692,64 @@ mod tests {
             Err(PhraseError::Taken("entourer.crochets".into()))
         );
         assert_eq!(validate_phrase("parenthèse autour", "entourer.parentheses", Lang::Fr, &defs, &custom), Ok("parenthèse autour".into()));
+    }
+
+    // ---- Tâche 8 : gras, italique, souligné ----
+
+    #[test]
+    fn commands_301_format_phrases_are_recognized_in_both_languages() {
+        for (raw, id) in [
+            ("Mets en gras.", "format.gras"),
+            ("Passe en italique", "format.italique"),
+            ("Mets en souligné !", "format.souligne"),
+            ("En gras", "format.gras"),
+        ] {
+            assert_eq!(id_of(raw, DictationLanguage::Fr), Some((id.to_string(), Lang::Fr)), "{raw}");
+        }
+        for (raw, id) in [
+            ("Make it bold.", "format.gras"),
+            ("make italic", "format.italique"),
+            ("Underline it", "format.souligne"),
+            ("In bold", "format.gras"),
+        ] {
+            assert_eq!(id_of(raw, DictationLanguage::En), Some((id.to_string(), Lang::En)), "{raw}");
+        }
+        for raw in ["Mets le titre en gras", "gras", "bold", "make the title bold"] {
+            assert!(id_of(raw, DictationLanguage::Multi).is_none(), "{raw}");
+        }
+    }
+
+    #[test]
+    fn commands_302_format_commands_need_a_selection_and_have_no_argument() {
+        let defs = builtin();
+        let format: Vec<_> = defs.iter().filter(|d| d.id.starts_with(FORMAT_PREFIX)).collect();
+        assert_eq!(format.len(), 3);
+        assert!(format.iter().all(|d| d.needs == Needs::Selection && d.argument == Argument::None));
+    }
+
+    #[test]
+    fn commands_303_format_shortcuts_default_to_mod_b_i_u_and_unreadable_ones_are_corrected() {
+        let d = FormatShortcuts::default();
+        assert_eq!(
+            (d.for_command("format.gras"), d.for_command("format.italique"), d.for_command("format.souligne")),
+            (Some("Mod+B"), Some("Mod+I"), Some("Mod+U"))
+        );
+        assert_eq!(d.for_command("entourer.parentheses"), None);
+        let fixed = FormatShortcuts { bold: "G".into(), italic: " Ctrl+Alt+I ".into(), underline: "".into() }.cleaned();
+        assert_eq!((fixed.bold.as_str(), fixed.italic.as_str(), fixed.underline.as_str()), ("Mod+B", "Ctrl+Alt+I", "Mod+U"));
+    }
+
+    #[test]
+    fn commands_304_no_phrase_is_shared_across_all_commands_including_format_ones() {
+        // Reprend la règle de commands_203 avec la liste complète (la liste a grandi).
+        let defs = builtin();
+        for lang in [Lang::Fr, Lang::En] {
+            let mut seen = std::collections::BTreeSet::new();
+            for d in &defs {
+                for p in effective_phrases(d, &VoicePhrases::default(), lang) {
+                    assert!(seen.insert(normalize(&p)), "phrase en double : {p}");
+                }
+            }
+        }
     }
 }

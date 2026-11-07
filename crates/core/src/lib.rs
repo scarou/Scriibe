@@ -19,6 +19,7 @@ pub mod modes;
 mod prompt_text;
 pub mod retention;
 pub mod settings;
+pub mod shortcut;
 pub mod spacing;
 pub mod spoken_signs;
 pub mod text;
