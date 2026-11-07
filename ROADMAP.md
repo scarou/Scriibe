@@ -77,7 +77,7 @@ Objectif : dicter sous Windows, de bout en bout (touche → micro → transcript
   3. **Moteurs de transcription alternatifs** (Scribe n°35 et 36, de `veille-voix`) : Parakeet v3, Apple SpeechTranscriber (macOS 26+ seulement) ; verdict « surveiller ».
   4. **Extraits à raccourcis vocaux** (Scribe n°33) : « insérer mon adresse email » ; carte « Extraits », reconnaissance tolérante.
   5. **Épeler à la voix** (Scribe n°30 et 30 bis) : mesurer d'abord Whisper sur des lettres épelées ; mode dédié sans historique pour un mot de passe.
-  6. **Mode commande sur du texte sélectionné** (Scribe n°12 ter) : touche dédiée, garde-fou propre, annulation, confidentialité de la sélection ; dépend de la détection de la sélection sous Windows et Linux (étape 3).
+  6. **Mode commande sur du texte sélectionné** (Scribe n°12 ter) : touche dédiée, garde-fou propre, annulation, confidentialité de la sélection ; dépend de la détection de la sélection sous Windows et Linux (étape 3). — fait en S18 sur Mac (commandes vocales sans modèle ni touche dédiée, voir `docs/COMMANDES.md`) ; reste : Windows et Linux (n°3), transfert vers un modèle.
   7. **Commande de recherche sur internet** (carnet du 04/11, voisine du mode commande) : dire « recherche YouTube … » ou « recherche Google … » pour lancer la recherche dans le navigateur ; commandes réglables dans l'interface ; propositions de formulation à faire. À cadrer avec le mode commande (n°6) : même déclencheur « verbe + objet », sans modèle.
 - Windows : signature du binaire (Authenticode) et SmartScreen ; installateur.
 - Linux : Wayland (portails, `libei`, repli « copie seule »).
