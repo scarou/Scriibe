@@ -55,6 +55,8 @@ extern "C" {
     pub fn CFMachPortCreateRunLoopSource(allocator: Ref, port: Ref, order: isize) -> Ref;
     pub fn CFStringCreateWithCString(allocator: Ref, text: *const std::ffi::c_char, encoding: u32) -> Ref;
     pub fn CFStringGetLength(string: Ref) -> isize;
+    pub fn CFStringGetMaximumSizeForEncoding(length: isize, encoding: u32) -> isize;
+    pub fn CFStringGetCString(string: Ref, buffer: *mut std::ffi::c_char, size: isize, encoding: u32) -> bool;
     pub fn CFStringGetTypeID() -> usize;
     pub fn CFGetTypeID(object: Ref) -> usize;
 }
@@ -166,6 +168,58 @@ pub fn selection_state() -> SelectionState {
         SelectionState::Active
     } else {
         SelectionState::Empty
+    }
+}
+
+/// Ce que la lecture du texte sélectionné par l'accessibilité a donné (le texte n'est lu que pour une commande vocale).
+pub enum SelectedByAx {
+    Text(String),
+    Empty,
+    /// L'appli n'expose pas sa sélection : un ⌘C d'essai peut encore la lire.
+    Unknown,
+    NotTrusted,
+}
+
+/// Le texte sélectionné dans l'élément qui a le focus, lu par l'accessibilité : le presse-papiers n'est pas touché.
+pub fn selected_text() -> SelectedByAx {
+    // SAFETY : fonction sans paramètre.
+    if !unsafe { AXIsProcessTrusted() } {
+        return SelectedByAx::NotTrusted;
+    }
+    // SAFETY : fonction sans paramètre ; l'élément créé est relâché par `Owned`.
+    let system = Owned(unsafe { AXUIElementCreateSystemWide() });
+    if system.0.is_null() {
+        return SelectedByAx::Unknown;
+    }
+    let Ok(focused) = attribute(system.0, c"AXFocusedUIElement") else { return SelectedByAx::Unknown };
+    let Ok(selected) = attribute(focused.0, c"AXSelectedText") else { return SelectedByAx::Unknown };
+    // SAFETY : `selected` est un objet valide ; on ne lit que si c'est bien une chaîne.
+    if unsafe { CFGetTypeID(selected.0) != CFStringGetTypeID() } {
+        return SelectedByAx::Unknown;
+    }
+    // SAFETY : voir ci-dessus.
+    let length = unsafe { CFStringGetLength(selected.0) };
+    if length <= 0 {
+        return SelectedByAx::Empty;
+    }
+    // SAFETY : la taille maximale en UTF-8 est donnée par CoreFoundation ; le tampon la couvre, avec l'octet nul final.
+    let capacity = unsafe { CFStringGetMaximumSizeForEncoding(length, UTF8) };
+    if capacity <= 0 {
+        return SelectedByAx::Unknown;
+    }
+    let mut buffer = vec![0u8; capacity as usize + 1];
+    // SAFETY : `buffer` a `capacity + 1` octets et reste valide pendant l'appel.
+    let copied = unsafe { CFStringGetCString(selected.0, buffer.as_mut_ptr().cast(), capacity + 1, UTF8) };
+    let text = if copied {
+        let end = buffer.iter().position(|b| *b == 0).unwrap_or(buffer.len());
+        String::from_utf8(buffer[..end].to_vec()).ok()
+    } else {
+        None
+    };
+    buffer.fill(0);
+    match text {
+        Some(t) => SelectedByAx::Text(t),
+        None => SelectedByAx::Unknown,
     }
 }
 

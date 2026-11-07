@@ -22,6 +22,8 @@ export interface Status {
   recording: boolean;
   busy: boolean;
   keys_error: string | null;
+  /** Une commande vocale (« ajouter au dictionnaire ») attend que la page prenne son texte. */
+  prefill?: boolean;
   /** Sous Wayland (GNOME) : le raccourci de dictée choisi dans la fenêtre de GNOME (« Ctrl + ← ») ; `null` ailleurs. */
   gnome_shortcut: string | null;
   gnome_translate_shortcut: string | null;

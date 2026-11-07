@@ -90,6 +90,17 @@ export const enServer: Record<string, string> = {
   'Aucun son capté — vérifie le micro ({name})': 'No sound captured — check the microphone ({name})',
   'Rien entendu — micro faible : rapproche-toi': 'Nothing heard — weak microphone: move closer',
   'Rien entendu': 'Nothing heard',
+
+  // Commandes vocales sur du texte sélectionné (controller.rs, prefill.rs)
+  'Ajouter au dictionnaire — complète « Écrit »': 'Add to dictionary — fill in “Written”',
+  'Sélection trop longue pour le dictionnaire (80 signes au plus, sur une seule ligne)':
+    'Selection too long for the dictionary (80 characters at most, on a single line)',
+  'Scriibe n\'a pas pu ouvrir sa fenêtre': 'Scriibe could not open its window',
+  'Commande non faite : autorisation Accessibilité manquante — phrase collée comme du texte':
+    'Command not done: Accessibility permission missing — phrase pasted as text',
+  'Commande non faite : le presse-papiers contient autre chose que du texte — phrase collée comme du texte':
+    'Command not done: the clipboard holds something other than text — phrase pasted as text',
+  'Commande non faite : sélection illisible — phrase collée comme du texte': 'Command not done: selection unreadable — phrase pasted as text',
   'Copié, à coller avec Ctrl+V — {reason}': 'Copied, paste it with Ctrl+V — {reason}',
   'Copié, à coller avec ⌘V — {reason}': 'Copied, paste it with ⌘V — {reason}',
   'Collé — micro faible : rapproche-toi ou monte le volume d\'entrée': 'Pasted — weak microphone: move closer or raise the input volume',

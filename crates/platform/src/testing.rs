@@ -123,15 +123,31 @@ impl Recorder for FakeRecorder {
     }
 }
 
+/// Ce que `FakePaster::selected_text` rend.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FakeSelected {
+    NoSelection,
+    Text(String),
+    Unreadable(crate::paste::Unreadable),
+}
+
 pub struct FakePaster {
     pasted: Mutex<Vec<(String, bool)>>,
     outcome: Mutex<PasteOutcome>,
     selection: Mutex<bool>,
+    selected: Mutex<FakeSelected>,
+    reads: std::sync::atomic::AtomicUsize,
 }
 
 impl Default for FakePaster {
     fn default() -> Self {
-        Self { pasted: Mutex::new(Vec::new()), outcome: Mutex::new(PasteOutcome::Pasted), selection: Mutex::new(false) }
+        Self {
+            pasted: Mutex::new(Vec::new()),
+            outcome: Mutex::new(PasteOutcome::Pasted),
+            selection: Mutex::new(false),
+            selected: Mutex::new(FakeSelected::NoSelection),
+            reads: std::sync::atomic::AtomicUsize::new(0),
+        }
     }
 }
 
@@ -148,9 +164,28 @@ impl FakePaster {
     pub fn set_selection(&self, active: bool) {
         *lock(&self.selection) = active;
     }
+
+    /// Ce que la lecture du texte sélectionné (commande vocale) rendra.
+    pub fn set_selected(&self, selected: FakeSelected) {
+        *lock(&self.selected) = selected;
+    }
+
+    /// Combien de fois la lecture du texte sélectionné a été demandée (une dictée ordinaire ne doit jamais la demander).
+    pub fn selected_reads(&self) -> usize {
+        self.reads.load(std::sync::atomic::Ordering::SeqCst)
+    }
 }
 
 impl Paster for FakePaster {
+    fn selected_text(&self) -> crate::paste::SelectedRead {
+        self.reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        match lock(&self.selected).clone() {
+            FakeSelected::NoSelection => crate::paste::SelectedRead::NoSelection,
+            FakeSelected::Text(t) => crate::paste::SelectedRead::Text(crate::paste::SelectedText::new(t)),
+            FakeSelected::Unreadable(u) => crate::paste::SelectedRead::Unreadable(u),
+        }
+    }
+
     fn selection(&self) -> crate::paste::Selection {
         crate::paste::Selection { active: *lock(&self.selection), report: String::new() }
     }

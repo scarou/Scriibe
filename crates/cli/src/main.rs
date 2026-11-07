@@ -14,6 +14,7 @@ mod commands;
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 mod mac_tray;
 mod overlay;
+mod prefill;
 mod tray_source;
 mod web;
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]

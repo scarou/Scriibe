@@ -8,7 +8,7 @@
 
 use super::ffi;
 use crate::apple::PASTE_BLOCKING_FLAGS;
-use crate::paste::{PasteOutcome, Paster, Selection};
+use crate::paste::{PasteOutcome, Paster, SelectedRead, SelectedText, Selection, Unreadable};
 use arboard::Clipboard;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -160,7 +160,80 @@ impl MacPaster {
     }
 }
 
+/// Types de presse-papiers qui ne sont pas du texte (image, fichiers) : le ⌘C d'essai les écraserait pour de bon.
+const NON_TEXT_CLIPBOARD_MARKERS: [&str; 7] = ["PNGf", "TIFF", "JPEG", "furl", "GIFf", "public.file-url", "public.png"];
+
+/// Le presse-papiers contient-il autre chose que du texte ? `None` : on ne sait pas le dire (on ne risque alors rien).
+fn clipboard_holds_non_text() -> Option<bool> {
+    let output = std::process::Command::new("/usr/bin/osascript").args(["-e", "clipboard info"]).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let info = String::from_utf8_lossy(&output.stdout);
+    Some(NON_TEXT_CLIPBOARD_MARKERS.iter().any(|m| info.contains(m)))
+}
+
+impl MacPaster {
+    /// Lecture du texte sélectionné par ⌘C d'essai (applis qui n'exposent pas leur sélection) : le presse-papiers texte est sauvegardé puis
+    /// remis. S'il contient une image ou des fichiers (ou si on ne sait pas), pas de ⌘C : on les perdrait.
+    fn selected_text_by_copy(&self) -> SelectedRead {
+        let before = read_text(&self.clipboard);
+        if before.is_none() && clipboard_holds_non_text() != Some(false) {
+            return SelectedRead::Unreadable(Unreadable::ClipboardNotText);
+        }
+        wait_for_modifiers_released();
+        std::thread::sleep(Duration::from_millis(40));
+        if post_key(KEY_C, true).is_err() || post_key(KEY_C, false).is_err() {
+            return SelectedRead::Unreadable(Unreadable::Failed);
+        }
+        let mut waited = Duration::ZERO;
+        let mut found = None;
+        while waited < COPY_WAIT {
+            std::thread::sleep(Duration::from_millis(10));
+            waited += Duration::from_millis(10);
+            let now = read_text(&self.clipboard);
+            if now == before {
+                continue;
+            }
+            // L'appli a copié : on la laisse finir (même valeur deux fois de suite).
+            let mut copied = now;
+            for _ in 0..10 {
+                std::thread::sleep(Duration::from_millis(15));
+                let again = read_text(&self.clipboard);
+                if again == copied {
+                    break;
+                }
+                copied = again;
+            }
+            found = copied;
+            break;
+        }
+        // Le presse-papiers d'avant est remis, et la remise vérifiée avant de rendre la main.
+        if found.is_some() {
+            match &before {
+                Some(saved) => drop(write_text(&self.clipboard, saved)),
+                None => drop(with_clipboard(&self.clipboard, |c| c.clear().map_err(|e| e.to_string()))),
+            }
+            wait_for_text(&self.clipboard, &before, Duration::from_millis(200));
+            std::thread::sleep(Duration::from_millis(60));
+        }
+        match found {
+            Some(text) if !text.is_empty() => SelectedRead::Text(SelectedText::new(text)),
+            _ => SelectedRead::NoSelection,
+        }
+    }
+}
+
 impl Paster for MacPaster {
+    fn selected_text(&self) -> SelectedRead {
+        match ffi::selected_text() {
+            ffi::SelectedByAx::Text(text) => SelectedRead::Text(SelectedText::new(text)),
+            ffi::SelectedByAx::Empty => SelectedRead::NoSelection,
+            ffi::SelectedByAx::NotTrusted => SelectedRead::Unreadable(Unreadable::NotTrusted),
+            ffi::SelectedByAx::Unknown => self.selected_text_by_copy(),
+        }
+    }
+
     fn selection(&self) -> Selection {
         match ffi::selection_state() {
             ffi::SelectionState::Active => Selection { active: true, report: "active".into() },

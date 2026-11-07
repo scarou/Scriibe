@@ -89,6 +89,7 @@ pub fn start(
     let token = scriibe_core::modes::new_id();
     let url = format!("http://127.0.0.1:{port}/{token}/");
     let bench = BenchStore::open(BenchStore::standard_folder(app.config.folder()));
+    app.prefill.set_url(url.clone());
     let context = Arc::new(Context {
         app,
         history,
@@ -188,13 +189,15 @@ fn handle(ctx: &Context, mut request: Request) {
         // L'état de la dictée seul, léger : la ligne d'état de la barre latérale le relit chaque seconde.
         (Method::Get, "api/activity") => ok(
             request,
-            json!({"recording": ctx.app.controller.is_recording(), "busy": ctx.app.controller.is_busy(), "keys_error": lock(&ctx.keys_error).clone()}),
+            json!({"recording": ctx.app.controller.is_recording(), "busy": ctx.app.controller.is_busy(), "keys_error": lock(&ctx.keys_error).clone(), "prefill": ctx.app.prefill.has_pending()}),
         ),
         // Une deuxième Scriibe lancée par l'utilisateur demande de montrer cette fenêtre, puis s'arrête.
         (Method::Post, "api/instance/show") => {
             scriibe_platform::open::open(&format!("http://127.0.0.1:{}/{}/", ctx.port, ctx.token));
             ok(request, json!({"ok": true}));
         }
+        // La page prend le texte d'« Ajouter au dictionnaire » par la voix (une seule fois ; jamais écrit ailleurs qu'en mémoire).
+        (Method::Post, "api/prefill") => ok(request, json!({"heard": ctx.app.prefill.take().map(|t| t.expose().to_string())})),
         (Method::Get, "api/phrases") => ok(request, phrases(ctx.app.config.settings().language)),
         (Method::Get, "api/signs") => ok(
             request,

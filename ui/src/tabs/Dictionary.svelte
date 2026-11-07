@@ -1,7 +1,8 @@
 <script lang="ts">
   import Card from '../components/Card.svelte';
   import HelpButton from '../components/HelpButton.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
+  import { nav } from '../lib/nav.svelte';
   import { api, type Dictionary, type Stats } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
   import { t, tx } from '../lib/i18n.svelte';
@@ -11,11 +12,22 @@
   let newWord = $state('');
   let heard = $state('');
   let written = $state('');
+  let writtenInput = $state<HTMLInputElement>();
   let saved = $state('');
   let loaded = false;
   let signs = $state<{ said: string; written: string }[]>([]);
   let weekCorrections = $state(0);
   let v = $derived(settings.value);
+
+  // Commande vocale « ajouter au dictionnaire » : le texte sélectionné arrive dans « Entendu », le curseur va dans « Écrit ».
+  $effect(() => {
+    const prefill = nav.dictionaryPrefill;
+    if (prefill === null) return;
+    nav.dictionaryPrefill = null;
+    heard = prefill;
+    written = '';
+    void tick().then(() => writtenInput?.focus());
+  });
 
   /** Hauteur commune des deux cartes (px), réglée par la poignée ; `null` = hauteur naturelle. Retenue d'une visite à l'autre. */
   const HEIGHT_KEY = 'dictionary:height';
@@ -154,7 +166,7 @@
   <div class="row">
     <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Entendu')} bind:value={heard} />
     <span>→</span>
-    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Écrit')} bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Écrit')} bind:this={writtenInput} bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
     <button onclick={addCorrection} disabled={!heard.trim() || !written.trim()}>{t('Ajouter')}</button>
   </div>
   {#if corrections.length}

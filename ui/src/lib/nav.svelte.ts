@@ -18,6 +18,8 @@ class Nav {
   /** L'onglet ouvert dans les Réglages. */
   settingsTab = $state<SettingsTabId>(saved('settingsTab', settingsTabs, 'dictation'));
   helpSection = $state<HelpId>(defaultHelpSection);
+  /** Texte sélectionné envoyé par la commande vocale « ajouter au dictionnaire » : le Dictionnaire le met dans « Entendu » puis l'oublie. Jamais gardé ailleurs qu'en mémoire. */
+  dictionaryPrefill = $state<string | null>(null);
 
   /** Ouvre une page (ou l'onglet des Réglages qui a pris la place d'une ancienne page) ; `anchor` : l'identifiant de la carte à montrer. */
   async go(id: TabId, anchor?: string): Promise<void> {

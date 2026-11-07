@@ -18,7 +18,7 @@ use scriibe_platform::audio::Recorder;
 use scriibe_platform::indicator::{Indicator, IndicatorState};
 use scriibe_platform::keys::KeyEvent;
 use scriibe_platform::media::MediaControl;
-use scriibe_platform::paste::{PasteOutcome, Paster};
+use scriibe_platform::paste::{PasteOutcome, Paster, SelectedRead, SelectedText, Unreadable};
 use scriibe_platform::sounds::Sounds;
 use scriibe_platform::storage::{ConfigSource, HistorySink};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -33,6 +33,24 @@ const MIN_DURATION: f64 = 0.3;
 const TRANSLATION_WARM_UP_DELAY: Duration = Duration::from_millis(400);
 /// Au bout de ce temps sans son assez fort, l'indicateur dit « Je n'entends rien… ».
 const MIC_WATCH_AFTER: Duration = Duration::from_secs(2);
+
+/// Là où une commande vocale agit hors du collage (l'interface de Scriibe). Rien n'y est écrit sur disque ni journalisé.
+pub trait CommandSink: Send + Sync {
+    /// « Ajouter au dictionnaire » : ouvre Scriibe sur l'onglet Dictionnaire, « Entendu » prérempli avec le texte, le curseur dans « Écrit ».
+    /// Le texte est tenu en mémoire jusqu'à ce que la page le prenne (une seule fois). L'erreur est un texte fixe, jamais le texte lu.
+    fn add_to_dictionary(&self, heard: SelectedText) -> Result<(), &'static str>;
+}
+
+/// Une sélection plus longue ne se met pas dans le dictionnaire (un mot ou une expression, sur une ligne).
+const DICTIONARY_MAX_CHARS: usize = 80;
+
+/// Ce que devient une transcription qui ressemble à une commande.
+enum CommandOutcome {
+    /// La commande est faite (ou refusée sans rien coller) : la dictée s'arrête là.
+    Handled,
+    /// Ce n'est pas une commande : la phrase suit le chemin d'une dictée ordinaire, avec peut-être une remarque pour la pastille.
+    Text(Option<String>),
+}
 
 /// Tout ce que le chef d'orchestre utilise.
 pub struct Deps {
@@ -52,6 +70,7 @@ pub struct Deps {
     pub wall_clock: Arc<dyn Fn() -> DateTime<Utc> + Send + Sync>,
     pub log: Arc<dyn Log>,
     pub executor: Arc<dyn Executor>,
+    pub commands: Arc<dyn CommandSink>,
 }
 
 struct State {
@@ -682,6 +701,66 @@ impl Controller {
         self.process(&job, &settings, translate.then_some(settings.translation_language));
     }
 
+    /// Reconnaît une phrase de commande et, si elle exige une sélection, la lit. Le journal ne reçoit que l'identifiant de la commande et
+    /// la longueur de la sélection ; l'historique n'est pas touché ; les messages de la pastille et les erreurs sont à texte fixe.
+    fn try_command(&self, raw: &str, settings: &AppSettings) -> CommandOutcome {
+        let deps = &self.inner.deps;
+        let Some(command) = scriibe_core::commands::recognize_for(raw, settings) else {
+            return CommandOutcome::Text(None);
+        };
+        let selected = if command.needs == scriibe_core::commands::Needs::Selection {
+            match deps.paster.selected_text() {
+                SelectedRead::Text(text) => Some(text),
+                SelectedRead::NoSelection => {
+                    deps.log.write(&format!("commande: {} ignorée (aucune sélection) — la phrase est collée comme du texte", command.id));
+                    return CommandOutcome::Text(None);
+                }
+                SelectedRead::Unreadable(why) => {
+                    deps.log.write(&format!("commande: {} ignorée ({}) — la phrase est collée comme du texte", command.id, why.reason()));
+                    let note = match why {
+                        Unreadable::NotTrusted => {
+                            "Commande non faite : autorisation Accessibilité manquante — phrase collée comme du texte"
+                        }
+                        Unreadable::ClipboardNotText => {
+                            "Commande non faite : le presse-papiers contient autre chose que du texte — phrase collée comme du texte"
+                        }
+                        Unreadable::Failed => "Commande non faite : sélection illisible — phrase collée comme du texte",
+                    };
+                    return CommandOutcome::Text(Some(note.into()));
+                }
+            }
+        } else {
+            None
+        };
+        match command.id.as_str() {
+            "dictionnaire.ajouter" => {
+                let Some(text) = selected else { return CommandOutcome::Text(None) };
+                let length = text.char_count();
+                deps.log.write(&format!("commande: {} (sélection : {length} signes)", command.id));
+                let shown = text.expose().trim();
+                if shown.is_empty() || shown.chars().count() > DICTIONARY_MAX_CHARS || shown.contains('\n') {
+                    deps.indicator.flash(
+                        IndicatorState::Message(
+                            "Sélection trop longue pour le dictionnaire (80 signes au plus, sur une seule ligne)".into(),
+                        ),
+                        3.5,
+                    );
+                    return CommandOutcome::Handled;
+                }
+                let message = match deps.commands.add_to_dictionary(SelectedText::new(shown)) {
+                    Ok(()) => "Ajouter au dictionnaire — complète « Écrit »",
+                    Err(why) => why,
+                };
+                deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
+                CommandOutcome::Handled
+            }
+            other => {
+                deps.log.write(&format!("commande: {other} inconnue du chef d'orchestre"));
+                CommandOutcome::Text(None)
+            }
+        }
+    }
+
     /// Les temps comptent depuis le relâchement de la touche.
     fn process(&self, job: &Job, settings: &AppSettings, translate_to: Option<TranslationLanguage>) {
         let deps = &self.inner.deps;
@@ -713,10 +792,16 @@ impl Controller {
             return;
         }
 
+        // Commande vocale : la phrase est toute la transcription (avant `dictionary::apply`, qui la réécrirait). La sélection n'est lue qu'ici.
+        let command_note = match self.try_command(&raw, settings) {
+            CommandOutcome::Handled => return,
+            CommandOutcome::Text(note) => note,
+        };
+
         let applied = dictionary::apply(&dictionary, &join_spelled_code(&raw), settings.list_bullet, settings.lists_on());
         let mut text = applied.text;
         let mut corrections = applied.count as i64;
-        let mut note: Option<String> = None;
+        let mut note: Option<String> = command_note;
         let mut cleanup_time = "sautée".to_string();
         let mut model_time = Duration::ZERO;
         let mut outcome = if settings.uses_cleanup_model() { Cleanup::Short } else { Cleanup::None };

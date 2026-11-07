@@ -26,6 +26,8 @@ pub struct App {
     pub cleaner: Arc<Cleaner>,
     pub config: Arc<FileConfig>,
     pub log: Arc<FileLog>,
+    /// « Ajouter au dictionnaire » par la voix : le texte sélectionné attend ici que la page le prenne.
+    pub prefill: Arc<crate::prefill::PrefillSink>,
 }
 
 /// Où l'appli range les modèles (Whisper `ggml-*.bin`, GGUF) : `%APPDATA%\Scriibe\models`.
@@ -105,6 +107,7 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
     let history: Arc<dyn HistorySink> =
         choices.history.unwrap_or_else(|| Arc::new(FileHistory::open(folder, move || settings_source.settings())));
     let config_dyn: Arc<dyn ConfigSource> = config.clone();
+    let prefill = Arc::new(crate::prefill::PrefillSink::default());
     let controller = Controller::new(Deps {
         recorder: platform.recorder.clone(),
         paster: choices.paster.unwrap_or_else(|| platform.paster.clone()),
@@ -120,8 +123,9 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
         wall_clock: Arc::new(chrono::Utc::now),
         log: log_dyn,
         executor: Arc::new(ThreadExecutor),
+        commands: prefill.clone(),
     });
-    App { controller, platform, whisper, llama, cleaner, config, log }
+    App { controller, platform, whisper, llama, cleaner, config, log, prefill }
 }
 
 /// Ce que `verifier` et `lancer` disent des réglages.

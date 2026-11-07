@@ -13,13 +13,13 @@ use scriibe_engines::runtime::{Clock, KeyKind, Log};
 use scriibe_engines::services::{Cleaner, Transcriber};
 use scriibe_engines::testing::FakeWorld;
 use scriibe_engines::whisper::{Whisper, WhisperLauncher};
-use scriibe_pipeline::{Controller, Deps, Executor, InlineExecutor};
+use scriibe_pipeline::{CommandSink, Controller, Deps, Executor, InlineExecutor};
 use scriibe_platform::apps::AppInfo;
 use scriibe_platform::indicator::IndicatorState;
 use scriibe_platform::keys::KeyEvent;
-use scriibe_platform::paste::PasteOutcome;
+use scriibe_platform::paste::{PasteOutcome, SelectedText, Unreadable};
 use scriibe_platform::testing::{
-    FakeApps, FakeConfig, FakeIndicator, FakeMedia, FakePaster, FakeRecorder, FakeSounds, MemoryHistory, StaticSecrets,
+    FakeApps, FakeConfig, FakeIndicator, FakeMedia, FakePaster, FakeRecorder, FakeSelected, FakeSounds, MemoryHistory, StaticSecrets,
 };
 use serde_json::{json, Value};
 use std::collections::VecDeque;
@@ -96,7 +96,25 @@ fn bin(name: &str) -> PathBuf {
     Path::new("/fake/bin").join(if cfg!(windows) { format!("{name}.exe") } else { name.to_string() })
 }
 
+/// Ce que les commandes vocales font de la sélection : elles la gardent ici, pour que les tests la voient arriver.
+#[derive(Default)]
+struct FakeCommands {
+    heard: Mutex<Vec<String>>,
+    fail_with: Mutex<Option<&'static str>>,
+}
+
+impl CommandSink for FakeCommands {
+    fn add_to_dictionary(&self, heard: SelectedText) -> Result<(), &'static str> {
+        if let Some(why) = *self.fail_with.lock().unwrap() {
+            return Err(why);
+        }
+        self.heard.lock().unwrap().push(heard.expose().to_string());
+        Ok(())
+    }
+}
+
 struct Rig {
+    commands: Arc<FakeCommands>,
     world: Arc<FakeWorld>,
     clock: Arc<TestClock>,
     controller: Controller,
@@ -198,6 +216,7 @@ fn rig_full(
     let history = Arc::new(MemoryHistory::default());
     let config = Arc::new(FakeConfig::new(settings));
     let executor = Arc::new(ManualExecutor::default());
+    let commands = Arc::new(FakeCommands::default());
     let executor_dyn: Arc<dyn Executor> = if inline { Arc::new(InlineExecutor) } else { executor.clone() };
     let wall: Arc<dyn Fn() -> DateTime<Utc> + Send + Sync> = Arc::new(|| DateTime::from_timestamp(1_790_000_000, 0).unwrap());
     let controller = Controller::new(Deps {
@@ -215,8 +234,9 @@ fn rig_full(
         wall_clock: wall,
         log: world.log.clone() as Arc<dyn Log>,
         executor: executor_dyn,
+        commands: commands.clone(),
     });
-    Rig { world, clock, controller, recorder, paster, media, indicator, sounds, history, config, executor, cleanup_fails, apps }
+    Rig { commands, world, clock, controller, recorder, paster, media, indicator, sounds, history, config, executor, cleanup_fails, apps }
 }
 
 /// Dictée complète : tout s'exécute tout de suite.
@@ -995,4 +1015,154 @@ fn spacing_a_model_that_writes_no_final_stop_does_not_glue_the_phrases() {
     let pasted = two_dictations(&r, 10);
     assert_eq!(pasted, vec!["Bonjour tout le monde on commence", " Bonjour tout le monde on commence"]);
     assert!(r.history.items().iter().all(|d| d.final_text == "Bonjour tout le monde on commence"));
+}
+
+// ---- Commandes vocales sur du texte sélectionné (docs/COMMANDES.md) ----
+
+const SECRET: &str = "SECRET-123 mot";
+
+/// Cas 1 et 2 : phrase de commande (avec ponctuation et majuscule) sur une sélection → la commande s'exécute, rien n'est collé ni gardé.
+#[test]
+fn commands_101_the_phrase_on_a_selection_adds_it_to_the_dictionary_and_pastes_nothing() {
+    let r = rig("Ajoute au Dictionnaire !", "ne doit pas servir");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["cri be".to_string()]);
+    assert!(r.paster.pasted().is_empty(), "rien n'est collé");
+    assert!(r.history.items().is_empty(), "une commande n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty(), "le modèle de mise au propre n'est pas appelé");
+    assert!(r.indicator.states().contains(&message("Ajouter au dictionnaire — complète « Écrit »")), "{:?}", r.indicator.states());
+    assert!(!r.controller.is_busy());
+}
+
+/// Cas 3 : une phrase plus longue n'est pas une commande ; la dictée remplace la sélection, et la sélection n'est même pas lue.
+#[test]
+fn commands_103_a_longer_sentence_is_dictated_and_the_selection_is_not_read() {
+    let r = rig("ajouter au dictionnaire le mot cri be", "Ajouter au dictionnaire le mot cri be.");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!(r.paster.pasted().len(), 1);
+    assert_eq!(r.paster.selected_reads(), 0, "pas de ⌘C pour une dictée qui n'est pas une commande");
+    assert!(r.commands.heard.lock().unwrap().is_empty());
+}
+
+/// Une dictée ordinaire ne lit jamais la sélection (pas de ⌘C inutile).
+#[test]
+fn commands_101b_an_ordinary_dictation_never_reads_the_selection() {
+    let r = rig("bonjour tout le monde", "Bonjour tout le monde.");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!(r.paster.selected_reads(), 0);
+    assert_eq!(r.paster.pasted().len(), 1);
+}
+
+/// Cas 4 : sans sélection, la phrase est collée comme du texte, sans message de commande.
+#[test]
+fn commands_104_without_a_selection_the_phrase_is_pasted_as_text() {
+    let r = rig("Ajouter au dictionnaire", "Ajouter au dictionnaire.");
+    r.dictate();
+    assert_eq!(r.paster.selected_reads(), 1);
+    assert_eq!(r.paster.pasted(), vec![("Ajouter au dictionnaire".to_string(), true)], "la phrase est collée telle quelle, comme un texte");
+    assert_eq!(r.history.items().len(), 1);
+    assert!(r.commands.heard.lock().unwrap().is_empty());
+    assert_eq!(r.indicator.states().last(), Some(&IndicatorState::Done));
+}
+
+/// Cas 5 : en anglais, avec la langue anglaise.
+#[test]
+fn commands_105_the_english_phrase_works_with_the_english_language() {
+    let settings = AppSettings { language: scriibe_core::settings::DictationLanguage::En, ..local_settings() };
+    let r = rig_with(settings, "Add to dictionary.", "x", true);
+    r.paster.set_selected(FakeSelected::Text("scree bee".into()));
+    r.dictate();
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["scree bee".to_string()]);
+}
+
+/// Cas 6 : une phrase choisie dans les réglages remplace celles par défaut ; l'interrupteur général coupe tout.
+#[test]
+fn commands_106_custom_phrase_and_the_general_switch() {
+    let mut settings = local_settings();
+    settings.voice_commands.fr.insert("dictionnaire.ajouter".into(), vec!["mémorise ça".into()]);
+    let r = rig_with(settings.clone(), "Mémorise ça.", "x", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["cri be".to_string()]);
+
+    let r = rig_with(settings, "Ajouter au dictionnaire", "Ajouter au dictionnaire.", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert!(r.commands.heard.lock().unwrap().is_empty(), "l'ancienne phrase ne marche plus");
+
+    let off = AppSettings { voice_commands_enabled: false, ..local_settings() };
+    let r = rig_with(off, "Ajouter au dictionnaire", "Ajouter au dictionnaire.", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!((r.paster.selected_reads(), r.paster.pasted().len()), (0, 1), "interrupteur coupé : texte ordinaire");
+}
+
+/// Cas 7 : presse-papiers non textuel (ou autre lecture impossible) → la commande n'est pas faite, la phrase est collée, la pastille le dit.
+#[test]
+fn commands_107_an_unreadable_selection_pastes_the_phrase_and_says_why() {
+    let r = rig("Ajouter au dictionnaire", "Ajouter au dictionnaire.");
+    r.paster.set_selected(FakeSelected::Unreadable(Unreadable::ClipboardNotText));
+    r.dictate();
+    assert_eq!(r.paster.pasted().len(), 1);
+    assert!(r.commands.heard.lock().unwrap().is_empty());
+    let states = r.indicator.states();
+    assert!(
+        states
+            .contains(&message("Commande non faite : le presse-papiers contient autre chose que du texte — phrase collée comme du texte")),
+        "{states:?}"
+    );
+}
+
+/// Une sélection trop longue ou sur plusieurs lignes ne va pas au dictionnaire : rien n'est collé (la sélection reste intacte).
+#[test]
+fn commands_108_a_long_or_multiline_selection_is_refused_without_pasting() {
+    for selected in ["un\ndeux", &"a".repeat(81)] {
+        let r = rig("Ajouter au dictionnaire", "x");
+        r.paster.set_selected(FakeSelected::Text(selected.to_string()));
+        r.dictate();
+        assert!(r.paster.pasted().is_empty() && r.commands.heard.lock().unwrap().is_empty());
+        assert!(r.indicator.states().iter().any(|s| matches!(s, IndicatorState::Message(m) if m.starts_with("Sélection trop longue"))));
+    }
+}
+
+/// Une erreur de la page (fenêtre impossible à ouvrir) est dite par un texte fixe.
+#[test]
+fn commands_109_a_failure_of_the_window_is_said_with_a_fixed_message() {
+    let r = rig("Ajouter au dictionnaire", "x");
+    *r.commands.fail_with.lock().unwrap() = Some("Scriibe n'a pas pu ouvrir sa fenêtre");
+    r.paster.set_selected(FakeSelected::Text(SECRET.into()));
+    r.dictate();
+    assert!(r.paster.pasted().is_empty());
+    assert!(r.indicator.states().contains(&message("Scriibe n'a pas pu ouvrir sa fenêtre")));
+}
+
+/// Cas 8 : aucune trace de la sélection dans le journal, l'historique, la pastille, ce qui est collé ou les requêtes envoyées aux services.
+#[test]
+fn commands_110_no_trace_of_the_selection_anywhere() {
+    for failure in [None, Some("Scriibe n'a pas pu ouvrir sa fenêtre")] {
+        let r = rig("Ajouter au dictionnaire", "x");
+        *r.commands.fail_with.lock().unwrap() = failure;
+        r.paster.set_selected(FakeSelected::Text(SECRET.into()));
+        r.dictate();
+        let log = r.world.log.lines().join("\n");
+        assert!(log.contains("commande: dictionnaire.ajouter (sélection : 14 signes)"), "le journal ne garde que la longueur : {log}");
+        let everything = format!(
+            "{log}|{:?}|{:?}|{:?}|{:?}",
+            r.history.items(),
+            r.indicator.states(),
+            r.paster.pasted(),
+            r.world.requests().iter().map(|q| String::from_utf8_lossy(&q.body).to_string() + &q.url).collect::<Vec<_>>()
+        );
+        assert!(!everything.contains("SECRET"), "la sélection a laissé une trace : {everything}");
+    }
+    // Lecture impossible : la raison est un texte fixe, pas la sélection.
+    let r = rig("Ajouter au dictionnaire", "x");
+    r.paster.set_selected(FakeSelected::Unreadable(Unreadable::NotTrusted));
+    r.dictate();
+    assert!(r.world.log.lines().join("\n").contains("autorisation Accessibilité manquante"));
+    // Le type lui-même ne montre pas son contenu.
+    assert!(!format!("{:?}", SelectedText::new(SECRET)).contains("SECRET"));
 }

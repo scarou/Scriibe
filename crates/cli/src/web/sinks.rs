@@ -75,6 +75,15 @@ impl Paster for SwitchPaster {
         }
     }
 
+    // Pendant une capture d'essai, pas de commande vocale : rien à lire.
+    fn selected_text(&self) -> scriibe_platform::paste::SelectedRead {
+        if self.0.capturing() {
+            scriibe_platform::paste::SelectedRead::NoSelection
+        } else {
+            self.0.paster.selected_text()
+        }
+    }
+
     // Pendant une capture d'essai rien n'est collé : il n'y a pas de sélection à remplacer.
     fn selection(&self) -> Selection {
         if self.0.capturing() {
