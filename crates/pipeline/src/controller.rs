@@ -754,6 +754,28 @@ impl Controller {
                 deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
                 CommandOutcome::Handled
             }
+            // Caractères autour (tâche 7) : la sélection, restée active, est remplacée par un collage (un seul ⌘Z l'annule, comme une dictée).
+            id if id.starts_with(scriibe_core::commands::SURROUND_PREFIX) => {
+                let Some(text) = selected else { return CommandOutcome::Text(None) };
+                deps.log.write(&format!("commande: {id} (sélection : {} signes)", text.char_count()));
+                let Some(wrapped) = scriibe_core::commands::surround(id, command.lang, text.expose()) else {
+                    deps.indicator.flash(IndicatorState::Message("Rien à entourer (la sélection est vide)".into()), 3.0);
+                    return CommandOutcome::Handled;
+                };
+                // Le texte entouré contient la sélection : mémoire effacée à la fin, jamais journalisé ni mis dans l'historique.
+                let wrapped = SelectedText::new(wrapped);
+                let pasted = deps.paster.paste(wrapped.expose(), settings.restore_clipboard);
+                // Ce n'est pas une dictée : la suivante ne doit pas ajouter d'espace d'après ce collage.
+                *lock(&self.inner.last_paste) = None;
+                match pasted {
+                    PasteOutcome::Pasted => deps.indicator.flash(IndicatorState::Done, 0.9),
+                    PasteOutcome::CopiedOnly(reason) => {
+                        deps.log.write(&format!("commande: {id} — copié seulement ({reason})"));
+                        deps.indicator.flash(IndicatorState::Message(format!("Copié, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
+                    }
+                }
+                CommandOutcome::Handled
+            }
             other => {
                 deps.log.write(&format!("commande: {other} inconnue du chef d'orchestre"));
                 CommandOutcome::Text(None)

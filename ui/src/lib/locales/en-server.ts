@@ -95,6 +95,7 @@ export const enServer: Record<string, string> = {
   'Ajouter au dictionnaire — complète « Écrit »': 'Add to dictionary — fill in “Written”',
   'Sélection trop longue pour le dictionnaire (80 signes au plus, sur une seule ligne)':
     'Selection too long for the dictionary (80 characters at most, on a single line)',
+  'Rien à entourer (la sélection est vide)': 'Nothing to wrap (the selection is empty)',
   'Scriibe n\'a pas pu ouvrir sa fenêtre': 'Scriibe could not open its window',
   'Commande non faite : autorisation Accessibilité manquante — phrase collée comme du texte':
     'Command not done: Accessibility permission missing — phrase pasted as text',

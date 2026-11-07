@@ -94,6 +94,8 @@ pub enum Lang {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Recognized {
     pub id: String,
+    /// Langue du catalogue dont la phrase est venue (les guillemets « » en français, " " en anglais en dépendent).
+    pub lang: Lang,
     pub needs: Needs,
     /// Le reste de la transcription pour une commande à complément (texte tel que transcrit, ponctuation de bord retirée).
     pub argument: Option<String>,
@@ -110,31 +112,119 @@ pub enum PhraseError {
     UnknownCommand,
 }
 
-/// Les commandes connues. Aujourd'hui une seule (tâche 3) ; les suivantes (caractères autour, gras…) s'ajoutent ici.
+/// Préfixe des identifiants des commandes « caractères autour » (tâche 7) : `entourer.parentheses`, `entourer.guillemets`, `entourer.crochets`,
+/// `entourer.accolades`.
+pub const SURROUND_PREFIX: &str = "entourer.";
+
+/// Les caractères mis autour d'une sélection par la commande `id` (ouvrant, fermant), selon la langue de la phrase dite :
+/// guillemets français « » (espaces insécables) ou anglais " ". `None` : identifiant qui n'est pas une commande « autour ».
+fn pair(id: &str, lang: Lang) -> Option<(&'static str, &'static str)> {
+    match (id.strip_prefix(SURROUND_PREFIX)?, lang) {
+        ("parentheses", _) => Some(("(", ")")),
+        ("crochets", _) => Some(("[", "]")),
+        ("accolades", _) => Some(("{", "}")),
+        ("guillemets", Lang::Fr) => Some(("«\u{00A0}", "\u{00A0}»")),
+        ("guillemets", Lang::En) => Some(("\"", "\"")),
+        _ => None,
+    }
+}
+
+/// Le texte sélectionné entouré par la commande `id`. Les blancs et sauts de ligne de bord restent dehors (« mot␠ » → « (mot)␠ »), pour que le
+/// signe se colle au texte. `None` : pas une commande « autour », ou rien d'autre que des blancs à entourer.
+pub fn surround(id: &str, lang: Lang, selected: &str) -> Option<String> {
+    let (open, close) = pair(id, lang)?;
+    let core = selected.trim();
+    if core.is_empty() {
+        return None;
+    }
+    let start = selected.len() - selected.trim_start().len();
+    let end = selected.trim_end().len();
+    Some(format!("{}{open}{core}{close}{}", &selected[..start], &selected[end..]))
+}
+
+/// Les commandes connues : « ajouter au dictionnaire » (tâche 3), « caractères autour » (tâche 7). Les suivantes (gras…) s'ajoutent ici.
 pub fn builtin() -> Vec<CommandDef> {
     let v = |l: &[&str]| l.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
-    vec![CommandDef {
-        id: "dictionnaire.ajouter".into(),
+    // « Entre parenthèses », « mets entre parenthèses »… : une commande sur sélection, sans complément.
+    let around = |id: &str, fr: &[&str], en: &[&str]| CommandDef {
+        id: format!("{SURROUND_PREFIX}{id}"),
         needs: Needs::Selection,
         argument: Argument::None,
-        phrases_fr: v(&[
-            "ajouter au dictionnaire",
-            "ajoute au dictionnaire",
-            "ajoutez au dictionnaire",
-            "ajouter ça au dictionnaire",
-            "ajoute ça au dictionnaire",
-            "ajouter ce mot au dictionnaire",
-            "ajoute ce mot au dictionnaire",
-        ]),
-        phrases_en: v(&[
-            "add to dictionary",
-            "add to the dictionary",
-            "add this to dictionary",
-            "add this to the dictionary",
-            "add that to the dictionary",
-            "add this word to the dictionary",
-        ]),
-    }]
+        phrases_fr: v(fr),
+        phrases_en: v(en),
+    };
+    vec![
+        around(
+            "parentheses",
+            &[
+                "entre parenthèses",
+                "mets entre parenthèses",
+                "mettre entre parenthèses",
+                "mettez entre parenthèses",
+                "entoure de parenthèses",
+                "entourer de parenthèses",
+            ],
+            &["in parentheses", "put in parentheses", "put it in parentheses", "wrap in parentheses", "put between parentheses"],
+        ),
+        around(
+            "guillemets",
+            &[
+                "entre guillemets",
+                "mets entre guillemets",
+                "mettre entre guillemets",
+                "mettez entre guillemets",
+                "entoure de guillemets",
+                "entourer de guillemets",
+            ],
+            &["in quotes", "put in quotes", "put it in quotes", "wrap in quotes", "in quotation marks", "put in quotation marks"],
+        ),
+        around(
+            "crochets",
+            &[
+                "entre crochets",
+                "mets entre crochets",
+                "mettre entre crochets",
+                "mettez entre crochets",
+                "entoure de crochets",
+                "entourer de crochets",
+            ],
+            &["in brackets", "put in brackets", "put it in brackets", "in square brackets", "put in square brackets", "wrap in brackets"],
+        ),
+        around(
+            "accolades",
+            &[
+                "entre accolades",
+                "mets entre accolades",
+                "mettre entre accolades",
+                "mettez entre accolades",
+                "entoure d'accolades",
+                "entourer d'accolades",
+            ],
+            &["in curly brackets", "put in curly brackets", "put it in curly brackets", "in braces", "put in braces", "wrap in braces"],
+        ),
+        CommandDef {
+            id: "dictionnaire.ajouter".into(),
+            needs: Needs::Selection,
+            argument: Argument::None,
+            phrases_fr: v(&[
+                "ajouter au dictionnaire",
+                "ajoute au dictionnaire",
+                "ajoutez au dictionnaire",
+                "ajouter ça au dictionnaire",
+                "ajoute ça au dictionnaire",
+                "ajouter ce mot au dictionnaire",
+                "ajoute ce mot au dictionnaire",
+            ]),
+            phrases_en: v(&[
+                "add to dictionary",
+                "add to the dictionary",
+                "add this to dictionary",
+                "add this to the dictionary",
+                "add that to the dictionary",
+                "add this word to the dictionary",
+            ]),
+        },
+    ]
 }
 
 /// Les mots d'un texte sous forme normalisée, avec la fin (en octets) de chacun dans le texte d'origine.
@@ -215,7 +305,7 @@ pub fn recognize(raw: &str, defs: &[CommandDef], custom: &VoicePhrases, language
     if spoken.len() < MIN_WORDS {
         return None;
     }
-    let mut best: Option<(usize, &CommandDef, Option<usize>)> = None;
+    let mut best: Option<(usize, &CommandDef, Option<usize>, Lang)> = None;
     for def in defs {
         for lang in catalogues(language) {
             for phrase in effective_phrases(def, custom, *lang) {
@@ -229,13 +319,13 @@ pub fn recognize(raw: &str, defs: &[CommandDef], custom: &VoicePhrases, language
                     Argument::None => spoken.len() == n,
                     Argument::Rest => spoken.len() > n,
                 };
-                if starts && fits && best.as_ref().is_none_or(|(len, _, _)| n > *len) {
-                    best = Some((n, def, Some(spoken[n - 1].1)));
+                if starts && fits && best.as_ref().is_none_or(|(len, _, _, _)| n > *len) {
+                    best = Some((n, def, Some(spoken[n - 1].1), *lang));
                 }
             }
         }
     }
-    let (_, def, cut) = best?;
+    let (_, def, cut, lang) = best?;
     let argument = match def.argument {
         Argument::None => None,
         Argument::Rest => {
@@ -243,7 +333,7 @@ pub fn recognize(raw: &str, defs: &[CommandDef], custom: &VoicePhrases, language
             Some(rest.to_string())
         }
     };
-    Some(Recognized { id: def.id.clone(), needs: def.needs, argument })
+    Some(Recognized { id: def.id.clone(), lang, needs: def.needs, argument })
 }
 
 /// Reconnaissance avec les réglages : interrupteur général, langue de dictée, phrases de la personne.
@@ -363,7 +453,7 @@ mod tests {
             phrases_fr: vec!["mets en gras".into()],
             phrases_en: vec![],
         };
-        let both = vec![builtin().remove(0), other];
+        let both = vec![builtin().into_iter().find(|d| d.id == ADD).unwrap(), other];
         assert_eq!(validate_phrase("Mets en GRAS.", ADD, Lang::Fr, &both, &custom), Err(PhraseError::Taken("autre.chose".into())));
     }
 
@@ -430,5 +520,102 @@ mod tests {
         // Valeur incorrecte : réglage par défaut.
         let bad = AppSettings::from_json(r#"{"voiceCommands": 3, "voiceCommandsEnabled": "oui"}"#).unwrap();
         assert!(bad.voice_commands_enabled && bad.voice_commands == VoicePhrases::default());
+    }
+
+    // ---- Tâche 7 : caractères autour ----
+
+    fn id_of(raw: &str, lang: DictationLanguage) -> Option<(String, Lang)> {
+        rec(raw, lang).map(|r| (r.id, r.lang))
+    }
+
+    #[test]
+    fn commands_201_each_surround_phrase_is_recognized_with_its_language() {
+        for (raw, id, l) in [
+            ("Entre parenthèses.", "entourer.parentheses", Lang::Fr),
+            ("Mets entre guillemets", "entourer.guillemets", Lang::Fr),
+            ("entre crochets", "entourer.crochets", Lang::Fr),
+            ("Entoure d'accolades !", "entourer.accolades", Lang::Fr),
+        ] {
+            assert_eq!(id_of(raw, DictationLanguage::Fr), Some((id.to_string(), l)), "{raw}");
+        }
+        for (raw, id) in [
+            ("In parentheses.", "entourer.parentheses"),
+            ("Put it in quotes", "entourer.guillemets"),
+            ("in square brackets", "entourer.crochets"),
+            ("Wrap in braces", "entourer.accolades"),
+        ] {
+            assert_eq!(id_of(raw, DictationLanguage::En), Some((id.to_string(), Lang::En)), "{raw}");
+        }
+        // Les deux langues ensemble : la langue de la phrase dite est rendue.
+        assert_eq!(id_of("entre guillemets", DictationLanguage::Multi).map(|r| r.1), Some(Lang::Fr));
+        assert_eq!(id_of("in quotes", DictationLanguage::Multi).map(|r| r.1), Some(Lang::En));
+        // Pas dans la mauvaise langue.
+        assert!(id_of("in quotes", DictationLanguage::Fr).is_none());
+        assert!(id_of("entre guillemets", DictationLanguage::En).is_none());
+    }
+
+    #[test]
+    fn commands_202_surround_needs_a_selection_and_is_not_a_longer_sentence() {
+        assert!(builtin()
+            .iter()
+            .filter(|d| d.id.starts_with(SURROUND_PREFIX))
+            .all(|d| d.needs == Needs::Selection && d.argument == Argument::None));
+        for raw in [
+            "Mets le tout entre parenthèses",
+            "entre parenthèses et crochets",
+            "j'ai mis entre parenthèses",
+            "parenthèses",
+            "put the word in quotes",
+        ] {
+            assert!(id_of(raw, DictationLanguage::Multi).is_none(), "{raw}");
+        }
+    }
+
+    #[test]
+    fn commands_203_no_phrase_is_shared_between_two_commands() {
+        let defs = builtin();
+        for lang in [Lang::Fr, Lang::En] {
+            let mut seen: Vec<(String, String)> = Vec::new();
+            for d in &defs {
+                for p in effective_phrases(d, &VoicePhrases::default(), lang) {
+                    assert!(word_count(&normalize(&p)) >= MIN_WORDS, "{p}");
+                    let n = normalize(&p);
+                    assert!(!seen.iter().any(|(_, s)| *s == n), "phrase en double : {p}");
+                    seen.push((d.id.clone(), n));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn commands_204_surround_writes_the_pair_for_each_command() {
+        let s = |id: &str, lang, text: &str| surround(&format!("entourer.{id}"), lang, text);
+        assert_eq!(s("parentheses", Lang::Fr, "mot"), Some("(mot)".into()));
+        assert_eq!(s("parentheses", Lang::En, "word"), Some("(word)".into()));
+        assert_eq!(s("crochets", Lang::Fr, "mot"), Some("[mot]".into()));
+        assert_eq!(s("accolades", Lang::En, "word"), Some("{word}".into()));
+        assert_eq!(s("guillemets", Lang::Fr, "mot"), Some("«\u{a0}mot\u{a0}»".into()));
+        assert_eq!(s("guillemets", Lang::En, "word"), Some("\"word\"".into()));
+    }
+
+    #[test]
+    fn commands_205_surround_keeps_edge_blanks_outside_and_refuses_nothing_to_wrap() {
+        assert_eq!(surround("entourer.parentheses", Lang::Fr, " un mot \n"), Some(" (un mot) \n".into()));
+        assert_eq!(surround("entourer.parentheses", Lang::Fr, "a\nb"), Some("(a\nb)".into()));
+        assert_eq!(surround("entourer.parentheses", Lang::Fr, " \n\t"), None);
+        assert_eq!(surround("entourer.parentheses", Lang::Fr, ""), None);
+        assert_eq!(surround("dictionnaire.ajouter", Lang::Fr, "mot"), None);
+        assert_eq!(surround("entourer.inconnu", Lang::Fr, "mot"), None);
+    }
+
+    #[test]
+    fn commands_206_a_chosen_phrase_cannot_take_one_of_another_surround_command() {
+        let defs = builtin();
+        let custom = VoicePhrases::default();
+        assert_eq!(
+            validate_phrase("entre crochets", "entourer.parentheses", Lang::Fr, &defs, &custom),
+            Err(PhraseError::Taken("entourer.crochets".into()))
+        );
+        assert_eq!(validate_phrase("parenthèse autour", "entourer.parentheses", Lang::Fr, &defs, &custom), Ok("parenthèse autour".into()));
     }
 }

@@ -1166,3 +1166,125 @@ fn commands_110_no_trace_of_the_selection_anywhere() {
     // Le type lui-même ne montre pas son contenu.
     assert!(!format!("{:?}", SelectedText::new(SECRET)).contains("SECRET"));
 }
+
+// ---- Commandes « caractères autour » (tâche 7, docs/COMMANDES.md) ----
+
+/// Ce que la commande colle : un seul collage (donc un seul ⌘Z), qui remplace la sélection restée active.
+fn surrounded(raw: &'static str, selected: &str, language: scriibe_core::settings::DictationLanguage) -> (Vec<String>, Rig) {
+    let r = rig_with(AppSettings { language, ..local_settings() }, raw, "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::Text(selected.into()));
+    r.dictate();
+    (r.paster.pasted().into_iter().map(|(t, _)| t).collect(), r)
+}
+
+#[test]
+fn commands_201_parentheses_replace_the_selection_with_one_paste() {
+    use scriibe_core::settings::DictationLanguage::{En, Fr};
+    let (pasted, r) = surrounded("Entre parenthèses.", "cri be", Fr);
+    assert_eq!(pasted, vec!["(cri be)".to_string()], "un seul collage : un seul ⌘Z annule");
+    assert!(r.history.items().is_empty(), "une commande n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty(), "le modèle de mise au propre n'est pas appelé");
+    assert_eq!(r.paster.selected_reads(), 1);
+    assert!(r.indicator.states().contains(&IndicatorState::Done), "{:?}", r.indicator.states());
+    assert_eq!(surrounded("Put it in parentheses.", "cri be", En).0, vec!["(cri be)".to_string()]);
+}
+
+#[test]
+fn commands_202_quotes_are_french_guillemets_or_english_marks_by_the_language_spoken() {
+    use scriibe_core::settings::DictationLanguage::{En, Fr, Multi};
+    assert_eq!(surrounded("Entre guillemets", "cri be", Fr).0, vec!["«\u{a0}cri be\u{a0}»".to_string()]);
+    assert_eq!(surrounded("In quotes.", "cri be", En).0, vec!["\"cri be\"".to_string()]);
+    // « Plusieurs langues » : la langue de la phrase dite décide, pas celle des réglages.
+    assert_eq!(surrounded("Mets entre guillemets", "cri be", Multi).0, vec!["«\u{a0}cri be\u{a0}»".to_string()]);
+    assert_eq!(surrounded("Put in quotation marks", "cri be", Multi).0, vec!["\"cri be\"".to_string()]);
+}
+
+#[test]
+fn commands_203_brackets_and_braces() {
+    use scriibe_core::settings::DictationLanguage::{En, Fr};
+    assert_eq!(surrounded("Entre crochets", "cri be", Fr).0, vec!["[cri be]".to_string()]);
+    assert_eq!(surrounded("In square brackets", "cri be", En).0, vec!["[cri be]".to_string()]);
+    assert_eq!(surrounded("Entre accolades", "cri be", Fr).0, vec!["{cri be}".to_string()]);
+    assert_eq!(surrounded("In curly brackets", "cri be", En).0, vec!["{cri be}".to_string()]);
+}
+
+#[test]
+fn commands_204_blanks_at_the_edges_stay_outside_and_lines_are_kept() {
+    use scriibe_core::settings::DictationLanguage::Fr;
+    assert_eq!(surrounded("Entre parenthèses", "un mot ", Fr).0, vec!["(un mot) ".to_string()]);
+    assert_eq!(surrounded("Entre crochets", "\n une ligne\net une autre\n", Fr).0, vec!["\n [une ligne\net une autre]\n".to_string()]);
+}
+
+#[test]
+fn commands_205_without_a_selection_or_with_a_longer_sentence_the_phrase_is_dictated() {
+    use scriibe_core::settings::DictationLanguage::Fr;
+    let r = rig("Entre parenthèses", "Entre parenthèses.");
+    r.dictate(); // aucune sélection
+    assert_eq!(r.paster.pasted().len(), 1);
+    assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses");
+    let (pasted, r) = surrounded("Mets le tout entre parenthèses", "cri be", Fr);
+    assert_eq!(pasted, vec!["Mets le tout entre parenthèses".to_string()]);
+    assert_eq!(r.paster.selected_reads(), 0, "pas de ⌘C pour une dictée qui n'est pas une commande");
+}
+
+#[test]
+fn commands_206_a_blank_selection_is_not_wrapped() {
+    use scriibe_core::settings::DictationLanguage::Fr;
+    let (pasted, r) = surrounded("Entre parenthèses", "  \n ", Fr);
+    assert!(pasted.is_empty());
+    assert!(r.indicator.states().contains(&message("Rien à entourer (la sélection est vide)")), "{:?}", r.indicator.states());
+}
+
+#[test]
+fn commands_207_an_unreadable_selection_pastes_the_phrase_and_says_why() {
+    let r = rig("Entre guillemets", "Entre guillemets.");
+    r.paster.set_selected(FakeSelected::Unreadable(Unreadable::NotTrusted));
+    r.dictate();
+    assert_eq!(r.paster.pasted().len(), 1);
+    assert_eq!(r.paster.pasted()[0].0, "Entre guillemets");
+    assert!(r
+        .indicator
+        .states()
+        .contains(&message("Commande non faite : autorisation Accessibilité manquante — phrase collée comme du texte")));
+}
+
+#[test]
+fn commands_208_a_paste_that_only_copied_says_so() {
+    let r = rig_with(local_settings(), "Entre parenthèses", "x", true);
+    r.paster.set_outcome(PasteOutcome::CopiedOnly("fenêtre en administrateur".into()));
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert!(r.indicator.states().iter().any(|s| matches!(s, IndicatorState::Message(m) if m.starts_with("Copié, à coller avec"))));
+}
+
+/// Cas 8 : le journal ne garde que l'identifiant et la longueur ; ni historique, ni pastille, ni requête ne contiennent la sélection (le collage,
+/// lui, la contient forcément : c'est son travail).
+#[test]
+fn commands_209_no_trace_of_the_selection_outside_the_paste() {
+    use scriibe_core::settings::DictationLanguage::Fr;
+    let (pasted, r) = surrounded("Entre guillemets", SECRET, Fr);
+    assert_eq!(pasted, vec![format!("«\u{a0}{SECRET}\u{a0}»")]);
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: entourer.guillemets (sélection : 14 signes)"), "{log}");
+    let everything = format!(
+        "{log}|{:?}|{:?}|{:?}",
+        r.history.items(),
+        r.indicator.states(),
+        r.world.requests().iter().map(|q| String::from_utf8_lossy(&q.body).to_string() + &q.url).collect::<Vec<_>>()
+    );
+    assert!(!everything.contains("SECRET"), "la sélection a laissé une trace : {everything}");
+}
+
+#[test]
+fn commands_210_custom_phrase_replaces_the_default_for_a_wrapping_command() {
+    let mut settings = local_settings();
+    settings.voice_commands.fr.insert("entourer.parentheses".into(), vec!["parenthèse autour".into()]);
+    let r = rig_with(settings.clone(), "Parenthèse autour.", "x", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!(r.paster.pasted()[0].0, "(cri be)");
+    let r = rig_with(settings, "Entre parenthèses", "Entre parenthèses.", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate();
+    assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses", "l'ancienne phrase ne marche plus");
+}
