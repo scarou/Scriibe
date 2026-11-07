@@ -146,3 +146,20 @@ Tâche 4 (07/11/2026) : relecture du commit 3e6724b par un sous-agent Sonnet qui
 - *Mémoire* : la copie en JSON de `api/prefill` et les tampons de la page ne sont pas écrasés (inévitable : la page doit afficher le texte) ; la chaîne interne d'`arboard` non plus.
 - *Page ouverte en double* : une autre fenêtre ou un onglet périmé peut prendre le texte à la place de la bonne (défaut de fonctionnement, pas une fuite).
 - *Dernière précaution au collage* : si la sélection restait malgré tout dans le presse-papiers, `paste` la prendrait pour l'ancien contenu et la remettrait 1,5 s après ; l'attente prolongée réduit ce risque sans le supprimer.
+
+## Essai réel a
+
+Essai du 07/11/2026 sur le Mac Studio de Christophe, `Scriibe.app` compilée le jour même (commit de la tâche 4), commande « ajoute ça au dictionnaire » sur un mot sélectionné. Un texte repère (`TEMOIN-…`) était mis dans le presse-papiers avant chaque essai et relu juste après.
+
+| Essai | Résultat | Presse-papiers |
+|---|---|---|
+| TextEdit, mot « Madame » | Fenêtre Scriibe ouverte, « Entendu » rempli, « Écrit » actif. Journal : `commande: dictionnaire.ajouter (sélection : 6 signes)`, sans le mot | repère intact |
+| Notes, mot « Guennec » | **1er essai raté** : phrase non reconnue (aucune ligne `commande:`), collée comme texte par-dessus la sélection (⌘Z l'a rétablie). **2e essai réussi** (7 signes) | repère intact |
+| TextEdit, aucune sélection (2 fois) | Phrase collée comme du texte, pas de fenêtre ; journal : `ignorée (aucune sélection)` | repère intact |
+| Chrome, mot « Workflows » | Réussi (9 signes) | repère intact |
+
+**Verdict de Christophe :** la commande fonctionne dans TextEdit, Notes et Chrome ; le cas sans sélection se comporte comme prévu ; le mot n'apparaît pas dans le journal.
+
+**Non résolu :** l'échec du 1er essai dans Notes. Cause probable : Whisper a transcrit la phrase un peu autrement (la reconnaissance exige que la phrase soit toute la dictée), mais le journal ne garde pas la transcription (choix de vie privée) donc non vérifié. Un 1er essai dans TextEdit (3,5 s de parole, 39 signes collés) était probablement une phrase trop longue. À surveiller : si l'échec revient, ajouter des variantes de phrase ou un journal du seul nombre de mots de la dictée.
+
+**Non distingué :** le journal ne dit pas si Chrome a répondu par l'accessibilité ou par le ⌘C d'essai ; le presse-papiers est dans les deux cas resté intact.
