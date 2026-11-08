@@ -337,6 +337,13 @@ fn handle(ctx: &Context, mut request: Request) {
             ctx.history.update(|store, _, _| store.delete(&id));
             ok(request, json!({"ok": true}))
         }
+        // Plusieurs dictées d'un coup (tuile d'un jour, cases cochées) : même effet que `delete` répété, en une seule écriture.
+        (Method::Post, "api/history/delete_many") => {
+            let ids: Vec<String> =
+                input["ids"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect()).unwrap_or_default();
+            ctx.history.update(|store, _, _| ids.iter().for_each(|id| store.delete(id)));
+            ok(request, json!({"ok": true}))
+        }
         (Method::Post, "api/history/clear") => {
             if input["confirmed"].as_bool() != Some(true) {
                 return fail(request, 400, "confirmation manquante");

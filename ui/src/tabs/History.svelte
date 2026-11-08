@@ -46,6 +46,13 @@
 
   const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' });
 
+  /** Déplie ou replie les tuiles des jours, par le bouton de chaque carte (qui garde aussi son pli en mémoire). */
+  function setAllFolded(folded: boolean) {
+    for (const card of document.querySelectorAll<HTMLElement>('section.fold-card[id^="historique-"]')) {
+      if ((card.dataset.folded === 'true') !== folded) card.querySelector<HTMLButtonElement>('button.fold')?.click();
+    }
+  }
+
   function resetFilters() {
     period = 'all';
     from = '';
@@ -72,6 +79,25 @@
 
   async function remove(id: string) {
     await api('history/delete', { id });
+    await load();
+  }
+
+  // Cases à cocher : les dictées choisies, effaçables d'un coup.
+  let selected = $state<string[]>([]);
+  let selectedShown = $derived(shown.filter((d) => selected.includes(d.id)).map((d) => d.id));
+  const isOn = (id: string) => selected.includes(id);
+
+  function setSelected(ids: string[], on: boolean) {
+    const rest = selected.filter((id) => !ids.includes(id));
+    selected = on ? [...rest, ...ids] : rest;
+  }
+
+  /** Efface ces dictées après confirmation (une tuile de jour, ou les cases cochées). */
+  async function removeMany(ids: string[], what: string) {
+    if (!ids.length) return;
+    if (!(await confirmBox(t('Effacer {what} ? C’est définitif.', { what }), { confirm: t('Effacer'), danger: true }))) return;
+    await api('history/delete_many', { ids });
+    selected = selected.filter((id) => !ids.includes(id));
     await load();
   }
 
@@ -113,6 +139,7 @@
   <button class="danger" onclick={clearAll} disabled={!items.length}>🗑 {t('Tout effacer')}</button>
 </div>
 
+<div class="sticky-top">
 <Card id="conservation" title={t('Confidentialité de l’historique')} help="privacy" intro={t('Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}>
   <div class="row"><label><input type="checkbox" bind:checked={keepText} onchange={previewChange} /> {t('Garder le texte des dictées (sinon seule la fiche chiffrée reste)')}</label></div>
   <div class="row">
@@ -141,7 +168,22 @@
       <option value="">{t('Toutes les applis')}</option>
       {#each apps as a (a)}<option value={a}>{a}</option>{/each}
     </select>
+    {#if groups.length}
+      <span class="seg" role="group">
+        <button onclick={() => setAllFolded(false)}>{t('Tout déplier')}</button>
+        <button onclick={() => setAllFolded(true)}>{t('Tout replier')}</button>
+      </span>
+    {/if}
   </div>
+  {#if shown.length}
+    <div class="row">
+      <label><input type="checkbox" checked={selectedShown.length === shown.length} indeterminate={selectedShown.length > 0 && selectedShown.length < shown.length} onchange={(e) => setSelected(shown.map((d) => d.id), e.currentTarget.checked)} /> {t('Tout sélectionner')}</label>
+      {#if selectedShown.length}
+        <span class="muted">{t('{n} dictée(s) cochée(s)', { n: selectedShown.length })}</span>
+        <button class="danger" onclick={() => removeMany(selectedShown, t('les {n} dictée(s) cochée(s)', { n: selectedShown.length }))}>🗑 {t('Effacer la sélection')}</button>
+      {/if}
+    </div>
+  {/if}
   {#if period === 'custom' || filtered}
     <div class="row">
       {#if period === 'custom'}
@@ -155,11 +197,17 @@
     </div>
   {/if}
 </div>
+</div>
 
 {#each groups as g (g.day)}
   <Card id={'historique-' + g.day} title={dayTitle(g.day) + ' · ' + t('{n} dictée(s) · {words} mots', { n: g.items.length, words: g.items.reduce((sum, d) => sum + d.words, 0) })}>
+      <div class="day-bar">
+        <label><input type="checkbox" checked={g.items.every((d) => isOn(d.id))} indeterminate={g.items.some((d) => isOn(d.id)) && !g.items.every((d) => isOn(d.id))} onchange={(e) => setSelected(g.items.map((d) => d.id), e.currentTarget.checked)} /> {t('Cocher ce jour')}</label>
+        <button class="danger" onclick={() => removeMany(g.items.map((d) => d.id), t('les {n} dictée(s) de ce jour', { n: g.items.length }))}>🗑 {t('Effacer ce jour')}</button>
+      </div>
       {#each g.items as d (d.id)}
         <div class="item">
+          <input type="checkbox" class="pick" checked={isOn(d.id)} onchange={(e) => setSelected([d.id], e.currentTarget.checked)} aria-label={t('Cocher cette dictée')} />
           <span class="muted time">{timeOf(d.date)}</span>
           <div class="body">
             <div class="meta"><span class="chip">{d.app}</span> <span class="muted">{t('{n} mots · {s} s', { n: d.words, s: fmt(d.duration) })}{d.translation ? t(' · traduit en {language}', { language: d.translation }) : ''}</span></div>
@@ -191,6 +239,8 @@
   .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   .page-head p { margin: 0 0 12px; }
   .danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+  /* Confidentialité et filtres restent en haut pendant le défilement des tuiles ; si la fenêtre est basse, ce bloc défile lui-même. */
+  .sticky-top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 4px; max-height: 70vh; overflow-y: auto; }
   .filters { padding: 12px 14px; }
   .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .search { flex: 1 1 140px; min-width: 0; }
@@ -200,6 +250,8 @@
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .item { display: flex; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
   .item:first-child { border-top: 0; }
+  .day-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0 8px; }
+  .pick { flex: none; margin-top: 3px; }
   .time { width: 46px; flex: none; font-variant-numeric: tabular-nums; padding-top: 2px; }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
