@@ -212,6 +212,11 @@ impl Paster for FakePaster {
         crate::paste::Selection { active: *lock(&self.selection), report: String::new() }
     }
 
+    fn press_return(&self) -> bool {
+        lock(&self.shortcuts).push("Entrée".to_string());
+        true
+    }
+
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
         lock(&self.pasted).push((text.to_string(), restore_clipboard));
         lock(&self.outcome).clone()

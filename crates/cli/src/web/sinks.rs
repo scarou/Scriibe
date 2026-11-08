@@ -93,6 +93,10 @@ impl Paster for SwitchPaster {
         }
     }
 
+    fn press_return(&self) -> bool {
+        !self.0.capturing() && self.0.paster.press_return()
+    }
+
     // Pendant une capture d'essai rien n'est collé : il n'y a pas de sélection à remplacer.
     fn selection(&self) -> Selection {
         if self.0.capturing() {

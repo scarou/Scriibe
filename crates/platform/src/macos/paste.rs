@@ -150,6 +150,7 @@ const FLAG_SHIFT: u64 = 0x0002_0000;
 const FLAG_CONTROL: u64 = 0x0004_0000;
 const FLAG_OPTION: u64 = 0x0008_0000;
 const KEY_SHIFT: u16 = 56;
+const KEY_RETURN: u16 = 36;
 const KEY_CONTROL: u16 = 59;
 const KEY_OPTION: u16 = 58;
 
@@ -378,6 +379,16 @@ impl Paster for MacPaster {
         send_shortcut(shortcut)
     }
 
+    fn press_return(&self) -> bool {
+        // Entrée seule, sans ⌘ : on attend que les touches de la dictée soient relâchées, puis Entrée (code 36).
+        wait_for_modifiers_released();
+        let sent = post_key_flags(KEY_RETURN, true, 0).and_then(|()| {
+            std::thread::sleep(Duration::from_millis(10));
+            post_key_flags(KEY_RETURN, false, 0)
+        });
+        std::thread::sleep(Duration::from_millis(30));
+        sent.is_ok()
+    }
     fn copy(&self, text: &str) -> bool {
         write_text(&self.clipboard, text).is_ok()
     }

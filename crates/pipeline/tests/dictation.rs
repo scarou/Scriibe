@@ -1429,3 +1429,26 @@ fn commands_311_a_custom_command_that_needs_a_selection_stays_text_without_one()
     assert!(r.paster.shortcuts().is_empty());
     assert_eq!(r.paster.pasted().len(), 1);
 }
+
+#[test]
+fn libreoffice_mac_trailing_new_line_is_a_real_return_key() {
+    let r = rig("bonjour retour à la ligne", "Bonjour, retour à la ligne.");
+    r.apps.set(AppInfo { name: "LibreOffice".into(), id: Some("org.libreoffice.script".into()) });
+    r.dictate();
+    assert!(
+        r.history.items()[0].final_text.ends_with('\n'),
+        "le signe est bien rendu en saut de ligne : {:?}",
+        r.history.items()[0].final_text
+    );
+    let pasted = r.paster.pasted();
+    assert!(!pasted[0].0.ends_with('\n'), "Writer ignorerait ce saut de ligne final : {:?}", pasted[0].0);
+    assert_eq!(r.paster.shortcuts(), vec!["Entrée".to_string()]);
+}
+
+#[test]
+fn other_apps_keep_the_trailing_new_line_in_the_pasted_text() {
+    let r = rig("bonjour retour à la ligne", "Bonjour, retour à la ligne.");
+    r.dictate();
+    assert!(r.paster.pasted()[0].0.ends_with('\n'));
+    assert!(r.paster.shortcuts().is_empty(), "Entrée enverrait le message dans une messagerie");
+}

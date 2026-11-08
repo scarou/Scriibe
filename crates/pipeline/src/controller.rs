@@ -949,7 +949,7 @@ impl Controller {
             &text,
             replaces_selection,
         );
-        let pasted = deps.paster.paste(&to_paste, settings.restore_clipboard);
+        let pasted = paste_text(deps.paster.as_ref(), &to_paste, settings.restore_clipboard, focus_at_paste.id.as_deref());
         *lock(&self.inner.last_paste) = match pasted {
             PasteOutcome::Pasted => scriibe_core::spacing::remember(focus_at_paste.id.as_deref(), deps.clock.now(), &text),
             PasteOutcome::CopiedOnly(_) => None,
@@ -1069,4 +1069,25 @@ fn log_line(
         if job.gain > 1.05 { format!(" | gain ×{:.1}", job.gain) } else { String::new() },
         job.input
     )
+}
+
+/// Identifiant de bundle de LibreOffice sur Mac.
+const LIBREOFFICE_MAC_ID: &str = "org.libreoffice.script";
+
+/// Colle `text`. Dans LibreOffice (Mac), Writer ignore un saut de ligne en fin de texte collé (« Bonjour, retour à la ligne » ne passait pas à
+/// la ligne) : le texte est collé sans ses sauts de ligne finaux, puis une vraie touche Entrée est envoyée pour chacun. Au milieu d'un
+/// texte le collage les rend bien, et ailleurs la touche Entrée enverrait un message : seul LibreOffice est concerné.
+fn paste_text(paster: &dyn scriibe_platform::paste::Paster, text: &str, restore_clipboard: bool, app_id: Option<&str>) -> PasteOutcome {
+    let body = text.trim_end_matches('\n');
+    let returns = text.len() - body.len();
+    if returns == 0 || app_id != Some(LIBREOFFICE_MAC_ID) {
+        return paster.paste(text, restore_clipboard);
+    }
+    let outcome = if body.is_empty() { PasteOutcome::Pasted } else { paster.paste(body, restore_clipboard) };
+    if matches!(outcome, PasteOutcome::Pasted) {
+        for _ in 0..returns {
+            paster.press_return();
+        }
+    }
+    outcome
 }

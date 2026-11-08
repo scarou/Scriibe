@@ -105,6 +105,10 @@ pub trait Paster: Send + Sync {
     fn press_shortcut(&self, _shortcut: &scriibe_core::shortcut::Shortcut) -> Result<(), &'static str> {
         Err(SHORTCUT_UNSUPPORTED)
     }
+    /// Appuie la touche Entrée dans l'appli active (un saut de ligne que le collage n'a pas rendu). Faux si le système ne sait pas ou n'a pas pu.
+    fn press_return(&self) -> bool {
+        false
+    }
     /// Met `text` dans le presse-papiers, sans coller (« Copier la dernière dictée »). Faux si le système n'a pas pu.
     fn copy(&self, _text: &str) -> bool {
         false
