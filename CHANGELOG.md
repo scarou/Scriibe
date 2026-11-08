@@ -2,7 +2,7 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
-## S18 — 2026-11-07 · Commandes vocales sur du texte sélectionné (Mac, non publié)
+## S18 — 2026-11-07 et 08 · Commandes vocales sur du texte sélectionné, guides d'installation, Historique (Mac, non publié)
 
 Sessions locales sur le Mac Studio de Christophe (tâches 0 à 9 de la ligne du 03/11 du carnet) ; `scarou/scribe` non modifié. **Aucune version publiée** (ROADMAP n°14) ; le détail de conception, de relecture et d'essai est dans `docs/COMMANDES.md`.
 
@@ -15,6 +15,11 @@ Sessions locales sur le Mac Studio de Christophe (tâches 0 à 9 de la ligne du 
 - **Technique** : `crates/core/src/commands.rs` (reconnaissance sur la transcription entière, phrases par défaut et choisies), `shortcut.rs` ; `Paster::selected_text` et `Paster::press_shortcut` (macOS : ⌘C d'essai avec presse-papiers remis dans tous les cas, ⌘C refusé si image ou fichiers ; raccourci par CGEvent) ; la sélection n'est ni journalisée, ni dans l'historique ou le rapport, et son texte est effacé de la mémoire. Routes `api/commands`, `api/commands/validate-phrase`, `api/commands/validate-shortcut`.
 - **Corrigé à l'essai réel** : l'aiguillage de collage de la page (`SwitchPaster`) ne transmettait pas `press_shortcut` (« non pris en charge sur ce système »).
 - **Essayé à la main** (Christophe) : gras, italique, souligné dans TextEdit, Notes et Google Docs ; parenthèses dans Notes ; une commande à lui (⌘N). **Non essayé** : guillemets, crochets, accolades à la main ; Windows et Linux. « Mettre en barré » a été ajouté puis retiré (aucun raccourci dans TextEdit ni Notes).
+- **Guides d'installation Windows et Linux (08/11)** : `docs/INSTALLATION_WINDOWS.md` et `INSTALLATION_LINUX.md` refaits pas à pas pour débutants (étapes numérotées, « C'est réussi quand… », tableau « Si ça ne marche pas »), guides pour connaisseurs à part (`*_EXPERT.md`), versions anglaises de même structure ; README mis à jour. **Jamais suivis par un débutant sur une machine neuve.**
+- **Dictionnaire (08/11)** : champs sans correction automatique (majuscule ou mot corrigé par le webview) ; les deux cartes ont la même hauteur, réglable par une poignée commune (double-clic : retour à l'automatique ; clavier : flèches).
+- **Historique (08/11)** : boutons « Tout déplier / Tout replier » ; « Effacer ce jour » sur chaque tuile ; cases à cocher (par dictée, par jour, « Tout sélectionner ») avec « Effacer la sélection », avec confirmation ; les tuiles Confidentialité et filtres restent fixes en haut pendant le défilement. Nouvelle route `api/history/delete_many` (même effet que `delete` répété, une seule écriture).
+- **LibreOffice sur Mac (08/11)** : Writer ignorait un saut de ligne placé en fin de texte collé (« retour à la ligne » en fin de dictée ne passait pas à la ligne ; au milieu d'un texte, tout allait bien). Pour LibreOffice seul (`org.libreoffice.script`), le texte est collé sans ses sauts de ligne finaux, puis `Paster::press_return` envoie une vraie touche Entrée par saut de ligne ; ailleurs rien ne change (Entrée enverrait un message dans une messagerie). Essai réel concluant par Christophe ; Windows et Linux non touchés (Writer n'y a pas été essayé).
+- **Installation sur le Mac (08/11)** : `tools/faire_app_macos.sh` reprend le numéro de `Cargo.toml` au lieu de « 0.1.0 ». Une seule `Scriibe.app` reste, dans `~/Applications` ; la mise à jour intégrée remplace l'application là où elle tourne et ne garde pas l'ancienne.
 
 ## S17 — 2026-11-05 et 06 · Version 0.2.4 : espace entre deux dictées, Aide, fusion de Linux
 
