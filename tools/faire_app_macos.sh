@@ -29,8 +29,10 @@ cp "$exe" "$APP/Contents/MacOS/Scriibe"
 cp packaging/macos/Info.plist "$APP/Contents/Info.plist"
 cp "$STAGE/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 # Publication d'une version (tools/publier_macos.sh) : le numéro affiché par macOS est celui de la version publiée.
-if [ -n "${SCRIIBE_VERSION:-}" ]; then
-  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $SCRIIBE_VERSION" "$APP/Contents/Info.plist"
+# Sans version imposée (compilation locale), on reprend celle de Cargo.toml : plus de « 0.1.0 » trompeur.
+VERSION="${SCRIIBE_VERSION:-$(awk -F'"' '/^version *=/ { print $2; exit }' Cargo.toml)}"
+if [ -n "$VERSION" ]; then
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 fi
 xattr -cr "$APP"
 
