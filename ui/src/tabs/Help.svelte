@@ -182,11 +182,20 @@
       <ul>
         <li><b>Littéral</b> : aucun modèle, seulement les signes dictés, le dictionnaire et la typographie.</li>
         <li><b>Simple</b> (par défaut), <b>Soutenu</b>, et quatre modes professionnels : sophrologie, informatique et IA, courrier administratif, commercial.</li>
+        <li><b>Apaisé (CNV)</b> : pour les échanges tendus (WhatsApp, réseaux sociaux). Il réécrit en communication non violente : les faits sans jugement, ton ressenti et ton besoin à la première personne, puis une demande claire posée comme une question. Il réécrit librement : relis le texte avant d’envoyer, et vérifie qu’il n’invente rien que tu n’as pas dit.</li>
+      </ul>
+      <h3>La fidélité à ta dictée</h3>
+      <p>Après la réponse du modèle, un garde-fou vérifie qu’il est resté fidèle à tes mots ; sinon, ton texte brut est collé et le message « Reformulation écartée » s’affiche. Chaque mode a un cran de fidélité, et tu peux le choisir pour Simple (Réglages → Modes) et pour tes modes personnels :</p>
+      <ul>
+        <li><b>Littéral</b> : au moins 90 % de tes mots gardés. Seules la ponctuation et de petites corrections passent.</li>
+        <li><b>Léger</b> (Simple par défaut) : au moins 75 % de tes mots gardés sur une dictée de huit mots ou plus. Les mots de commande dictés (« parenthèse », « deux points », « retour à la ligne ») ne comptent pas.</li>
+        <li><b>Reformulé</b> : le texte doit rester proche de ta dictée, mais les mots peuvent changer (modes Soutenu et professionnels). Pour Simple, ce cran desserre seulement le contrôle : la consigne reste « garde tes mots ».</li>
+        <li><b>Libre</b> : la part de mots gardés n’est plus contrôlée (mode Apaisé). La longueur, la question qui reste une question, les signes dictés et l’absence de « Oui, » ou « Voici » en tête restent contrôlés.</li>
       </ul>
       <h3>Créer ton mode</h3>
       <ol class="steps">
         <li>Réglages → Modes → « Mes modes » : un nom, une consigne (« Écris comme un SMS court et amical »).</li>
-        <li>« Fidèle » garde tes mots avec la consigne en plus ; « Reformule » réécrit dans le style, comme les modes métiers.</li>
+        <li>Choisis la fidélité à ta dictée : Littéral et Léger gardent tes mots avec la consigne en plus ; Reformulé et Libre réécrivent dans le style, comme les modes métiers.</li>
         <li>Ajoute deux ou trois <b>exemples</b> : une dictée telle que tu la dirais, et le texte que tu attends. Ce sont eux qui donnent vraiment le style.</li>
         <li>Choisis-le dans la liste, puis dicte un texte pour vérifier que les questions restent des questions et que les reprises sont corrigées.</li>
       </ol>

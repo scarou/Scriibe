@@ -27,6 +27,33 @@ pub fn samples_for(language: DictationLanguage) -> &'static [String] {
     }
 }
 
+/// Phrases tendues ajoutées à l'essai du mode Apaisé (CNV) seulement (S19, écart voulu, `docs/ECARTS.md`) : reproches, jugements et ordres
+/// comme on en écrit sur WhatsApp ou les réseaux. La dernière est une question, qui doit le rester.
+const CALM_SAMPLES_FR: [&str; 5] = [
+    "t'as encore oublié d'aller chercher les enfants c'est vraiment n'importe quoi tu penses jamais à personne",
+    "franchement ton message est complètement à côté de la plaque t'as rien compris à ce que j'ai écrit",
+    "tu m'as promis de m'appeler hier soir et tu l'as pas fait comme d'habitude on peut jamais compter sur toi",
+    "arrête de liker les photos de ton ex ça me rend dingue tu le fais exprès",
+    "pourquoi tu réponds jamais à mes messages t'es trop occupé pour moi ?",
+];
+const CALM_SAMPLES_EN: [&str; 5] = [
+    "you forgot to pick up the kids again this is ridiculous you never think about anyone",
+    "honestly your message is completely off the mark you didn't understand a single thing I wrote",
+    "you promised to call me last night and you didn't, as usual, we can never count on you",
+    "stop liking your ex's photos it drives me crazy you're doing it on purpose",
+    "why do you never answer my messages are you too busy for me?",
+];
+
+/// Les phrases de l'essai : les 12 phrases types, plus (mode Apaisé seulement) cinq phrases tendues aux indices 12 à 16.
+pub fn samples_for_mode(language: DictationLanguage, calm: bool) -> Vec<String> {
+    let mut list = samples_for(language).to_vec();
+    if calm {
+        let extra: &[&str] = if language == DictationLanguage::En { &CALM_SAMPLES_EN } else { &CALM_SAMPLES_FR };
+        list.extend(extra.iter().map(|s| s.to_string()));
+    }
+    list
+}
+
 fn forms(list: &[&str]) -> Vec<String> {
     list.iter().map(|s| s.to_string()).collect()
 }
@@ -41,7 +68,7 @@ pub fn checks_for_sample(index: usize) -> Vec<Check> {
 pub fn checks_for_sample_in(index: usize, language: DictationLanguage) -> Vec<Check> {
     if language == DictationLanguage::En {
         return match index {
-            0 | 1 | 2 | 3 | 5 | 7 | 9 => vec![Check::Question],
+            0 | 1 | 2 | 3 | 5 | 7 | 9 | 16 => vec![Check::Question],
             10 => vec![
                 Check::Has { label: "eleven kept".into(), forms: forms(&["11 a.m.", "11 am", "11:00", "eleven"]) },
                 Check::Lacks { label: "ten removed".into(), forms: forms(&["10 a.m.", "10 am", "10:00", "ten"]) },
@@ -55,7 +82,7 @@ pub fn checks_for_sample_in(index: usize, language: DictationLanguage) -> Vec<Ch
         };
     }
     match index {
-        0 | 1 | 2 | 3 | 5 | 7 | 9 => vec![Check::Question],
+        0 | 1 | 2 | 3 | 5 | 7 | 9 | 16 => vec![Check::Question],
         10 => vec![
             Check::Has { label: "onze heures gardé".into(), forms: forms(&["11 h", "11 heures", "onze heures"]) },
             Check::Lacks { label: "dix heures retiré".into(), forms: forms(&["10 h", "10 heures", "dix heures"]) },
@@ -80,6 +107,20 @@ mod tests {
         assert_eq!(samples.len(), 12);
         assert!(samples[10].contains("non pardon") && samples[11].contains("annexes"));
         assert!([0, 1, 2, 3, 5, 7, 9].iter().all(|i| samples[*i].ends_with('?')));
+    }
+
+    #[test]
+    fn calm_adds_five_tense_samples_and_the_last_one_is_a_question() {
+        for language in [DictationLanguage::Fr, DictationLanguage::En] {
+            let base = samples_for_mode(language, false);
+            let calm = samples_for_mode(language, true);
+            assert_eq!(base.len(), 12);
+            assert_eq!(calm.len(), 17);
+            assert_eq!(&calm[..12], &base[..]);
+            assert!(calm[16].ends_with('?') && calm[12..16].iter().all(|s| !s.ends_with('?')));
+            assert!(!checks_for_sample_in(16, language).is_empty());
+            assert!(checks_for_sample_in(12, language).is_empty());
+        }
     }
 
     #[test]

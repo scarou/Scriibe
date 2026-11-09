@@ -101,7 +101,7 @@
           {#if m.id === 'simple'}
             <label class="muted">{t('Fidélité :')}
               <select value={simpleFidelity} onchange={(e) => settings.change({ simpleFidelity: e.currentTarget.value })}>
-                {#each fidelities.filter((f) => f.id !== 'reformulated') as f (f.id)}<option value={f.id}>{f.label()}</option>{/each}
+                {#each fidelities as f (f.id)}<option value={f.id}>{f.label()}</option>{/each}
               </select></label>
           {/if}
           {#if m.has_style}

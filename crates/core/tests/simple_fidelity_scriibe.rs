@@ -78,7 +78,12 @@ fn simple_takes_its_fidelity_from_the_settings() {
     assert!(!p.rewrites, "Simple garde sa consigne fidèle, même au cran Libre");
     let back = AppSettings::from_json(&serde_json::to_string(&s).unwrap()).unwrap();
     assert_eq!(back.simple_fidelity, Fidelity::Free);
-    assert_eq!(AppSettings::from_json(r#"{"simpleFidelity":"reformulated"}"#).unwrap().simple_fidelity, Fidelity::Light);
+    // Reformulé aussi : il desserre le contrôle, la consigne de Simple reste « garde tes mots ».
+    let mut r = AppSettings::from_json(r#"{"simpleFidelity":"reformulated"}"#).unwrap();
+    assert_eq!(r.simple_fidelity, Fidelity::Reformulated);
+    r.rewrite_mode = RewriteMode::Simple;
+    assert!(!r.active_profile().rewrites);
+    assert_eq!(r.active_profile().fidelity, Fidelity::Reformulated);
 }
 
 // Apaisé (CNV), mode livré (S19, n°16).

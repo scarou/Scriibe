@@ -17,13 +17,15 @@ fn fixed(ctx: &Context, settings: &AppSettings, text: &str) -> (String, Vec<Stri
     (applied.text, dictionary.words)
 }
 
+/// Les phrases de l'essai du mode choisi dans `settings` : celles d'Apaisé (CNV) comptent cinq phrases tendues de plus.
+pub fn sample_list(settings: &AppSettings, language: DictationLanguage) -> Vec<String> {
+    let calm = settings.active_custom_mode().is_none() && settings.rewrite_mode == RewriteMode::Calm;
+    scriibe_core::clean_test::samples_for_mode(language, calm)
+}
+
 /// Une phrase type passée au mode `mode` (le mode en cours si absent) : sortie, temps, mots en commun, verdict du garde-fou et contrôles.
 pub fn sample(ctx: &Context, input: &Value) -> Value {
     let language = ctx.app.config.settings().language;
-    let samples = scriibe_core::clean_test::samples_for(language);
-    let Some(index) = input["index"].as_u64().map(|i| i as usize).filter(|i| *i < samples.len()) else {
-        return json!({"ok": false, "error": "phrase inconnue"});
-    };
     let mut settings = ctx.app.config.settings();
     if let Some(choice) = input["mode"].as_str() {
         settings.set_mode_choice(choice);
@@ -31,6 +33,10 @@ pub fn sample(ctx: &Context, input: &Value) -> Value {
             return json!({"ok": false, "error": "mode inconnu"});
         }
     }
+    let samples = sample_list(&settings, language);
+    let Some(index) = input["index"].as_u64().map(|i| i as usize).filter(|i| *i < samples.len()) else {
+        return json!({"ok": false, "error": "phrase inconnue"});
+    };
     settings.cleanup_enabled = true;
     if !settings.has_cleanup_engine() {
         return json!({"ok": false, "error": "Aucun moteur de mise au propre : choisis-en un dans Réglages → Moteurs"});

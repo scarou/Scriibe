@@ -466,8 +466,7 @@ impl AppSettings {
                 .unwrap_or(d.trial_candidates),
             cleanup_enabled: get(o, "cleanupEnabled").unwrap_or(d.cleanup_enabled),
             rewrite_mode,
-            // Reformulé n'a pas de sens pour Simple (il garde les mots) : ramené à Léger.
-            simple_fidelity: get(o, "simpleFidelity").filter(|f| *f != Fidelity::Reformulated).unwrap_or(d.simple_fidelity),
+            simple_fidelity: get(o, "simpleFidelity").unwrap_or(d.simple_fidelity),
             style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
             custom_modes,
             custom_mode_id,

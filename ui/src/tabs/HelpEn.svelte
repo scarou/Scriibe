@@ -195,11 +195,20 @@
       <ul>
         <li><b>Literal</b>: no model, only the dictated signs, the dictionary and the typography.</li>
         <li><b>Simple</b> (default), <b>Formal</b>, and four professional modes: sophrology, IT and AI, official letters, sales.</li>
+        <li><b>Calmed (NVC)</b>: for tense exchanges (WhatsApp, social media). It rewrites in nonviolent communication: the facts without judgement, your feeling and your need in the first person, then a clear request put as a question. It rewrites freely: read the text before sending it, and check that it invents nothing you did not say.</li>
+      </ul>
+      <h3>Fidelity to your dictation</h3>
+      <p>After the model answers, a safeguard checks that it stayed faithful to your words; if not, your raw text is pasted and the message “Rewrite rejected” appears. Each mode has a fidelity level, and you can choose it for Simple (Settings → Modes) and for your own modes:</p>
+      <ul>
+        <li><b>Literal</b>: at least 90% of your words kept. Only punctuation and small corrections pass.</li>
+        <li><b>Light</b> (Simple’s default): at least 75% of your words kept on a dictation of eight words or more. Dictated command words (“parenthesis”, “colon”, “new line”) do not count.</li>
+        <li><b>Rephrased</b>: the text must stay close to your dictation, but the words may change (Formal and professional modes). For Simple, this level only loosens the check: the instruction stays “keep my words”.</li>
+        <li><b>Free</b>: the share of kept words is no longer checked (Calmed mode). The length, a question staying a question, the dictated signs and the absence of “Yes,” or “Here is” at the start are still checked.</li>
       </ul>
       <h3>Create your own mode</h3>
       <ol class="steps">
         <li>Settings → Modes → “My modes”: a name, an instruction (“Write like a short, friendly text message”).</li>
-        <li>Leave “Rephrases sentences” unchecked to keep your words with the instruction added; check it to rewrite in the style, like the professional modes.</li>
+        <li>Choose the fidelity to your dictation: Literal and Light keep your words with the instruction added; Rephrased and Free rewrite in the style, like the professional modes.</li>
         <li>Add two or three <b>examples</b>: a dictation the way you would say it, and the text you expect. They are what really gives the style.</li>
         <li>Choose it in the list, then dictate a text to check that questions stay questions and that false starts are corrected.</li>
       </ol>

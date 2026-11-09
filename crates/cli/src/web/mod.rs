@@ -225,6 +225,13 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Get, "api/trial/samples") => {
             ok(request, json!({"samples": scriibe_core::clean_test::samples_for(ctx.app.config.settings().language)}))
         }
+        (Method::Post, "api/trial/samples") => {
+            let mut settings = ctx.app.config.settings();
+            if let Some(choice) = input["mode"].as_str() {
+                settings.set_mode_choice(choice);
+            }
+            ok(request, json!({"samples": trial::sample_list(&settings, settings.language)}))
+        }
         (Method::Post, "api/trial/sample") => ok(request, trial::sample(ctx, &input)),
         (Method::Post, "api/trial/candidate") => ok(request, trial::candidate(ctx, &input)),
         (Method::Post, "api/pick-file") => ok(request, pick_file(input["kind"].as_str().unwrap_or(""))),

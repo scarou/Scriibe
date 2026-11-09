@@ -26,7 +26,7 @@
 
   /** Les phrases l'une après l'autre : en local, les lancer ensemble fausserait les temps. */
   async function run() {
-    samples = (await api<{ samples: string[] }>('trial/samples')).samples;
+    samples = (await api<{ samples: string[] }>('trial/samples', { mode: choice })).samples;
     for (let i = 0; i < samples.length && !cancelled; i++) {
       const out = await api<Row & { ok: boolean; error?: string }>('trial/sample', { index: i, mode: choice });
       if (cancelled) break;
