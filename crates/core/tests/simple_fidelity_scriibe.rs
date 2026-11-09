@@ -80,3 +80,25 @@ fn simple_takes_its_fidelity_from_the_settings() {
     assert_eq!(back.simple_fidelity, Fidelity::Free);
     assert_eq!(AppSettings::from_json(r#"{"simpleFidelity":"reformulated"}"#).unwrap().simple_fidelity, Fidelity::Light);
 }
+
+// Apaisé (CNV), mode livré (S19, n°16).
+use scriibe_core::modes::{Examples, RewriteMode};
+
+#[test]
+fn calm_is_a_built_in_mode_at_the_free_level_with_its_own_examples() {
+    let p = AppSettings { rewrite_mode: RewriteMode::Calm, ..AppSettings::default() }.active_profile();
+    assert_eq!(p.fidelity, Fidelity::Free);
+    assert!(p.rewrites);
+    assert!(p.style.as_deref().is_some_and(|s| s.contains("communication non violente")));
+    assert!(matches!(&p.examples, Examples::Own(list) if list.len() == 3));
+}
+
+#[test]
+fn calm_accepts_a_real_nvc_rewrite_that_reformulated_would_refuse() {
+    let raw = "t'es jamais là quand j'ai besoin de toi franchement t'en as rien à faire de moi";
+    let nvc = "Plusieurs fois, quand j'avais besoin de toi, tu n'étais pas là. Ça me rend triste, parce que j'ai besoin de pouvoir compter sur toi. Est-ce qu'on peut en parler ?";
+    assert!(!accepts(raw, nvc, Fidelity::Reformulated));
+    assert!(accepts(raw, nvc, Fidelity::Free));
+    // Une question dictée doit rester une question, même en réécriture libre.
+    assert!(!accepts("tu viens ce soir ?", "Je préférerais que tu viennes ce soir.", Fidelity::Free));
+}

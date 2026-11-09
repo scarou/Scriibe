@@ -59,16 +59,21 @@ pub enum RewriteMode {
     Letter,
     Sales,
     Playful,
+    /// Apaisé (CNV) : réécriture en communication non violente, cran Libre (S19, n°16).
+    Calm,
 }
 
 impl RewriteMode {
     /// Dans l'ordre de Scribe (`CaseIterable`) : l'empreinte des prompts en dépend.
-    pub const ALL: [RewriteMode; 8] =
-        [Self::Literal, Self::Simple, Self::Formal, Self::Wellness, Self::Tech, Self::Letter, Self::Sales, Self::Playful];
+    pub const ALL: [RewriteMode; 9] =
+        [Self::Literal, Self::Simple, Self::Formal, Self::Wellness, Self::Tech, Self::Letter, Self::Sales, Self::Playful, Self::Calm];
 
     /// Groupes du menu (séparés par un trait).
-    pub const MENU_GROUPS: [&'static [RewriteMode]; 3] =
-        [&[Self::Literal, Self::Simple, Self::Formal], &[Self::Wellness, Self::Tech, Self::Letter, Self::Sales], &[Self::Playful]];
+    pub const MENU_GROUPS: [&'static [RewriteMode]; 3] = [
+        &[Self::Literal, Self::Simple, Self::Formal, Self::Calm],
+        &[Self::Wellness, Self::Tech, Self::Letter, Self::Sales],
+        &[Self::Playful],
+    ];
 
     /// Valeur écrite dans les fichiers de réglages.
     pub fn raw(self) -> &'static str {
@@ -81,6 +86,7 @@ impl RewriteMode {
             Self::Letter => "letter",
             Self::Sales => "sales",
             Self::Playful => "playful",
+            Self::Calm => "calm",
         }
     }
 
@@ -98,6 +104,7 @@ impl RewriteMode {
             Self::Letter => "Pro · Courrier administratif",
             Self::Sales => "Pro · Commercial",
             Self::Playful => "Amusant (schtroumpf)",
+            Self::Calm => "Apaisé (CNV)",
         }
     }
 
@@ -112,6 +119,7 @@ impl RewriteMode {
             Self::Letter => "Pro · Official letters",
             Self::Sales => "Pro · Sales",
             Self::Playful => "Playful (Smurf)",
+            Self::Calm => "Calmed (NVC)",
         }
     }
 
@@ -124,6 +132,9 @@ impl RewriteMode {
             Self::Tech => "Précis et concis, termes techniques gardés en anglais",
             Self::Letter => "Neutre et poli, destinataire vouvoyé",
             Self::Sales => "Engageant et clair, orienté client",
+            Self::Calm => {
+                "Pour les échanges tendus : réécrit en communication non violente (faits, ressenti, besoin, demande), sans accuser"
+            }
             Self::Playful => "Pour rire : le texte mis au propre (Simple), puis passé en langage schtroumpf sur cet ordinateur",
         }
     }
@@ -138,6 +149,7 @@ impl RewriteMode {
     pub fn style(self) -> Option<&'static str> {
         match self {
             Self::Literal | Self::Simple | Self::Playful => None,
+            Self::Calm => Some("Réécris en communication non violente : décris les faits sans jugement ni généralisation (« toujours » et « jamais » deviennent le fait précis) ; dis le ressenti et le besoin à la première personne, sans accuser l'autre ; change les reproches et les ordres en une demande claire et réalisable, posée comme une question à laquelle l'autre peut répondre non ; garde un ton naturel et chaleureux, sans jargon ni formule toute faite, et reste aussi court que la dictée ; n'invente aucun fait, ressenti ou besoin que la dictée ne laisse pas entendre."),
             Self::Formal => Some("Écris dans un français soutenu et élégant : reformule les tournures familières, choisis des mots plus recherchés."),
             Self::Wellness => Some("Écris en professionnel de la sophrologie et du bien-être : ton posé, chaleureux et bienveillant, vocabulaire juste du métier (séance, protocole, respiration, relaxation dynamique, visualisation, verbalisation)."),
             Self::Tech => Some("Écris en professionnel de l'informatique et de l'IA : ton précis et concis ; garde en anglais les termes techniques d'usage (prompt, build, merge, commit, pipeline, API)."),
@@ -155,11 +167,21 @@ impl RewriteMode {
     pub fn profile(self) -> ModeProfile {
         ModeProfile {
             rewrites: self.rewrites_freely(),
-            fidelity: if self.rewrites_freely() { Fidelity::Reformulated } else { Fidelity::Light },
+            fidelity: match self {
+                Self::Calm => Fidelity::Free,
+                _ if self.rewrites_freely() => Fidelity::Reformulated,
+                _ => Fidelity::Light,
+            },
             style: self.style().map(str::to_string),
             vouvoie: self == Self::Letter,
             examples: if !self.rewrites_freely() {
                 Examples::Faithful
+            } else if self == Self::Calm {
+                Examples::Own(vec![
+                    ModeExample::new("t'es jamais là quand j'ai besoin de toi franchement t'en as rien à faire de moi", "Plusieurs fois, quand j'avais besoin de toi, tu n'étais pas là. Ça me rend triste, parce que j'ai besoin de pouvoir compter sur toi. Est-ce qu'on peut en parler ?"),
+                    ModeExample::new("n'importe quoi cet article faut vraiment être idiot pour croire des trucs pareils", "Je ne suis pas d'accord avec cet article : ses arguments ne me convainquent pas, et sur ce sujet j'ai besoin de sources fiables. Sur quelles sources s'appuie-t-il ?"),
+                    ModeExample::new("arrête de me dire comment élever mes enfants c'est mon problème pas le tien", "Quand tu me dis comment élever mes enfants, ça me pèse, parce que j'ai besoin qu'on me fasse confiance comme parent. Est-ce que tu accepterais de me laisser décider sur ce point ?"),
+                ])
             } else if self == Self::Letter {
                 Examples::None
             } else {

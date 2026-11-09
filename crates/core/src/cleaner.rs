@@ -449,7 +449,8 @@ pub fn warm_up_messages(settings: &AppSettings, vocabulary: &[String], translati
 pub fn built_in_prompts_fingerprint() -> String {
     let mut hash: u64 = 0xcbf29ce484222325;
     let vocabulary = vec!["Claude Code".to_string()];
-    for mode in RewriteMode::ALL {
+    // Les huit modes de Scribe seulement : Apaisé (CNV) est propre à Scriibe (docs/ECARTS.md) et ne doit pas casser la comparaison.
+    for mode in RewriteMode::ALL.into_iter().filter(|m| *m != RewriteMode::Calm) {
         for m in messages_for_mode("dictée témoin", &vocabulary, mode) {
             for byte in format!("{}|{}\n", m.role, m.content).bytes() {
                 hash = (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3);

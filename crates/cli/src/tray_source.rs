@@ -186,10 +186,10 @@ mod tests {
     }
 
     #[test]
-    fn the_menu_lists_the_seven_modes_in_groups_and_checks_the_current_one() {
+    fn the_menu_lists_the_eight_modes_in_groups_and_checks_the_current_one() {
         let view = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr);
         let ids: Vec<Vec<&str>> = view.groups.iter().map(|g| g.iter().map(|m| m.id.as_str()).collect()).collect();
-        assert_eq!(ids, vec![vec!["literal", "simple", "formal"], vec!["wellness", "tech", "letter", "sales"]]);
+        assert_eq!(ids, vec![vec!["literal", "simple", "formal", "calm"], vec!["wellness", "tech", "letter", "sales"]]);
         let checked: Vec<&str> = view.groups.iter().flatten().filter(|m| m.checked).map(|m| m.id.as_str()).collect();
         assert_eq!(checked, vec!["simple"]);
         assert!(view.modes_enabled);

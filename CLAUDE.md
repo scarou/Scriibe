@@ -38,7 +38,7 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - Les phrases du banc de dictée viennent de `ReadingBench.swift` par `tools/extraire_banc.py` (`crates/core/data/bench_phrases.json`), les textes du test de frappe de `TypingTest.swift` par `tools/extraire_frappe.py` (`ui/src/lib/typing-texts.json`), jamais retapés.
 - Le crochet clavier de Windows ne reçoit rien quand la fenêtre de Scriibe a le focus (S06, cause inconnue) : la page relaie alors ses touches (S08 : `api/keys/page`, `Controller::handle_page_key`, ignorées tant que le crochet parle) et la capture des touches (Réglages) passe par elle (`api/keys/capture/key`, `keys::vk_of_web_code`) ; « Tester ma touche » se fait dans une autre fenêtre.
 - Touches : la machine à états est dans `crates/core/src/hotkey.rs` (`Binding`, `HotkeyMonitor::handle_change` ; les cas `hotkey-*` de Scribe restent rejoués par `HotkeyMonitor::new(Hotkey)`), la liste des touches utilisables, leur vérification et les règles du crochet dans `crates/platform/src/keys.rs`. Logo et icônes : `logo/LISEZMOI.md`, `tools/faire_icones.js` et `.py`.
-- Les prompts sont extraits de `Services.swift` (`crates/core/src/prompt_text.rs`), jamais retapés ; `built_in_prompts_fingerprint()` doit valoir `4ed86f0c1c154918`.
+- Les prompts sont extraits de `Services.swift` (`crates/core/src/prompt_text.rs`), jamais retapés ; `built_in_prompts_fingerprint()` doit valoir `4ed86f0c1c154918` (huit modes de Scribe ; Apaisé (CNV), propre à Scriibe, n'y compte pas).
 
 ## Clôture de session
 

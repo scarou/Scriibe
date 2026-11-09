@@ -13,6 +13,7 @@ export const enServer: Record<string, string> = {
   'Pro · Courrier administratif': 'Pro · Official letters',
   'Pro · Commercial': 'Pro · Sales',
   'Amusant (schtroumpf)': 'Playful (Smurf)',
+  'Apaisé (CNV)': 'Calmed (NVC)',
 
   // Résumés des modes (modes.rs)
   'Aucune reformulation : signes dictés, dictionnaire et typographie seulement': 'No rephrasing: dictated signs, dictionary and typography only',
@@ -22,6 +23,8 @@ export const enServer: Record<string, string> = {
   'Précis et concis, termes techniques gardés en anglais': 'Precise and concise, technical terms kept in English',
   'Neutre et poli, destinataire vouvoyé': 'Neutral and polite, recipient addressed formally',
   'Engageant et clair, orienté client': 'Engaging and clear, customer-focused',
+  'Pour les échanges tendus : réécrit en communication non violente (faits, ressenti, besoin, demande), sans accuser':
+    'For tense exchanges: rewrites in nonviolent communication (facts, feeling, need, request), without blaming',
   'Pour rire : le texte mis au propre (Simple), puis passé en langage schtroumpf sur cet ordinateur':
     'Just for fun: the cleaned-up text (Simple), then turned into Smurf language on this computer',
 

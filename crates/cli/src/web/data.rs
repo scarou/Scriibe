@@ -117,10 +117,10 @@ mod tests {
     }
 
     #[test]
-    fn modes_lists_the_seven_built_in_modes_without_the_abandoned_playful_one() {
+    fn modes_lists_the_eight_built_in_modes_without_the_abandoned_playful_one() {
         let mut settings = AppSettings::default();
         let view = modes(&settings);
-        assert_eq!(view["built_in"].as_array().unwrap().len(), 7);
+        assert_eq!(view["built_in"].as_array().unwrap().len(), 8);
         assert!(view["built_in"].as_array().unwrap().iter().all(|m| m["id"] != "playful"));
         assert_eq!(view["groups"].as_array().unwrap().len(), 2);
         assert_eq!(view["choice"], "simple");
