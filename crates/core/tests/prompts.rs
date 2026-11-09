@@ -4,7 +4,7 @@
 
 use scriibe_core::cleaner::{self, messages, messages_for_mode, system_prompt, translation_messages, translation_prompt, warm_up_messages};
 use scriibe_core::lang::LinguaGuesser;
-use scriibe_core::modes::{CustomMode, Examples, ModeExample, ModeProfile, RewriteMode};
+use scriibe_core::modes::{CustomMode, Examples, Fidelity, ModeExample, ModeProfile, RewriteMode};
 use scriibe_core::settings::{AppSettings, TranscriptionEngine};
 use scriibe_core::translation::TranslationLanguage;
 
@@ -87,7 +87,7 @@ fn prompts_007_modified_style_sentence() {
 }
 
 fn faithful_settings() -> AppSettings {
-    let mut mode = CustomMode::new("Chiffres", "Écris les nombres en chiffres.", false);
+    let mut mode = CustomMode::new("Chiffres", "Écris les nombres en chiffres.", Fidelity::Light);
     mode.examples = vec![ModeExample::new("on se voit à dix heures", "On se voit à 10 h."), ModeExample::new("", "vide")];
     let mut s = AppSettings::default();
     s.custom_modes = vec![mode];
@@ -114,7 +114,7 @@ fn prompts_008_faithful_custom_mode() {
 #[test]
 fn prompts_009_rewriting_custom_mode() {
     let mut s = faithful_settings();
-    s.custom_modes[0].rewrites = true;
+    s.custom_modes[0].fidelity = scriibe_core::modes::Fidelity::Reformulated;
     let sent = messages("x", &no_words(), &s.active_profile());
     assert_eq!(sent.len(), 4);
     assert!(sent[0].content.contains("- Style : Écris les nombres en chiffres."));
@@ -165,7 +165,7 @@ fn prompts_012_which_modes_can_skip_the_model() {
 /// prompts-013 : une copie du mode Courrier envoie le même texte que Courrier.
 #[test]
 fn prompts_013_letter_copy() {
-    let mut copy = CustomMode::new("Courrier perso", RewriteMode::Letter.style().unwrap(), true);
+    let mut copy = CustomMode::new("Courrier perso", RewriteMode::Letter.style().unwrap(), Fidelity::Reformulated);
     copy.vouvoie = true;
     let mut s = AppSettings::default();
     s.custom_modes = vec![copy];
@@ -217,7 +217,8 @@ fn prompts_017_no_app_name_in_prompts() {
 #[test]
 fn prompts_018_warm_up_matches_a_real_dictation() {
     let mut custom = AppSettings::default();
-    let mode = CustomMode { examples: vec![ModeExample::new("a demain", "A demain !")], ..CustomMode::new("SMS", "texto", false) };
+    let mode =
+        CustomMode { examples: vec![ModeExample::new("a demain", "A demain !")], ..CustomMode::new("SMS", "texto", Fidelity::Light) };
     custom.custom_modes = vec![mode];
     let id = custom.custom_modes[0].id.clone();
     custom.set_mode_choice(&id);

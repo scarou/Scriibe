@@ -53,7 +53,7 @@ pub fn sample(ctx: &Context, input: &Value) -> Value {
         Err(e) => return json!({"ok": false, "error": e.message}),
     };
     let seconds = start.elapsed().as_secs_f64();
-    let kept = scriibe_core::cleaner::accepts(&line, &raw, settings.active_profile().rewrites);
+    let kept = scriibe_core::cleaner::accepts(&line, &raw, settings.active_profile().fidelity);
     let overlap = scriibe_core::text::overlap(&line, &raw);
     let dictionary = ctx.app.config.dictionary();
     let mut out = dictionary::apply(&dictionary, &raw, settings.list_bullet, true).text;

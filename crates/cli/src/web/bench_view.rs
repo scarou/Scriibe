@@ -204,7 +204,8 @@ mod tests {
             cleanup_engine: CleanupEngine::OpenRouter,
             ..AppSettings::default()
         };
-        let mut mode = scriibe_core::modes::CustomMode::new("Mail au client", "Écris un mail poli.", true);
+        let mut mode =
+            scriibe_core::modes::CustomMode::new("Mail au client", "Écris un mail poli.", scriibe_core::modes::Fidelity::Reformulated);
         settings.custom_mode_id = Some(mode.id.clone());
         settings.custom_modes.push(mode.clone());
         let before = setup_for(&settings, "v", "", "", "");

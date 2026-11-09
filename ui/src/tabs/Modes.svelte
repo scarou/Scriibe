@@ -19,7 +19,17 @@
     trial = { choice, label, key: ++trialKey };
   }
 
+  const fidelities: { id: CustomMode['fidelity']; label: () => string; help: () => string }[] = [
+    { id: 'literal', label: () => t('Littéral'), help: () => t('Garde au moins 90 % de tes mots : seules la ponctuation et de petites corrections sont acceptées.') },
+    { id: 'light', label: () => t('Léger'), help: () => t('Garde au moins 75 % de tes mots (dictées de 8 mots ou plus), comme le mode Simple.') },
+    { id: 'reformulated', label: () => t('Reformulé'), help: () => t('Reformule les phrases : le texte doit rester proche de ta dictée, mais les mots peuvent changer.') },
+    { id: 'free', label: () => t('Libre'), help: () => t('Réécriture libre : la part de mots gardés n’est plus contrôlée (longueur, question, signes et formules de réponse le restent).') },
+  ];
+  function fidelityLabel(id: CustomMode['fidelity']) {
+    return fidelities.find((f) => f.id === id)?.label() ?? id;
+  }
   let v = $derived(settings.value);
+  let simpleFidelity = $derived(((v?.simpleFidelity as string | undefined) ?? 'light') as CustomMode['fidelity']);
   let usable = $derived(!!v && v.cleanupEngine !== 'none');
   let custom = $derived((v?.customModes as CustomMode[] | undefined) ?? []);
   let overrides = $derived((v?.styleOverrides as Record<string, string> | undefined) ?? {});
@@ -44,7 +54,7 @@
   }
 
   function newMode() {
-    editing = { id: crypto.randomUUID().toUpperCase(), name: '', style: '', rewrites: false, vouvoie: false, examples: [] };
+    editing = { id: crypto.randomUUID().toUpperCase(), name: '', style: '', fidelity: 'light', vouvoie: false, examples: [] };
   }
 
   async function saveCustom() {
@@ -88,6 +98,12 @@
           {#if m.id !== 'literal'}
             <button onclick={() => startTrial(m.id, t(m.label))} disabled={!usable} title={usable ? '' : t('Choisis d’abord un moteur de mise au propre')}>{t('Essayer sur les phrases types')}</button>
           {/if}
+          {#if m.id === 'simple'}
+            <label class="muted">{t('Fidélité :')}
+              <select value={simpleFidelity} onchange={(e) => settings.change({ simpleFidelity: e.currentTarget.value })}>
+                {#each fidelities.filter((f) => f.id !== 'reformulated') as f (f.id)}<option value={f.id}>{f.label()}</option>{/each}
+              </select></label>
+          {/if}
           {#if m.has_style}
             <textarea rows="2" class="style" value={styleDrafts[m.id] ?? m.typed_style}
               oninput={(e) => (styleDrafts[m.id] = e.currentTarget.value)} onchange={(e) => saveStyle(m.id, e.currentTarget.value)}></textarea>
@@ -103,7 +119,7 @@
       <div class="mode">
         <label class="pick">
           <input type="radio" name="mode" checked={modes.choice === m.id} onchange={() => choose(m.id)} />
-          <span><b>{m.name || t('Mode sans nom')}</b><br /><span class="muted">{m.rewrites ? t('Reformule') : t('Garde tes mots')} · {t('{n} exemple(s)', { n: m.examples.length })}</span></span>
+          <span><b>{m.name || t('Mode sans nom')}</b><br /><span class="muted">{fidelityLabel(m.fidelity)} · {t('{n} exemple(s)', { n: m.examples.length })}</span></span>
         </label>
         <button onclick={() => startTrial(m.id, m.name || t('Mode sans nom'))} disabled={!usable}>{t('Essayer sur les phrases types')}</button>
         <button onclick={() => (editing = structuredClone($state.snapshot(m)))}>{t('Modifier')}</button>
@@ -120,8 +136,12 @@
       <div class="row"><label>{t('Nom :')} <input type="text" bind:value={editing.name} style="width: 22em" /></label></div>
       <div class="row"><label style="flex: 1">{t('Consigne de style :')}<br />
         <textarea rows="3" style="width: 100%" bind:value={editing.style} placeholder={t('Écris comme un ingénieur : phrases courtes, précises.')}></textarea></label></div>
-      <div class="row"><label><input type="checkbox" bind:checked={editing.rewrites} /> {t('Reformule les phrases (sinon garde tes mots, comme Simple)')}</label></div>
-      {#if editing.rewrites}
+      <div class="row"><label>{t('Fidélité à ta dictée :')}
+        <select bind:value={editing.fidelity}>
+          {#each fidelities as f (f.id)}<option value={f.id}>{f.label()}</option>{/each}
+        </select></label></div>
+      <p class="muted">{fidelities.find((f) => f.id === editing!.fidelity)?.help()}</p>
+      {#if editing.fidelity === 'reformulated' || editing.fidelity === 'free'}
         <div class="row"><label><input type="checkbox" bind:checked={editing.vouvoie} /> {t('Vouvoie le destinataire')}</label></div>
       {/if}
       <h2>{t('Exemples')}</h2>

@@ -2,6 +2,11 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S19 — 2026-11-09 · Fidélité du mode Simple et crans de fidélité par mode (Mac, non publié)
+
+- **Mode Simple, garde-fou** (n°17) : sur une dictée de 8 mots significatifs ou plus, la sortie doit garder 75 % des mots de la dictée, les mots de commande dictés (« parenthèse », « deux points », « ligne »…) comptés à part. Rejeu sur l'historique du 03 au 09/11 (283 dictées passées par le modèle) : 7 écartées (27 avec un 0,75 brut), dont les deux reformulations du 09/11 ; essayé par Christophe, les reformulations ont disparu.
+- **Crans de fidélité** (n°18) : `Fidelity` (`crates/core/src/modes.rs`) remplace le oui/non « reformule » : **Littéral** (≥ 90 % des mots gardés dès 5 mots), **Léger** (≥ 75 % dès 8 mots, le cran de Simple), **Reformulé** (garde-fou des modes métiers, inchangé), **Libre** (la part de mots gardés n'est plus contrôlée ; longueur, question, signes et formule de réponse en tête le restent). Le cran règle le contrôle après coup ; **les prompts livrés ne changent pas** (empreinte `4ed86f0c1c154918` inchangée) : Reformulé et Libre reformulent, Littéral et Léger gardent les mots. Simple : cran au choix (Littéral, Léger, Libre) dans l'onglet Modes, réglage `simpleFidelity`. Modes personnels : menu « Fidélité à ta dictée » à la place de la case ; les anciens fichiers (`rewrites`) se lisent (vrai → Reformulé, faux → Léger) et `rewrites` reste écrit pour les cas de référence. **Non fait** : le mode livré « Apaisé (CNV) » (n°16, nouveau mode livré : l'empreinte des prompts changerait) ; essai des crans Littéral et Libre à la main.
+
 ## S18 — 2026-11-07 et 08 · Commandes vocales sur du texte sélectionné, guides d'installation, Historique (Mac, non publié)
 
 Sessions locales sur le Mac Studio de Christophe (tâches 0 à 9 de la ligne du 03/11 du carnet) ; `scarou/scribe` non modifié. **Aucune version publiée** (ROADMAP n°14) ; le détail de conception, de relecture et d'essai est dans `docs/COMMANDES.md`.

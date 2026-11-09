@@ -246,7 +246,7 @@ export interface CustomMode {
   id: string;
   name: string;
   style: string;
-  rewrites: boolean;
+  fidelity: 'literal' | 'light' | 'reformulated' | 'free';
   vouvoie: boolean;
   examples: ModeExample[];
 }

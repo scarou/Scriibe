@@ -3,7 +3,7 @@
 //! Le format du fichier est celui de Scribe : mêmes clés, mêmes valeurs. La lecture est tolérante : un réglage absent ou illisible
 //! garde sa valeur par défaut, pour qu'un fichier ancien, abîmé ou écrit par une version future ne fasse jamais perdre les réglages.
 
-use crate::modes::{self, CustomMode, ModeProfile, RewriteMode};
+use crate::modes::{self, CustomMode, Fidelity, ModeProfile, RewriteMode};
 use crate::retention;
 use crate::spoken_signs::ListBullet;
 use crate::translation::TranslationLanguage;
@@ -240,6 +240,9 @@ pub struct AppSettings {
     pub cleanup_enabled: bool,
     #[serde(rename = "rewriteMode")]
     pub rewrite_mode: RewriteMode,
+    /// Cran de fidélité du mode Simple : Littéral, Léger (par défaut) ou Libre (voir `Fidelity`). Les autres modes livrés ont le leur, fixe.
+    #[serde(rename = "simpleFidelity")]
+    pub simple_fidelity: Fidelity,
     /// Phrase de style modifiée, par mode livré (vide : celle d'origine).
     #[serde(rename = "styleOverrides")]
     pub style_overrides: BTreeMap<String, String>,
@@ -361,6 +364,7 @@ impl Default for AppSettings {
             ],
             cleanup_enabled: true,
             rewrite_mode: RewriteMode::Simple,
+            simple_fidelity: Fidelity::Light,
             style_overrides: BTreeMap::new(),
             custom_modes: Vec::new(),
             custom_mode_id: None,
@@ -462,6 +466,8 @@ impl AppSettings {
                 .unwrap_or(d.trial_candidates),
             cleanup_enabled: get(o, "cleanupEnabled").unwrap_or(d.cleanup_enabled),
             rewrite_mode,
+            // Reformulé n'a pas de sens pour Simple (il garde les mots) : ramené à Léger.
+            simple_fidelity: get(o, "simpleFidelity").filter(|f| *f != Fidelity::Reformulated).unwrap_or(d.simple_fidelity),
             style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
             custom_modes,
             custom_mode_id,
@@ -585,6 +591,9 @@ impl AppSettings {
     /// Un mode livré avec sa phrase de style telle que réglée.
     pub fn profile_for(&self, mode: RewriteMode) -> ModeProfile {
         let mut p = mode.profile();
+        if mode == RewriteMode::Simple {
+            p.fidelity = self.simple_fidelity;
+        }
         p.style = self.style_for(mode);
         p
     }

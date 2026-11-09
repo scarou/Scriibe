@@ -2,7 +2,7 @@
 //! Port de l'énumération `Cleaner` de `Services.swift` (Scribe), sans les appels réseau.
 
 use crate::lang::LanguageGuesser;
-use crate::modes::{Examples, ModeProfile, RewriteMode};
+use crate::modes::{Examples, Fidelity, ModeProfile, RewriteMode};
 use crate::prompt_text::*;
 use crate::re::regex;
 use crate::settings::AppSettings;
@@ -32,6 +32,9 @@ pub const TRANSLATION_REJECTED: &str = "Traduction écartée";
 const SIMPLE_MIN_WORDS: usize = 8;
 /// Part minimale des mots de la dictée gardés par le mode Simple sur une dictée longue.
 const SIMPLE_KEPT_LONG: f64 = 0.75;
+/// Cran Littéral : dès 5 mots significatifs, au moins 90 % des mots gardés.
+const LITERAL_MIN_WORDS: usize = 5;
+const LITERAL_KEPT: f64 = 0.9;
 /// Mots de commande dictés (le modèle les remplace par un signe) : ignorés dans la part de mots gardés du mode Simple.
 const DICTATED_SIGN_WORDS: &[&str] = &[
     "ouvrez",
@@ -77,11 +80,13 @@ const DICTATED_SIGN_WORDS: &[&str] = &[
 /// veut dire que le modèle a répondu (ou résumé) au lieu de réécrire : on colle alors le texte brut.
 /// Les modes de style (soutenu, pro) reformulent : la sortie peut être plus longue et partager moins de mots.
 pub fn accepts_for_mode(input: &str, output: &str, mode: RewriteMode) -> bool {
-    accepts(input, output, mode.rewrites_freely())
+    accepts(input, output, if mode.rewrites_freely() { Fidelity::Reformulated } else { Fidelity::Light })
 }
 
-/// `rewrites` : le mode reformule (modes métiers, modes personnels qui reformulent), le garde-fou est plus souple.
-pub fn accepts(input: &str, output: &str, rewrites: bool) -> bool {
+/// `fidelity` : le cran du mode. Reformulé et Libre (modes métiers, modes personnels qui reformulent) ont un garde-fou plus souple ;
+/// Libre ne contrôle plus la part de mots gardés.
+pub fn accepts(input: &str, output: &str, fidelity: Fidelity) -> bool {
+    let rewrites = fidelity.rewrites();
     let input_len = input.chars().count();
     let max_length = if rewrites { input_len * 3 + 120 } else { input_len * 2 + 80 };
     if output.is_empty() || output.chars().count() > max_length {
@@ -101,6 +106,9 @@ pub fn accepts(input: &str, output: &str, rewrites: bool) -> bool {
     {
         return false;
     }
+    if fidelity == Fidelity::Free {
+        return true;
+    }
     let o = overlap(input, output);
     // En style, une question reformulée peut partager peu de mots (le « ? » la protège déjà) ; une demande exécutée,
     // elle, est faite surtout de mots nouveaux : sans « ? », la sortie doit venir en bonne partie de la dictée.
@@ -112,7 +120,9 @@ pub fn accepts(input: &str, output: &str, rewrites: bool) -> bool {
         // écartait de bonnes dictées à signes dictés, d'où les mots de commande comptés à part et le plancher de longueur,
         // sous lequel une seule correction de Whisper ferait chuter la part).
         let (strict, words) = overlap_without(input, output, DICTATED_SIGN_WORDS);
-        return words < SIMPLE_MIN_WORDS || strict.kept >= SIMPLE_KEPT_LONG;
+        let (min_words, min_kept) =
+            if fidelity == Fidelity::Literal { (LITERAL_MIN_WORDS, LITERAL_KEPT) } else { (SIMPLE_MIN_WORDS, SIMPLE_KEPT_LONG) };
+        return words < min_words || strict.kept >= min_kept;
     }
     o.kept >= 0.15 && o.own >= if input.contains('?') { 0.15 } else { 0.3 }
 }

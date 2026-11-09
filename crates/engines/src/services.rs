@@ -331,8 +331,9 @@ impl Cleaner {
             settings.rewrite_mode = RewriteMode::Simple;
         }
         let cleaned = self.rewrite(text, &settings, vocabulary)?;
-        let rewrites = settings.active_profile().rewrites;
-        if cleaner::accepts(text, &cleaned, rewrites) {
+        let profile = settings.active_profile();
+        let rewrites = profile.rewrites;
+        if cleaner::accepts(text, &cleaned, profile.fidelity) {
             return Ok(cleaned);
         }
         if rewrites {

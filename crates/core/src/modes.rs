@@ -7,6 +7,45 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// Niveau de fidélité d'un mode : ce que le garde-fou exige des mots de la dictée dans la sortie du modèle (S19).
+/// Le modèle, lui, ne reçoit pas de chiffre (un petit modèle ne suit pas une consigne chiffrée) : le cran règle le contrôle
+/// après coup, et pour un mode qui reformule (Reformulé, Libre) il choisit la consigne de réécriture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Fidelity {
+    /// Au moins 90 % des mots de la dictée gardés.
+    Literal,
+    /// Au moins 75 % des mots gardés (dictées de 8 mots ou plus) : le cran du mode Simple.
+    #[default]
+    Light,
+    /// Les mots en commun sont contrôlés avec souplesse (garde-fou des modes métiers).
+    Reformulated,
+    /// Plus de contrôle de la part de mots gardés ; longueur, question, signes et formule de réponse restent contrôlés.
+    Free,
+}
+
+impl Fidelity {
+    pub const ALL: [Fidelity; 4] = [Self::Literal, Self::Light, Self::Reformulated, Self::Free];
+
+    pub fn raw(self) -> &'static str {
+        match self {
+            Self::Literal => "literal",
+            Self::Light => "light",
+            Self::Reformulated => "reformulated",
+            Self::Free => "free",
+        }
+    }
+
+    pub fn from_raw(raw: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|f| f.raw() == raw)
+    }
+
+    /// Le mode reformule les phrases : consigne de réécriture, exemples de style, nouvel essai en Simple si écarté.
+    pub fn rewrites(self) -> bool {
+        matches!(self, Self::Reformulated | Self::Free)
+    }
+}
+
 /// Le ton de la mise au propre. Littéral : aucun modèle, seulement signes dictés, dictionnaire et typographie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -116,6 +155,7 @@ impl RewriteMode {
     pub fn profile(self) -> ModeProfile {
         ModeProfile {
             rewrites: self.rewrites_freely(),
+            fidelity: if self.rewrites_freely() { Fidelity::Reformulated } else { Fidelity::Light },
             style: self.style().map(str::to_string),
             vouvoie: self == Self::Letter,
             examples: if !self.rewrites_freely() {
@@ -159,6 +199,8 @@ impl ModeExample {
 pub struct ModeProfile {
     /// Reformule les phrases (modes métiers) : garde-fou plus souple, exemples de style, nouvel essai en Simple si écarté.
     pub rewrites: bool,
+    /// Cran du garde-fou (voir `Fidelity`) : Léger pour Simple, Reformulé pour les modes métiers, au choix pour un mode personnel.
+    pub fidelity: Fidelity,
     /// Phrase de style ; `None` pour Simple.
     pub style: Option<String>,
     /// Courrier : le destinataire est vouvoyé, la personne à qui l'on parle n'est donc pas gardée telle quelle.
@@ -199,22 +241,40 @@ impl ModeProfile {
 }
 
 /// Un mode créé dans Réglages → Les modes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct CustomMode {
     pub id: String,
     pub name: String,
     pub style: String,
-    /// Vrai : reformule comme les modes métiers ; faux : garde les mots, comme Simple, avec la consigne en plus.
-    pub rewrites: bool,
+    /// Cran de fidélité : Littéral et Léger gardent les mots (comme Simple, avec la consigne en plus), Reformulé et Libre
+    /// reformulent comme les modes métiers.
+    #[serde(default)]
+    pub fidelity: Fidelity,
     /// Comme Courrier : le destinataire est vouvoyé (et, sans exemples à soi, aucun exemple : ceux de Soutenu tutoient).
     pub vouvoie: bool,
     /// Ses propres exemples ; sans eux, ceux de Simple (fidèle) ou de Soutenu (reformule).
     pub examples: Vec<ModeExample>,
 }
 
+/// Écrit aussi l'ancienne case `rewrites` (déduite du cran), pour les cas de référence et les versions plus anciennes.
+impl Serialize for CustomMode {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let mut st = serializer.serialize_struct("CustomMode", 7)?;
+        st.serialize_field("id", &self.id)?;
+        st.serialize_field("name", &self.name)?;
+        st.serialize_field("style", &self.style)?;
+        st.serialize_field("fidelity", &self.fidelity)?;
+        st.serialize_field("rewrites", &self.fidelity.rewrites())?;
+        st.serialize_field("vouvoie", &self.vouvoie)?;
+        st.serialize_field("examples", &self.examples)?;
+        st.end()
+    }
+}
+
 impl CustomMode {
-    pub fn new(name: &str, style: &str, rewrites: bool) -> Self {
-        Self { id: new_id(), name: name.into(), style: style.into(), rewrites, vouvoie: false, examples: Vec::new() }
+    pub fn new(name: &str, style: &str, fidelity: Fidelity) -> Self {
+        Self { id: new_id(), name: name.into(), style: style.into(), fidelity, vouvoie: false, examples: Vec::new() }
     }
 
     /// Le nom affiché : jamais vide.
@@ -228,11 +288,12 @@ impl CustomMode {
     }
 
     pub fn profile(&self) -> ModeProfile {
+        let rewrites = self.fidelity.rewrites();
         let own: Vec<ModeExample> = self.examples.iter().filter(|e| e.is_complete()).cloned().collect();
         // Le vouvoiement ne vaut que pour un mode qui reformule (un mode fidèle garde celui de la dictée).
         let shots = if !own.is_empty() {
             Examples::Own(own)
-        } else if !self.rewrites {
+        } else if !rewrites {
             Examples::Faithful
         } else if self.vouvoie {
             Examples::None
@@ -240,9 +301,10 @@ impl CustomMode {
             Examples::Style
         };
         ModeProfile {
-            rewrites: self.rewrites,
+            rewrites,
+            fidelity: self.fidelity,
             style: ModeProfile::sentence(&self.style),
-            vouvoie: self.rewrites && self.vouvoie,
+            vouvoie: rewrites && self.vouvoie,
             examples: shots,
         }
     }
@@ -254,7 +316,12 @@ impl CustomMode {
             id: id_of(o.get("id")),
             name: string_of(o.get("name")),
             style: string_of(o.get("style")),
-            rewrites: bool_of(o.get("rewrites")),
+            // Anciens fichiers : une case « reformule » (vrai : Reformulé, faux : Léger, le garde-fou de Simple).
+            fidelity: o.get("fidelity").and_then(Value::as_str).and_then(Fidelity::from_raw).unwrap_or(if bool_of(o.get("rewrites")) {
+                Fidelity::Reformulated
+            } else {
+                Fidelity::Light
+            }),
             vouvoie: bool_of(o.get("vouvoie")),
             examples: o
                 .get("examples")
