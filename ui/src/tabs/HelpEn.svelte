@@ -213,7 +213,6 @@
         <li>Choose it in the list, then dictate a text to check that questions stay questions and that false starts are corrected.</li>
       </ol>
       {@render tip('With a small model on an ordinary computer, an instruction alone changes the text little: measured on a Mac, an “SMS” mode without examples wrote like Simple, and with three examples it wrote “resto” and “anniv”. The examples count more than the instruction.')}
-      <p class="muted">Scribe’s Playful mode (Smurf language) does not exist in Scriibe.</p>
       <div class="links">{@render go('The modes', 'modes')}</div>
 
     {:else if open === 'dictionary'}

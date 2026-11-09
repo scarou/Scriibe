@@ -200,7 +200,6 @@
         <li>Choisis-le dans la liste, puis dicte un texte pour vérifier que les questions restent des questions et que les reprises sont corrigées.</li>
       </ol>
       {@render tip('Avec un petit modèle sur un ordinateur ordinaire, une consigne seule change peu le texte : mesuré sur Mac, un mode « SMS » sans exemples écrivait comme Simple, et avec trois exemples il écrivait « resto » et « anniv ». Les exemples comptent plus que la consigne.')}
-      <p class="muted">Le mode Amusant (langage schtroumpf) de Scribe n’existe pas dans Scriibe.</p>
       <div class="links">{@render go('Les modes', 'modes')}</div>
 
     {:else if open === 'dictionary'}
