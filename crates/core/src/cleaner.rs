@@ -6,7 +6,7 @@ use crate::modes::{Examples, ModeProfile, RewriteMode};
 use crate::prompt_text::*;
 use crate::re::regex;
 use crate::settings::AppSettings;
-use crate::text::{looks_clean, overlap, word_count};
+use crate::text::{looks_clean, overlap, overlap_without, word_count};
 use crate::translation::TranslationLanguage;
 use std::collections::HashSet;
 
@@ -27,6 +27,51 @@ fn message(role: &'static str, content: impl Into<String>) -> Message {
 pub const REWRITE_REJECTED: &str = "Reformulation écartée";
 /// Message de la traduction écartée par le garde-fou (le repli remet alors la dictée au propre en français).
 pub const TRANSLATION_REJECTED: &str = "Traduction écartée";
+
+/// Au moins ce nombre de mots significatifs (hors mots de commande) pour exiger `SIMPLE_KEPT_LONG` en mode Simple.
+const SIMPLE_MIN_WORDS: usize = 8;
+/// Part minimale des mots de la dictée gardés par le mode Simple sur une dictée longue.
+const SIMPLE_KEPT_LONG: f64 = 0.75;
+/// Mots de commande dictés (le modèle les remplace par un signe) : ignorés dans la part de mots gardés du mode Simple.
+const DICTATED_SIGN_WORDS: &[&str] = &[
+    "ouvrez",
+    "ouvre",
+    "ouvrir",
+    "fermez",
+    "ferme",
+    "fermer",
+    "parenthèse",
+    "parenthèses",
+    "guillemet",
+    "guillemets",
+    "deux",
+    "points",
+    "point",
+    "virgule",
+    "ligne",
+    "retour",
+    "numéro",
+    "suivant",
+    "puce",
+    "tirer",
+    "crochet",
+    "crochets",
+    "accolades",
+    "slash",
+    "arobase",
+    "open",
+    "close",
+    "parenthesis",
+    "bracket",
+    "quote",
+    "colon",
+    "comma",
+    "newline",
+    "line",
+    "new",
+    "dash",
+    "bullet",
+];
 
 /// Garde-fou : une réécriture reprend les mots de la dictée. Une sortie vide, démesurée, ou faite surtout de mots nouveaux
 /// veut dire que le modèle a répondu (ou résumé) au lieu de réécrire : on colle alors le texte brut.
@@ -60,7 +105,14 @@ pub fn accepts(input: &str, output: &str, rewrites: bool) -> bool {
     // En style, une question reformulée peut partager peu de mots (le « ? » la protège déjà) ; une demande exécutée,
     // elle, est faite surtout de mots nouveaux : sans « ? », la sortie doit venir en bonne partie de la dictée.
     if !rewrites {
-        return o.kept >= 0.4 && o.own >= 0.5;
+        if !(o.kept >= 0.4 && o.own >= 0.5) {
+            return false;
+        }
+        // Dictée longue : le modèle doit garder l'essentiel des mots (S19, rejeu de l'historique : un 0,75 pris tel quel
+        // écartait de bonnes dictées à signes dictés, d'où les mots de commande comptés à part et le plancher de longueur,
+        // sous lequel une seule correction de Whisper ferait chuter la part).
+        let (strict, words) = overlap_without(input, output, DICTATED_SIGN_WORDS);
+        return words < SIMPLE_MIN_WORDS || strict.kept >= SIMPLE_KEPT_LONG;
     }
     o.kept >= 0.15 && o.own >= if input.contains('?') { 0.15 } else { 0.3 }
 }

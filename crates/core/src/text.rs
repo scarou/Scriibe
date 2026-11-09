@@ -170,11 +170,24 @@ pub struct Overlap {
 }
 
 pub fn overlap(input: &str, output: &str) -> Overlap {
-    let a = significant_words(input);
-    let b = significant_words(output);
+    overlap_without(input, output, &[]).0
+}
+
+/// Comme `overlap`, sans compter les mots de `ignored` (mots de commande dictés comme « parenthèse » ou « ligne », que
+/// le modèle remplace par un signe). Renvoie aussi le nombre de mots significatifs de la dictée une fois ceux-là retirés.
+pub fn overlap_without(input: &str, output: &str, ignored: &[&str]) -> (Overlap, usize) {
+    let mut a = significant_words(input);
+    let mut b = significant_words(output);
+    a.retain(|w| !ignored.contains(&w.as_str()));
+    b.retain(|w| !ignored.contains(&w.as_str()));
+    let count = a.len();
+    (overlap_of(&a, &b), count)
+}
+
+fn overlap_of(a: &HashSet<String>, b: &HashSet<String>) -> Overlap {
     if a.is_empty() || b.is_empty() {
         return Overlap { kept: if a.is_empty() { 1.0 } else { 0.0 }, own: if b.is_empty() { 1.0 } else { 0.0 } };
     }
-    let common = a.intersection(&b).count() as f64;
+    let common = a.intersection(b).count() as f64;
     Overlap { kept: common / a.len() as f64, own: common / b.len() as f64 }
 }
