@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## Windows — 2026-11-10 · Détection de la sélection, commandes vocales et espace après la dictée essayées (non publié)
+
+- **Détection de la sélection sous Windows** (`crates/platform/src/windows/paste.rs`, commit `7515317`) : `Paster::selection`, `selected_text`, `press_shortcut` et `press_return`. Ctrl+C d'essai (numéro de séquence du presse-papiers, ancien texte remis), jamais dans une console ni sur un presse-papiers qui contient une image ou des fichiers ; raccourcis et Entrée par `SendInput` (Mod = Ctrl). Limite : l'appli copie dans l'historique du presse-papiers de Windows (Win+V).
+- **Essayé sur le PC** (HP, build du commit `e650f24`) : espace après chaque dictée, une seule espace entre les phrases avec `ggml-small` et avec `ggml-large-v3-turbo-q8_0`, sans point final ; remplacement d'une sélection sans espace ajoutée (Bloc-notes). Commandes vocales dans LibreOffice Writer : gras, guillemets, parenthèses, texte sélectionné lu (6 et 9 signes au journal). Avec `ggml-small`, il faut bien détacher la commande pour qu'elle soit reconnue.
+- **Relais de capture** : la tâche `PilotePC-Capture` est restée « En file d'attente » pendant une demi-heure (cause inconnue) ; relancée à la main, elle a repris. À surveiller.
+
 ## S19 — 2026-11-09 · Fidélité du mode Simple et crans de fidélité par mode (Mac, non publié)
 
 - **Mode Simple, garde-fou** (n°17) : sur une dictée de 8 mots significatifs ou plus, la sortie doit garder 75 % des mots de la dictée, les mots de commande dictés (« parenthèse », « deux points », « ligne »…) comptés à part. Rejeu sur l'historique du 03 au 09/11 (283 dictées passées par le modèle) : 7 écartées (27 avec un 0,75 brut), dont les deux reformulations du 09/11 ; essayé par Christophe, les reformulations ont disparu.
