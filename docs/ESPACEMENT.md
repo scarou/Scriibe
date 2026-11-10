@@ -40,7 +40,7 @@ Tâche 0, faite le 05/11/2026 par un sous-agent de recherche (lecture seule). Le
 - Exclure le cas « sélection active » (le texte remplace la sélection).
 - Fonction pure dans `crates/core` (à côté de `inline.rs`) pour la tester sans plateforme.
 - Limite connue : on ne sait pas si le curseur a bougé, si le champ a changé dans la même appli ou si le texte a été effacé. Un délai court et l'identité de l'appli atténuent le risque sans l'annuler.
-- Décision de Christophe (tâche 1) : l'espace ajouté ne figure **ni dans l'historique ni dans « copier la dernière »** ; il est ajouté à une variable séparée, envoyée seule à `paste()`.
+- Décision de l'auteur (tâche 1) : l'espace ajouté ne figure **ni dans l'historique ni dans « copier la dernière »** ; il est ajouté à une variable séparée, envoyée seule à `paste()`.
 
 ### Tests proches
 
@@ -51,7 +51,7 @@ Tâche 0, faite le 05/11/2026 par un sous-agent de recherche (lecture seule). Le
 
 ## Règle
 
-Validée par Christophe le 05/11/2026 (tâche 1), **élargie le 06/11/2026** (condition 4, voir « Règle élargie » en fin de fichier). Méthode A : mémoire de la dernière dictée.
+Validée par l'auteur le 05/11/2026 (tâche 1), **élargie le 06/11/2026** (condition 4, voir « Règle élargie » en fin de fichier). Méthode A : mémoire de la dernière dictée.
 
 **Mémoire** : après un collage réussi (`Pasted`, pas `CopiedOnly`), Scriibe retient l'identifiant de l'appli active, l'heure et le dernier caractère du texte collé (sans l'espace ajouté). Après un `CopiedOnly`, la mémoire est effacée. Elle est vide au démarrage.
 
@@ -100,26 +100,26 @@ Autres tests : cas normal pour chacun des six signes de fin ; (d'origine : pas d
 
 ## Essai réel
 
-Tâche 3, le 05/11/2026, sur le Mac de Christophe (Scriibe.app de développement dans `~/Applications`, compilée avec la règle, Whisper local, journal lu par Claude).
+Tâche 3, le 05/11/2026, sur le Mac de l'auteur (Scriibe.app de développement dans `~/Applications`, compilée avec la règle, Whisper local, journal lu par Claude).
 
-**TextEdit** (document vierge, trois phrases dictées à la suite, moins d'une minute entre elles) : verdict de Christophe, **réussi**.
+**TextEdit** (document vierge, trois phrases dictées à la suite, moins d'une minute entre elles) : verdict de l'auteur, **réussi**.
 - Un seul espace entre la phrase 1 et la phrase 2, idem entre la 2 et la 3.
 - La première phrase commence sans espace devant.
 - Journal : trois collages dans TextEdit (26, 21 et 23 signes), appli active identique à l'appui et au collage.
 
-**Notes** : réussi (verdict de Christophe). Journal : trois collages (37, 36 et 38 signes).
+**Notes** : réussi (verdict de l'auteur). Journal : trois collages (37, 36 et 38 signes).
 
-**LibreOffice Writer** : réussi (verdict de Christophe). Journal : trois collages (60, 36 et 38 signes).
+**LibreOffice Writer** : réussi (verdict de l'auteur). Journal : trois collages (60, 36 et 38 signes).
 
-**Google Chrome (page Google)** : **irrégulier**. Christophe : la première dictée s'inscrit, la deuxième n'apparaît pas, la troisième s'inscrit. Le journal ne montre aucune erreur : chaque dictée est « envoyée à Google Chrome » avec un collage normal (0,44 s, ⌘C d'essai). Le texte manquant n'est donc pas un refus de Scriibe. Hypothèse (non vérifiée) : c'est l'irrégularité déjà connue du ⌘V dans Chrome (`docs/ECARTS.md`, 04/11, « Collage ⌘V »), sans lien avec l'espace, qui ne change que la chaîne envoyée. Une inconnue : le journal ne dit pas quelle ligne correspond à quelle dictée de l'essai, et le premier collage a vu une « sélection » dans Chrome (donc sans majuscule ni point final). Effet de bord à connaître : Scriibe retient comme collée une dictée que Chrome a ignorée, donc la suivante reçoit son espace de tête même si la précédente n'est pas dans le champ.
+**Google Chrome (page Google)** : **irrégulier**. L'auteur : la première dictée s'inscrit, la deuxième n'apparaît pas, la troisième s'inscrit. Le journal ne montre aucune erreur : chaque dictée est « envoyée à Google Chrome » avec un collage normal (0,44 s, ⌘C d'essai). Le texte manquant n'est donc pas un refus de Scriibe. Hypothèse (non vérifiée) : c'est l'irrégularité déjà connue du ⌘V dans Chrome (`docs/ECARTS.md`, 04/11, « Collage ⌘V »), sans lien avec l'espace, qui ne change que la chaîne envoyée. Une inconnue : le journal ne dit pas quelle ligne correspond à quelle dictée de l'essai, et le premier collage a vu une « sélection » dans Chrome (donc sans majuscule ni point final). Effet de bord à connaître : Scriibe retient comme collée une dictée que Chrome a ignorée, donc la suivante reçoit son espace de tête même si la précédente n'est pas dans le champ.
 
-**Limite connue confirmée** : avec un retour à la ligne tapé à la main entre deux dictées rapprochées, la deuxième commence par une espace (observé par Christophe).
+**Limite connue confirmée** : avec un retour à la ligne tapé à la main entre deux dictées rapprochées, la deuxième commence par une espace (observé par l'auteur).
 
-**Décisions de Christophe (05/11/2026)** : le cas Chrome est **noté pour plus tard, non traité dans cette session** (piste : série de 5 à 6 dictées courtes dans le champ de recherche de Google, comptées et comparées au journal, pour savoir si le ⌘V seul explique les pertes ; voir aussi l'effet de bord sur la mémoire du dernier collage). L'essai Windows (Bloc-notes) **attend la prochaine mise à jour** : les changements ne sont pas commités, donc pas dans la version Windows.
+**Décisions de l'auteur (05/11/2026)** : le cas Chrome est **noté pour plus tard, non traité dans cette session** (piste : série de 5 à 6 dictées courtes dans le champ de recherche de Google, comptées et comparées au journal, pour savoir si le ⌘V seul explique les pertes ; voir aussi l'effet de bord sur la mémoire du dernier collage). L'essai Windows (Bloc-notes) **attend la prochaine mise à jour** : les changements ne sont pas commités, donc pas dans la version Windows.
 
 ## Relecture et points à reprendre
 
-Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de bloquant**. Décision de Christophe : tout noter, ne rien coder dans cette session. CI Linux du commit : verte ; Windows et macOS complets et compilation Windows croisée non lancés.
+Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de bloquant**. Décision de l'auteur : tout noter, ne rien coder dans cette session. CI Linux du commit : verte ; Windows et macOS complets et compilation Windows croisée non lancés.
 
 **À corriger plus tard**
 1. Le test `spacing_a_paste_that_only_copied_forgets_the_last_dictation` ne prouve pas l'effacement de la mémoire. Scénario à écrire : A collée, B en `CopiedOnly`, C sans espace (`pasted()[2]`).
@@ -136,9 +136,9 @@ Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de blo
 
 ## Règle élargie (06/11/2026)
 
-**Constat** (essai Windows, Bloc-notes, Scriibe 0.2.4, puis reproduit sous Linux) : avec le modèle Whisper `ggml-small.bin`, les dictées courtes n'ont pas de point final ; la règle d'origine (espace seulement après `. ! ? … : ;`) n'ajoutait alors rien et les phrases se collaient. Avec `ggml-large-v3-turbo-q8_0.bin` sur Mac, le problème n'apparaît pas. Cause du point manquant : le modèle, d'après Christophe ; non mesuré ici.
+**Constat** (essai Windows, Bloc-notes, Scriibe 0.2.4, puis reproduit sous Linux) : avec le modèle Whisper `ggml-small.bin`, les dictées courtes n'ont pas de point final ; la règle d'origine (espace seulement après `. ! ? … : ;`) n'ajoutait alors rien et les phrases se collaient. Avec `ggml-large-v3-turbo-q8_0.bin` sur Mac, le problème n'apparaît pas. Cause du point manquant : le modèle, d'après l'auteur ; non mesuré ici.
 
-**Décision de Christophe (06/11/2026)** : élargir la règle (condition 4), **sans la publier tout de suite** : elle part avec la prochaine version après la 0.2.4. Il essaie le modèle `large-v3-turbo-q8_0` sur Windows et Linux.
+**Décision de l'auteur (06/11/2026)** : élargir la règle (condition 4), **sans la publier tout de suite** : elle part avec la prochaine version après la 0.2.4. Il essaie le modèle `large-v3-turbo-q8_0` sur Windows et Linux.
 
 **Code et tests** : `crates/core/src/spacing.rs` (`JOINING_ENDINGS` remplace `SENTENCE_ENDINGS` ; tests `a_dictation_without_a_final_stop_still_gets_a_space` et `a_previous_text_ending_with_an_opening_or_joining_sign_gets_no_space`) et `spacing_a_model_that_writes_no_final_stop_does_not_glue_the_phrases` dans `crates/pipeline/tests/dictation.rs`.
 
@@ -150,7 +150,7 @@ Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de blo
 
 **Constat** (essai Linux du 10/11, Brouillon de GNOME, `ggml-small`, trois dictées de suite : « essai.Ceci est le second essai.Ceci… ») : sous Linux (Wayland) l'appli active est « Inconnue » à chaque dictée (`appli : Inconnue` dans le journal) ; la règle précédente ne retenait rien et n'ajoutait donc jamais d'espace.
 
-**Décision de Christophe (10/11/2026)** : abandonner la règle « espace devant, si même appli en moins de 60 s » pour une règle unique, sans état :
+**Décision de l'auteur (10/11/2026)** : abandonner la règle « espace devant, si même appli en moins de 60 s » pour une règle unique, sans état :
 1. chaque dictée collée est **suivie** d'une espace, sur les trois systèmes ;
 2. même sans point final (cas de `ggml-small`) ;
 3. pas d'espace si la dictée finit par un saut de ligne (ni si elle finit déjà par une espace) ;

@@ -87,7 +87,7 @@ Le cœur Rust doit les passer **à l'identique** (399 cas dans 17 fichiers : 376
 - **Touche de dictée** : Option droite (macOS) est AltGr sur un clavier AZERTY sous Windows. Le choix de la touche par défaut est propre à chaque système, et les touches de modification seules demandent un hook maison.
 - **Collage** : bloqué dans les fenêtres lancées en administrateur sous Windows ; Wayland interdit l'injection de touches sur la plupart des compositeurs.
 - **Performances** : les temps de Scribe (0,3 à 0,6 s) viennent d'un M1 Max. Sans carte graphique, `large-v3-turbo` est lent : il faudra proposer des modèles par niveau de machine.
-- **Mode Amusant (schtroumpf)** : dépendait de `NaturalLanguage` (Apple) ; **abandonné** en S05 (décision de Christophe : fonctionnait mal, apportait peu).
+- **Mode Amusant (schtroumpf)** : dépendait de `NaturalLanguage` (Apple) ; **abandonné** en S05 (décision de l'auteur : fonctionnait mal, apportait peu).
 - **WebView** : WebKitGTK (Linux) se comporte différemment de WebView2 (Windows) et de WKWebView (macOS) ; tester l'interface sur les trois.
 
 ## 6. Décisions

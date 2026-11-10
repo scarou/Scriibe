@@ -995,7 +995,7 @@ fn spacing_a_paste_that_only_copied_gets_the_same_text_and_the_next_one_is_uncha
 
 #[test]
 fn spacing_a_model_that_writes_no_final_stop_does_not_glue_the_phrases() {
-    // Essai de Christophe : Whisper « small » n'écrit pas toujours de point final.
+    // Essai de l'auteur : Whisper « small » n'écrit pas toujours de point final.
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde on commence");
     let pasted = two_dictations(&r, 10);
     assert_eq!(pasted, vec!["Bonjour tout le monde on commence ", "Bonjour tout le monde on commence "]);

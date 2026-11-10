@@ -52,7 +52,7 @@ Si un mot ou un groupe de mots est sélectionné quand vous relâchez la touche,
 
 ## Pour le créateur : publier une version
 
-Une version se compile et se signe sur le Mac de Christophe (certificat « Scribe Dev »), puis se publie en une commande :
+Une version se compile et se signe sur le Mac de l'auteur (certificat « Scribe Dev »), puis se publie en une commande :
 
 ```bash
 tools/publier_macos.sh 0.2.0
