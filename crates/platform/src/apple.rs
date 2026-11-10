@@ -218,7 +218,7 @@ mod tests {
         assert_eq!(parse_front(""), None);
         let info = parse_app_info("\"LSDisplayName\"=\"Notes\"\n\"CFBundleIdentifier\"=\"com.apple.Notes\"\n");
         assert_eq!(info, AppInfo { name: "Notes".into(), id: Some("com.apple.Notes".into()) });
-        // La vraie sortie d'un Mac (macOS récent), relevée sur le Mac de Christophe.
+        // La vraie sortie d'un Mac (macOS récent), relevée sur le Mac de l'auteur.
         let real = "\"TextEdit\" ASN:0x0-0xee0ee: (in front) 
     bundleID=\"com.apple.TextEdit\"
     bundle path=[ NULL ] 

@@ -30,7 +30,7 @@ pub fn data_folder() -> PathBuf {
 /// Réglages d'un premier lancement : tout sur cet ordinateur (Whisper et llama.cpp), sans clé ni compte, avec la touche du système.
 pub fn first_run_settings() -> AppSettings {
     let defaults = AppSettings::default();
-    // Hors du Mac, des sons doux et discrets (Funk au début, Bottle à la fin : choix de Christophe, S06) ; Tink et Pop sont ceux de Scribe.
+    // Hors du Mac, des sons doux et discrets (Funk au début, Bottle à la fin : choix de l'auteur, S06) ; Tink et Pop sont ceux de Scribe.
     let (start_sound_name, end_sound_name) = if cfg!(target_os = "macos") {
         (defaults.start_sound_name.clone(), defaults.end_sound_name.clone())
     } else {

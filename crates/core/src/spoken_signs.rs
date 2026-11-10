@@ -392,7 +392,7 @@ regex!(
 );
 
 // Whisper n'écrit parfois aucune ponctuation (« Ma liste à la ligne tirée du lait à la ligne tirée du pain »), constaté avec la voix de
-// Christophe : « à la ligne » devant un début d'élément de liste (« tiret », « puce », « numéro suivant », « point 2 ») est alors une
+// L'auteur : « à la ligne » devant un début d'élément de liste (« tiret », « puce », « numéro suivant », « point 2 ») est alors une
 // commande aussi. Devant un autre mot, rien ne le distingue de « aller à la ligne 5 » : il reste du texte (« retour à la ligne » marche partout).
 fn list_start() -> String {
     let b = BLANK;

@@ -160,7 +160,7 @@ mod tests {
 
     #[test]
     fn the_first_name_comes_from_the_full_name_then_from_the_login() {
-        assert_eq!(first_name_from("Christophe Campain", "christophecampain"), "Christophe");
+        assert_eq!(first_name_from("Jean Martin", "jeanmartin"), "Jean");
         assert_eq!(first_name_from("  marie-claire  Dupont", "mcd"), "Marie-claire");
         assert_eq!(first_name_from("", "scarou"), "Scarou");
         assert_eq!(first_name_from("", ""), "");
@@ -171,7 +171,7 @@ mod tests {
         let card = |name: &str, gb: u64| Gpu { name: name.into(), vram_bytes: Some(gb * GIB) };
         assert!(card("NVIDIA GeForce RTX 3060", 12).is_capable());
         assert!(card("AMD Radeon RX 6600", 8).is_capable());
-        assert!(!card("AMD Radeon (TM) 500 Series", 2).is_capable(), "le portable de Christophe : 2 Go ne suffisent pas");
+        assert!(!card("AMD Radeon (TM) 500 Series", 2).is_capable(), "un portable d'essai : 2 Go ne suffisent pas");
         assert!(!card("Intel(R) UHD Graphics 620", 8).is_capable(), "intégrée : elle partage la mémoire de l'ordinateur");
         assert!(!Gpu { name: "NVIDIA GeForce RTX 3060".into(), vram_bytes: None }.is_capable(), "mémoire inconnue : on n'en suppose pas");
     }

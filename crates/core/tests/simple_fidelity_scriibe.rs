@@ -1,4 +1,4 @@
-//! Garde-fou du mode Simple sur les dictées longues (S19) : cas tirés de l'historique de Christophe (09/11).
+//! Garde-fou du mode Simple sur les dictées longues (S19) : cas tirés de l'historique de l'auteur (09/11).
 use scriibe_core::cleaner::accepts;
 use scriibe_core::modes::Fidelity;
 

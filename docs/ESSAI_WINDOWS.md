@@ -64,5 +64,5 @@ Cocher **« Mettre en pause la musique ou la vidéo pendant la dictée »** dans
 
 ## Notes
 
-- PC de test de Christophe : AMD Radeon RX 540 (2 Go) et Intel UHD 620. Avec 2 Go de mémoire vidéo, on commence par la version **processeur** de `llama-server`, puis on essaie Vulkan en comparant les temps.
+- PC de test de l'auteur : AMD Radeon RX 540 (2 Go) et Intel UHD 620. Avec 2 Go de mémoire vidéo, on commence par la version **processeur** de `llama-server`, puis on essaie Vulkan en comparant les temps.
 - Un micro de casque filaire peut être très faible (niveau mesuré 0,006 contre 0,02 à 0,08 pour une voix normale) : Scriibe amplifie jusqu'à ×10 un micro faible avant Whisper et l'indique dans le journal (`gain ×N`).

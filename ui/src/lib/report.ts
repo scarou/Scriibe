@@ -3,7 +3,7 @@ import { type BenchResult, normalizedText } from './benchflow';
 import { base, fmt } from './format';
 import { setupSummary } from './setup';
 
-/** Le rapport que Christophe copie et colle dans la conversation : état, résultats du banc, journal. */
+/** Le rapport que l'auteur copie et colle dans la conversation : état, résultats du banc, journal. */
 export function buildReport(s: Status, results: BenchResult[], devices: string[], log: string[]): string {
   let r = `Rapport Scriibe — version ${s.version}\n`;
   r += `Touche : ${s.dictation_label ?? s.hotkey} (traduction : ${s.translate_label ?? 'Maj'}) ; transcription : ${s.transcription} ; mise au propre : ${s.cleanup_label}\n`;

@@ -57,7 +57,7 @@ Aucun. `Paster.swift` ne fait que copier et coller (⌘V) ; pas de lecture de la
 
 ## Conception
 
-Validée par Christophe le 07/11/2026 (tâche 1), avec les 6 points ci-dessous et les 8 cas. Cible : Mac d'abord (tâches 2 à 5) ; Windows et Linux dépendent de la détection de la sélection (ROADMAP n°3) et sont portés dans leurs carnets.
+Validée par l'auteur le 07/11/2026 (tâche 1), avec les 6 points ci-dessous et les 8 cas. Cible : Mac d'abord (tâches 2 à 5) ; Windows et Linux dépendent de la détection de la sélection (ROADMAP n°3) et sont portés dans leurs carnets.
 
 ### Principe
 
@@ -127,7 +127,7 @@ Branchée de bout en bout, **jamais essayée à la main** (tâche 5).
 
 ### Tâche 6 — signes dictés manquants (07/11/2026)
 
-Inventaire par un sous-agent de recherche (Sonnet), liste présentée à Christophe, lots A, B et C retenus (le lot D, « signe plus/moins/égal/inférieur/supérieur », et les noms nus ne sont **pas** codés).
+Inventaire par un sous-agent de recherche (Sonnet), liste présentée à l'auteur, lots A, B et C retenus (le lot D, « signe plus/moins/égal/inférieur/supérieur », et les noms nus ne sont **pas** codés).
 
 - **Codé** (`crates/core/src/spoken_signs.rs`, tableau `ALL`) : A. `point d'exclamation`, `point d'interrogation`, `point-virgule`, `deux-points`, et en anglais `exclamation mark`, `question mark`, `semicolon`, `colon` ; B. `arobase`/`at sign`, `point com` (et fr, org, net, io, eu, be, ch)/`dot com` (org, net, io, fr, eu), `barre oblique`/`forward slash`, `antislash`/`backslash`/`barre oblique inverse`, `underscore`/`tiret bas`/`tiret du 8`, `tilde`, `esperluette`/`ampersand`, `astérisque`/`asterisk`, `hashtag`/`croisillon`/`hash sign`/`pound sign`/`number sign`, accolades (`ouvrez/fermez l'accolade`, `open/close curly bracket`) ; C. anglais : `open/close parenthesis`, `open/close bracket`, `open/close quote`, `ellipsis`, `new line`, `new paragraph`.
 - **Langue** : chaque `Sign` porte `langs` (`Fr`, `En`, `Both`) ; `spoken_signs::apply_for` / `dictionary::apply_for` reçoivent `Active` (`Active::of(settings.language)`) ; `apply` et `dictionary::apply` gardent leur signature (français seul, utilisés par le rejeu de Scribe). Dictée anglaise : signes anglais + `Both` ; plusieurs langues : tous ; texte traduit : `Active::NEUTRAL` (seuls les `Both`, comme `underscore` ou `tilde`).
@@ -143,7 +143,7 @@ Inventaire par un sous-agent de recherche (Sonnet), liste présentée à Christo
 Branchée de bout en bout, **jamais essayée à la main** (tâche 9).
 
 - **Commandes** (`crates/core/src/commands.rs`, `builtin()`) : `entourer.parentheses` `( )`, `entourer.guillemets` « » en français (espaces insécables) et `" "` en anglais, `entourer.crochets` `[ ]`, `entourer.accolades` `{ }`. Phrases par défaut : « entre parenthèses », « mets/mettre/mettez entre … », « entoure/entourer de … » ; en anglais « in parentheses », « put in/put it in … », « wrap in … » (« in quotes », « in quotation marks », « in brackets », « in square brackets », « in curly brackets », « in braces »). Même fiche que « ajouter au dictionnaire » : sélection exigée, pas de complément, phrase = toute la transcription, réglables (`voiceCommands`, clés `entourer.*`).
-- **Langue des guillemets** : `Recognized.lang` rend la langue du catalogue d'où vient la phrase dite (et non celle des réglages) : en « plusieurs langues », « entre guillemets » donne « » et « in quotes » donne " ". Choix : c'est la langue que Christophe vient de parler.
+- **Langue des guillemets** : `Recognized.lang` rend la langue du catalogue d'où vient la phrase dite (et non celle des réglages) : en « plusieurs langues », « entre guillemets » donne « » et « in quotes » donne " ". Choix : c'est la langue que l'auteur vient de parler.
 - **Texte entouré** (`commands::surround`, pur) : les blancs et sauts de ligne de bord restent dehors (« un mot␠ » → « (un mot)␠ ») pour que le signe se colle au texte ; une sélection de blancs seulement n'est pas entourée (pastille « Rien à entourer (la sélection est vide) », traduite dans `en-server.ts`).
 - **Exécution** (`controller.rs`, `try_command`) : la sélection, lue par l'accessibilité ou le repli ⌘C, **reste active** ; le texte entouré est collé par `Paster::paste` (même chemin qu'une dictée, `restore_clipboard` respecté) : **un seul collage, donc un seul ⌘Z**. Le collage ne passe ni par `dictionary::apply`, ni par la typographie, ni par la mise au propre ; la mémoire d'espacement entre dictées (`last_paste`) est effacée. Collage seulement copié : même message que pour une dictée (« Copié, à coller avec ⌘V »). Succès : coche de la pastille.
 - **Aucune trace** : journal = `commande: entourer.guillemets (sélection : N signes)` ; pas d'entrée d'historique ; le texte entouré est tenu dans un `SelectedText` (effacé de la mémoire) ; le test `commands_209` injecte « SECRET-123 mot » et vérifie son absence du journal, de l'historique, de la pastille et des requêtes (le collage la contient forcément).
@@ -167,16 +167,16 @@ Branchée de bout en bout, **jamais essayée dans une vraie appli** (tâche 9) ;
 
 ### Essai réel b-c (tâche 9, 07/11/2026, Mac Studio)
 
-Essai guidé par Christophe, une étape à la fois, Scriibe.app compilée en release.
+Essai guidé par l'auteur, une étape à la fois, Scriibe.app compilée en release.
 
 - **TextEdit, gras (⌘B)** : marche. Premier essai raté : l'aiguillage `SwitchPaster` (`crates/cli/src/web/sinks.rs`) ne transmettait pas `press_shortcut` (« non pris en charge sur ce système ») ; corrigé (`f7c84b1`). Les tests n'utilisent pas cet aiguillage : un test de bout en bout par la page reste à écrire.
-- **Reconnaissance par Whisper** : « mets en gras » est souvent entendu « mais en gras » (ou autre) ; la phrase ratée est collée par-dessus la sélection (⌘Z la ramène). Décision de Christophe : phrase principale « **mettre** en gras / italique / souligné / barré » (plus facile à articuler et à distinguer), « mets », « met », « mais » gardées en variantes. Essai : « mettre en italique » et « mettre en souligné » reconnus du premier coup.
-- **Ajouts demandés pendant l'essai** : « mettre en barré », ajouté puis **retiré** (ni TextEdit ni Notes n'ont de raccourci pour le barré, seulement le menu Format ; Christophe : anecdotique, à recréer au besoin par « Mes commandes ») ; la carte « Commandes vocales » et la liste des signes dictés n'affichent que la langue de l'interface (les signes et phrases de l'autre langue restent actifs en dictée) ; **commandes de la personne** (« Mes commandes » : un titre, une ou plusieurs phrases, un raccourci de l'appli, avec ou sans sélection exigée ; réglage `customCommands`, identifiants `perso.<n>`, mêmes règles de phrase que les autres).
-- **Notes, « mettre entre parenthèses »** : marche, un seul ⌘Z suffit pour revenir au texte d'origine (essayé par Christophe).
-- **Notes, gras, italique, souligné** : marchent. Whisper écrit parfois « souligner » au lieu de « souligné » : « mettre en souligner » ajouté aux phrases par défaut (Christophe l'avait ajouté à la main dans la carte).
+- **Reconnaissance par Whisper** : « mets en gras » est souvent entendu « mais en gras » (ou autre) ; la phrase ratée est collée par-dessus la sélection (⌘Z la ramène). Décision de l'auteur : phrase principale « **mettre** en gras / italique / souligné / barré » (plus facile à articuler et à distinguer), « mets », « met », « mais » gardées en variantes. Essai : « mettre en italique » et « mettre en souligné » reconnus du premier coup.
+- **Ajouts demandés pendant l'essai** : « mettre en barré », ajouté puis **retiré** (ni TextEdit ni Notes n'ont de raccourci pour le barré, seulement le menu Format ; l'auteur : anecdotique, à recréer au besoin par « Mes commandes ») ; la carte « Commandes vocales » et la liste des signes dictés n'affichent que la langue de l'interface (les signes et phrases de l'autre langue restent actifs en dictée) ; **commandes de la personne** (« Mes commandes » : un titre, une ou plusieurs phrases, un raccourci de l'appli, avec ou sans sélection exigée ; réglage `customCommands`, identifiants `perso.<n>`, mêmes règles de phrase que les autres).
+- **Notes, « mettre entre parenthèses »** : marche, un seul ⌘Z suffit pour revenir au texte d'origine (essayé par l'auteur).
+- **Notes, gras, italique, souligné** : marchent. Whisper écrit parfois « souligner » au lieu de « souligné » : « mettre en souligner » ajouté aux phrases par défaut (l'auteur l'avait ajouté à la main dans la carte).
 - **Google Docs (Chrome), gras, italique, souligné** : marchent tous les trois (lecture de la sélection comprise).
 - **Signes dictés (Notes), texte brut de Whisper lu dans l'historique** : « jean arobase gmail point com » → Whisper écrit `jean.gmail.com` (« arobase » effacé) ; « barre oblique » → `baroblique` ; « point d'interrogation » → bien reconnu au 2e essai (1er : `pour une interrogation`). Corrigés dans `spoken_signs.rs` (voir `ECARTS.md`).
-- **Signes dictés, 2e série (adresses)** : `jean.gmail.com` → `jean@gmail.com` marche quand les mots sont bien détachés (plusieurs essais de Christophe) ; `Va dans le dossier baroblique document` → `Va dans le dossier/document`. **Échec avec sa propre adresse** : Whisper écrit `christophe.campin.com` (« arobase » et « gmail » effacés, « Campain » écrit « Campin »), ce qu'aucune règle ne peut deviner ; le mot `CAMPAIN` en majuscules du dictionnaire force en plus `christophe.CAMPAIN.com`. Piste : une correction du dictionnaire (entendu `christophe.campin.com` → écrit son adresse) plutôt qu'une règle.
+- **Signes dictés, 2e série (adresses)** : `jean.gmail.com` → `jean@gmail.com` marche quand les mots sont bien détachés (plusieurs essais de l'auteur) ; `Va dans le dossier baroblique document` → `Va dans le dossier/document`. **Échec avec une vraie adresse** : Whisper écrit `prenom.nom.com` (« arobase » et « gmail » effacés, nom de famille mal orthographié), ce qu'aucune règle ne peut deviner ; un mot en majuscules du dictionnaire force en plus sa casse dans l'adresse. Piste : une correction du dictionnaire (entendu `prenom.nom.com` → écrit l'adresse) plutôt qu'une règle.
 - **Verdict b-c** : gras, italique, souligné (TextEdit, Notes, Google Docs), entourer par parenthèses (Notes, un seul ⌘Z) et commandes de la personne (⌘N) fonctionnent sur le Mac. **Non essayés à la main** : guillemets « », crochets, accolades, ⌘C d'essai de lecture dans d'autres navigateurs, Windows et Linux (pas de lecture de sélection).
 
 ### Relecture de la livraison (tâche 10, 07/11/2026, agent distinct, R18)
@@ -211,7 +211,7 @@ Tâche 4 (07/11/2026) : relecture du commit 3e6724b par un sous-agent Sonnet qui
 **Testé** : `has_non_text_type` (texte seul, image, fichiers, texte + image) et `wipe` ; l'ensemble des cas du contrôleur (`commands_101` à `commands_110`) reste vert. `cargo clippy --all-targets -- -D warnings` propre ; `cargo test --workspace` : 359 tests passés, 0 échec. **Non testable sans Mac réel** : le comportement du presse-papiers et du ⌘C d'essai (remise, délai, Chrome) : à vérifier à l'essai de la tâche 5.
 
 **Limites connues, non corrigées** :
-- *`ConcealedType`* : c'est l'application qui écrit la sélection dans le presse-papiers lors du ⌘C, pas Scriibe ; marquer l'écriture comme « masquée » n'est donc pas possible de notre côté. Un gestionnaire de presse-papiers (Alfred, Raycast, Paste) ou le presse-papiers universel d'Apple peut voir la sélection pendant le repli ⌘C (0,2 à 0,5 s). L'accessibilité, qui ne touche pas au presse-papiers, passe en premier ; le repli ne sert qu'aux applis qui n'exposent pas leur sélection (Chrome, Electron). Un réglage pour couper ce repli reste à décider avec Christophe.
+- *`ConcealedType`* : c'est l'application qui écrit la sélection dans le presse-papiers lors du ⌘C, pas Scriibe ; marquer l'écriture comme « masquée » n'est donc pas possible de notre côté. Un gestionnaire de presse-papiers (Alfred, Raycast, Paste) ou le presse-papiers universel d'Apple peut voir la sélection pendant le repli ⌘C (0,2 à 0,5 s). L'accessibilité, qui ne touche pas au presse-papiers, passe en premier ; le repli ne sert qu'aux applis qui n'exposent pas leur sélection (Chrome, Electron). Un réglage pour couper ce repli reste à décider avec l'auteur.
 - *Mise en forme* : un presse-papiers texte avec mise en forme (RTF, HTML) revient en texte seul après le repli, comme au collage d'une dictée.
 - *Mémoire* : la copie en JSON de `api/prefill` et les tampons de la page ne sont pas écrasés (inévitable : la page doit afficher le texte) ; la chaîne interne d'`arboard` non plus.
 - *Page ouverte en double* : une autre fenêtre ou un onglet périmé peut prendre le texte à la place de la bonne (défaut de fonctionnement, pas une fuite).
@@ -219,7 +219,7 @@ Tâche 4 (07/11/2026) : relecture du commit 3e6724b par un sous-agent Sonnet qui
 
 ## Essai réel a
 
-Essai du 07/11/2026 sur le Mac Studio de Christophe, `Scriibe.app` compilée le jour même (commit de la tâche 4), commande « ajoute ça au dictionnaire » sur un mot sélectionné. Un texte repère (`TEMOIN-…`) était mis dans le presse-papiers avant chaque essai et relu juste après.
+Essai du 07/11/2026 sur le Mac Studio de l'auteur, `Scriibe.app` compilée le jour même (commit de la tâche 4), commande « ajoute ça au dictionnaire » sur un mot sélectionné. Un texte repère (`TEMOIN-…`) était mis dans le presse-papiers avant chaque essai et relu juste après.
 
 | Essai | Résultat | Presse-papiers |
 |---|---|---|
@@ -228,7 +228,7 @@ Essai du 07/11/2026 sur le Mac Studio de Christophe, `Scriibe.app` compilée le 
 | TextEdit, aucune sélection (2 fois) | Phrase collée comme du texte, pas de fenêtre ; journal : `ignorée (aucune sélection)` | repère intact |
 | Chrome, mot « Workflows » | Réussi (9 signes) | repère intact |
 
-**Verdict de Christophe :** la commande fonctionne dans TextEdit, Notes et Chrome ; le cas sans sélection se comporte comme prévu ; le mot n'apparaît pas dans le journal.
+**Verdict de l'auteur :** la commande fonctionne dans TextEdit, Notes et Chrome ; le cas sans sélection se comporte comme prévu ; le mot n'apparaît pas dans le journal.
 
 **Non résolu :** l'échec du 1er essai dans Notes. Cause probable : Whisper a transcrit la phrase un peu autrement (la reconnaissance exige que la phrase soit toute la dictée), mais le journal ne garde pas la transcription (choix de vie privée) donc non vérifié. Un 1er essai dans TextEdit (3,5 s de parole, 39 signes collés) était probablement une phrase trop longue. À surveiller : si l'échec revient, ajouter des variantes de phrase ou un journal du seul nombre de mots de la dictée.
 
