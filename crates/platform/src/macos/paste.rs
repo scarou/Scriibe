@@ -29,6 +29,8 @@ const FLAG_COMMAND: u64 = 0x0010_0000;
 #[derive(Default)]
 pub struct MacPaster {
     clipboard: Arc<Mutex<Option<Clipboard>>>,
+    /// Le détail du dernier collage (route prise, attentes), pour le journal : un collage perdu en silence ne laisse rien d'autre.
+    report: Mutex<String>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -52,16 +54,21 @@ fn read_text(slot: &Mutex<Option<Clipboard>>) -> Option<String> {
     with_clipboard(slot, |c| c.get_text().map_err(|e| e.to_string())).ok()
 }
 
-/// Attend (au plus 0,3 s) que Maj, Ctrl, Option et Commande soient relâchés.
-fn wait_for_modifiers_released() {
+/// Attend (au plus 0,3 s) que Maj, Ctrl, Option et Commande soient relâchés. Rend le temps attendu en millisecondes et, si la touche
+/// restait enfoncée jusqu'au bout, les drapeaux qui la retenaient (0 : tout était relâché).
+fn wait_for_modifiers_released() -> (u64, u64) {
+    let mut waited = 0;
     for _ in 0..30 {
         // SAFETY : fonction sans autre condition que son argument.
         let flags = unsafe { ffi::CGEventSourceFlagsState(ffi::SOURCE_COMBINED_SESSION) };
         if flags & PASTE_BLOCKING_FLAGS == 0 {
-            return;
+            return (waited, 0);
         }
         std::thread::sleep(Duration::from_millis(10));
+        waited += 10;
     }
+    // SAFETY : voir ci-dessus.
+    (waited, unsafe { ffi::CGEventSourceFlagsState(ffi::SOURCE_COMBINED_SESSION) } & PASTE_BLOCKING_FLAGS)
 }
 
 fn post_key(key: u16, down: bool) -> Result<(), String> {
@@ -82,7 +89,18 @@ fn post_key_flags(key: u16, down: bool, flags: u64) -> Result<(), String> {
     Ok(())
 }
 
-fn send_command_v() -> Result<(), String> {
+/// Les navigateurs construits sur Chromium : leur champ de recherche ignore parfois un ⌘V simulé, mais pas Édition → Coller.
+const CHROMIUM_BROWSERS: &[&str] = &[
+    "com.google.Chrome",
+    "com.brave.Browser",
+    "com.microsoft.edgemac",
+    "com.vivaldi.Vivaldi",
+    "org.chromium.Chromium",
+    "company.thebrowser.Browser",
+];
+
+/// Envoie ⌘V. Rend l'attente des modificateurs (voir `wait_for_modifiers_released`).
+fn send_command_v() -> Result<(u64, u64), String> {
     // SAFETY : fonction sans paramètre.
     if !unsafe { ffi::AXIsProcessTrusted() } {
         // Une seule demande par lancement : la fenêtre de macOS ne doit pas revenir à chaque dictée.
@@ -91,7 +109,7 @@ fn send_command_v() -> Result<(), String> {
         }
         return Err("collage refusé : autorise Scriibe (ou l'appli qui la lance) dans Réglages Système → Confidentialité et sécurité → Accessibilité".into());
     }
-    wait_for_modifiers_released();
+    let waited = wait_for_modifiers_released();
     std::thread::sleep(Duration::from_millis(40));
     // Une vraie frappe de ⌘V : la touche ⌘ s'appuie avant V et se relâche après (certaines pages web ignoraient un V portant seulement le drapeau ⌘).
     post_key_flags(KEY_COMMAND, true, FLAG_COMMAND)?;
@@ -100,10 +118,62 @@ fn send_command_v() -> Result<(), String> {
     std::thread::sleep(Duration::from_millis(10));
     post_key(KEY_V, false)?;
     std::thread::sleep(Duration::from_millis(10));
-    post_key_flags(KEY_COMMAND, false, 0)
+    post_key_flags(KEY_COMMAND, false, 0)?;
+    Ok(waited)
 }
 
 /// Code de touche macOS d'une lettre ou d'un chiffre, à sa place QWERTY (même limite que ⌘C et ⌘V : Dvorak et Colemak la déplacent).
+/// Une vraie frappe de ⌘C, comme ⌘V : ⌘ enfoncé, C, C relâché, ⌘ relâché. Avec des C portant seulement le drapeau ⌘, le système gardait ⌘ pour
+/// enfoncé (journal : « drapeaux retenus 0x100000 ») et le collage suivant attendait 0,3 s que la touche se relâche.
+fn send_command_c() -> Result<(), String> {
+    post_key_flags(KEY_COMMAND, true, FLAG_COMMAND)?;
+    std::thread::sleep(Duration::from_millis(10));
+    post_key(KEY_C, true)?;
+    std::thread::sleep(Duration::from_millis(10));
+    post_key(KEY_C, false)?;
+    std::thread::sleep(Duration::from_millis(10));
+    post_key_flags(KEY_COMMAND, false, 0)
+}
+
+/// Écrit le texte comme une frappe au clavier : des événements « touche » qui portent chacun quelques caractères (CoreGraphics en accepte
+/// 20 par événement), un vrai Entrée pour chaque saut de ligne. Aucun presse-papiers : un champ de navigateur qui ignore le collage (le
+/// premier après un clic, constaté avec Chrome et YouTube) accepte une saisie.
+fn type_text(text: &str) -> Result<(), String> {
+    // SAFETY : fonction sans paramètre.
+    if !unsafe { ffi::AXIsProcessTrusted() } {
+        return Err("Accessibilité non autorisée".into());
+    }
+    wait_for_modifiers_released();
+    std::thread::sleep(Duration::from_millis(40));
+    let mut lines = text.split('\n').peekable();
+    while let Some(line) = lines.next() {
+        let units: Vec<u16> = line.encode_utf16().collect();
+        for chunk in units.chunks(16) {
+            for down in [true, false] {
+                // SAFETY : un événement clavier créé, rempli avec `chunk` (valide pendant l'appel), posté puis relâché.
+                unsafe {
+                    let event = ffi::CGEventCreateKeyboardEvent(std::ptr::null(), 0, down);
+                    if event.is_null() {
+                        return Err("macOS n'a pas voulu créer la touche".into());
+                    }
+                    ffi::CGEventSetFlags(event, 0);
+                    ffi::CGEventKeyboardSetUnicodeString(event, chunk.len(), chunk.as_ptr());
+                    ffi::CGEventPost(ffi::TAP_HID, event);
+                    ffi::CFRelease(event);
+                }
+                std::thread::sleep(Duration::from_millis(3));
+            }
+        }
+        if lines.peek().is_some() {
+            post_key_flags(KEY_RETURN, true, 0)?;
+            std::thread::sleep(Duration::from_millis(5));
+            post_key_flags(KEY_RETURN, false, 0)?;
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+    Ok(())
+}
+
 fn key_code(key: char) -> Option<u16> {
     Some(match key {
         'a' => 0,
@@ -239,9 +309,7 @@ impl MacPaster {
         let before = read_text(&self.clipboard);
         wait_for_modifiers_released();
         std::thread::sleep(Duration::from_millis(40));
-        post_key(KEY_C, true).ok()?;
-        std::thread::sleep(Duration::from_millis(10));
-        post_key(KEY_C, false).ok()?;
+        send_command_c().ok()?;
         let mut waited = Duration::ZERO;
         while waited < COPY_WAIT {
             std::thread::sleep(Duration::from_millis(10));
@@ -300,7 +368,7 @@ impl MacPaster {
         let before = read_text(&self.clipboard);
         wait_for_modifiers_released();
         std::thread::sleep(Duration::from_millis(40));
-        if post_key(KEY_C, true).is_err() || post_key(KEY_C, false).is_err() {
+        if send_command_c().is_err() {
             return SelectedRead::Unreadable(Unreadable::Failed);
         }
         let mut waited = Duration::ZERO;
@@ -393,16 +461,63 @@ impl Paster for MacPaster {
         write_text(&self.clipboard, text).is_ok()
     }
 
+    fn last_report(&self) -> String {
+        lock(&self.report).clone()
+    }
+
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
+        // Un navigateur Chromium : le texte est « tapé » (sans toucher au presse-papiers), le collage étant parfois ignoré par ses champs.
+        let browser = crate::apps::ForegroundApp::current(&super::foreground::MacForeground)
+            .id
+            .is_some_and(|id| CHROMIUM_BROWSERS.contains(&id.as_str()));
+        if browser {
+            let started = std::time::Instant::now();
+            match type_text(text) {
+                Ok(()) => {
+                    *lock(&self.report) = format!("route : frappe, {} ms", started.elapsed().as_millis());
+                    return PasteOutcome::Pasted;
+                }
+                Err(why) => *lock(&self.report) = format!("frappe impossible ({why}), repli sur le collage"),
+            }
+        }
         let saved = if restore_clipboard { read_text(&self.clipboard) } else { None };
         if let Err(e) = write_text(&self.clipboard, text) {
             return PasteOutcome::CopiedOnly(e);
         }
         // Le collage lit le presse-papiers : on s'assure que c'est bien la dictée qu'il contient (0,2 s au plus).
-        wait_for_text(&self.clipboard, &Some(text.to_string()), Duration::from_millis(200));
-        if let Err(e) = send_command_v() {
-            return PasteOutcome::CopiedOnly(e);
+        let clipboard_start = std::time::Instant::now();
+        let ready = wait_for_text(&self.clipboard, &Some(text.to_string()), Duration::from_millis(200));
+        let clipboard_ms = clipboard_start.elapsed().as_millis();
+        let mut report = format!("presse-papiers {}{clipboard_ms} ms", if ready { "prêt en " } else { "NON prêt après " });
+        // Frappe impossible dans un navigateur : Édition → Coller par l'Accessibilité (aucune touche simulée), sinon ⌘V.
+        let mut by_menu = false;
+        if browser {
+            match super::foreground::front_pid()
+                .ok_or_else(|| "numéro de processus inconnu".to_string())
+                .and_then(ffi::press_paste_menu_item)
+            {
+                Ok(()) => {
+                    by_menu = true;
+                    report.push_str(", route : menu Coller");
+                }
+                Err(why) => report.push_str(&format!(", menu Coller impossible ({why})")),
+            }
         }
+        if !by_menu {
+            match send_command_v() {
+                Ok((waited, flags)) => {
+                    report.push_str(&format!(", route : ⌘V, touches relâchées en {waited} ms"));
+                    if flags != 0 {
+                        report.push_str(&format!(" (drapeaux retenus {flags:#x})"));
+                    }
+                }
+                Err(e) => {
+                    *lock(&self.report) = report;
+                    return PasteOutcome::CopiedOnly(e);
+                }
+            }
+        }
+        *lock(&self.report) = report;
         if let (true, Some(saved)) = (restore_clipboard, saved) {
             // En arrière-plan, 1,5 s après : une appli lente doit avoir lu la dictée ; si autre chose a été copié entre-temps, on n'y touche pas.
             let slot = self.clipboard.clone();

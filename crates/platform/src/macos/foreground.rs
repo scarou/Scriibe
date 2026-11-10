@@ -18,3 +18,11 @@ impl ForegroundApp for MacForeground {
         run(&["info", "-only", "name", "-only", "bundleid", &front]).map_or_else(AppInfo::unknown, |text| parse_app_info(&text))
     }
 }
+
+/// Le numéro de processus de l'appli au premier plan (`lsappinfo info -only pid`, ligne « pid = 827 … »).
+pub fn front_pid() -> Option<i32> {
+    let front = run(&["front"]).as_deref().and_then(parse_front)?;
+    let text = run(&["info", "-only", "pid", &front])?;
+    let after = text.split("pid = ").nth(1)?;
+    after.split(|c: char| !c.is_ascii_digit()).next()?.parse().ok()
+}

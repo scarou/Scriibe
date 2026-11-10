@@ -59,6 +59,11 @@ extern "C" {
     pub fn CFStringGetCString(string: Ref, buffer: *mut std::ffi::c_char, size: isize, encoding: u32) -> bool;
     pub fn CFStringGetTypeID() -> usize;
     pub fn CFGetTypeID(object: Ref) -> usize;
+    pub fn CFArrayGetTypeID() -> usize;
+    pub fn CFArrayGetCount(array: Ref) -> isize;
+    pub fn CFArrayGetValueAtIndex(array: Ref, index: isize) -> Ref;
+    pub fn CFStringGetCharacterAtIndex(string: Ref, index: isize) -> u16;
+    pub fn CFNumberGetValue(number: Ref, kind: i32, value: *mut std::ffi::c_void) -> bool;
 }
 
 #[link(name = "CoreGraphics", kind = "framework")]
@@ -76,6 +81,8 @@ extern "C" {
     pub fn CGEventGetFlags(event: Ref) -> u64;
     pub fn CGEventCreateKeyboardEvent(source: Ref, key: u16, down: bool) -> Ref;
     pub fn CGEventSetFlags(event: Ref, flags: u64);
+    /// Pose le texte que la touche « tape » (jusqu'à 20 unités UTF-16 par événement), quelle que soit la touche virtuelle.
+    pub fn CGEventKeyboardSetUnicodeString(event: Ref, length: usize, chars: *const u16);
     pub fn CGEventPost(tap: u32, event: Ref);
     pub fn CGEventSourceFlagsState(state: i32) -> u64;
     /// Autorisation « Surveillance de l'entrée » (macOS 10.15 et après).
@@ -91,8 +98,11 @@ extern "C" {
     pub fn AXIsProcessTrustedWithOptions(options: Ref) -> bool;
     pub static kAXTrustedCheckOptionPrompt: Ref;
     pub fn AXUIElementCreateSystemWide() -> Ref;
+    pub fn AXUIElementCreateApplication(pid: i32) -> Ref;
     /// Rend 0 (`kAXErrorSuccess`) et pose dans `value` un objet qu'il faut relâcher.
     pub fn AXUIElementCopyAttributeValue(element: Ref, attribute: Ref, value: *mut Ref) -> i32;
+    /// Rend 0 (`kAXErrorSuccess`) si l'action (« AXPress ») a été faite.
+    pub fn AXUIElementPerformAction(element: Ref, action: Ref) -> i32;
 }
 
 /// `kCFStringEncodingUTF8`.
@@ -229,6 +239,76 @@ pub fn selected_text() -> SelectedByAx {
         Some(t) => SelectedByAx::Text(t),
         None => SelectedByAx::Unknown,
     }
+}
+
+/// Cherche dans les menus de l'appli le « Coller » (⌘V, sans autre modificateur) et le déclenche, comme un clic dans le menu Édition :
+/// aucune touche simulée, donc rien que Chrome puisse ignorer. `Err` : l'élément n'existe pas, est grisé ou refuse l'action ; l'appelant
+/// retombe alors sur ⌘V. Le nom du menu ne compte pas (langue du système) : on reconnaît l'élément à son raccourci.
+pub fn press_paste_menu_item(pid: i32) -> Result<(), String> {
+    // SAFETY : fonction sans paramètre.
+    if !unsafe { AXIsProcessTrusted() } {
+        return Err("Accessibilité non autorisée".into());
+    }
+    // SAFETY : fonction sans autre condition que son argument ; l'élément créé est relâché par `Owned`. (L'élément « système » ne rend pas
+    // toujours l'appli active — code -25212 constaté avec Chrome — d'où le numéro de processus.)
+    let app = Owned(unsafe { AXUIElementCreateApplication(pid) });
+    if app.0.is_null() {
+        return Err("appli active".into());
+    }
+    let bar = attribute(app.0, c"AXMenuBar").map_err(|c| format!("barre des menus (code {c})"))?;
+    find_and_press_paste(bar.0, 0)
+}
+
+/// Profondeur utile : barre → menu de la barre → menu → élément (Édition → Coller), avec une marge pour un sous-menu.
+const MENU_DEPTH: u32 = 5;
+
+fn find_and_press_paste(element: Ref, depth: u32) -> Result<(), String> {
+    if depth > MENU_DEPTH {
+        return Err("Coller introuvable".into());
+    }
+    let Ok(children) = attribute(element, c"AXChildren") else { return Err("Coller introuvable".into()) };
+    // SAFETY : on ne lit le tableau que si c'est bien un tableau ; ses éléments restent valides tant que `children` l'est.
+    if unsafe { CFGetTypeID(children.0) != CFArrayGetTypeID() } {
+        return Err("Coller introuvable".into());
+    }
+    // SAFETY : voir ci-dessus.
+    let count = unsafe { CFArrayGetCount(children.0) };
+    for i in 0..count {
+        // SAFETY : `i` est dans les bornes du tableau ; l'élément rendu n'est pas à nous (pas de relâchement).
+        let child = unsafe { CFArrayGetValueAtIndex(children.0, i) };
+        if child.is_null() {
+            continue;
+        }
+        if is_paste_item(child) {
+            let action = cf_string(c"AXPress");
+            // SAFETY : `child` et `action` sont des objets valides pendant l'appel.
+            let status = unsafe { AXUIElementPerformAction(child, action.0) };
+            return if status == 0 { Ok(()) } else { Err(format!("Coller refusé (code {status})")) };
+        }
+        if find_and_press_paste(child, depth + 1).is_ok() {
+            return Ok(());
+        }
+    }
+    Err("Coller introuvable".into())
+}
+
+/// L'élément de menu dont le raccourci est ⌘V seul (modificateurs : 0 = ⌘ seul).
+fn is_paste_item(item: Ref) -> bool {
+    let Ok(key) = attribute(item, c"AXMenuItemCmdChar") else { return false };
+    // SAFETY : on ne lit la chaîne que si c'en est une.
+    let is_v = unsafe {
+        CFGetTypeID(key.0) == CFStringGetTypeID()
+            && CFStringGetLength(key.0) == 1
+            && matches!(CFStringGetCharacterAtIndex(key.0, 0), 0x56 | 0x76)
+    };
+    if !is_v {
+        return false;
+    }
+    let Ok(modifiers) = attribute(item, c"AXMenuItemCmdModifiers") else { return false };
+    let mut value: i32 = -1;
+    // SAFETY : `modifiers` est un objet valide ; `kCFNumberSInt32Type` = 3 ; `value` a la taille attendue.
+    let read = unsafe { CFNumberGetValue(modifiers.0, 3, std::ptr::addr_of_mut!(value).cast()) };
+    read && value == 0
 }
 
 /// Demande l'autorisation « Accessibilité » : macOS montre sa fenêtre (avec un bouton vers les Réglages) et ajoute l'appli à la liste. Rend

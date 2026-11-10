@@ -90,6 +90,10 @@ pub trait Paster: Send + Sync {
     /// Met `text` dans le presse-papiers, attend que les touches de modification soient relâchées, envoie le collage.
     /// `restore_clipboard` : remet ensuite l'ancien contenu (en arrière-plan), s'il n'a pas changé entre-temps.
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome;
+    /// Le détail du dernier collage (route prise, attentes) pour le journal ; vide si le système n'en dit rien.
+    fn last_report(&self) -> String {
+        String::new()
+    }
     /// Un mot ou un groupe de mots est-il sélectionné dans l'appli active ? Le texte collé le remplacera. Sans réponse du système (appli qui
     /// n'expose pas sa sélection, système sans cette fonction) : `active` est faux. À appeler une fois, juste avant `paste`.
     fn selection(&self) -> Selection {

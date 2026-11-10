@@ -75,6 +75,10 @@ impl Paster for SwitchPaster {
         }
     }
 
+    fn last_report(&self) -> String {
+        self.0.paster.last_report()
+    }
+
     // Pendant une capture d'essai, pas de commande vocale : rien à lire.
     fn selected_text(&self) -> scriibe_platform::paste::SelectedRead {
         if self.0.capturing() {

@@ -1,26 +1,25 @@
-# Reprise — 06/11/2026 (fin de S17)
+# Reprise — 10/11/2026 (fin de S20, Mac)
 
 Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · macOS »).
 
 ```text
-Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Session sur le MAC de Christophe (Mac Studio), dossier ~/Documents/Mes projets IA/Scriibe-dev/Scriibe. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md (S17), ROADMAP.md (« Prochaines étapes ») et la mémoire, puis résume l'état en 5 lignes avant de commencer.
+Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Session sur le MAC de Christophe (Mac Studio), dossier ~/Documents/Mes projets IA/Scriibe-dev/Scriibe. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md (S20) et la mémoire, puis résume l'état en 5 lignes avant de commencer.
 
-ÉTAT : dépôt public scarou/Scriibe, branche main, dernier commit poussé à la clôture de S17 (voir `git log --oneline -3`). Release v0.2.4 publiée le 06/11/2026 (Mac, Windows, Linux, moteurs Linux), Cargo.toml en 0.2.4 ; mises à jour intégrées essayées avec succès par Christophe sur Mac, Windows et Linux. `linux-pc` est fusionné dans main (dab84e7) ; la branche reste. Tests mesurés : 335 Rust (0 échec), 83 d'interface, 399 cas de référence ; CI verte sur les trois systèmes après la fusion.
+ÉTAT : dépôt public scarou/Scriibe, branche main (voir `git log --oneline -5`). Release v0.2.4 publiée le 06/11/2026 ; Cargo.toml en 0.2.4 ; RIEN n'est publié depuis (ROADMAP n°14 : commandes vocales sur sélection, signes dictés, crans de fidélité, mode Apaisé (CNV), espace après chaque dictée, Chrome, guides d'installation, etc.). Numéro de la prochaine version à décider (0.2.5 ou 0.3.0).
 
-FAIT EN S17 (05-06/11) :
-- Espace entre deux dictées : règle codée (crates/core/src/spacing.rs, mémoire du dernier collage, 60 s, même appli), livrée dans la 0.2.4 ; puis ÉLARGIE le 06/11 (espace même sans point final, car Whisper `ggml-small` n'écrit pas de point ; `large-v3-turbo-q8_0` oui) : commits 21dbdca et 8841dd6, NON PUBLIÉE. Détails dans docs/ESPACEMENT.md (Constat, Règle, Tests, Essai réel, Relecture, Règle élargie).
-- Relecture de l'Aide par Christophe : Aide et cartes à pleine largeur, bouton « ? » sur toutes les cartes (toujours à droite), question « pastille bloquée » ajoutée, toutes les cartes repliables (dont jours de l'Historique et cadres de modes), guide Mac refait pour débutants (docs/INSTALLATION_MACOS.md) et séparé du guide connaisseurs (docs/INSTALLATION_MACOS_EXPERT.md), versions anglaises faites.
-- Logo, couleur et textes du système dès l'ouverture (`status.os`, `guessOs`) : la page restait bleue (Windows) tant que macOS attendait le trousseau.
-- Constats : demandes de trousseau en boucle = Entrée au lieu de « Toujours autoriser » ; Chrome perd parfois une dictée (⌘V), noté, non traité ; 500 passager de GitHub au téléchargement de la mise à jour Windows.
+FAIT EN S19-S20 (09-10/11) :
+- Mode Simple : garde-fou à 75 % de mots gardés sur les dictées de 8 mots ou plus (mots de commande dictés à part) ; crans de fidélité Littéral, Léger, Reformulé, Libre (Simple et modes personnels au choix) ; mode livré Apaisé (CNV) au cran Libre ; Aide complétée ; phrases d'essai d'Apaisé en plus.
+- Règle d'espacement remplacée (e650f24) : chaque dictée est suivie d'une espace ; essayée sur Mac (TextEdit, Notes, saut de ligne, sélection), Linux et Windows.
+- Chrome (Mac) : les collages se perdaient (1 sur 9) ; le texte est maintenant tapé au clavier dans Chrome et ses dérivés (10 sur 10 dans Google et YouTube) ; ⌘C d'essai en vraie frappe ; détail du collage dans le journal. Voir docs/PIEGES.md.
 
 POINTS EN SUSPENS :
-- Christophe essaie `ggml-large-v3-turbo-q8_0.bin` sur Windows et Linux ; l'essai de la règle d'espacement élargie sous Windows et Linux se fera avec la prochaine version.
-- Rien n'est publié depuis la 0.2.4 : règle élargie, cartes repliables, logo/couleur et guide Mac attendent la prochaine version (ROADMAP n°14, numéro à décider).
-- Le guide Mac n'a jamais été suivi par un débutant sur un Mac neuf (Homebrew non essayé).
-- Relecture R18 (agent distinct) non faite pour le dernier lot d'interface (cartes repliables, status.os) : svelte-check et 83 tests verts seulement.
-- État de la machine : l'application de développement ~/Applications/Scriibe.app tourne (elle porte les derniers changements) ; aucun serveur de développement lancé par la session.
+- Essais à la main restants : crans Littéral et Libre ; Apaisé (CNV) sur Gemma 4 E4B ; Chrome : Google Docs, commandes vocales sur sélection (« mettre entre parenthèses » : un seul ⌘Z ?) ; Safari et Firefox (collage inchangé) ; Chrome sous Windows et Linux (inchangé).
+- Une dictée d'au plus trois mots saute le modèle : pas de majuscule ni de point si Whisper n'en met pas (règle de Scribe). Amélioration possible, non décidée.
+- ROADMAP n°15 (`/api/status` attend le trousseau) : non commencé, prudence (trousseau).
+- Le mode personnel « Apaisé (CNV) » créé pour l'essai du 07/11 fait doublon avec le mode livré : à supprimer par Christophe.
+- Après chaque compilation, macOS redemande 3 fois l'accès au trousseau : « Toujours autoriser » (pas Entrée).
 
-PROCHAINE TÂCHE (ROADMAP n°13, suite) : guide d'installation pas à pas pour débutants sous WINDOWS, sur le modèle du guide Mac (docs/INSTALLATION_MACOS.md : étapes numérotées, « C'est réussi quand… » à chaque étape, tableau « Si ça ne marche pas »), en séparant la partie connaisseurs dans docs/INSTALLATION_WINDOWS_EXPERT.md ; versions anglaises identiques en structure (.en.md) ; liens des README ; puis Linux de la même façon. Premier pas : lire docs/INSTALLATION_WINDOWS.md et ESSAI_WINDOWS.md, lister ce qui est expert (compilation, moteurs en ligne, mise à jour à la main), proposer le plan à Christophe avant d'écrire. Autre option si Christophe préfère : publier la version suivante (n°14) après son essai de large-v3-turbo.
+PROCHAINE TÂCHE : décider avec Christophe de la publication d'une version (numéro, notes de version, statut d'essai par système), après relecture de l'Aide et CI complète ; aperçu et accord avant toute Release ou tout push public.
 
-RÈGLES : aperçu et accord de Christophe avant toute Release ou tout push public ; `cargo fmt`, `cargo clippy -- -D warnings` et `cargo test --workspace` sans erreur avant tout commit ; ne jamais modifier scarou/scribe ni lire de .env ou de clé ; ne jamais lire ni modifier le trousseau ; modifier un .md par script : ancrer sur « \n## » et relire `grep -n "^## "` avant de commiter (S17 : deux sections perdues) ; pour tout doc français d'installation, reporter dans la version anglaise (et inversement) ; une étape à la fois pour Christophe sur son PC ; lancer Scriibe.app par `open`, jamais le binaire nu ; ne jamais annoncer un chiffre avant de l'avoir mesuré.
+RÈGLES : aperçu et accord de Christophe avant toute Release ou tout push public ; `cargo fmt`, `cargo clippy --all-targets -- -D warnings` et `cargo test --workspace` sans erreur avant tout commit ; ne jamais modifier scarou/scribe ni lire de .env ou de clé ; ne jamais lire ni modifier le trousseau ; un cas de fixtures ne se modifie jamais pour faire passer un test ; ne jamais annoncer un chiffre avant de l'avoir mesuré ; lui seul tient la touche et parle ; une étape à la fois pour lui.
 ```

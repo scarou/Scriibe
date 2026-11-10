@@ -940,7 +940,7 @@ impl Controller {
         let to_paste = scriibe_core::spacing::for_paste(&text, replaces_selection);
         let pasted = paste_text(deps.paster.as_ref(), &to_paste, settings.restore_clipboard, focus_at_paste.id.as_deref());
         deps.log.write(&format!(
-            "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}{}",
+            "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}{}{}",
             to_paste.chars().count(),
             focus_at_paste.name,
             job.target.name,
@@ -953,6 +953,10 @@ impl Controller {
             match &pasted {
                 PasteOutcome::Pasted => String::new(),
                 PasteOutcome::CopiedOnly(_) => " — copié seulement".to_string(),
+            },
+            match deps.paster.last_report().as_str() {
+                "" => String::new(),
+                detail => format!(" [{detail}]"),
             }
         ));
         let total = elapsed_since(job.released_at);

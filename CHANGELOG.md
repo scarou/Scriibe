@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S20 — 2026-11-10 · Essai de l'espace après chaque dictée sur le Mac, collage dans Chrome (Mac, non publié)
+
+Session locale sur le Mac Studio de Christophe ; `scarou/scribe` non modifié.
+
+- **Espace après chaque dictée (`e650f24`), essayé sur le Mac** : TextEdit (27, 25 et 29 signes pour trois phrases : chaque phrase plus son espace), Notes (26, 27, 28), saut de ligne dicté en fin de dictée (15 signes, aucune espace après), mot dicté sur une sélection remplacée (8 signes, journal « sur une sélection », aucune espace ajoutée). Une seule espace entre les phrases partout, comme sous Windows et Linux.
+- **Chrome (Mac)** : sur 9 dictées dans Google et YouTube, 1 seule est apparue, alors que le journal les disait toutes collées (~89 % de perte). Détail de la recherche dans `docs/PIEGES.md` : le texte est maintenant **tapé** dans Chrome et ses dérivés (`paste.rs::type_text`) : 5 sur 5 dans YouTube, 5 sur 5 dans Google, 2 dictées avec retour à la ligne dans un message Gmail (les deux lignes sont là). Le ⌘C d'essai de S18 devient une vraie frappe (il retenait ⌘ et faisait attendre le collage 0,3 s : 0,43 s → 0,06 s dans Chrome). Le journal détaille chaque collage entre crochets. Écart dans `docs/ECARTS.md`.
+- **Reste à essayer** : Safari et Firefox (non couverts : collage inchangé) ; commandes vocales sur sélection dans Chrome (« mettre entre parenthèses » : un seul ⌘Z annule-t-il la frappe ?) ; Chrome sous Windows et Linux (inchangé, collage habituel) ; Google Docs.
+- **Constat hors sujet** : une dictée d'au plus trois mots saute le modèle (« mise au propre sautée »), donc « première ligne, retour à la ligne » sort sans majuscule ni point si Whisper n'en met pas (règle de Scribe, non modifiée).
+
 ## Windows — 2026-11-10 · Détection de la sélection, commandes vocales et espace après la dictée essayées (non publié)
 
 - **Détection de la sélection sous Windows** (`crates/platform/src/windows/paste.rs`, commit `7515317`) : `Paster::selection`, `selected_text`, `press_shortcut` et `press_return`. Ctrl+C d'essai (numéro de séquence du presse-papiers, ancien texte remis), jamais dans une console ni sur un presse-papiers qui contient une image ou des fichiers ; raccourcis et Entrée par `SendInput` (Mod = Ctrl). Limite : l'appli copie dans l'historique du presse-papiers de Windows (Win+V).
