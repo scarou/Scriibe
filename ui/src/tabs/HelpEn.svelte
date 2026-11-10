@@ -235,7 +235,7 @@
       <p>When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words around it, the phrase stays ordinary text. Neither the selected text nor the command is kept in the history.</p>
       <ul>
         <li><b>Add to dictionary</b>: “add to dictionary” opens this tab with the selected text in “Heard”.</li>
-        <li><b>Characters around</b>: “in parentheses”, “in quotes” (« » in French, " " in English), “in brackets” or “in braces” wrap the selection; a single ⌘Z undoes it.</li>
+        <li><b>Characters around</b>: “in parentheses”, “in quotes” (« » in French, " " in English), “in brackets” or “in braces” wrap the selection; a single ⌘Z undoes it (on Mac, in Chrome and its derivatives, where the text is typed, it takes several).</li>
         <li><b>Bold, italic, underline</b>: “make it bold”, “make it italic”, “make it underlined” press the app’s own shortcut (⌘B, ⌘I, ⌘U on Mac, adjustable). Scriibe does not write Markdown: it uses the app.</li>
         <li><b>My commands</b>: in the “Voice commands” card (Dictionary tab), give a title, a phrase and an app shortcut (for example ⌘⇧X): saying the phrase presses that shortcut, with or without selected text as you choose.</li>
       </ul>
