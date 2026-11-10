@@ -3,7 +3,7 @@
 //! Le format du fichier est celui de Scribe : mêmes clés, mêmes valeurs. La lecture est tolérante : un réglage absent ou illisible
 //! garde sa valeur par défaut, pour qu'un fichier ancien, abîmé ou écrit par une version future ne fasse jamais perdre les réglages.
 
-use crate::modes::{self, CustomMode, Fidelity, ModeProfile, RewriteMode};
+use crate::modes::{self, CustomMode, Fidelity, Gender, ModeProfile, RewriteMode};
 use crate::retention;
 use crate::spoken_signs::ListBullet;
 use crate::translation::TranslationLanguage;
@@ -243,6 +243,9 @@ pub struct AppSettings {
     /// Cran de fidélité du mode Simple : Littéral, Léger (par défaut) ou Libre (voir `Fidelity`). Les autres modes livrés ont le leur, fixe.
     #[serde(rename = "simpleFidelity")]
     pub simple_fidelity: Fidelity,
+    /// Genre de la personne qui dicte (propre à Scriibe) : accorde ce qui la concerne dans les modes qui réécrivent ; « Non précisé » (par défaut) n'ajoute rien au prompt.
+    #[serde(rename = "speakerGender")]
+    pub speaker_gender: Gender,
     /// Phrase de style modifiée, par mode livré (vide : celle d'origine).
     #[serde(rename = "styleOverrides")]
     pub style_overrides: BTreeMap<String, String>,
@@ -365,6 +368,7 @@ impl Default for AppSettings {
             cleanup_enabled: true,
             rewrite_mode: RewriteMode::Simple,
             simple_fidelity: Fidelity::Light,
+            speaker_gender: Gender::Unspecified,
             style_overrides: BTreeMap::new(),
             custom_modes: Vec::new(),
             custom_mode_id: None,
@@ -467,6 +471,7 @@ impl AppSettings {
             cleanup_enabled: get(o, "cleanupEnabled").unwrap_or(d.cleanup_enabled),
             rewrite_mode,
             simple_fidelity: get(o, "simpleFidelity").unwrap_or(d.simple_fidelity),
+            speaker_gender: get(o, "speakerGender").unwrap_or(d.speaker_gender),
             style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
             custom_modes,
             custom_mode_id,
@@ -594,12 +599,15 @@ impl AppSettings {
             p.fidelity = self.simple_fidelity;
         }
         p.style = self.style_for(mode);
+        p.speaker = self.speaker_gender;
         p
     }
 
     /// Ce qu'envoie la mise au propre : le mode personnel choisi, sinon le mode livré.
     pub fn active_profile(&self) -> ModeProfile {
-        self.active_custom_mode().map(CustomMode::profile).unwrap_or_else(|| self.profile_for(self.rewrite_mode))
+        let mut profile = self.active_custom_mode().map(CustomMode::profile).unwrap_or_else(|| self.profile_for(self.rewrite_mode));
+        profile.speaker = self.speaker_gender;
+        profile
     }
 
     /// Nom du mode en cours, « (consigne modifiée) » pour un mode livré dont la phrase de style a changé.

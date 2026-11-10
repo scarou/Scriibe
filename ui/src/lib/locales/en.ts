@@ -405,6 +405,11 @@ export const en: Record<string, string> = {
 
   // Réglages : dictée
   'Langue dictée :': 'Dictation language:',
+  'Genre de la personne qui dicte :': 'Gender of the person dictating:',
+  'Non précisé': 'Not specified',
+  'Masculin': 'Masculine',
+  'Féminin': 'Feminine',
+  'Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui vous concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.': 'Used by the modes that rewrite (Calmed, Formal, professional modes) to match what concerns you: “je me sens délaissé” or “délaissée”. No effect on Simple and Literal.',
   'Traduire vers :': 'Translate into:',
   'Son au début': 'Start sound',
   'Son à la fin': 'End sound',

@@ -205,6 +205,7 @@
         <li><b>Rephrased</b>: the text must stay close to your dictation, but the words may change (Formal and professional modes). For Simple, this level only loosens the check: the instruction stays “keep my words”.</li>
         <li><b>Free</b>: the share of kept words is no longer checked (Calmed mode). The length, a question staying a question, the dictated signs and the absence of “Yes,” or “Here is” at the start are still checked.</li>
       </ul>
+      <p>So that the modes that rewrite match what concerns you (“je me sens délaissé” or “délaissée”), set your gender in Settings → Dictation: “Masculine” or “Feminine”. By default (“Not specified”), the model is told nothing and guesses. Simple and Literal keep your words and ignore it.</p>
       <h3>Create your own mode</h3>
       <ol class="steps">
         <li>Settings → Modes → “My modes”: a name, an instruction (“Write like a short, friendly text message”).</li>

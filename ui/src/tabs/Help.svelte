@@ -192,6 +192,7 @@
         <li><b>Reformulé</b> : le texte doit rester proche de ta dictée, mais les mots peuvent changer (modes Soutenu et professionnels). Pour Simple, ce cran desserre seulement le contrôle : la consigne reste « garde tes mots ».</li>
         <li><b>Libre</b> : la part de mots gardés n’est plus contrôlée (mode Apaisé). La longueur, la question qui reste une question, les signes dictés et l’absence de « Oui, » ou « Voici » en tête restent contrôlés.</li>
       </ul>
+      <p>Pour que les modes qui réécrivent accordent ce qui te concerne (« je me sens délaissé » ou « délaissée »), indique ton genre dans Réglages → Dictée : « Masculin » ou « Féminin ». Par défaut (« Non précisé »), rien n’est demandé au modèle, qui devine. Simple et Littéral gardent tes mots et n’en tiennent pas compte.</p>
       <h3>Créer ton mode</h3>
       <ol class="steps">
         <li>Réglages → Modes → « Mes modes » : un nom, une consigne (« Écris comme un SMS court et amical »).</li>

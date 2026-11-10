@@ -62,6 +62,7 @@ export interface Status {
 /** Les réglages, avec les clés du fichier de réglages (le format de Scribe). */
 export interface Settings {
   language: 'fr' | 'en' | 'multi';
+  speakerGender: 'unspecified' | 'masculine' | 'feminine';
   transcriptionEngine: 'whisper' | 'deepgram';
   whisperModelPath: string;
   transcriptionModel: string;

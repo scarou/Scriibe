@@ -46,6 +46,38 @@ impl Fidelity {
     }
 }
 
+/// Genre de la personne qui dicte : sert aux modes qui réécrivent, pour accorder ce qui la concerne (« je me sens délaissé » ou « délaissée »).
+/// « Non précisé » n'ajoute rien au prompt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Gender {
+    #[default]
+    Unspecified,
+    Masculine,
+    Feminine,
+}
+
+impl Gender {
+    pub const ALL: [Gender; 3] = [Self::Unspecified, Self::Masculine, Self::Feminine];
+
+    pub fn raw(self) -> &'static str {
+        match self {
+            Self::Unspecified => "unspecified",
+            Self::Masculine => "masculine",
+            Self::Feminine => "feminine",
+        }
+    }
+
+    /// Ligne ajoutée au prompt d'un mode qui réécrit ; `None` quand le genre n'est pas précisé.
+    pub fn prompt_line(self) -> Option<&'static str> {
+        match self {
+            Self::Unspecified => None,
+            Self::Masculine => Some("- La personne qui dicte est un homme : accorde au masculin ce qui la concerne (« je suis ravi », « je me sens délaissé »)."),
+            Self::Feminine => Some("- La personne qui dicte est une femme : accorde au féminin ce qui la concerne (« je suis ravie », « je me sens délaissée »)."),
+        }
+    }
+}
+
 /// Le ton de la mise au propre. Littéral : aucun modèle, seulement signes dictés, dictionnaire et typographie.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -174,6 +206,7 @@ impl RewriteMode {
             },
             style: self.style().map(str::to_string),
             vouvoie: self == Self::Letter,
+            speaker: Gender::Unspecified,
             examples: if !self.rewrites_freely() {
                 Examples::Faithful
             } else if self == Self::Calm {
@@ -227,6 +260,8 @@ pub struct ModeProfile {
     pub style: Option<String>,
     /// Courrier : le destinataire est vouvoyé, la personne à qui l'on parle n'est donc pas gardée telle quelle.
     pub vouvoie: bool,
+    /// Genre de la personne qui dicte (réglage global, posé par `Settings::active_profile`) ; sans effet pour un mode fidèle.
+    pub speaker: Gender,
     pub examples: Examples,
 }
 
@@ -327,6 +362,7 @@ impl CustomMode {
             fidelity: self.fidelity,
             style: ModeProfile::sentence(&self.style),
             vouvoie: rewrites && self.vouvoie,
+            speaker: Gender::Unspecified,
             examples: shots,
         }
     }

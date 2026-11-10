@@ -323,7 +323,9 @@ pub fn system_prompt(vocabulary: &[String], profile: &ModeProfile) -> String {
         Some(style) if rewrites => format!("- Style : {style} Tu peux reformuler les phrases pour respecter ce style, en gardant le sens."),
         Some(style) => format!("- Consigne en plus : {style}\n{FAITHFUL_LINE}"),
     };
-    let lines = [
+    // Le genre de la personne qui dicte ne sert qu'à un mode qui réécrit (un mode fidèle garde ses mots) ; sans lui, le prompt est inchangé.
+    let speaker_line = if rewrites { profile.speaker.prompt_line() } else { None };
+    let mut lines = vec![
         SYSTEM_HEAD.to_string(),
         SYSTEM_QUESTION.to_string(),
         format!("{SYSTEM_REMOVE_PREFIX}{}{SYSTEM_REMOVE_SUFFIX}", if rewrites { "" } else { "seulement " }),
@@ -336,6 +338,9 @@ pub fn system_prompt(vocabulary: &[String], profile: &ModeProfile) -> String {
         style_line,
         SYSTEM_LANGUAGE.to_string(),
     ];
+    if let Some(line) = speaker_line {
+        lines.insert(lines.len() - 1, line.to_string());
+    }
     let mut prompt = lines.join("\n");
     let terms: Vec<&str> = vocabulary.iter().map(String::as_str).filter(|t| !t.is_empty()).collect();
     if !terms.is_empty() {

@@ -263,6 +263,16 @@
       </label>
     </div>
     <div class="setting">
+      <label>{t('Genre de la personne qui dicte :')}
+        <select value={v.speakerGender ?? 'unspecified'} onchange={(e) => settings.change({ speakerGender: e.currentTarget.value as never })}>
+          <option value="unspecified">{t('Non précisé')}</option>
+          <option value="masculine">{t('Masculin')}</option>
+          <option value="feminine">{t('Féminin')}</option>
+        </select>
+      </label>
+      <p class="muted">{t('Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui vous concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.')}</p>
+    </div>
+    <div class="setting">
       <label>{t('Traduire vers :')}
         <select value={v.translationLanguage} onchange={(e) => settings.change({ translationLanguage: e.currentTarget.value as never })}>
           {#each translations as l (l.id)}<option value={l.id}>{t(l.label)}</option>{/each}
