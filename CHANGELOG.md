@@ -2,6 +2,16 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S21 — 2026-11-10 · Genre de la personne qui dicte, essais à la main, préparation de la 0.3.0 (Mac, non publié)
+
+Session locale sur le Mac Studio de l'auteur ; `scarou/scribe` non modifié.
+
+- **Dépôt** : l'Aide n'a plus d'exemple d'adresse au nom de l'auteur (« jean point dupont point com ») ; `nettoyage-nom` fusionnée (`ae4a156`), worktree et branche supprimés ; il ne reste que `Cargo.toml`, `LICENSE` et `fixtures/media_pause.json` à citer le nom (voulu) ; règle ajoutée à `CLAUDE.md`.
+- **Identité Git** : même adresse masquée de GitHub (`…+scarou@users.noreply.github.com`) sur le Mac, le PC Windows et le PC Linux ; sur le Linux, le réglage local du dépôt (adresse Gmail) a été retiré. Les anciens commits gardent leur adresse (historique non réécrit). Cases GitHub « Keep my email addresses private » et « Block command line pushes that expose my email » cochées par l'auteur.
+- **Essais à la main (Mac)** : cran **Littéral** validé (dictée de 17 mots, réécriture écartée par le garde-fou, texte brut collé) ; **Apaisé (CNV) sur Gemma 4 E4B**, cran Libre : réécriture acceptée ; **Chrome, « mettre entre parenthèses »** : la commande marche mais un seul ⌘Z laisse « (Bonjour tout le » (le texte y est tapé) : Aide et docs corrigées (`01d3124`). Non essayés : Google Docs, Safari, Firefox.
+- **Genre de la personne qui dicte** (`3a110be`, écart propre à Scriibe, `docs/ECARTS.md`) : Apaisé écrivait « délaissée » au féminin sans rien pour l'y inviter. Nouveau réglage `speakerGender` (Réglages → Dictée : Non précisé par défaut, Masculin, Féminin) ; pour les modes qui réécrivent, une ligne est ajoutée au prompt avant la consigne de langue ; Non précisé, Simple et Littéral : prompt inchangé. Mesuré : 452 tests de l'espace de travail passés (dont 5 nouveaux, `crates/core/tests/speaker_gender.rs`), clippy sans alerte, 86 tests d'interface. Essayé à la main avec Masculin : « délaissé », « frustré », « considéré », réécriture acceptée. Féminin : tests automatiques seulement.
+- **Version** : `Cargo.toml` passe de 0.2.4 à 0.3.0 (fonctions nouvelles : commandes vocales sur sélection, crans de fidélité, Apaisé, genre, frappe dans Chrome ; nouvelle règle d'espacement). Rien n'est encore poussé ni publié.
+
 ## S20 — 2026-11-10 · Essai de l'espace après chaque dictée sur le Mac, collage dans Chrome (Mac, non publié)
 
 Session locale sur le Mac Studio de l'auteur ; `scarou/scribe` non modifié.
