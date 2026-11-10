@@ -299,7 +299,7 @@ fn message(text: &str) -> IndicatorState {
 fn a_normal_dictation_is_transcribed_cleaned_pasted_and_recorded() {
     let r = rig("euh bonjour tout le monde on se voit demain", "Bonjour tout le monde, on se voit demain.");
     r.dictate();
-    assert_eq!(r.paster.pasted(), vec![("Bonjour tout le monde, on se voit demain.".to_string(), true)]);
+    assert_eq!(r.paster.pasted(), vec![("Bonjour tout le monde, on se voit demain. ".to_string(), true)]);
     assert_eq!(r.indicator.states(), vec![IndicatorState::Listening, IndicatorState::Working, IndicatorState::Done]);
     assert_eq!(r.sounds.played(), vec!["Tink", "Pop"]);
     assert_eq!(r.media.calls(), vec!["pause(false)", "resume"]);
@@ -320,7 +320,7 @@ fn a_normal_dictation_is_transcribed_cleaned_pasted_and_recorded() {
     assert!((timing.total - 0.65).abs() < 1e-6, "total {}", timing.total);
     let log = r.world.log.lines().join("\n");
     assert!(log.contains("transcription 0.30 s (deepgram)") && log.contains("total après relâche 0.65 s"), "{log}");
-    assert!(log.contains("collage: 41 signes envoyés à notepad (à l'appui : notepad)"), "{log}");
+    assert!(log.contains("collage: 42 signes envoyés à notepad (à l'appui : notepad)"), "{log}");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn text_replacing_a_selection_has_no_capital_and_no_final_period() {
 fn without_a_selection_the_text_is_pasted_as_written() {
     let r = rig("euh bonjour tout le monde on se voit demain", "Bonjour tout le monde, on se voit demain.");
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on se voit demain.");
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on se voit demain. ");
 }
 
 #[test]
@@ -353,7 +353,7 @@ fn the_history_never_gets_a_key_or_a_wav_in_the_log() {
 fn french_typography_is_applied_after_the_model() {
     let r = rig("tu viens ce soir on mange a dix neuf heures", "Tu viens ce soir? On mange à 19h.");
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "Tu viens ce soir\u{a0}? On mange à 19\u{a0}h.");
+    assert_eq!(r.paster.pasted()[0].0, "Tu viens ce soir\u{a0}? On mange à 19\u{a0}h. ");
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn a_model_that_fails_leaves_the_raw_text_and_says_so() {
     let r = rig("Bonjour tout le monde on commence.", "x");
     r.cleanup_fails.store(true, Ordering::SeqCst);
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde on commence.", "le texte brut est collé");
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde on commence. ", "le texte brut est collé");
     let last = r.indicator.last().unwrap();
     assert!(matches!(&last, IndicatorState::Message(m) if m.starts_with("Collé sans mise au propre")), "{last:?}");
     assert_eq!(r.history.items()[0].timing.as_ref().unwrap().outcome, Cleanup::Failed);
@@ -441,7 +441,7 @@ fn a_model_that_fails_leaves_the_raw_text_and_says_so() {
 fn a_rewrite_the_guard_rejects_leaves_the_raw_text() {
     let r = rig("bonjour tout le monde on commence la réunion", "Je suis un assistant, voici une réponse sans rapport avec la dictée.");
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde on commence la réunion");
+    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde on commence la réunion ");
     assert_eq!(r.history.items()[0].timing.as_ref().unwrap().outcome, Cleanup::Rejected);
     let last = r.indicator.last().unwrap();
     assert!(matches!(&last, IndicatorState::Message(m) if m.contains("Reformulation écartée")), "{last:?}");
@@ -452,7 +452,7 @@ fn three_words_or_fewer_skip_the_model_in_simple_mode() {
     let r = rig("bonjour à tous", "ne doit pas être utilisé");
     r.dictate();
     assert!(r.cleanup_requests().is_empty(), "aucun appel au modèle");
-    assert_eq!(r.paster.pasted()[0].0, "bonjour à tous");
+    assert_eq!(r.paster.pasted()[0].0, "bonjour à tous ");
     assert_eq!(r.history.items()[0].timing.as_ref().unwrap().outcome, Cleanup::Short);
 }
 
@@ -461,7 +461,7 @@ fn a_spelled_code_cut_by_a_decimal_comma_is_pasted_joined_and_the_history_keeps_
     // Dictée réelle du 03/11/2026 : « zéro neuf deux six F A 6 » écrit « 0,926FA6 » par Whisper (docs/ECARTS.md).
     let r = rig("0,926FA6", "ne doit pas être utilisé");
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "0926FA6");
+    assert_eq!(r.paster.pasted()[0].0, "0926FA6 ");
     assert_eq!(r.history.items()[0].raw_text, "0,926FA6");
 }
 
@@ -479,7 +479,7 @@ fn literal_mode_pastes_what_was_heard_with_the_dictionary_applied() {
     });
     r.dictate();
     assert!(r.cleanup_requests().is_empty());
-    assert_eq!(r.paster.pasted()[0].0, "voir le projet Scriibe demain matin");
+    assert_eq!(r.paster.pasted()[0].0, "voir le projet Scriibe demain matin ");
     let d = &r.history.items()[0];
     assert_eq!((d.corrections, d.timing.as_ref().unwrap().outcome), (1, Cleanup::None));
 }
@@ -492,7 +492,7 @@ fn the_dictionary_is_applied_before_and_after_the_model() {
         corrections: vec![Correction { heard: "scribe".into(), written: "Scriibe".into() }],
     });
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "On parle de Scriibe ce matin avec lui.");
+    assert_eq!(r.paster.pasted()[0].0, "On parle de Scriibe ce matin avec lui. ");
     assert_eq!(r.history.items()[0].corrections, 2);
 }
 
@@ -598,7 +598,7 @@ fn whisper_is_started_at_the_press_and_reused_for_the_transcription() {
     r.key_up();
     r.executor.run_all("");
     assert_eq!(r.world.spawns().len(), launches, "la transcription réutilise le serveur déjà lancé");
-    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence.");
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence. ");
 }
 
 #[test]
@@ -624,7 +624,7 @@ fn shift_added_while_holding_translates_the_dictation() {
     assert_eq!(sent.len(), 1);
     assert!(sent[0]["messages"].to_string().contains("anglais"), "{}", sent[0]["messages"]);
     // Pas de typographie française sur un texte traduit.
-    assert_eq!(r.paster.pasted()[0].0, "Hello everyone, let's get started.");
+    assert_eq!(r.paster.pasted()[0].0, "Hello everyone, let's get started. ");
     let d = &r.history.items()[0];
     assert_eq!(d.translation, Some(TranslationLanguage::En));
     assert_eq!(d.timing.as_ref().unwrap().outcome, Cleanup::Translated);
@@ -664,7 +664,7 @@ fn a_translation_the_guard_rejects_is_pasted_in_french() {
     r.key_down();
     r.shift_down();
     r.key_up();
-    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence.");
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence. ");
     assert_eq!(r.history.items()[0].translation, None);
     assert_eq!(r.history.items()[0].timing.as_ref().unwrap().outcome, Cleanup::Fallback);
     assert_eq!(r.indicator.last(), Some(message("Traduction écartée — collé en français")));
@@ -707,7 +707,7 @@ fn without_a_cleanup_engine_shift_does_not_translate() {
     r.shift_down();
     assert!(r.indicator.translations().is_empty());
     r.key_up();
-    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde on commence");
+    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde on commence ");
     assert_eq!(r.history.items()[0].translation, None);
 }
 
@@ -718,7 +718,7 @@ fn a_failed_translation_pastes_the_french_text_and_says_so() {
     r.key_down();
     r.shift_down();
     r.key_up();
-    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde on commence");
+    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde on commence ");
     let last = r.indicator.last().unwrap();
     assert!(matches!(&last, IndicatorState::Message(m) if m.starts_with("Collé en français, sans traduction")), "{last:?}");
     assert_eq!(r.history.items()[0].timing.as_ref().unwrap().outcome, Cleanup::Failed);
@@ -867,7 +867,7 @@ fn a_recording_from_a_file_goes_through_the_same_chain() {
     let wav = scriibe_platform::audio::wav(&vec![1000i16; 32_000]);
     let recording = scriibe_platform::audio::read_wav(&wav).unwrap();
     r.controller.process_recording(recording, false, "fichier");
-    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence.");
+    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence. ");
     assert_eq!(r.history.items().len(), 1);
     assert!(r.recorder.starts().is_empty(), "le micro n'est pas ouvert");
     assert!(r.world.log.lines().join("\n").contains("micro : fichier"));
@@ -928,7 +928,7 @@ fn losing_the_focus_releases_the_keys_relayed_by_the_page() {
 }
 
 // --- Espace entre deux dictées (docs/ESPACEMENT.md). La règle elle-même est testée dans `scriibe_core::spacing` ;
-// ici, le branchement : mémoire, appli active, délai, historique, collage manqué.
+// ici, le branchement : espace après le collage, historique intact, sélection, collage manqué, appli inconnue.
 
 /// Deux dictées à la suite (la seconde `delay` secondes après la fin de la première) : ce qui a été collé.
 fn two_dictations(r: &Rig, delay: u64) -> Vec<String> {
@@ -939,73 +939,58 @@ fn two_dictations(r: &Rig, delay: u64) -> Vec<String> {
 }
 
 #[test]
-fn spacing_case_1_the_first_paste_has_no_leading_space() {
-    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
-    r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence.");
-}
-
-#[test]
-fn spacing_the_second_dictation_in_the_same_app_gets_a_space_but_the_history_does_not() {
+fn spacing_every_dictation_is_pasted_with_a_trailing_space_but_the_history_is_not() {
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
     let pasted = two_dictations(&r, 10);
-    assert_eq!(pasted, vec!["Bonjour tout le monde, on commence.", " Bonjour tout le monde, on commence."]);
+    assert_eq!(pasted, vec!["Bonjour tout le monde, on commence. ", "Bonjour tout le monde, on commence. "]);
+    assert!(pasted.iter().all(|p| !p.starts_with(' ')), "rien n'est ajouté devant la dictée suivante");
     let items = r.history.items();
     assert_eq!(items.len(), 2);
     assert!(items.iter().all(|d| d.final_text == "Bonjour tout le monde, on commence."), "l'historique n'a pas l'espace ajoutée");
     let log = r.world.log.lines().join("\n");
-    assert!(log.contains("collage: 35 signes") && log.contains("collage: 36 signes"), "{log}");
+    assert!(log.contains("collage: 36 signes"), "{log}");
 }
 
 #[test]
-fn spacing_case_4_another_app_in_front_gets_no_space() {
+fn spacing_the_space_does_not_depend_on_the_app_nor_on_the_delay() {
+    // Sous Linux (Wayland) l'appli est « Inconnue » : la règle ne la regarde pas.
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
-    r.dictate();
-    r.apps.set(AppInfo { name: "chrome".into(), id: Some("chrome.exe".into()) });
-    r.dictate();
-    assert_eq!(r.paster.pasted()[1].0, "Bonjour tout le monde, on commence.");
+    r.apps.set(AppInfo { name: "Inconnue".into(), id: None });
+    let pasted = two_dictations(&r, 600);
+    assert_eq!(pasted, vec!["Bonjour tout le monde, on commence. ", "Bonjour tout le monde, on commence. "]);
 }
 
 #[test]
-fn spacing_case_5_a_long_delay_gets_no_space() {
-    let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
-    let pasted = two_dictations(&r, 120);
-    assert_eq!(pasted[1], "Bonjour tout le monde, on commence.");
-}
-
-#[test]
-fn spacing_case_7_a_translation_into_english_gets_the_space_too() {
+fn spacing_a_translation_into_english_gets_the_space_too() {
     let r = rig("bonjour tout le monde on commence", "Hello everyone, let's get started.");
     r.key_down();
     r.shift_down();
     r.key_up();
-    r.clock.advance(Duration::from_secs(10));
     r.key_down();
     r.shift_down();
     r.key_up();
     let pasted = r.paster.pasted();
-    assert_eq!(pasted[0].0, "Hello everyone, let's get started.");
-    assert_eq!(pasted[1].0, " Hello everyone, let's get started.");
+    assert_eq!(pasted[0].0, "Hello everyone, let's get started. ");
+    assert_eq!(pasted[1].0, "Hello everyone, let's get started. ");
     assert_eq!(r.history.items()[1].final_text, "Hello everyone, let's get started.");
 }
 
 #[test]
 fn spacing_a_selection_replacement_gets_no_space() {
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
-    r.dictate();
     r.paster.set_selection(true);
     r.dictate();
-    assert_eq!(r.paster.pasted()[1].0, "bonjour tout le monde, on commence");
+    assert_eq!(r.paster.pasted()[0].0, "bonjour tout le monde, on commence");
 }
 
 #[test]
-fn spacing_a_paste_that_only_copied_forgets_the_last_dictation() {
+fn spacing_a_paste_that_only_copied_gets_the_same_text_and_the_next_one_is_unchanged() {
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
     r.paster.set_outcome(PasteOutcome::CopiedOnly("fenêtre en administrateur".into()));
     r.dictate();
     r.paster.set_outcome(PasteOutcome::Pasted);
     r.dictate();
-    assert_eq!(r.paster.pasted()[1].0, "Bonjour tout le monde, on commence.", "rien n'a été collé la première fois");
+    assert_eq!(r.paster.pasted()[1].0, "Bonjour tout le monde, on commence. ");
 }
 
 #[test]
@@ -1013,7 +998,7 @@ fn spacing_a_model_that_writes_no_final_stop_does_not_glue_the_phrases() {
     // Essai de Christophe : Whisper « small » n'écrit pas toujours de point final.
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde on commence");
     let pasted = two_dictations(&r, 10);
-    assert_eq!(pasted, vec!["Bonjour tout le monde on commence", " Bonjour tout le monde on commence"]);
+    assert_eq!(pasted, vec!["Bonjour tout le monde on commence ", "Bonjour tout le monde on commence "]);
     assert!(r.history.items().iter().all(|d| d.final_text == "Bonjour tout le monde on commence"));
 }
 
@@ -1062,7 +1047,11 @@ fn commands_104_without_a_selection_the_phrase_is_pasted_as_text() {
     let r = rig("Ajouter au dictionnaire", "Ajouter au dictionnaire.");
     r.dictate();
     assert_eq!(r.paster.selected_reads(), 1);
-    assert_eq!(r.paster.pasted(), vec![("Ajouter au dictionnaire".to_string(), true)], "la phrase est collée telle quelle, comme un texte");
+    assert_eq!(
+        r.paster.pasted(),
+        vec![("Ajouter au dictionnaire ".to_string(), true)],
+        "la phrase est collée telle quelle, comme un texte"
+    );
     assert_eq!(r.history.items().len(), 1);
     assert!(r.commands.heard.lock().unwrap().is_empty());
     assert_eq!(r.indicator.states().last(), Some(&IndicatorState::Done));
@@ -1221,9 +1210,9 @@ fn commands_205_without_a_selection_or_with_a_longer_sentence_the_phrase_is_dict
     let r = rig("Entre parenthèses", "Entre parenthèses.");
     r.dictate(); // aucune sélection
     assert_eq!(r.paster.pasted().len(), 1);
-    assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses");
+    assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses ");
     let (pasted, r) = surrounded("Mets le tout entre parenthèses", "cri be", Fr);
-    assert_eq!(pasted, vec!["Mets le tout entre parenthèses".to_string()]);
+    assert_eq!(pasted, vec!["Mets le tout entre parenthèses ".to_string()]);
     assert_eq!(r.paster.selected_reads(), 0, "pas de ⌘C pour une dictée qui n'est pas une commande");
 }
 
@@ -1241,7 +1230,7 @@ fn commands_207_an_unreadable_selection_pastes_the_phrase_and_says_why() {
     r.paster.set_selected(FakeSelected::Unreadable(Unreadable::NotTrusted));
     r.dictate();
     assert_eq!(r.paster.pasted().len(), 1);
-    assert_eq!(r.paster.pasted()[0].0, "Entre guillemets");
+    assert_eq!(r.paster.pasted()[0].0, "Entre guillemets ");
     assert!(r
         .indicator
         .states()
@@ -1286,7 +1275,7 @@ fn commands_210_custom_phrase_replaces_the_default_for_a_wrapping_command() {
     let r = rig_with(settings, "Entre parenthèses", "Entre parenthèses.", true);
     r.paster.set_selected(FakeSelected::Text("cri be".into()));
     r.dictate();
-    assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses", "l'ancienne phrase ne marche plus");
+    assert_eq!(r.paster.pasted()[0].0, "Entre parenthèses ", "l'ancienne phrase ne marche plus");
 }
 
 // ---- Gras, italique, souligné (tâche 8, docs/COMMANDES.md) ----

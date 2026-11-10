@@ -142,8 +142,6 @@ struct Inner {
     page_held: Mutex<Vec<Key>>,
     /// Le journal dit une fois que la page relaie les touches.
     page_announced: std::sync::atomic::AtomicBool,
-    /// Le dernier collage réussi : sert à mettre une espace devant la dictée suivante (`scriibe_core::spacing`).
-    last_paste: Mutex<Option<scriibe_core::spacing::LastPaste>>,
 }
 
 /// Un événement du crochet vu depuis moins de ce temps : une touche relayée par la page serait un doublon.
@@ -195,7 +193,6 @@ impl Controller {
                 last_hook_event: Mutex::new(None),
                 page_held: Mutex::new(Vec::new()),
                 page_announced: std::sync::atomic::AtomicBool::new(false),
-                last_paste: Mutex::new(None),
             }),
         }
     }
@@ -795,8 +792,6 @@ impl Controller {
                 // Le texte entouré contient la sélection : mémoire effacée à la fin, jamais journalisé ni mis dans l'historique.
                 let wrapped = SelectedText::new(wrapped);
                 let pasted = deps.paster.paste(wrapped.expose(), settings.restore_clipboard);
-                // Ce n'est pas une dictée : la suivante ne doit pas ajouter d'espace d'après ce collage.
-                *lock(&self.inner.last_paste) = None;
                 match pasted {
                     PasteOutcome::Pasted => deps.indicator.flash(IndicatorState::Done, 0.9),
                     PasteOutcome::CopiedOnly(reason) => {
@@ -941,19 +936,9 @@ impl Controller {
         // Trace du collage : un Ctrl+V envoyé n'est pas un texte reçu, et sans cette ligne un collage perdu en silence ne laisse rien.
         let focus_at_paste = deps.apps.current();
         let paste_start = deps.clock.now();
-        // L'espace entre deux dictées n'est ajoutée qu'à ce qui part au collage : l'historique et « copier la dernière » gardent `text`.
-        let to_paste = scriibe_core::spacing::for_paste(
-            lock(&self.inner.last_paste).as_ref(),
-            focus_at_paste.id.as_deref(),
-            paste_start,
-            &text,
-            replaces_selection,
-        );
+        // L'espace qui suit la dictée n'est ajoutée qu'à ce qui part au collage : l'historique et « copier la dernière » gardent `text`.
+        let to_paste = scriibe_core::spacing::for_paste(&text, replaces_selection);
         let pasted = paste_text(deps.paster.as_ref(), &to_paste, settings.restore_clipboard, focus_at_paste.id.as_deref());
-        *lock(&self.inner.last_paste) = match pasted {
-            PasteOutcome::Pasted => scriibe_core::spacing::remember(focus_at_paste.id.as_deref(), deps.clock.now(), &text),
-            PasteOutcome::CopiedOnly(_) => None,
-        };
         deps.log.write(&format!(
             "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}{}",
             to_paste.chars().count(),

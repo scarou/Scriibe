@@ -145,3 +145,20 @@ Relecture du commit `074ec9d` par un agent distinct (05/11/2026) : **rien de blo
 **Risque connu** : une espace en trop si l'on continue à la main une phrase au même endroit en moins de 60 s ; les guillemets droits `"` et `'` ne figurent pas dans la liste des signes qui collent (ils peuvent fermer une phrase).
 
 **Résultat** (mesuré le 06/11/2026) : `cargo test --workspace` : **335 tests passés, 0 échec** ; 399 cas de référence vérifiés ; `cargo fmt --check` et `cargo clippy -D warnings` sans erreur. Non lancés : CI complète, essai sur le PC (à faire avec le modèle `large-v3-turbo-q8_0` et avec `small`).
+
+## Règle remplacée (10/11/2026, S20)
+
+**Constat** (essai Linux du 10/11, Brouillon de GNOME, `ggml-small`, trois dictées de suite : « essai.Ceci est le second essai.Ceci… ») : sous Linux (Wayland) l'appli active est « Inconnue » à chaque dictée (`appli : Inconnue` dans le journal) ; la règle précédente ne retenait rien et n'ajoutait donc jamais d'espace.
+
+**Décision de Christophe (10/11/2026)** : abandonner la règle « espace devant, si même appli en moins de 60 s » pour une règle unique, sans état :
+1. chaque dictée collée est **suivie** d'une espace, sur les trois systèmes ;
+2. même sans point final (cas de `ggml-small`) ;
+3. pas d'espace si la dictée finit par un saut de ligne (ni si elle finit déjà par une espace) ;
+4. rien n'est ajouté devant la dictée suivante : pas de double espace ;
+5. une dictée qui remplace une sélection ne reçoit pas d'espace (elle s'écrit au milieu d'une phrase) ; l'historique et « copier la dernière » gardent le texte sans espace.
+
+**Code** : `crates/core/src/spacing.rs` se réduit à `for_paste(text, replaces_selection)` ; `MAX_GAP`, `LastPaste`, `remember` et `needs_leading_space` sont supprimés, ainsi que `last_paste` dans `Controller`. Les collages de commandes vocales (« mettre entre parenthèses ») ne sont pas des dictées : aucune espace.
+
+**Tests** : `scriibe_core::spacing` (espace finale, sans point, tous signes de fin, saut de ligne, espace déjà présente, sélection, texte vide, pas de double espace) et `spacing_*` de `crates/pipeline/tests/dictation.rs` (dont appli inconnue et délai long : même résultat). Les tests de collage existants attendent maintenant le texte suivi d'une espace.
+
+**Essais à faire** : Linux (Brouillon), puis Mac, puis Windows.
