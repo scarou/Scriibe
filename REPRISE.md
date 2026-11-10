@@ -1,4 +1,4 @@
-# Reprise — 10/11/2026 (fin de S20, Mac)
+# Reprise — 10/11/2026 (clôture S18-S20, Mac)
 
 Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · macOS »).
 
@@ -10,10 +10,10 @@ Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Sess
 FAIT EN S19-S20 (09-10/11) :
 - Mode Simple : garde-fou à 75 % de mots gardés sur les dictées de 8 mots ou plus (mots de commande dictés à part) ; crans de fidélité Littéral, Léger, Reformulé, Libre (Simple et modes personnels au choix) ; mode livré Apaisé (CNV) au cran Libre ; Aide complétée ; phrases d'essai d'Apaisé en plus.
 - Règle d'espacement remplacée (e650f24) : chaque dictée est suivie d'une espace ; essayée sur Mac (TextEdit, Notes, saut de ligne, sélection), Linux et Windows.
-- Chrome (Mac) : les collages se perdaient (1 sur 9) ; le texte est maintenant tapé au clavier dans Chrome et ses dérivés (10 sur 10 dans Google et YouTube) ; ⌘C d'essai en vraie frappe ; détail du collage dans le journal. Voir docs/PIEGES.md.
+- Chrome : Windows 11/11 et Linux 11/11 collés sans correction (10/11) ; sur Mac les collages se perdaient (1 sur 9) ; le texte est maintenant tapé au clavier dans Chrome et ses dérivés (10 sur 10 dans Google et YouTube) ; ⌘C d'essai en vraie frappe ; détail du collage dans le journal. Voir docs/PIEGES.md.
 
 POINTS EN SUSPENS :
-- Essais à la main restants : crans Littéral et Libre ; Apaisé (CNV) sur Gemma 4 E4B ; Chrome : Google Docs, commandes vocales sur sélection (« mettre entre parenthèses » : un seul ⌘Z ?) ; Safari et Firefox (collage inchangé) ; Chrome sous Linux (inchangé ; Windows mesuré le 10/11 : 11 sur 11, rien à corriger).
+- Essais à la main restants : crans Littéral et Libre ; Apaisé (CNV) sur Gemma 4 E4B ; Chrome : Google Docs, commandes vocales sur sélection (« mettre entre parenthèses » : un seul ⌘Z ?) ; Safari et Firefox (collage inchangé, sur les trois systèmes) ; (Chrome sous Windows et sous Linux mesurés le 10/11 par des sessions séparées : 11 sur 11 chacun, rien à corriger.)
 - Une dictée d'au plus trois mots saute le modèle : pas de majuscule ni de point si Whisper n'en met pas (règle de Scribe). Amélioration possible, non décidée.
 - ROADMAP n°15 (`/api/status` attend le trousseau) : non commencé, prudence (trousseau).
 - Le mode personnel « Apaisé (CNV) » créé pour l'essai du 07/11 fait doublon avec le mode livré : à supprimer par Christophe.
