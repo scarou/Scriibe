@@ -13,7 +13,7 @@ FAIT EN S19-S20 (09-10/11) :
 - Chrome (Mac) : les collages se perdaient (1 sur 9) ; le texte est maintenant tapé au clavier dans Chrome et ses dérivés (10 sur 10 dans Google et YouTube) ; ⌘C d'essai en vraie frappe ; détail du collage dans le journal. Voir docs/PIEGES.md.
 
 POINTS EN SUSPENS :
-- Essais à la main restants : crans Littéral et Libre ; Apaisé (CNV) sur Gemma 4 E4B ; Chrome : Google Docs, commandes vocales sur sélection (« mettre entre parenthèses » : un seul ⌘Z ?) ; Safari et Firefox (collage inchangé) ; Chrome sous Windows et Linux (inchangé).
+- Essais à la main restants : crans Littéral et Libre ; Apaisé (CNV) sur Gemma 4 E4B ; Chrome : Google Docs, commandes vocales sur sélection (« mettre entre parenthèses » : un seul ⌘Z ?) ; Safari et Firefox (collage inchangé) ; Chrome sous Linux (inchangé ; Windows mesuré le 10/11 : 11 sur 11, rien à corriger).
 - Une dictée d'au plus trois mots saute le modèle : pas de majuscule ni de point si Whisper n'en met pas (règle de Scribe). Amélioration possible, non décidée.
 - ROADMAP n°15 (`/api/status` attend le trousseau) : non commencé, prudence (trousseau).
 - Le mode personnel « Apaisé (CNV) » créé pour l'essai du 07/11 fait doublon avec le mode livré : à supprimer par Christophe.
