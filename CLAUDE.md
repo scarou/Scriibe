@@ -7,6 +7,7 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - Le comportement de référence est celui de **Scribe** : dépôt `scarou/scribe` (Swift), à ne **jamais modifier** depuis ce projet. Son `README.md` et son `CLAUDE.md` décrivent le comportement attendu.
 - En cas de doute sur un comportement, lire le code Swift de Scribe, ne pas l'inventer. Les écarts voulus se notent dans `docs/ECARTS.md`.
 - Ne jamais lire ni commiter de `.env` ni de clé d'API.
+- Ne jamais écrire le nom ni l'adresse courriel de l'auteur dans les fichiers du dépôt (code, documentation, journal, tests, interface) : dire « l'auteur ». Seuls `LICENSE`, `Cargo.toml` (champ auteur) et `fixtures/media_pause.json` (identifiant réel de Scribe) les contiennent, voulu.
 
 ## Stack visée
 
