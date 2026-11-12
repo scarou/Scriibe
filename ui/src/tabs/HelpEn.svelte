@@ -13,6 +13,11 @@
   let s = $derived(status.value);
   let v = $derived(settings.value);
   let open = $derived(nav.helpSection);
+  /** Un clic sur une section : on repart du haut (sinon une section courte s'ouvre avec son titre hors de vue). */
+  function pick(id: typeof nav.helpSection) {
+    nav.helpSection = id;
+    window.scrollTo(0, 0);
+  }
   /** Les touches en vigueur (réglables dans Réglages → Dictée). */
   /** The system Scriibe runs on: the Help only talks about that one (keys, icon, permissions, keychain). */
   let os = $derived(status.os);
@@ -106,7 +111,7 @@
 <div class="layout">
   <ul class="toc">
     {#each helpSections as sec (sec.id)}
-      <li><button class:active={open === sec.id} onclick={() => (nav.helpSection = sec.id)}>{titles[sec.id]}</button></li>
+      <li><button class:active={open === sec.id} onclick={() => pick(sec.id)}>{titles[sec.id]}</button></li>
     {/each}
   </ul>
 
@@ -322,6 +327,14 @@
   .toc button:hover { background: var(--line); }
   .toc button.active { background: var(--accent); color: var(--accent-ink); }
   .body { flex: 1 1 0; min-width: 0; margin: 0; max-width: 1100px; }
+  /* Fenêtre étroite : la barre principale (210 px) et le sommaire laisseraient moins de 300 px au texte ; le sommaire devient une bande fixe en haut. */
+  @media (max-width: 860px) {
+    .layout { flex-direction: column; align-items: stretch; gap: 8px; }
+    .toc { flex-direction: row; width: auto; max-height: none; overflow-x: auto; overflow-y: hidden; top: 0; z-index: 5; padding: 6px 0; background: var(--bg); }
+    .toc li { flex: none; }
+    .toc button { width: auto; white-space: nowrap; }
+    .body { flex: none; }
+  }
   .body h3 { margin: 18px 0 6px; font-size: 1rem; }
   .body p, .body li { line-height: 1.5; }
   .body ul, .body ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 8px; }

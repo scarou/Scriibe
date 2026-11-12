@@ -28,5 +28,14 @@ describe('Aide : sommaire fixe', () => {
       expect(css('.layout')).toMatch(/flex-wrap:\s*nowrap/);
       expect(css('.body')).toMatch(/min-width:\s*0/);
     });
+
+    it(`${f} : un clic sur une section remonte en haut de la page, et en fenêtre étroite le sommaire devient une bande fixe en haut`, () => {
+      expect(src).toMatch(/helpSection = [^;]+;\s*window\.scrollTo\(0, 0\)/);
+      const narrow = /@media \(max-width: (\d+)px\) \{([\s\S]*?)\n  \}/.exec(src);
+      expect(narrow, 'media query de la fenêtre étroite').not.toBeNull();
+      expect(Number(narrow![1])).toBeGreaterThanOrEqual(800);
+      expect(narrow![2]).toMatch(/flex-direction:\s*column/);
+      expect(narrow![2]).toMatch(/overflow-x:\s*auto/);
+    });
   }
 });

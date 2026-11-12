@@ -74,9 +74,8 @@
   }
 
   onMount(() => {
-    void load().then(() => {
-      void settings.load();
-    });
+    void load();
+    void settings.load();
     // Le mode changé dans le menu de l'icône apparaît ici sans recharger la page.
     const stop = watchModes(
       () => api<Modes>('modes'),
