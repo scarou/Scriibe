@@ -315,12 +315,13 @@
 
 <style>
   .lead { margin: 0 0 12px; }
-  .layout { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
-  .toc { list-style: none; margin: 0; padding: 0; width: 220px; flex: none; display: flex; flex-direction: column; gap: 2px; }
+  /* Sommaire fixe, seule la carte de texte défile ; jamais de retour à la ligne (sinon le sommaire passerait au-dessus et le sticky recouvrirait le texte). */
+  .layout { display: flex; gap: 14px; align-items: flex-start; flex-wrap: nowrap; }
+  .toc { list-style: none; margin: 0; padding: 0; width: clamp(140px, 24%, 220px); flex: none; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; }
   .toc button { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .toc button:hover { background: var(--line); }
   .toc button.active { background: var(--accent); color: var(--accent-ink); }
-  .body { flex: 1 1 360px; margin: 0; max-width: 1100px; }
+  .body { flex: 1 1 0; min-width: 0; margin: 0; max-width: 1100px; }
   .body h3 { margin: 18px 0 6px; font-size: 1rem; }
   .body p, .body li { line-height: 1.5; }
   .body ul, .body ol { padding-left: 1.3rem; display: flex; flex-direction: column; gap: 8px; }

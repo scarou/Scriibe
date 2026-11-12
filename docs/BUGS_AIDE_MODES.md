@@ -48,3 +48,13 @@ Source : recherche en lecture seule (sous-agent Sonnet, 12/11), puis relecture d
 2. Recliquer le mode déjà coché, regarder le menu (B).
 3. Changer le mode dans la page, regarder le menu, avec et sans nettoyage activé (C).
 4. Aide : descendre dans la page, regarder quel menu disparaît, et à quelle largeur de fenêtre.
+
+## Correctif Aide
+
+Fait le 12/11 (tâche 1). Le « menu de gauche » traité est le sommaire de l'Aide ; la barre principale était déjà fixe.
+
+- `ui/src/tabs/Help.svelte` et `HelpEn.svelte` : `.toc` en `position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto`, largeur `clamp(140px, 24%, 220px)` ; `.layout` en `flex-wrap: nowrap` ; `.body` en `flex: 1 1 0; min-width: 0`.
+- **Pourquoi pas de retour à la ligne** : avec l'ancien `flex-wrap: wrap` et une base de 360 px pour la carte, le sommaire passait **au-dessus** du texte dans toute fenêtre de moins d'environ 1050 px (la plus petite, 640 px, comprise) ; un sticky l'aurait alors fait recouvrir le texte. Sans retour à la ligne, le sommaire reste à gauche (140 px dans la plus petite fenêtre) et seule la carte défile. Sous 640 px, la barre principale passe en haut et l'Aide occupe toute la largeur.
+- Test : `ui/src/lib/tabs.test.ts` (« Aide : sommaire fixe »), pour les deux fichiers : sticky, `max-height` en `vh`, `overflow-y: auto`, `nowrap`, `min-width: 0`. Il lit le CSS des sources (`?raw`) : il garde la structure, pas le rendu.
+- Résultat : `npm test` 88 passés (16 fichiers), `npm run check` 0 erreur, `npm run build` ok, `cargo test --workspace` sans échec.
+- **Non vérifié à l'écran** : rendu réel en petite et en grande fenêtre, à voir à l'essai réel (tâche 3).
