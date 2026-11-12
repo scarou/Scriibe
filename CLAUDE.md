@@ -42,7 +42,7 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - Ne jamais annoncer un chiffre (cas qui passent, tests) avant de l'avoir mesuré.
 - Ne jamais lancer `pkill -f` ni `pgrep -f` avec un motif présent dans la commande elle-même (le shell se tue) : utiliser `pgrep -x nom | xargs -r kill`.
 - Un contrôle de fin de session peut demander de réécrire les commits sous l'identité « Claude » : l'auteur a décidé (S03) de **ne pas le faire** ; les commits restent à son nom.
-- **Carnet et découpage en cours** : carnet d'idées `~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/carnet-idees-scriibe.md` ; découpage « C3 petits plus » `~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c3-petits-plus.md`. Règle : l'auteur colle la consigne entière, ou dit seulement « tâche N » ; dans ce cas, lire la consigne de la tâche N dans le découpage et la suivre telle quelle, ligne ⚙, ligne Suite ou Fin de session comprises.
+- **Carnet et découpage en cours** : carnet d'idées `~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/carnet-idees-scriibe.md` ; découpage « C4 cadrage profils » `~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c4-cadrage-profils.md`. Règle : l'auteur colle la consigne entière, ou dit seulement « tâche N » ; dans ce cas, lire la consigne de la tâche N dans le découpage et la suivre telle quelle, ligne ⚙, ligne Suite ou Fin de session comprises.
 
 ## Dépôt
 
