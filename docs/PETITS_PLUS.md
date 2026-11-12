@@ -148,3 +148,14 @@ Essayé le 12/11 par l'auteur sur son Mac Studio : Scriibe.app 0.3.0 compilée e
 ## Ajouts
 
 Aucune demande nouvelle de l'auteur pendant l'essai. Idée en suspens, non demandée : recharger l'Historique quand une dictée est ajoutée, pour que le compteur suive (la page d'aujourd'hui se charge une fois). À proposer comme ligne du carnet si l'auteur le souhaite.
+
+## Relecture (livraison, 12/11)
+
+Relecture du diff par un agent distinct de celui qui a écrit : **aucun bloquant, rien à corriger de fonctionnel**. Fait : le test de `isRewritten` couvre aussi le résultat `translated` (non reformulée). **Mineurs laissés tels quels, à décider** :
+- La pastille « Reformulée » peut aussi s'afficher quand seuls le dictionnaire, les signes dictés ou la typographie française (espace avant « ? », « ! ») ont changé le texte : `raw !== text` ne distingue pas le modèle du reste. Conforme à la définition validée (« tout texte changé »).
+- Texte non gardé : toute dictée au résultat `model` est « reformulée » (dit dans l'Aide) ; on pourrait masquer la pastille dans ce cas.
+- CSS : `.rewritten-chip` (fond transparent) est déclaré avant `.chip` et perd à spécificité égale : la pastille garde le fond `accent-soft` avec la bordure (rendu validé à l'essai) ; correction possible `.chip.rewritten-chip`.
+- Aide : la liste des cas qui ne comptent pas ne cite pas les dictées traduites.
+- Prénom : `maxlength` 40 seulement côté interface (pas de plafond côté serveur, sans risque d'injection), pas de majuscule forcée (« christophe » reste tel quel), espace finale saisie restant affichée, pas de test de `merge_settings` avec `firstName`.
+- `phrases_gender.rs` : le test anglais ne peut pas échouer ; le garde français ne voit que « je suis / me sens… + mot » (pas « je ne suis pas content »).
+- `mode_sync.rs` : dossiers temporaires jamais supprimés ; un PID réutilisé réutiliserait un ancien dossier (risque très faible).

@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S24 — 2026-11-12 · Petits plus : prénom, historique « reformulées » (non publié : part avec la prochaine version)
+
+- **Prénom de la salutation** : Réglages → Dictée, « Prénom dans la salutation ». Vide (par défaut), le Tableau de bord garde le prénom du compte de l'ordinateur ; rempli, il le remplace, y compris après redémarrage. Aide FR et EN.
+- **Historique** : case « Dictées reformulées » (cumulable avec période, appli et mots clés) et pastille « Reformulée » : le modèle a été retenu et le texte final diffère du texte brut, quel que soit le mode. Écartée par le garde-fou, sautée, courte, traduite : non. Aide FR et EN.
+- **Phrases à lire et genre** : constat, aucune phrase du Banc, en français ou en anglais, ni des guides ne s'accorde au genre ; rien à adapter, un garde-fou de test l'assure.
+- **Technique** : `AppSettings.first_name` et `greeting_name` (cœur), `status` ; `isRewritten` et `rewrittenOnly` (`historyfilter.ts`) ; tests `first_name.rs`, `phrases_gender.rs`, `historyfilter.test.ts`. Test instable `mode_sync` corrigé (dossier temporaire par compteur : l'horloge de macOS a une précision d'environ une microseconde). Constat, choix et essai dans `docs/PETITS_PLUS.md` ; écarts dans `docs/ECARTS.md`.
+- **Relecture** par un agent distinct : aucun défaut bloquant ; mineurs notés dans `docs/PETITS_PLUS.md` § Relecture.
+- Essayé à la main sur le Mac (prénom, redémarrage, filtre seul et cumulé). Pas de version : 465 tests Rust et 95 tests de l'interface passent.
+
 ## S23 — 2026-11-12 · Bugs de l'Aide et des modes (non publié : part avec la prochaine version)
 
 - **Aide** : le sommaire reste en place, seule la carte de texte défile, en français et en anglais, en petite comme en grande fenêtre (il n'a jamais été fixe : ce n'était pas une régression du 06/11). Essayé à la main sur le Mac.

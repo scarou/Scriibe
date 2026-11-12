@@ -48,7 +48,7 @@ describe('filtres de l’historique', () => {
     expect(isRewritten(d('model', 'bonjour marie', 'Bonjour Marie.'))).toBe(true);
     expect(isRewritten(d('model', 'Bonjour Marie.', 'Bonjour Marie.'))).toBe(false);
     expect(isRewritten(d('rejected', 'bonjour marie', 'bonjour marie'))).toBe(false);
-    for (const outcome of ['skipped', 'short', 'none', 'failed', 'fallback']) expect(isRewritten(d(outcome, 'a b', 'A b.'))).toBe(false);
+    for (const outcome of ['skipped', 'short', 'none', 'failed', 'fallback', 'translated']) expect(isRewritten(d(outcome, 'a b', 'A b.'))).toBe(false);
     expect(isRewritten(d('model', '', '', false))).toBe(true);
     expect(isRewritten({ raw: 'a', text: 'b', timing: null })).toBe(false);
   });
