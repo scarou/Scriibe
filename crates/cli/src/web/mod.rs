@@ -4,7 +4,7 @@
 
 mod assets;
 mod bench_view;
-mod data;
+pub(crate) mod data;
 pub(crate) mod downloads;
 mod hub;
 mod sinks;
@@ -37,7 +37,7 @@ use scriibe_engines::server::Launcher;
 use scriibe_engines::whisper::{self, WhisperLauncher};
 use scriibe_platform::audio::Recording;
 use scriibe_platform::bench_store::BenchStore;
-use scriibe_platform::storage::FileHistory;
+use scriibe_platform::storage::{FileConfig, FileHistory};
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
@@ -743,12 +743,16 @@ fn assistant_done(ctx: &Context) -> Result<(), String> {
 
 /// Le mode choisi : un mode livré (« formal ») ou l'identifiant d'un mode personnel.
 fn choose_mode(ctx: &Context, choice: &str) -> Result<Value, String> {
-    let mut settings = ctx.app.config.settings();
-    settings.set_mode_choice(choice);
-    if settings.mode_choice() != choice {
+    pick_mode(&ctx.app.config, choice)
+}
+
+/// Le mode choisi dans la page : écrit dans le fichier de réglages, que l'icône relit.
+pub(crate) fn pick_mode(config: &FileConfig, choice: &str) -> Result<Value, String> {
+    let mut settings = config.settings();
+    if !settings.pick_mode(choice) {
         return Err("mode inconnu".into());
     }
-    ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())?;
+    config.save_settings(&settings).map_err(|e| e.to_string())?;
     Ok(data::modes(&settings))
 }
 

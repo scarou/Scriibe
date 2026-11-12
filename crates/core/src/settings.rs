@@ -640,6 +640,19 @@ impl AppSettings {
             }
         }
     }
+
+    /// Le mode choisi par l'utilisateur, dans la page comme dans le menu de l'icône : change le mode et rallume la mise au propre
+    /// (comme `selectMode` et « Utiliser ce mode » dans Scribe). Faux, sans rien changer, pour un identifiant inconnu.
+    pub fn pick_mode(&mut self, choice: &str) -> bool {
+        let mut next = self.clone();
+        next.set_mode_choice(choice);
+        if next.mode_choice() != choice {
+            return false;
+        }
+        next.cleanup_enabled = true;
+        *self = next;
+        true
+    }
 }
 
 /// Valeur du son « aucun » dans les réglages.

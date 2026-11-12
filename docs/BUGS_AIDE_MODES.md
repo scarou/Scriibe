@@ -58,3 +58,21 @@ Fait le 12/11 (tâche 1). Le « menu de gauche » traité est le sommaire de l'A
 - Test : `ui/src/lib/tabs.test.ts` (« Aide : sommaire fixe »), pour les deux fichiers : sticky, `max-height` en `vh`, `overflow-y: auto`, `nowrap`, `min-width: 0`. Il lit le CSS des sources (`?raw`) : il garde la structure, pas le rendu.
 - Résultat : `npm test` 88 passés (16 fichiers), `npm run check` 0 erreur, `npm run build` ok, `cargo test --workspace` sans échec.
 - **Non vérifié à l'écran** : rendu réel en petite et en grande fenêtre, à voir à l'essai réel (tâche 3).
+
+## Correctif modes
+
+Fait le 12/11 (tâche 2). Source unique : `settings.json` (déjà le cas) ; ce qui manquait, c'est que chaque côté le **lise** et l'**écrive** de la même façon.
+
+**Tests écrits d'abord et vus en échec (R16)** : `crates/cli/src/mode_sync.rs` (choix de la page → coche du menu avec mise au propre coupée ; mode Amusant retiré → coché Simple dans le menu comme dans la page) et `mac_tray::tests` (clic sur un mode → remise d'accord forcée). Trois échecs pour la bonne raison avant correction. Les tests « menu → page » et « après redémarrage » passaient déjà (source unique) : gardés comme filet. Page (relecture) : `ui/src/lib/modesSync.test.ts`, écrit avant le module (échec : module absent). Pour tester sans fenêtre, deux extractions sans changement de comportement : `web::pick_mode` et `mac_tray::needs_refresh`.
+
+**Corrections**
+- **Page → icône (C)** : `AppSettings::pick_mode` (`crates/core/src/settings.rs`), partagée par la page (`web::pick_mode`) et le menu (`TraySource::choose_mode`) : change le mode **et** rallume la mise au propre, comme `selectMode` et « Utiliser ce mode » de Scribe. Avant, un choix fait dans la page avec la reformulation coupée n'était coché nulle part dans le menu.
+- **Mode Amusant retiré** : `menu_view_in` le coche comme Simple, comme la page.
+- **Icône → page (A)** : `ui/src/lib/modesSync.ts` (`watchModes`) ; `Modes.svelte` relit `api/modes` toutes les 1,5 s tant que la page est ouverte et se met à jour si le choix affiché diffère (le comparatif se fait avec ce que la page affiche, pas avec la dernière lecture).
+- **Icône → icône sur Mac et Linux (B)** : `mac_tray.rs`, `MODE_CLICKED` levé après chaque clic sur un mode ; le fil du menu force alors la remise d'accord des cases (`needs_refresh(.., forced)`), comme Windows. **Non vérifié à l'écran** (Mac : tâche 3).
+- **Redémarrage** : couvert par `the_same_mode_is_found_by_the_page_and_the_menu_after_a_restart` (nouvelle lecture du dossier).
+- **Pendant une dictée** : aucun changement de code, comportement fixé par un test (`a_mode_changed_while_listening_…`, `crates/pipeline/tests/dictation.rs`). Les réglages sont photographiés une fois, **au relâchement de la touche** : un mode changé pendant l'écoute vaut pour cette dictée ; changé pendant le traitement, il vaut pour la suivante (mode du prompt et mode gardé dans l'historique restent d'accord). Choix recommandé : une dictée en cours ne change jamais de mode en route.
+
+**Résultat** : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` sans avertissement ; `cargo test --workspace` sans échec (dont les cas de référence de `fixtures/`) ; `npm test` 91 passés (17 fichiers), `npm run check` 0 erreur, `npm run build` ok.
+
+**Reste à vérifier à la main (tâche 3)** : le sous-menu de l'icône affiche-t-il la mise à jour des cases pendant qu'il est ouvert (appels depuis un fil, non prouvé) ; le rendu Mac de B ; Windows et Linux non essayés ici.

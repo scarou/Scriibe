@@ -7,6 +7,7 @@
   import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n.svelte';
   import ModeTrial from '../components/ModeTrial.svelte';
+  import { watchModes } from '../lib/modesSync';
 
   let modes = $state<Modes | null>(null);
   let editing = $state<CustomMode | null>(null);
@@ -73,8 +74,20 @@
   }
 
   onMount(() => {
-    void load();
-    void settings.load();
+    void load().then(() => {
+      void settings.load();
+    });
+    // Le mode changé dans le menu de l'icône apparaît ici sans recharger la page.
+    const stop = watchModes(
+      () => api<Modes>('modes'),
+      (latest) => {
+        modes = latest as Modes;
+        void settings.load();
+      },
+      1500,
+      () => modes?.choice ?? '',
+    );
+    return stop;
   });
 </script>
 

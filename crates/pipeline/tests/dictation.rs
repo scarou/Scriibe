@@ -1441,3 +1441,18 @@ fn other_apps_keep_the_trailing_new_line_in_the_pasted_text() {
     assert!(r.paster.pasted()[0].0.ends_with('\n'));
     assert!(r.paster.shortcuts().is_empty(), "Entrée enverrait le message dans une messagerie");
 }
+
+#[test]
+fn a_mode_changed_while_listening_applies_to_that_dictation_and_one_changed_while_it_is_processed_waits_for_the_next() {
+    // Une dictée prend une photo des réglages au relâchement de la touche (mode du prompt et mode gardé dans l'historique vont ensemble).
+    let r = rig_with(local_settings(), "euh bonjour tout le monde on se voit demain", "Bonjour tout le monde, on se voit demain.", false);
+    r.key_down();
+    r.config.change(|s| s.rewrite_mode = scriibe_core::modes::RewriteMode::Formal);
+    r.key_up();
+    r.config.change(|s| s.rewrite_mode = scriibe_core::modes::RewriteMode::Tech);
+    r.executor.run_all("");
+    assert_eq!(r.history.items()[0].mode.as_deref(), Some("Soutenu"), "le mode du relâchement, pas celui d'après");
+    r.dictate();
+    r.executor.run_all("");
+    assert_eq!(r.history.items()[1].mode.as_deref(), Some("Pro · Informatique et IA"), "la dictée suivante prend le nouveau mode");
+}

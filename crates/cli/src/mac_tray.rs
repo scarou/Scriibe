@@ -162,11 +162,24 @@ pub fn on_menu_event(id: &str) {
         other => {
             if let (Some(mode), Some(source)) = (other.strip_prefix(MODE_PREFIX), source()) {
                 let mode = mode.to_string();
-                std::thread::spawn(move || source.choose_mode(&mode));
+                std::thread::spawn(move || {
+                    source.choose_mode(&mode);
+                    MODE_CLICKED.store(true, Ordering::SeqCst);
+                });
             }
         }
     }
 }
+
+/// Faut-il remettre le menu d'accord avec la vue ? Quand elle a changé depuis la dernière fois.
+/// `forced` : un clic sur un mode vient d'avoir lieu. Le menu natif a déjà coché ou décoché la case tout seul (muda) : même si les
+/// réglages n'ont pas changé (mode déjà coché, mode refusé), il faut la remettre d'accord avec eux. Windows fait de même.
+fn needs_refresh(shown: Option<&MenuView>, view: &MenuView, forced: bool) -> bool {
+    forced || shown != Some(view)
+}
+
+/// Levé après chaque clic sur un mode ; le fil du menu le lit et le baisse.
+static MODE_CLICKED: AtomicBool = AtomicBool::new(false);
 
 struct Items {
     menu: Menu<Wry>,
@@ -314,8 +327,9 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
         .spawn(move || {
             let mut shown: Option<MenuView> = None;
             loop {
+                let forced = MODE_CLICKED.swap(false, Ordering::SeqCst);
                 if let Some(view) = source.lock().ok().and_then(|s| s.clone()).map(|s| s.view()) {
-                    if shown.as_ref() != Some(&view) {
+                    if needs_refresh(shown.as_ref(), &view, forced) {
                         state.english.store(view.english, Ordering::SeqCst);
                         if items.refresh(&app, &view, shown.as_ref()).is_ok() {
                             shown = Some(view);
@@ -327,4 +341,18 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
         })
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_click_on_a_mode_refreshes_the_menu_even_when_the_settings_did_not_change() {
+        // Le menu natif a coché ou décoché la case tout seul (muda) : il faut la remettre d'accord avec les réglages.
+        let view = MenuView::default();
+        assert!(!needs_refresh(Some(&view), &view, false), "rien n'a changé, rien à faire");
+        assert!(needs_refresh(Some(&view), &view, true), "un clic sur un mode force la remise d'accord");
+        assert!(needs_refresh(None, &view, false), "premier passage");
+    }
 }

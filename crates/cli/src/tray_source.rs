@@ -44,7 +44,14 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
     });
     let has_engine = settings.has_cleanup_engine();
     // Reformulation coupée : aucun mode coché ; en choisir un la rallume.
-    let current = settings.rewriting_on().then(|| settings.mode_choice());
+    // Le mode Amusant n'est plus proposé : la page le montre comme Simple, le menu aussi.
+    let current = settings.rewriting_on().then(|| settings.mode_choice()).map(|c| {
+        if c == RewriteMode::Playful.raw() {
+            RewriteMode::Simple.raw().to_string()
+        } else {
+            c
+        }
+    });
     let entry = |id: String, label: String, summary: String| {
         let checked = current.as_deref() == Some(id.as_str());
         ModeEntry { id, label, summary, checked }
@@ -158,12 +165,9 @@ impl TrayMenuSource for TraySource {
         if !settings.has_cleanup_engine() {
             return;
         }
-        settings.set_mode_choice(id);
-        if settings.mode_choice() != id {
-            return;
+        if settings.pick_mode(id) {
+            let _ = self.config.save_settings(&settings);
         }
-        settings.cleanup_enabled = true;
-        let _ = self.config.save_settings(&settings);
     }
 
     fn copy_last_dictation(&self) {
