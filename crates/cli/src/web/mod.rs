@@ -8,6 +8,7 @@ pub(crate) mod data;
 pub(crate) mod downloads;
 mod export;
 mod hub;
+mod import;
 mod sinks;
 mod trial;
 pub(crate) mod update;
@@ -335,6 +336,19 @@ fn handle(ctx: &Context, mut request: Request) {
         },
         // Exporter un mode personnel : l'utilisateur choisit où enregistrer (boîte « Enregistrer sous » du système).
         (Method::Post, "api/modes/export") => ok(request, export::export_mode(&ctx.app.config.settings(), &input)),
+        // Importer un mode : lire et contrôler le fichier (aperçu), puis l'appliquer ou l'abandonner. Rien n'est écrit avant l'accord.
+        (Method::Post, "api/modes/import/read") => ok(request, import::read(&ctx.app.config.settings(), &input)),
+        (Method::Post, "api/modes/import/apply") => {
+            let mut settings = ctx.app.config.settings();
+            match import::apply_pending(&mut settings, &input) {
+                Ok(outcome) => match ctx.app.config.save_settings(&settings) {
+                    Ok(()) => ok(request, import::outcome_json(&outcome)),
+                    Err(e) => fail(request, 500, &e.to_string()),
+                },
+                Err(e) => fail(request, 400, &e),
+            }
+        }
+        (Method::Post, "api/modes/import/cancel") => ok(request, import::cancel()),
         (Method::Get, "api/dictionary") => ok(request, dictionary_view(&ctx.app.config.dictionary())),
         (Method::Post, "api/dictionary") => match save_dictionary(ctx, &input) {
             Ok(view) => ok(request, view),

@@ -95,6 +95,58 @@
         : t('Export annulé : rien n’a été enregistré.');
   }
 
+  /** L'import d'un mode : le serveur lit et contrôle le fichier, la page montre l'aperçu, rien n'est écrit avant l'accord. */
+  type ImportItem = { name: string; fidelity: CustomMode['fidelity']; examples: number; conflict: string | null; added_as: string };
+  let importing = $state<{
+    items: ImportItem[];
+    choices: { include: boolean; replace: boolean }[];
+    askPath: boolean;
+    path: string;
+    busy: boolean;
+    message: string;
+    done: boolean;
+  } | null>(null);
+
+  async function readImport(path?: string) {
+    editing = null;
+    exporting = null;
+    if (!importing) importing = { items: [], choices: [], askPath: false, path: '', busy: true, message: '', done: false };
+    importing.busy = true;
+    importing.message = '';
+    const out = await api<{ ok: boolean; cancelled?: boolean; ask_path?: boolean; error?: string; items?: ImportItem[] }>('modes/import/read', path ? { path } : {});
+    if (!importing) return;
+    importing.busy = false;
+    if (out.ok && out.cancelled) importing = null;
+    else if (out.ok && out.items) {
+      importing.askPath = false;
+      importing.items = out.items;
+      importing.choices = out.items.map(() => ({ include: true, replace: false }));
+    } else if (out.ask_path) importing.askPath = true;
+    else importing.message = t(out.error ?? "le fichier n'a pas pu être lu");
+  }
+
+  async function applyImport() {
+    if (!importing) return;
+    importing.busy = true;
+    const out = await api<{ ok: boolean; added?: string[]; replaced?: string[]; error?: string }>('modes/import/apply', { choices: importing.choices });
+    importing.busy = false;
+    if (!out.ok) {
+      importing.message = t(out.error ?? "le fichier n'a pas pu être lu");
+      return;
+    }
+    importing.items = [];
+    importing.done = true;
+    importing.message = t('Importé : {added} ajouté(s), {replaced} remplacé(s).', { added: out.added?.length ?? 0, replaced: out.replaced?.length ?? 0 });
+    // Le serveur a écrit les réglages : la page les relit, pour ne pas les écraser plus tard.
+    await settings.load();
+    await load();
+  }
+
+  async function closeImport() {
+    if (importing && !importing.done) await api('modes/import/cancel', {});
+    importing = null;
+  }
+
   async function removeCustom(mode: CustomMode) {
     if (!(await confirmBox(t('Supprimer le mode « {name} » ?', { name: mode.name || t('sans nom') }), { confirm: t('Supprimer'), danger: true }))) return;
     await settings.change({ customModes: custom.filter((m) => m.id !== mode.id) });
@@ -174,7 +226,47 @@
       <p class="muted">{t('Aucun mode personnel.')}</p>
     {/each}
     <button onclick={newMode}>{t('Créer un mode')}</button>
+    <button onclick={() => readImport()}>{t('Importer un mode…')}</button>
   </Card>
+
+  {#if importing}
+    <Card id="mode-import" accent title={t('Importer des modes')} help="modes">
+      {#if importing.askPath}
+        <p>{t('Sur ce système, indique le chemin du fichier .scriibe.json à importer :')}</p>
+        <div class="row"><input type="text" class="grow" bind:value={importing.path} placeholder="/home/…/scriibe-mode-sms.scriibe.json" disabled={importing.busy} />
+          <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button></div>
+      {:else if importing.items.length > 0}
+        <p>{t('Ce fichier contient {n} mode(s). Rien n’est modifié tant que tu n’as pas cliqué sur « Importer ». Un mode importé est ajouté à tes modes ; la consigne est un texte donné au modèle : relis-la si le fichier vient de quelqu’un d’autre.', { n: importing.items.length })}</p>
+        {#each importing.items as item, i (i)}
+          <div class="mode">
+            <label class="pick">
+              <input type="checkbox" bind:checked={importing.choices[i].include} disabled={importing.busy} />
+              <span><b>{item.name}</b><br /><span class="muted">{fidelityLabel(item.fidelity)} · {t('{n} exemple(s)', { n: item.examples })}</span></span>
+            </label>
+            {#if item.conflict && importing.choices[i].include}
+              <label class="muted">{t('Un mode porte déjà ce nom :')}
+                <select value={importing.choices[i].replace ? 'replace' : 'add'} disabled={importing.busy}
+                  onchange={(e) => (importing!.choices[i].replace = e.currentTarget.value === 'replace')}>
+                  <option value="add">{t('l’ajouter sous le nom « {name} »', { name: item.added_as })}</option>
+                  <option value="replace">{t('remplacer le mode « {name} » existant', { name: item.conflict })}</option>
+                </select></label>
+              {#if importing.choices[i].replace}<p class="warn">{t('Remplacer efface la consigne et les exemples actuels de ce mode.')}</p>{/if}
+            {/if}
+          </div>
+        {/each}
+      {:else if importing.busy}
+        <p class="muted">{t('Chargement…')}</p>
+      {/if}
+      {#if importing.message}<p role="status" class={importing.done ? '' : 'warn'}><b>{importing.message}</b></p>{/if}
+      <div class="row">
+        <span class="grow"></span>
+        <button onclick={closeImport}>{importing.done ? t('Fermer') : t('Annuler')}</button>
+        {#if importing.items.length > 0}
+          <button class="primary" disabled={importing.busy || !importing.choices.some((c) => c.include)} onclick={applyImport}>{t('Importer')}</button>
+        {/if}
+      </div>
+    </Card>
+  {/if}
 
   {#if exporting}
     <Card id="mode-export" accent title={t('Exporter le mode « {name} »', { name: exporting.mode.name || t('Mode sans nom') })} help="modes">

@@ -12,6 +12,7 @@ pub mod dictionary;
 pub mod export;
 pub mod history;
 pub mod hotkey;
+pub mod import;
 pub mod inline;
 pub mod lang;
 pub mod media_pause;

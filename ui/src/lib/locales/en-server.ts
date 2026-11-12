@@ -3,6 +3,23 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'fichier trop gros : 1 Mo au maximum': 'file too big: 1 MB at most',
+  'ce fichier n\'est pas un fichier JSON lisible': 'this file is not a readable JSON file',
+  'ce n\'est pas un fichier d\'export de Scriibe': 'this is not a Scriibe export file',
+  'ce fichier vient d\'une version plus récente de Scriibe : mets Scriibe à jour pour le lire': 'this file comes from a newer version of Scriibe: update Scriibe to read it',
+  'ce fichier ne contient pas de modes (autre type d\'export)': 'this file contains no modes (another type of export)',
+  'ce fichier ne contient pas de modes': 'this file contains no modes',
+  'aucun mode dans ce fichier': 'no mode in this file',
+  'trop de modes dans ce fichier : 50 au maximum': 'too many modes in this file: 50 at most',
+  'un mode du fichier est mal formé': 'a mode in the file is malformed',
+  'un exemple du fichier est mal formé': 'an example in the file is malformed',
+  'le nom d\'un mode est trop long : 100 caractères au maximum': 'a mode name is too long: 100 characters at most',
+  'un texte est trop long : 5 000 caractères au maximum': 'a text is too long: 5,000 characters at most',
+  'un mode a un cran de fidélité inconnu': 'a mode has an unknown fidelity level',
+  'un mode n\'a pas de cran de fidélité': 'a mode has no fidelity level',
+  'un mode a trop d\'exemples : 50 au maximum': 'a mode has too many examples: 50 at most',
+  'le fichier n\'a pas pu être lu': 'the file could not be read',
+  'aucun fichier en attente : recommence l\'import': 'no file waiting: start the import again',
   'enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture': 'saving failed: the chosen location cannot be written to',
   'mode inconnu': 'unknown mode',
   'aucun dossier d’enregistrement trouvé': 'no folder to save in was found',
