@@ -113,3 +113,9 @@ Aucun point bloquant ; source unique, `pick_mode` atomique, remise d'accord du m
 - **Point 1** : un clic sur une section remonte la page (`pick()` dans `Help.svelte` et `HelpEn.svelte`) ; sous 860 px de large, le sommaire devient une bande horizontale fixe en haut (une ligne, défilement latéral), la carte reprend toute la largeur. Test écrit d'abord et vu en échec (`tabs.test.ts`) ; il a aussi révélé que la règle étroite placée avant `.body` aurait été écrasée (déplacée après). Essayé à l'écran par l'auteur : **bon**.
 - **Point 4** : `settings.load()` repart en parallèle de `load()`, comme avant.
 - Résultat : `npm test` 93 passés, `npm run check` 0 erreur, `npm run build` ok. Restent les points 2 et 3 (non traités) et les mineurs.
+
+## Fin de session (12/11, tâches 0 à 5)
+
+- **Livré** : Aide (sommaire fixe, bande en haut sous 860 px, remontée au clic) et modes (choix unique page/menu, page qui suit le menu, coches du menu remises d'accord sur Mac et Linux) ; `main` à `2d8ae62`, CI verte, **sans version** (partent avec la prochaine).
+- **Vault** : les deux lignes de bug du carnet passées en Faite ; une ligne « à vérifier sur le PC » ajoutée aux carnets Windows et Linux ; Bilan du tri (chantier 2) rempli ; entrées de `log.md` (livraison, carnet).
+- **Reste** : points 2 (page et menu pas « vus pareil » sans moteur ou reformulation coupée : à afficher ou à noter dans `ECARTS.md`) et 3 (test du clic sur un mode trop faible) de la relecture ; mineurs listés plus haut ; Windows et Linux jamais essayés ; coche d'un sous-menu resté ouvert non tranchée.
