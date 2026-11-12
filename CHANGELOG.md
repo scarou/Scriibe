@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S22 — 2026-11-12 · Allègement du CLAUDE.md (documentation seulement, non publié)
+
+- **`CLAUDE.md`** : 12 308 → 6 758 octets (règle R03, cible ≤ 8 000). Trois blocs « à la demande » déplacés dans `docs/I18N.md` (interface en deux langues), `docs/TESTS.md` (détails des tests) et `docs/CLOTURE.md` (clôture, CI, publication, essais sur le PC et le Mac), chacun cité par une ligne « Lire … quand ».
+- **Contrôle** : vérification par script que chaque puce retirée existe à sa nouvelle place ; relecture par un sous-agent (quatre règles utiles à chaque session remontées : jeton GitHub, téléchargements, lancement de `Scriibe.app` par `open`, `Path::join`) ; essai à froid sur cinq questions (réponses justes, deux lectures au plus). Bilans dans `docs/CLAUDE_MD.md`.
+- Aucun code, aucune version.
+
 ## S21 — 2026-11-10 · Genre de la personne qui dicte, essais à la main, préparation de la 0.3.0 (Mac, non publié)
 
 Session locale sur le Mac Studio de l'auteur ; `scarou/scribe` non modifié.
