@@ -9,6 +9,7 @@ pub mod clean_test;
 pub mod cleaner;
 pub mod commands;
 pub mod dictionary;
+pub mod export;
 pub mod history;
 pub mod hotkey;
 pub mod inline;

@@ -1,4 +1,4 @@
-//! « Parcourir… » : la boîte d'ouverture de fichier de macOS, par `osascript` (`choose file`).
+//! « Parcourir… » et « Enregistrer sous… » : les boîtes de fichier de macOS, par `osascript` (`choose file`, `choose file name`).
 
 use std::process::Command;
 
@@ -25,6 +25,22 @@ pub fn pick_file(title: &str, filter: &[(&str, &str)]) -> Option<String> {
     (!path.is_empty()).then_some(path)
 }
 
+/// Le script de la boîte « Enregistrer sous » : un nom proposé, que l'utilisateur change et dont il choisit le dossier.
+fn save_script(title: &str, default_name: &str) -> String {
+    let escape = |text: &str| text.replace('\\', "\\\\").replace('"', "\\\"");
+    format!("POSIX path of (choose file name with prompt \"{}\" default name \"{}\")", escape(title), escape(default_name))
+}
+
+/// Le chemin choisi pour enregistrer (macOS demande lui-même confirmation avant d'écraser), ou rien si l'utilisateur annule.
+pub fn pick_save(title: &str, default_name: &str) -> Option<String> {
+    let output = Command::new("osascript").arg("-e").arg(save_script(title, default_name)).output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (!path.is_empty()).then_some(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -34,5 +50,13 @@ mod tests {
         let s = script("Choisir \"un\" modèle", &[("Modèles Whisper (*.bin)", "*.bin")]);
         assert_eq!(s, "POSIX path of (choose file with prompt \"Choisir \\\"un\\\" modèle\" of type {\"bin\"})");
         assert_eq!(script("Fichier", &[]), "POSIX path of (choose file with prompt \"Fichier\")");
+    }
+
+    #[test]
+    fn the_save_script_proposes_a_name_and_escapes_quotes() {
+        assert_eq!(
+            save_script("Enregistrer \"ce\" mode", "scriibe-mode-sms.scriibe.json"),
+            "POSIX path of (choose file name with prompt \"Enregistrer \\\"ce\\\" mode\" default name \"scriibe-mode-sms.scriibe.json\")"
+        );
     }
 }

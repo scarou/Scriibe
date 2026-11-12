@@ -6,6 +6,7 @@ mod assets;
 mod bench_view;
 pub(crate) mod data;
 pub(crate) mod downloads;
+mod export;
 mod hub;
 mod sinks;
 mod trial;
@@ -332,6 +333,8 @@ fn handle(ctx: &Context, mut request: Request) {
             Ok(view) => ok(request, view),
             Err(e) => fail(request, 400, &e),
         },
+        // Exporter un mode personnel : l'utilisateur choisit où enregistrer (boîte « Enregistrer sous » du système).
+        (Method::Post, "api/modes/export") => ok(request, export::export_mode(&ctx.app.config.settings(), &input)),
         (Method::Get, "api/dictionary") => ok(request, dictionary_view(&ctx.app.config.dictionary())),
         (Method::Post, "api/dictionary") => match save_dictionary(ctx, &input) {
             Ok(view) => ok(request, view),

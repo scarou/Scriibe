@@ -76,6 +76,25 @@
     }
   }
 
+  /** L'export d'un mode : aperçu et avertissement avant que le serveur ne demande où enregistrer. */
+  let exporting = $state<{ mode: CustomMode; examples: boolean; busy: boolean; result: string } | null>(null);
+
+  async function exportMode() {
+    if (!exporting) return;
+    exporting.busy = true;
+    exporting.result = '';
+    const out = await api<{ ok: boolean; saved?: boolean; path?: string; error?: string }>('modes/export', {
+      id: exporting.mode.id,
+      examples: exporting.examples,
+    });
+    exporting.busy = false;
+    exporting.result = !out.ok
+      ? t(out.error ?? 'enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture')
+      : out.saved
+        ? t('Enregistré : {path}', { path: out.path ?? '' })
+        : t('Export annulé : rien n’a été enregistré.');
+  }
+
   async function removeCustom(mode: CustomMode) {
     if (!(await confirmBox(t('Supprimer le mode « {name} » ?', { name: mode.name || t('sans nom') }), { confirm: t('Supprimer'), danger: true }))) return;
     await settings.change({ customModes: custom.filter((m) => m.id !== mode.id) });
@@ -148,6 +167,7 @@
         <label class="muted menu-box"><input type="checkbox" checked={shown(m.id)} disabled={lastShown(m.id)} onchange={(e) => showInMenu(m.id, e.currentTarget.checked)} /> {t('Afficher dans le menu de l’icône')}</label>
         <button onclick={() => startTrial(m.id, m.name || t('Mode sans nom'))} disabled={!usable}>{t('Essayer sur les phrases types')}</button>
         <button onclick={() => (editing = structuredClone($state.snapshot(m)))}>{t('Modifier')}</button>
+        <button onclick={() => (exporting = { mode: structuredClone($state.snapshot(m)), examples: true, busy: false, result: '' })}>{t('Exporter')}</button>
         <button onclick={() => removeCustom(m)}>{t('Supprimer')}</button>
       </div>
     {:else}
@@ -155,6 +175,23 @@
     {/each}
     <button onclick={newMode}>{t('Créer un mode')}</button>
   </Card>
+
+  {#if exporting}
+    <Card id="mode-export" accent title={t('Exporter le mode « {name} »', { name: exporting.mode.name || t('Mode sans nom') })} help="modes">
+      <p>{t('Le fichier (.scriibe.json) contient ce mode : sa consigne, son cran de fidélité et, si la case est cochée, ses exemples. Une boîte te demande où l’enregistrer (sous Linux, il est placé dans le dossier Documents).')}</p>
+      <p><b>{t('Contenu : 1 mode, {n} exemple(s)', { n: exporting.examples ? exporting.mode.examples.length : 0 })}</b></p>
+      {#if exporting.mode.examples.length > 0}
+        <div class="row"><label><input type="checkbox" bind:checked={exporting.examples} disabled={exporting.busy} /> {t('Inclure les exemples')}</label></div>
+      {/if}
+      <p class="warn">{t('Attention : la consigne et les exemples (dictée → texte attendu) peuvent contenir du texte personnel : noms, adresses, phrases réellement dictées. Le fichier n’est pas chiffré : relis-le avant de le partager.')}</p>
+      {#if exporting.result}<p role="status"><b>{exporting.result}</b></p>{/if}
+      <div class="row">
+        <span class="grow"></span>
+        <button onclick={() => (exporting = null)}>{t('Fermer')}</button>
+        <button class="primary" disabled={exporting.busy} onclick={exportMode}>{t('Enregistrer le fichier')}</button>
+      </div>
+    </Card>
+  {/if}
 
   {#if editing}
     <Card id="mode-edition" accent title={custom.some((m) => m.id === editing!.id) ? t('Modifier le mode') : t('Nouveau mode')} help="modes">
@@ -195,5 +232,6 @@
   .mode:last-child { border-bottom: 0; }
   .pick { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 320px; cursor: pointer; }
   .style { width: 100%; }
+  .warn { color: var(--warn); }
   .menu-box { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 </style>

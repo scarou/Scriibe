@@ -195,3 +195,27 @@ Recommandations du rédacteur, à confirmer dans les tâches 1 à 3 (choix techn
 **Tests.** `crates/core/tests/hidden_modes.rs` (défaut, aller-retour, identifiants écartés, tout masqué, mode supprimé) ; deux tests dans `tray_source.rs` (modes livrés masqués dont l'actif, groupe des modes personnels). Mesurés ce jour : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` et `cargo test --workspace` sans erreur ; interface : `npm run check` (0 erreur), `npm test` (95 tests passent), `npm run build`.
 
 **Non vérifié.** L'effet réel dans le menu de l'icône (Mac, puis Windows et Linux) : c'est l'essai de la tâche 4.
+
+## Export (tâche 2)
+
+**Ce qui a été fait.**
+
+- Format : `crates/core/src/export.rs`. Enveloppe commune (`envelope`) : `format: "scriibe-export"`, `version: 1`, `kind`, `app` (« Scriibe x.y.z »), `exportedAt` (le jour seul, UTC), `content`. Export de modes : `modes_export` → `kind: "modes"`, `content: {customModes: […]}`. Chaque mode est écrit **champ par champ** (`mode_entry`) : `id`, `name`, `style`, `fidelity`, `rewrites` (pour Scribe), `vouvoie`, `examples` (`id`, `dictation`, `expected` ; liste vide si l'auteur les retire). Jamais de sérialisation des réglages. L'enveloppe est celle que l'import (tâche 3) et le dictionnaire (étape 2 du cadrage) reprendront.
+- Nom proposé : `scriibe-mode-<nom du mode simplifié>-<jour>.scriibe.json` (`mode_file_name` : minuscules, sans accent, sans signe, 40 caractères au plus ; jamais le nom de l'utilisateur).
+- Serveur : `POST api/modes/export` (`crates/cli/src/web/export.rs`), `{id, examples}`. Il construit le fichier, fait choisir l'emplacement, écrit, et répond `{ok, saved, path}` (`saved: false` si l'utilisateur annule).
+- Choix de l'emplacement : nouvelles fonctions `pick_save` — macOS par `osascript` (`choose file name`, `crates/platform/src/macos/file_dialog.rs`), Windows par `GetSaveFileNameW` avec confirmation avant d'écraser (`crates/platform/src/windows/file_dialog.rs`). **Linux : pas de boîte** ; le fichier va dans `~/Documents` (ou le dossier personnel) sous un nom qui ne s'écrase pas (`free_path`, préfixe « 2- », « 3- »…), et la page affiche l'emplacement.
+- Page : `ui/src/tabs/Modes.svelte`, bouton « Exporter » sur chaque mode personnel, carte « Exporter le mode « … » » avec le contenu (« 1 mode, N exemple(s) »), la case « Inclure les exemples » et l'**avertissement** (la consigne et les exemples peuvent contenir du texte personnel ; le fichier n'est pas chiffré). Aide FR et EN : « Exporter un mode ». Écart noté dans `docs/ECARTS.md`.
+
+**Décisions techniques** (recommandations de la tâche 0, § 7).
+
+- Enveloppe du cadrage reprise sans attendre l'étape 2 : un seul format pour les modes, les commandes et le dictionnaire.
+- Un `pick_save` natif plutôt que le presse-papiers : le cadrage veut que l'emplacement soit choisi par l'utilisateur, et le code Windows ressemble à celui de `pick_file`. Le repli sans boîte ne sert qu'à Linux.
+- Le jour est en UTC (pas d'heure locale dans le cœur) : près de minuit, il peut différer d'un jour du jour local ; sans conséquence (ni l'heure ni le fuseau ne partent).
+- Les modes livrés ne s'exportent pas : seuls les modes personnels (ils sont dans Scriibe, pas à partager).
+
+**Tests.** `crates/core/tests/export_modes.rs` (6 : enveloppe, liste blanche exacte des clés, exemples retirés, relecture identique par `CustomMode::from_value`, rien de sensible, jour et nom de fichier) ; dans `web/export.rs` : fichier d'un mode, mode inconnu, jamais d'écrasement ; dans `macos/file_dialog.rs` : script de la boîte. Mesurés ce jour : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (481 tests passent, 0 échec), `npm run check` (0 erreur), `npm test` (95 passent), `npm run build`.
+
+**Non vérifié.**
+
+- Le code Windows (`pick_save`) n'a pas été compilé : `clippy --target x86_64-pc-windows-gnu` s'arrête ici sur l'absence de `x86_64-w64-mingw32-gcc` (compilateur croisé absent du Mac). À vérifier par la CI Windows, puis à la main sur le PC (carnet « à vérifier sur le PC »).
+- Les boîtes « Enregistrer sous » ne se sont pas ouvertes (macOS : essai de la tâche 4 ; Windows, Linux : sur le PC) ; la page n'a pas été essayée dans un navigateur.

@@ -3,6 +3,9 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture': 'saving failed: the chosen location cannot be written to',
+  'mode inconnu': 'unknown mode',
+  'aucun dossier d’enregistrement trouvé': 'no folder to save in was found',
 
   // Noms des modes (modes.rs)
   'Littéral': 'Literal',
