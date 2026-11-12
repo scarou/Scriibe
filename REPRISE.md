@@ -1,25 +1,26 @@
-# Reprise — 10/11/2026 (clôture S18-S20, Mac)
+# Reprise — 12/11/2026 (clôture S25, gestion des modes, Mac)
 
-Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · macOS »).
+Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · Windows », celui des sessions du tri du 12/11).
 
 ```text
-Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Session sur le MAC de l'auteur (Mac Studio), dossier ~/Documents/Mes projets IA/Scriibe-dev/Scriibe. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md (S20) et la mémoire, puis résume l'état en 5 lignes avant de commencer.
+Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Session sur le MAC de l'auteur, dossier ~/Documents/Mes projets IA/Scriibe-dev/Scriibe. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md (S25) et la mémoire (projet-scriibe), puis résume l'état en 5 lignes avant d'agir.
 
-ÉTAT : dépôt public scarou/Scriibe, branche main (voir `git log --oneline -5`). Release v0.2.4 publiée le 06/11/2026 ; Cargo.toml en 0.2.4 ; RIEN n'est publié depuis (ROADMAP n°14 : commandes vocales sur sélection, signes dictés, crans de fidélité, mode Apaisé (CNV), espace après chaque dictée, Chrome, guides d'installation, etc.). Numéro de la prochaine version à décider (0.2.5 ou 0.3.0).
+ÉTAT : dépôt public scarou/Scriibe, branche main, dernier commit 1f2b23d (CI verte sur Linux, macOS, Windows et scriibe.exe). Release v0.2.4 publiée le 06/11/2026 ; Cargo.toml en 0.3.0 ; RIEN n'est publié depuis (ROADMAP n°14 à terminer). Tri du 12/11 en 8 chantiers (~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/tri-2026-11-12-scriibe.md) : chantiers 1 à 5 faits ; 6 découpé ; 7 et 8 à découper.
 
-FAIT EN S19-S20 (09-10/11) :
-- Mode Simple : garde-fou à 75 % de mots gardés sur les dictées de 8 mots ou plus (mots de commande dictés à part) ; crans de fidélité Littéral, Léger, Reformulé, Libre (Simple et modes personnels au choix) ; mode livré Apaisé (CNV) au cran Libre ; Aide complétée ; phrases d'essai d'Apaisé en plus.
-- Règle d'espacement remplacée (e650f24) : chaque dictée est suivie d'une espace ; essayée sur Mac (TextEdit, Notes, saut de ligne, sélection), Linux et Windows.
-- Chrome : Windows 11/11 et Linux 11/11 collés sans correction (10/11) ; sur Mac les collages se perdaient (1 sur 9) ; le texte est maintenant tapé au clavier dans Chrome et ses dérivés (10 sur 10 dans Google et YouTube) ; ⌘C d'essai en vraie frappe ; détail du collage dans le journal. Voir docs/PIEGES.md.
+FAIT EN S25 (chantier 5, gestion des modes, sans version) :
+- Réglages → Modes : une case « Afficher dans le menu de l'icône » par mode (champ hiddenModes) ; décocher retire le mode du menu, même le mode actif ; au moins un mode reste affiché ; gardé après redémarrage.
+- Export d'un mode personnel (.scriibe.json, enveloppe scriibe-export v1, avertissement, boîte « Enregistrer sous » sous macOS et Windows, dossier Documents sous Linux) et import contrôlé (1 Mo, 50 modes, 20 000 caractères par texte, aperçu, nom pris : ajout numéroté ou remplacement au choix).
+- Relu par un agent distinct (aucun bloquant ; 3 importants et mineurs corrigés), essayé à la main sur le Mac. Détail : docs/GESTION_MODES.md ; écarts : docs/ECARTS.md.
+- Carnets du vault à jour (deux lignes du 11/11 en Faite ; « à vérifier sur le PC » ajoutée aux carnets Windows et Linux).
 
 POINTS EN SUSPENS :
-- Essais à la main restants : crans Littéral et Libre ; Apaisé (CNV) sur Gemma 4 E4B ; Chrome : Google Docs, commandes vocales sur sélection (« mettre entre parenthèses » : un seul ⌘Z ?) ; Safari et Firefox (collage inchangé, sur les trois systèmes) ; (Chrome sous Windows et sous Linux mesurés le 10/11 par des sessions séparées : 11 sur 11 chacun, rien à corriger.)
-- Une dictée d'au plus trois mots saute le modèle : pas de majuscule ni de point si Whisper n'en met pas (règle de Scribe). Amélioration possible, non décidée.
-- ROADMAP n°15 (`/api/status` attend le trousseau) : non commencé, prudence (trousseau).
-- Le mode personnel « Apaisé (CNV) » créé pour l'essai du 07/11 fait doublon avec le mode livré : à supprimer par l'auteur.
-- Après chaque compilation, macOS redemande 3 fois l'accès au trousseau : « Toujours autoriser » (pas Entrée).
+- Le settings.json de l'auteur garde des modes masqués laissés par l'essai (Simple, Sophrologie, Soutenu, un mode personnel) : lui dire de recocher les cases dans Réglages → Modes (il le fait lui-même).
+- À vérifier sur PC : boîtes « Ouvrir » et « Enregistrer sous », champ de chemin Linux, cases du menu de l'icône (carnets Windows et Linux ; compilation Windows possible par pilote-pc, la CI Windows est verte).
+- Non essayés à l'écran : l'ajout numéroté d'un import (le remplacement l'a été).
+- Publication de la 0.3.0 : essais ggml-large-v3-turbo sur Windows et Linux, relecture de l'Aide, CI complète, aperçu et « oui » de l'auteur.
+- L'application Scriibe.app installée sur le Mac est celle du dernier essai (modes de S25) ; rien d'autre ne tourne.
 
-PROCHAINE TÂCHE : décider avec l'auteur de la publication d'une version (numéro, notes de version, statut d'essai par système), après relecture de l'Aide et CI complète ; aperçu et accord avant toute Release ou tout push public.
+PROCHAINE TÂCHE : chantier 6, cadrage des commandes vocales étendues (reformuler la sélection, macros, ouvrir une application, recherche internet), note seulement, sans code. L'auteur dit « tâche 0 » ; lis la consigne de la tâche 0 dans ~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c6-cadrage-commandes.md et suis-la telle quelle (⚙ Opus · Moyen : dis-le si tu ne tournes pas sur Opus). Premier pas : git status propre, chantier 5 clos et poussé, mise à jour de la ligne « découpage en cours » du CLAUDE.md, puis sous-agent de recherche.
 
-RÈGLES : aperçu et accord de l'auteur avant toute Release ou tout push public ; `cargo fmt`, `cargo clippy --all-targets -- -D warnings` et `cargo test --workspace` sans erreur avant tout commit ; ne jamais modifier scarou/scribe ni lire de .env ou de clé ; ne jamais lire ni modifier le trousseau ; un cas de fixtures ne se modifie jamais pour faire passer un test ; ne jamais annoncer un chiffre avant de l'avoir mesuré ; lui seul tient la touche et parle ; une étape à la fois pour lui.
+RÈGLES : aperçu et accord de l'auteur avant toute Release ou tout push public ; cargo fmt, cargo clippy --all-targets -- -D warnings et cargo test --workspace sans erreur avant tout commit ; ne jamais modifier scarou/scribe ni lire de .env ou de clé ; ne jamais écrire le nom ni l'adresse de l'auteur dans le dépôt ; Scriibe.app se lance par open, jamais par Bash ; peu de sollicitations, une étape à la fois pour les essais de l'auteur ; ne jamais annoncer un chiffre avant de l'avoir mesuré.
 ```
