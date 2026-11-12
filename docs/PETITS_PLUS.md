@@ -85,3 +85,17 @@ Filtres (côté interface seulement, le serveur renvoie tout) :
 2. **Calcul à l'affichage** : à partir de `mode` et de `timing.outcome === 'model'`, ou de la comparaison `raw`/`text`. Limites : `mode` est un texte libre (mode renommé ou supprimé indéchiffrable) ; `raw` et `text` sont vides si le texte n'est pas gardé.
 
 Côté interface dans les deux cas : une clé dans `HistoryFilter` et une condition dans `matchesHistory` (+ test), un état dans `History.svelte` (inclus dans l'appel de l. 25, dans `filtered`, dans `resetFilters`), un contrôle dans `.filter-bar`, un badge « Reformulée » dans `.meta`, la traduction dans `en.ts` (`i18n.test.ts` échoue sinon), puis `ECARTS.md`, `Help.svelte` / `HelpEn.svelte` et `CHANGELOG.md`.
+
+## Prénom (tâche 1)
+
+**Choix** : réglage `firstName` (texte, `AppSettings.first_name`, clé JSON `firstName`) rangé juste après `speakerGender`. **Vide par défaut = le prénom d'aujourd'hui** (celui du compte de l'ordinateur, `machine::first_name()`), plutôt qu'une copie figée à la première lecture : il suit le compte tant que la personne n'a rien saisi, et rien ne change pour les installations existantes. Rempli, il remplace le prénom du compte. Des espaces seuls valent vide ; une valeur qui n'est pas du texte retombe sur vide (lecture tolérante, comme le genre).
+
+**Où** :
+- `crates/core/src/settings.rs` : champ, défaut, `from_value`, `AppSettings::greeting_name(system)` (choix entre réglage et compte).
+- `crates/cli/src/web/mod.rs::status` : `first_name` renvoie `settings.greeting_name(machine::first_name())` ; la salutation du Tableau de bord n'a pas changé (`Dashboard.svelte`), elle relit `api/status` (relu toutes les 8 s et après chaque réglage).
+- `ui/src/tabs/Settings.svelte` (onglet Dictée, avant le genre) : champ de texte (40 signes), le prénom du compte en grisé quand il est vide ; `ui/src/lib/api.ts` ; traductions dans `locales/en.ts`.
+- Aide : `Help.svelte` et `HelpEn.svelte`, paragraphe sur les pages de la fenêtre (Premiers pas).
+- Persistance : `settings.json` (comme le genre), relu à chaud, gardé après redémarrage. Le champ est accepté par `merge_settings` sans autre changement (la clé existe dans les réglages sérialisés).
+- Écart noté dans `docs/ECARTS.md`. Pas de profil à ce stade : `firstName` comme `speakerGender` est global ; pour le chantier 4, les deux sont les champs « de la personne » à déplacer.
+
+**Tests** (12/11, Mac) : nouveau `crates/core/tests/first_name.rs` (défaut vide donc prénom du compte ; réglage prioritaire, espaces seuls ignorés ; aller-retour JSON, absent, espaces rognés, valeur de mauvais type). `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur ; `cargo test --workspace` : aucun échec, dont les 3 tests nouveaux ; interface : `npm run check` 0 erreur, `npm test` 93 passés (dont `i18n.test.ts` et la comparaison Aide FR/EN), `npm run build` ok. Non essayé à la main dans la fenêtre (saisie du prénom, salutation, redémarrage).

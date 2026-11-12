@@ -63,6 +63,8 @@ export interface Status {
 export interface Settings {
   language: 'fr' | 'en' | 'multi';
   speakerGender: 'unspecified' | 'masculine' | 'feminine';
+  /** Prénom de la salutation ; vide : celui du compte de l'ordinateur. */
+  firstName: string;
   transcriptionEngine: 'whisper' | 'deepgram';
   whisperModelPath: string;
   transcriptionModel: string;

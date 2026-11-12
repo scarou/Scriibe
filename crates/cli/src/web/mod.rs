@@ -592,7 +592,7 @@ fn status(ctx: &Context) -> Value {
         "version": build_id(),
         "windows": cfg!(windows),
         "os": std::env::consts::OS,
-        "first_name": scriibe_platform::machine::first_name(),
+        "first_name": settings.greeting_name(scriibe_platform::machine::first_name()),
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),

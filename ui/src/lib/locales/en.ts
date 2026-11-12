@@ -405,6 +405,8 @@ export const en: Record<string, string> = {
 
   // Réglages : dictée
   'Langue dictée :': 'Dictation language:',
+  'Prénom dans la salutation :': 'First name in the greeting:',
+  'Le Tableau de bord vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.': 'The Dashboard greets you by this name. Left empty, Scriibe uses the name of the computer account.',
   'Genre de la personne qui dicte :': 'Gender of the person dictating:',
   'Non précisé': 'Not specified',
   'Masculin': 'Masculine',

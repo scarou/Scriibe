@@ -246,6 +246,9 @@ pub struct AppSettings {
     /// Genre de la personne qui dicte (propre à Scriibe) : accorde ce qui la concerne dans les modes qui réécrivent ; « Non précisé » (par défaut) n'ajoute rien au prompt.
     #[serde(rename = "speakerGender")]
     pub speaker_gender: Gender,
+    /// Prénom de la salutation du Tableau de bord (propre à Scriibe). Vide (par défaut) : le prénom du compte de l'ordinateur. Rangé à côté du genre : ce sont deux réglages « de la personne », faits pour passer plus tard dans un profil.
+    #[serde(rename = "firstName")]
+    pub first_name: String,
     /// Phrase de style modifiée, par mode livré (vide : celle d'origine).
     #[serde(rename = "styleOverrides")]
     pub style_overrides: BTreeMap<String, String>,
@@ -369,6 +372,7 @@ impl Default for AppSettings {
             rewrite_mode: RewriteMode::Simple,
             simple_fidelity: Fidelity::Light,
             speaker_gender: Gender::Unspecified,
+            first_name: String::new(),
             style_overrides: BTreeMap::new(),
             custom_modes: Vec::new(),
             custom_mode_id: None,
@@ -472,6 +476,7 @@ impl AppSettings {
             rewrite_mode,
             simple_fidelity: get(o, "simpleFidelity").unwrap_or(d.simple_fidelity),
             speaker_gender: get(o, "speakerGender").unwrap_or(d.speaker_gender),
+            first_name: get::<String>(o, "firstName").map(|n| n.trim().to_string()).unwrap_or(d.first_name),
             style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
             custom_modes,
             custom_mode_id,
@@ -601,6 +606,16 @@ impl AppSettings {
         p.style = self.style_for(mode);
         p.speaker = self.speaker_gender;
         p
+    }
+
+    /// Prénom de la salutation : celui des réglages s'il est rempli, sinon celui du compte de l'ordinateur (`system`).
+    pub fn greeting_name<'a>(&'a self, system: &'a str) -> &'a str {
+        let own = self.first_name.trim();
+        if own.is_empty() {
+            system
+        } else {
+            own
+        }
     }
 
     /// Ce qu'envoie la mise au propre : le mode personnel choisi, sinon le mode livré.

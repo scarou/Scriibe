@@ -263,6 +263,12 @@
       </label>
     </div>
     <div class="setting">
+      <label>{t('Prénom dans la salutation :')}
+        <input type="text" value={v.firstName ?? ''} placeholder={status.value?.first_name ?? ''} maxlength="40" onchange={(e) => settings.change({ firstName: e.currentTarget.value.trim() })} />
+      </label>
+      <p class="muted">{t('Le Tableau de bord vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.')}</p>
+    </div>
+    <div class="setting">
       <label>{t('Genre de la personne qui dicte :')}
         <select value={v.speakerGender ?? 'unspecified'} onchange={(e) => settings.change({ speakerGender: e.currentTarget.value as never })}>
           <option value="unspecified">{t('Non précisé')}</option>
