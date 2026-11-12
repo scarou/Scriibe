@@ -99,3 +99,13 @@ Côté interface dans les deux cas : une clé dans `HistoryFilter` et une condit
 - Écart noté dans `docs/ECARTS.md`. Pas de profil à ce stade : `firstName` comme `speakerGender` est global ; pour le chantier 4, les deux sont les champs « de la personne » à déplacer.
 
 **Tests** (12/11, Mac) : nouveau `crates/core/tests/first_name.rs` (défaut vide donc prénom du compte ; réglage prioritaire, espaces seuls ignorés ; aller-retour JSON, absent, espaces rognés, valeur de mauvais type). `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur ; `cargo test --workspace` : aucun échec, dont les 3 tests nouveaux ; interface : `npm run check` 0 erreur, `npm test` 93 passés (dont `i18n.test.ts` et la comparaison Aide FR/EN), `npm run build` ok. Non essayé à la main dans la fenêtre (saisie du prénom, salutation, redémarrage).
+
+## Phrases (tâche 2)
+
+**Résultat : aucune phrase proposée à la lecture ne s'accorde avec la personne qui lit, donc rien n'est réécrit.** Relecture des 17 phrases françaises du Banc, de leurs 17 versions anglaises et de « Bonjour, je teste Scriibe. » / « Hello, I am testing Scriibe. » (guides d'installation) : pas de « je suis content/contente », « prêt/prête », « fatigué/fatiguée ». Les passés composés sont avec « avoir » (« J'ai relu », « J'ai ajouté », « chacun a ressenti ») ; « est bien arrivé » parle du colis ; l'anglais n'accorde rien. La forme neutre (sans accord) existe donc déjà et sert pour Masculin, Féminin et Non précisé.
+
+**Choix** : ne pas bâtir de mécanisme de variantes par genre (`phrases_for` qui lirait `speaker_gender`, champ par genre dans les JSON) sans phrase qui s'en serve : ce serait du code mort, et modifier les phrases du Banc fausserait la comparaison avec Scribe (les 17 phrases françaises viennent de lui, `docs/ECARTS.md`). Les phrases d'essai des modes (dont les tendues d'Apaisé) ne sont pas lues : elles partent au modèle, qui accorde déjà selon `speakerGender` (`Gender::prompt_line()`). Si l'on ajoute un jour une phrase à lire qui s'accorde, le point d'ancrage reste `bench::phrases_for` et la route `phrases` (voir § Constat).
+
+**Garde-fou** : `crates/core/tests/phrases_gender.rs` (4 tests) échoue si une phrase du Banc, français ou anglais, ou l'exemple des guides contient « je suis / je me sens / je me suis / j'étais / je serai / je reste / je deviens » suivi d'un mot qui s'accorde ; un test vérifie que le garde-fou attrape bien « Je suis content » et « Je me sens fatiguée ». Il n'y a donc **pas de test « par phrase accordée »**, puisqu'aucune ne l'est.
+
+**Tests** (12/11, Mac) : `cargo fmt`, `cargo clippy -p scriibe-core --all-targets -- -D warnings` sans erreur ; `cargo test --workspace` sans échec, dont les 4 tests nouveaux. Interface non touchée.
