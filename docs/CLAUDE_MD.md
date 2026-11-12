@@ -45,6 +45,12 @@ Principe : reste dans le `CLAUDE.md` ce qui sert à chaque session ou ce qu'on v
 
 Trois fichiers regroupés par moment d'usage : une ligne de renvoi dans le `CLAUDE.md` dit quand ouvrir chacun. Les règles que l'on viole sans s'en apercevoir (nom de l'auteur, fixtures intouchables, prompt stable, `pkill -f`, chiffre non mesuré) restent dans le `CLAUDE.md`.
 
+### Résultat (tâche 1, 12/11/2026)
+
+- `CLAUDE.md` : 12 308 → **6 231** octets (6 084 caractères), cible ≤ 8 000 atteinte.
+- Créés : `docs/I18N.md` (1 186), `docs/TESTS.md` (2 985), `docs/CLOTURE.md` (3 835).
+- Vérification par script : chaque puce de l'ancien `CLAUDE.md` se retrouve mot pour mot dans le nouveau ou dans un des trois fichiers, sauf la règle i18n, volontairement réécrite (résumé dans le `CLAUDE.md`, détail dans `docs/I18N.md`).
+
 ### Suite
 
 Le découpage réel (créer les trois fichiers, réduire le `CLAUDE.md`, mesurer la taille) est la tâche 1.
