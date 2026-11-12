@@ -13,8 +13,11 @@ use std::sync::Arc;
 
 /// Un dossier de données à part, avec des réglages où la mise au propre a un moteur mais est coupée (le cas d'un fichier venu de Scribe).
 fn folder(cleanup_enabled: bool) -> (PathBuf, Arc<FileConfig>) {
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let dir = std::env::temp_dir().join(format!("scriibe-mode-sync-{}-{nanos}", std::process::id()));
+    // Un compteur, pas l'heure : sur macOS l'horloge n'a qu'une précision d'environ une microseconde, et deux tests lancés ensemble partageaient un dossier
+    // (le `settings.tmp` de l'un était renommé sous le nez de l'autre : « No such file or directory », une fois sur six environ).
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("scriibe-mode-sync-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let config = Arc::new(FileConfig::new(dir.clone()));
     let settings = AppSettings { cleanup_engine: CleanupEngine::LlamaCpp, cleanup_enabled, ..AppSettings::default() };
