@@ -43,12 +43,12 @@ fn fallback_folder() -> Option<PathBuf> {
     Some(if documents.is_dir() { documents } else { home })
 }
 
-/// Où enregistrer `name`.
+/// Où enregistrer `name` (selon le système, une des deux variantes ne sert pas).
+#[allow(dead_code)]
 enum Target {
     /// Un fichier choisi dans la boîte du système (qui a déjà demandé confirmation avant d'écraser).
     File(PathBuf),
     /// Aucune boîte (Linux) : ce dossier, sans rien écraser.
-    #[cfg_attr(any(windows, target_os = "macos"), allow(dead_code))]
     Folder(PathBuf),
 }
 
