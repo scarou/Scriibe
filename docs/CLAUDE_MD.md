@@ -54,3 +54,16 @@ Trois fichiers regroupés par moment d'usage : une ligne de renvoi dans le `CLAU
 ### Suite
 
 Le découpage réel (créer les trois fichiers, réduire le `CLAUDE.md`, mesurer la taille) est la tâche 1.
+
+## Relecture (tâche 2, 12/11/2026)
+
+Relecteur : sous-agent Sonnet, qui a comparé `git show e4eac8a:CLAUDE.md` au nouveau `CLAUDE.md` et aux trois fichiers de `docs/`. Tous les chemins cités existent ; aucune contradiction.
+
+| # | Défaut | Correction |
+|---|---|---|
+| 1 | Interdiction de lire le jeton GitHub du Gestionnaire d'identifiants restée dans `docs/CLOTURE.md` : elle vaut pour toute session | Remontée dans `CLAUDE.md` (Référence), à côté de la règle sur `.env` |
+| 2 | « Rien n'est téléchargé sans l'accord de l'auteur » dans `docs/CLOTURE.md` : vaut dès qu'on télécharge | Remontée dans `CLAUDE.md` (Référence), une ligne |
+| 3 | Lancement de `Scriibe.app` par `open` (jamais par Bash) lisible seulement en ouvrant `docs/CLOTURE.md` | Une phrase dans le renvoi de clôture du `CLAUDE.md`, avec le renvoi à « Sessions sur le Mac de l'auteur » |
+| 4 | `Path::join` pour les fausses listes de fichiers, piège qu'on viole en écrivant n'importe quel test | Remonté dans le bloc Tests du `CLAUDE.md` (copie dans `docs/TESTS.md` conservée) |
+| 5 | Repères de la règle i18n réécrite (`tx`, `i18n.svelte.ts`, menu de l'icône) | Rien : voulu, tout est dans `docs/I18N.md` |
+| 6 | `C:scriibe-dev` au lieu de `C:\scriibe-dev` (antérieur à l'allègement) | Corrigé |
