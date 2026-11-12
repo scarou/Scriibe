@@ -281,3 +281,34 @@ fn a_long_instruction_like_a_real_dictionary_mode_goes_back_and_forth() {
     assert!(mode.style.chars().count() > 5_064);
     assert_eq!(import::parse_modes(&exported(&[&mode])).unwrap(), vec![mode]);
 }
+
+#[test]
+fn two_modes_of_the_same_name_both_set_to_replace_do_not_erase_each_other() {
+    // Relecture : le second « remplacer » écrasait le premier mode du fichier, sans message.
+    let existing = sms();
+    let (mut a, mut b) = (sms(), sms());
+    a.style = "Première.".into();
+    b.id = scriibe_core::modes::new_id();
+    b.style = "Seconde.".into();
+    let mut modes = vec![existing.clone()];
+    let replace = Choice { include: true, replace: true };
+    let outcome = import::apply(&mut modes, vec![a, b], &[replace, replace]);
+    assert_eq!(modes.len(), 2);
+    assert_eq!((modes[0].name.as_str(), modes[0].style.as_str(), &modes[0].id), ("SMS", "Première.", &existing.id));
+    assert_eq!((modes[1].name.as_str(), modes[1].style.as_str()), ("SMS 2", "Seconde."), "le second est ajouté, jamais perdu");
+    assert_eq!((outcome.replaced, outcome.added), (vec!["SMS".to_string()], vec!["SMS 2".to_string()]));
+}
+
+#[test]
+fn a_number_that_is_part_of_the_name_is_kept() {
+    let taken = |names: &[&str]| names.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+    assert_eq!(import::free_name(&taken(&["Rapport 2026"]), "Rapport 2026"), "Rapport 2026 2");
+    assert_eq!(import::free_name(&taken(&["Top 10"]), "Top 10"), "Top 10 2");
+    assert_eq!(import::free_name(&taken(&["SMS", "SMS 2"]), "SMS 2"), "SMS 3", "un vrai numéro d'import, lui, ne s'accumule pas");
+}
+
+#[test]
+fn invisible_format_characters_are_removed_from_names() {
+    let text = file_with(json!([{"name": "SMS\u{202E}gnirts\u{200B} \u{FEFF}x", "fidelity": "light"}]));
+    assert_eq!(import::parse_modes(&text).unwrap()[0].name, "SMSgnirts x");
+}

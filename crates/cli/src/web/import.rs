@@ -11,10 +11,11 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-/// Les modes lus et contrôlés, en attente de l'accord de l'utilisateur.
-static PENDING: Mutex<Option<Vec<CustomMode>>> = Mutex::new(None);
+/// Les modes lus et contrôlés, en attente de l'accord de l'utilisateur, avec le jeton de l'aperçu montré : l'accord doit le rappeler,
+/// pour qu'une autre page (ou un autre clic) ne puisse pas faire importer un fichier que l'utilisateur n'a pas vu.
+static PENDING: Mutex<Option<(String, Vec<CustomMode>)>> = Mutex::new(None);
 
-fn pending() -> std::sync::MutexGuard<'static, Option<Vec<CustomMode>>> {
+fn pending() -> std::sync::MutexGuard<'static, Option<(String, Vec<CustomMode>)>> {
     PENDING.lock().unwrap_or_else(|e| e.into_inner())
 }
 
@@ -56,8 +57,9 @@ pub(crate) fn read_modes(settings: &AppSettings, path: &Path) -> Value {
         }
     };
     let items = import::preview(&settings.custom_modes, &modes);
-    *pending() = Some(modes);
-    json!({"ok": true, "items": preview_json(&items)})
+    let token = scriibe_core::modes::new_id();
+    *pending() = Some((token.clone(), modes));
+    json!({"ok": true, "token": token, "items": preview_json(&items)})
 }
 
 /// Ce que l'utilisateur a tapé comme chemin (Linux) : sans guillemets ni espaces autour, `~` développé.
@@ -69,32 +71,51 @@ fn typed_path(text: &str) -> PathBuf {
     }
 }
 
-/// Le fichier choisi dans la boîte du système : `None` si l'utilisateur annule ; `Err` si aucune boîte n'existe (Linux).
-fn choose_file() -> Result<Option<PathBuf>, ()> {
+/// Ce que donne la boîte « Ouvrir » du système (selon le système, certaines variantes ne servent pas).
+#[allow(dead_code)]
+enum Picked {
+    File(PathBuf),
+    Cancelled,
+    /// Aucune boîte sur ce système (Linux) : la page demande le chemin.
+    NoDialog,
+    Failed(String),
+}
+
+fn choose_file() -> Picked {
     #[cfg(windows)]
     {
         let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
-        Ok(scriibe_platform::windows::file_dialog::pick_file("Importer un mode", &filter).map(PathBuf::from))
+        match scriibe_platform::windows::file_dialog::pick_file("Importer un mode", &filter) {
+            Some(path) => Picked::File(PathBuf::from(path)),
+            None => Picked::Cancelled,
+        }
     }
     #[cfg(target_os = "macos")]
     {
         let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
-        Ok(scriibe_platform::macos::file_dialog::pick_file("Importer un mode", &filter).map(PathBuf::from))
+        match scriibe_platform::macos::file_dialog::try_pick_file("Importer un mode", &filter) {
+            Ok(Some(path)) => Picked::File(PathBuf::from(path)),
+            Ok(None) => Picked::Cancelled,
+            Err(e) => Picked::Failed(e),
+        }
     }
     #[cfg(not(any(windows, target_os = "macos")))]
     {
-        Err(())
+        Picked::NoDialog
     }
 }
 
-/// `POST api/modes/import/read` : `{"path"?}`. Sans chemin, la boîte du système s'ouvre ; sans boîte (Linux), `ask_path: true`.
+/// `POST api/modes/import/read` : `{"path"?}`. Un chemin tapé n'est honoré que là où il n'y a pas de boîte (Linux) ; ailleurs, la boîte
+/// du système s'ouvre (la page n'a pas à désigner de fichier). Sans boîte et sans chemin, `ask_path: true`.
 pub(crate) fn read(settings: &AppSettings, input: &Value) -> Value {
-    let path = match input["path"].as_str().filter(|p| !p.trim().is_empty()) {
-        Some(typed) => typed_path(typed),
-        None => match choose_file() {
-            Ok(Some(path)) => path,
-            Ok(None) => return json!({"ok": true, "cancelled": true}),
-            Err(()) => {
+    let typed = input["path"].as_str().filter(|p| !p.trim().is_empty());
+    let path = match (cfg!(not(any(windows, target_os = "macos"))), typed) {
+        (true, Some(typed)) => typed_path(typed),
+        _ => match choose_file() {
+            Picked::File(path) => path,
+            Picked::Cancelled => return json!({"ok": true, "cancelled": true}),
+            Picked::Failed(e) => return json!({"ok": false, "error": e}),
+            Picked::NoDialog => {
                 return json!({"ok": false, "ask_path": true, "error": "le choix d'un fichier n'est pas encore pris en charge sur ce système"})
             }
         },
@@ -114,10 +135,25 @@ fn choices_of(input: &Value) -> Vec<Choice> {
         .unwrap_or_default()
 }
 
-/// Fusionne les modes en attente dans `settings` (à enregistrer par l'appelant) ; `Err` s'il n'y en a pas.
+/// Fusionne les modes en attente dans `settings` (à enregistrer par l'appelant, qui appelle ensuite `consume`). Refuse si le jeton n'est
+/// pas celui de l'aperçu en attente, ou si les choix ne correspondent pas à ses modes : l'attente est alors gardée telle quelle.
 pub(crate) fn apply_pending(settings: &mut AppSettings, input: &Value) -> Result<import::Outcome, String> {
-    let modes = pending().take().ok_or("aucun fichier en attente : recommence l'import")?;
-    Ok(import::apply(&mut settings.custom_modes, modes, &choices_of(input)))
+    let guard = pending();
+    let (token, modes) = guard.as_ref().ok_or("aucun fichier en attente : recommence l'import")?;
+    let stale = "l'aperçu n'est plus à jour : recommence l'import";
+    if input["token"].as_str() != Some(token.as_str()) {
+        return Err(stale.into());
+    }
+    let choices = choices_of(input);
+    if input["choices"].as_array().is_some_and(|a| a.len() != modes.len()) {
+        return Err(stale.into());
+    }
+    Ok(import::apply(&mut settings.custom_modes, modes.clone(), &choices))
+}
+
+/// Oublie l'attente : après un enregistrement réussi des réglages (jamais avant, pour pouvoir recommencer si l'écriture échoue).
+pub(crate) fn consume() {
+    *pending() = None;
 }
 
 /// `POST api/modes/import/cancel` : oublie le fichier en attente.
@@ -139,12 +175,27 @@ mod tests {
     /// Les tests partagent l'attente de l'import : un à la fois.
     static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
 
-    fn file(name: &str, text: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("scriibe-import-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join(name);
-        std::fs::write(&path, text).unwrap();
-        path
+    /// Un dossier d'essai à soi, supprimé en fin de test.
+    struct TestDir(PathBuf);
+
+    impl TestDir {
+        fn new(name: &str) -> Self {
+            let dir = std::env::temp_dir().join(format!("scriibe-import-test-{}-{name}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn file(&self, name: &str, text: &str) -> PathBuf {
+            let path = self.0.join(name);
+            std::fs::write(&path, text).unwrap();
+            path
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
     }
 
     fn sms() -> CustomMode {
@@ -153,59 +204,97 @@ mod tests {
         m
     }
 
+    fn file_text(mode: &CustomMode) -> String {
+        export::modes_export(&[mode], true, "0.3.0", "2026-11-12").to_string()
+    }
+
     #[test]
-    fn a_refused_file_changes_nothing_and_leaves_nothing_pending() {
+    fn a_refused_file_leaves_nothing_pending() {
         let _guard = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = TestDir::new("refuse");
         let settings = AppSettings { custom_modes: vec![sms()], ..AppSettings::default() };
-        let before = serde_json::to_value(&settings).unwrap();
-        let bad = file("abime.scriibe.json", "{ pas du json");
-        let out = read_modes(&settings, &bad);
-        assert_eq!(out["ok"], false);
-        assert_eq!(out["error"], "ce fichier n'est pas un fichier JSON lisible");
+        // D'abord un bon fichier en attente, puis un fichier abîmé : l'attente est vidée, rien ne peut plus être appliqué.
+        let ok = read_modes(&settings, &dir.file("ok.scriibe.json", &file_text(&sms())));
+        let token = ok["token"].as_str().unwrap().to_string();
+        let bad = read_modes(&settings, &dir.file("abime.scriibe.json", "{ pas du json"));
+        assert_eq!((bad["ok"].clone(), bad["error"].clone()), (json!(false), json!("ce fichier n'est pas un fichier JSON lisible")));
         assert!(pending().is_none());
         let mut after = settings.clone();
-        assert!(apply_pending(&mut after, &Value::Null).is_err(), "rien à appliquer");
-        assert_eq!(serde_json::to_value(&after).unwrap(), before);
+        assert!(apply_pending(&mut after, &json!({"token": token})).is_err(), "rien à appliquer");
+        assert_eq!(after.custom_modes, settings.custom_modes);
     }
 
     #[test]
     fn a_file_that_is_too_big_or_missing_is_refused_before_being_read() {
-        let big = file("gros.scriibe.json", &"x".repeat(import::MAX_BYTES as usize + 1));
+        let dir = TestDir::new("gros");
+        let big = dir.file("gros.scriibe.json", &"x".repeat(import::MAX_BYTES as usize + 1));
         assert_eq!(read_file(&big), Err("fichier trop gros : 1 Mo au maximum".to_string()));
         assert_eq!(read_file(Path::new("n-existe-pas.json")), Err("le fichier n'a pas pu être lu".to_string()));
-        assert!(read_file(big.parent().unwrap()).is_err(), "un dossier n'est pas un fichier");
+        assert!(read_file(&dir.0).is_err(), "un dossier n'est pas un fichier");
+        let not_utf8 = dir.0.join("binaire.scriibe.json");
+        std::fs::write(&not_utf8, [0xff, 0xfe, 0x00]).unwrap();
+        assert_eq!(read_file(&not_utf8), Err("ce fichier n'est pas un fichier JSON lisible".to_string()));
     }
 
     #[test]
     fn the_preview_then_the_agreement_adds_or_replaces() {
         let _guard = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = TestDir::new("accord");
         let existing = sms();
         let settings = AppSettings { custom_modes: vec![existing.clone()], ..AppSettings::default() };
         let mut incoming = sms();
         incoming.style = "Autre.".into();
-        let text = export::modes_export(&[&incoming], true, "0.3.0", "2026-11-12").to_string();
-        let out = read_modes(&settings, &file("ok.scriibe.json", &text));
+        let path = dir.file("ok.scriibe.json", &file_text(&incoming));
+        let out = read_modes(&settings, &path);
         assert_eq!(out["ok"], true);
-        assert_eq!(out["items"][0]["conflict"], "SMS");
-        assert_eq!(out["items"][0]["added_as"], "SMS 2");
+        assert_eq!((out["items"][0]["conflict"].clone(), out["items"][0]["added_as"].clone()), (json!("SMS"), json!("SMS 2")));
+        let token = out["token"].as_str().unwrap().to_string();
 
         // Accord : remplacer.
         let mut replaced = settings.clone();
-        let done = apply_pending(&mut replaced, &json!({"choices": [{"include": true, "replace": true}]})).unwrap();
+        let agreement = json!({"token": token, "choices": [{"include": true, "replace": true}]});
+        let done = apply_pending(&mut replaced, &agreement).unwrap();
         assert_eq!(done.replaced, vec!["SMS".to_string()]);
         assert_eq!(
             (replaced.custom_modes.len(), replaced.custom_modes[0].style.as_str(), &replaced.custom_modes[0].id),
             (1, "Autre.", &existing.id)
         );
-        assert!(pending().is_none(), "l'attente est consommée : un second accord ne ferait rien");
-        assert!(apply_pending(&mut replaced, &Value::Null).is_err());
+        assert!(pending().is_some(), "l'attente reste tant que les réglages ne sont pas enregistrés");
+        consume();
+        assert!(apply_pending(&mut replaced, &agreement).is_err(), "attente consommée : un second accord ne ferait rien");
 
         // Même fichier, accord par défaut : ajouter avec un numéro.
-        read_modes(&settings, &file("ok.scriibe.json", &text));
+        let token = read_modes(&settings, &path)["token"].as_str().unwrap().to_string();
         let mut added = settings.clone();
-        apply_pending(&mut added, &Value::Null).unwrap();
+        apply_pending(&mut added, &json!({"token": token})).unwrap();
         assert_eq!(added.custom_modes.iter().map(|m| m.name.as_str()).collect::<Vec<_>>(), vec!["SMS", "SMS 2"]);
         assert_eq!(added.custom_modes[0], existing);
+        consume();
+    }
+
+    #[test]
+    fn an_agreement_for_another_preview_is_refused_and_changes_nothing() {
+        // Relecture : deux pages ouvertes (ou deux clics) ; la seconde lecture ne doit pas se faire appliquer avec l'accord de la première.
+        let _guard = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = TestDir::new("jeton");
+        let settings = AppSettings { custom_modes: vec![sms()], ..AppSettings::default() };
+        let mut other = sms();
+        other.name = "Autre".into();
+        let first = read_modes(&settings, &dir.file("a.scriibe.json", &file_text(&sms())));
+        let second = read_modes(&settings, &dir.file("b.scriibe.json", &file_text(&other)));
+        let (first, second) = (first["token"].as_str().unwrap().to_string(), second["token"].as_str().unwrap().to_string());
+        assert_ne!(first, second);
+        let mut target = settings.clone();
+        let stale = apply_pending(&mut target, &json!({"token": first}));
+        assert_eq!(stale, Err("l'aperçu n'est plus à jour : recommence l'import".to_string()));
+        assert_eq!(target.custom_modes, settings.custom_modes, "rien n'a changé");
+        assert!(apply_pending(&mut target, &Value::Null).is_err(), "sans jeton non plus");
+        assert!(pending().is_some(), "l'aperçu de la seconde page reste valable");
+        // Un nombre de choix qui ne correspond pas à l'aperçu est refusé aussi.
+        let wrong = json!({"token": second, "choices": [{"include": true}, {"include": true}]});
+        assert!(apply_pending(&mut target, &wrong).is_err());
+        assert!(apply_pending(&mut target, &json!({"token": second})).is_ok());
+        consume();
     }
 
     #[test]

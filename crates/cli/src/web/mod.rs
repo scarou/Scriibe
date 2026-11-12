@@ -342,7 +342,10 @@ fn handle(ctx: &Context, mut request: Request) {
             let mut settings = ctx.app.config.settings();
             match import::apply_pending(&mut settings, &input) {
                 Ok(outcome) => match ctx.app.config.save_settings(&settings) {
-                    Ok(()) => ok(request, import::outcome_json(&outcome)),
+                    Ok(()) => {
+                        import::consume();
+                        ok(request, import::outcome_json(&outcome))
+                    }
                     Err(e) => fail(request, 500, &e.to_string()),
                 },
                 Err(e) => fail(request, 400, &e),

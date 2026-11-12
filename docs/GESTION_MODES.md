@@ -274,3 +274,23 @@ Aucune nouvelle demande de l'auteur pendant l'essai. À noter, pour qui voudra y
 - **Question de l'auteur** sur les `id` du fichier d'export : ce sont des identifiants tirés au hasard (UUID), sans lien avec la personne ni l'ordinateur ; à l'import, un identifiant déjà présent est remplacé par un nouveau. Rien à changer.
 - **Constat** : supprimer un mode personnel retire aussi son identifiant de `hiddenModes` (lecture tolérante) ; un mode réimporté avec le même identifiant redevient donc visible dans le menu, même s'il était masqué avant sa suppression. Cohérent, mais à savoir.
 - **Constat** : en cas d'échec d'enregistrement d'un export, le message n'est pas en orange (seul le refus d'import l'est) ; sans gravité.
+
+## Relecture (livraison, tâche 5)
+
+Relecture du diff par un agent distinct de celui qui l'a écrit (aucun bloquant) ; l'auteur a demandé de corriger les défauts importants et mineurs, avant le push.
+
+| Constat | Correction |
+|---|---|
+| I1. L'accord de l'import n'était pas lié à l'aperçu montré (deux pages, deux clics) | `read` renvoie un **jeton** d'aperçu ; `apply` l'exige et refuse un jeton périmé ou un nombre de choix qui ne correspond pas (l'attente reste alors telle quelle) ; bouton « Importer un mode… » désactivé pendant l'import |
+| I2. Deux modes du fichier de même nom, tous deux en « remplacer » : le premier était écrasé en silence | `apply` retient les places déjà remplacées ou ajoutées ; le second est ajouté sous un nom numéroté |
+| I3. Le chemin de lecture fourni par la page était accepté partout (sondage de fichiers, chemin réseau Windows) | Honoré **sous Linux seulement** (seul système sans boîte) |
+| M1. Export Linux : écrasement possible (course, lien brisé) | Écriture en création exclusive (`create_new`), numéro suivant si le nom existe |
+| M2. Annulation et échec de la boîte macOS indistincts | `classify` : seul le code -128 est une annulation, le reste est une erreur claire |
+| M4. L'attente de l'import était consommée même si l'écriture échouait | Consommée après l'enregistrement réussi |
+| M5. « Rapport 2026 » devenait « Rapport 2 » | Le numéro final n'est retiré que si le radical existe déjà |
+| M7. Caractères Unicode invisibles ou inverseurs dans un nom | Retirés du nom |
+| M9. Tests : fichiers temporaires jamais supprimés, cas manquants | Dossiers d'essai supprimés ; tests du jeton périmé, du double remplacement, du nombre de choix, du numéro, des caractères invisibles, du fichier non UTF-8, de l'export sans écrasement, de l'annulation macOS |
+
+**Laissés tels quels** : M3 (Windows : chemin de plus de 1 024 caractères pris pour une annulation, extension `.json` si le nom est retapé sans extension, boîte sans fenêtre propriétaire : très improbable ou sans conséquence, comme `pick_file`) ; M6 (l'aperçu peut annoncer un nom numéroté différent de celui obtenu si l'on décoche ou remplace un mode précédent : cosmétique) ; M8 (le nom « Mode importé » donné à un mode sans nom, et les titres des boîtes natives, restent en français quelle que soit la langue de l'interface).
+
+**Mesuré** : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (513 tests passent, 0 échec), `npm run check` (0 erreur), `npm test` (95 passent), `npm run build`. Essai à la main sur le Mac après les corrections : import d'un fichier dont le nom existe, choix « remplacer », un seul mode au final avec ses 3 exemples. Non vérifiés : le code Windows (CI Windows), les boîtes sous Windows et Linux.

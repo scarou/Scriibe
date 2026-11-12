@@ -3,6 +3,8 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'l\'aperçu n\'est plus à jour : recommence l\'import': 'the preview is out of date: start the import again',
+  'la boîte de choix de fichier n\'a pas pu s\'ouvrir': 'the file dialog could not be opened',
   'fichier trop gros : 1 Mo au maximum': 'file too big: 1 MB at most',
   'ce fichier n\'est pas un fichier JSON lisible': 'this file is not a readable JSON file',
   'ce n\'est pas un fichier d\'export de Scriibe': 'this is not a Scriibe export file',

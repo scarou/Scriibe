@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S25 — 2026-11-12 · Gestion des modes : menu de l'icône, export et import (non publié : part avec la prochaine version)
+
+- **Modes affichés dans le menu de l'icône** : Réglages → Modes, une case « Afficher dans le menu de l'icône » par mode. Tous cochés par défaut ; décocher retire le mode du menu, même le mode en cours (il reste utilisé, sans coche dans le menu, et reste choisissable dans la page) ; au moins un mode reste affiché ; le choix est gardé après redémarrage.
+- **Export d'un mode personnel** : bouton « Exporter » (« Mes modes »). Un aperçu dit ce qui part, la case « Inclure les exemples » les retire, un avertissement prévient que la consigne et les exemples peuvent contenir du texte personnel et que le fichier n'est pas chiffré. Fichier `.scriibe.json` lisible (enveloppe `scriibe-export` v1, `kind: "modes"`, jour seul), jamais de clé ni d'historique. Boîte « Enregistrer sous » du système sous macOS et Windows ; sous Linux, dossier Documents sans rien écraser.
+- **Import d'un mode** : bouton « Importer un mode… ». Le fichier est contrôlé avant tout (1 Mo, 50 modes, 50 exemples par mode, 20 000 caractères par texte, format, version, cran valide) : un fichier refusé donne un message clair et ne change rien. Un aperçu liste les modes ; rien n'est écrit avant « Importer ». Un nom déjà pris n'est jamais écrasé sans accord : au choix, par mode, « l'ajouter sous un nom numéroté » (« SMS 2 », sans cumul) ou « remplacer l'existant » (il garde sa place et son identifiant). La consigne importée reste un simple texte ; aucun autre réglage ne change. Aide FR et EN pour les trois.
+- **Technique** : `hiddenModes` (`AppSettings`, lecture tolérante), `export.rs` et `import.rs` (cœur), `web/export.rs` et `web/import.rs` (routes `api/modes/export`, `api/modes/import/{read,apply,cancel}`), `pick_save` (macOS et Windows). Écarts dans `docs/ECARTS.md`, constat et essai dans `docs/GESTION_MODES.md`.
+- **Corrigé à l'essai** : la limite des textes importés (5 000) refusait la propre exportation d'un mode réel (consigne de 5 064 caractères), portée à 20 000 ; le message de refus d'import s'affichait en noir au lieu d'orange.
+- Essayé à la main sur le Mac (masquage, mode actif masqué, redémarrage, export, suppression puis réimport identique, fichier abîmé). Pas essayés : l'ajout numéroté et le remplacement à l'écran (tests seulement), les boîtes de fichier sur Windows et Linux, le code Windows non compilé sur le Mac. Pas de version.
+
 ## S24 — 2026-11-12 · Petits plus : prénom, historique « reformulées » (non publié : part avec la prochaine version)
 
 - **Prénom de la salutation** : Réglages → Dictée, « Prénom dans la salutation ». Vide (par défaut), le Tableau de bord garde le prénom du compte de l'ordinateur ; rempli, il le remplace, y compris après redémarrage. Aide FR et EN.

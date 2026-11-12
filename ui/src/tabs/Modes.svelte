@@ -99,6 +99,7 @@
   type ImportItem = { name: string; fidelity: CustomMode['fidelity']; examples: number; conflict: string | null; added_as: string };
   let importing = $state<{
     items: ImportItem[];
+    token: string;
     choices: { include: boolean; replace: boolean }[];
     askPath: boolean;
     path: string;
@@ -110,16 +111,17 @@
   async function readImport(path?: string) {
     editing = null;
     exporting = null;
-    if (!importing) importing = { items: [], choices: [], askPath: false, path: '', busy: true, message: '', done: false };
+    if (!importing) importing = { items: [], token: '', choices: [], askPath: false, path: '', busy: true, message: '', done: false };
     importing.busy = true;
     importing.message = '';
-    const out = await api<{ ok: boolean; cancelled?: boolean; ask_path?: boolean; error?: string; items?: ImportItem[] }>('modes/import/read', path ? { path } : {});
+    const out = await api<{ ok: boolean; cancelled?: boolean; ask_path?: boolean; error?: string; token?: string; items?: ImportItem[] }>('modes/import/read', path ? { path } : {});
     if (!importing) return;
     importing.busy = false;
     if (out.ok && out.cancelled) importing = null;
     else if (out.ok && out.items) {
       importing.askPath = false;
       importing.items = out.items;
+      importing.token = out.token ?? '';
       importing.choices = out.items.map(() => ({ include: true, replace: false }));
     } else if (out.ask_path) importing.askPath = true;
     else importing.message = t(out.error ?? "le fichier n'a pas pu être lu");
@@ -128,7 +130,7 @@
   async function applyImport() {
     if (!importing) return;
     importing.busy = true;
-    const out = await api<{ ok: boolean; added?: string[]; replaced?: string[]; error?: string }>('modes/import/apply', { choices: importing.choices });
+    const out = await api<{ ok: boolean; added?: string[]; replaced?: string[]; error?: string }>('modes/import/apply', { token: importing.token, choices: importing.choices });
     importing.busy = false;
     if (!out.ok) {
       importing.message = t(out.error ?? "le fichier n'a pas pu être lu");
@@ -226,7 +228,7 @@
       <p class="muted">{t('Aucun mode personnel.')}</p>
     {/each}
     <button onclick={newMode}>{t('Créer un mode')}</button>
-    <button onclick={() => readImport()}>{t('Importer un mode…')}</button>
+    <button onclick={() => readImport()} disabled={importing !== null}>{t('Importer un mode…')}</button>
   </Card>
 
   {#if importing}

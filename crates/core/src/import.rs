@@ -112,9 +112,16 @@ fn clean_text(text: &str) -> String {
     text.chars().filter(|c| *c == '\n' || *c == '\t' || !c.is_control()).collect()
 }
 
-/// Un nom sur une seule ligne, sans espaces en trop ; « Mode importé » s'il est vide.
+/// Les caractères de format invisibles (largeur nulle, inversion du sens d'écriture, trait d'union conditionnel) : dans un nom, ils
+/// feraient lire le menu à l'envers ou en double.
+fn is_invisible_format(c: char) -> bool {
+    matches!(c, '\u{00AD}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{2064}' | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
+}
+
+/// Un nom sur une seule ligne, sans espaces en trop ni caractères invisibles ; « Mode importé » s'il est vide.
 fn clean_name(name: &str) -> String {
-    let one_line: String = clean_text(name).split_whitespace().collect::<Vec<_>>().join(" ");
+    let visible: String = clean_text(name).chars().filter(|c| !is_invisible_format(*c)).collect();
+    let one_line: String = visible.split_whitespace().collect::<Vec<_>>().join(" ");
     if one_line.is_empty() {
         UNNAMED.to_string()
     } else {
@@ -127,9 +134,17 @@ fn same_name(a: &str, b: &str) -> bool {
 }
 
 /// Le radical d'un nom : sans le numéro final qu'un import précédent a pu ajouter (« SMS 2 » → « SMS »), pour ne pas l'accumuler.
-fn stem(name: &str) -> &str {
+/// Seulement si le radical existe déjà : « Rapport 2026 » ou « Top 10 » gardent leur nombre (c'est une partie du nom).
+fn stem<'a>(taken: &[String], name: &'a str) -> &'a str {
     match name.rsplit_once(' ') {
-        Some((head, tail)) if !head.trim().is_empty() && !tail.is_empty() && tail.chars().all(|c| c.is_ascii_digit()) => head.trim_end(),
+        Some((head, tail))
+            if !head.trim().is_empty()
+                && !tail.is_empty()
+                && tail.chars().all(|c| c.is_ascii_digit())
+                && taken.iter().any(|t| same_name(t, head)) =>
+        {
+            head.trim_end()
+        }
         _ => name,
     }
 }
@@ -140,7 +155,7 @@ pub fn free_name(taken: &[String], name: &str) -> String {
     if is_free(name) {
         return name.to_string();
     }
-    let stem = stem(name);
+    let stem = stem(taken, name);
     (2..).map(|n| format!("{stem} {n}")).find(|candidate| is_free(candidate)).expect("une suite infinie de numéros finit par un nom libre")
 }
 
@@ -209,12 +224,18 @@ fn used_ids(modes: &[CustomMode], except: Option<usize>) -> HashSet<String> {
 /// `choices` : un choix par mode du fichier (un choix manquant vaut « ajouter »).
 pub fn apply(modes: &mut Vec<CustomMode>, incoming: Vec<CustomMode>, choices: &[Choice]) -> Outcome {
     let mut outcome = Outcome::default();
+    // Les places déjà remplacées ou ajoutées pendant ce passage : un second mode du fichier de même nom ne les écrase pas.
+    let mut touched: HashSet<usize> = HashSet::new();
     for (i, mut mode) in incoming.into_iter().enumerate() {
         let choice = choices.get(i).copied().unwrap_or_default();
         if !choice.include {
             continue;
         }
-        let target = if choice.replace { modes.iter().position(|e| same_name(&e.name, &mode.name)) } else { None };
+        let target = if choice.replace {
+            modes.iter().enumerate().position(|(index, e)| !touched.contains(&index) && same_name(&e.name, &mode.name))
+        } else {
+            None
+        };
         let mut used = used_ids(modes, target);
         for example in &mut mode.examples {
             if !used.insert(example.id.clone()) {
@@ -227,6 +248,7 @@ pub fn apply(modes: &mut Vec<CustomMode>, incoming: Vec<CustomMode>, choices: &[
                 mode.id = modes[index].id.clone();
                 outcome.replaced.push(modes[index].name.clone());
                 modes[index] = mode;
+                touched.insert(index);
             }
             None => {
                 if used.contains(&mode.id) {
@@ -236,6 +258,7 @@ pub fn apply(modes: &mut Vec<CustomMode>, incoming: Vec<CustomMode>, choices: &[
                 mode.name = free_name(&taken, &mode.name);
                 outcome.added.push(mode.name.clone());
                 modes.push(mode);
+                touched.insert(modes.len() - 1);
             }
         }
     }

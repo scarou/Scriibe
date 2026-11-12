@@ -15,14 +15,36 @@ fn script(title: &str, filter: &[(&str, &str)]) -> String {
     format!("POSIX path of (choose file with prompt \"{prompt}\"{types})")
 }
 
-/// Le chemin choisi, ou rien si l'utilisateur annule.
-pub fn pick_file(title: &str, filter: &[(&str, &str)]) -> Option<String> {
-    let output = Command::new("osascript").arg("-e").arg(script(title, filter)).output().ok()?;
-    if !output.status.success() {
-        return None;
+/// Le résultat d'`osascript` : le chemin choisi, `Ok(None)` si l'utilisateur annule (code -128 de macOS, « User canceled »), sinon une
+/// erreur (osascript absent, refusé par macOS…) : un échec ne doit pas passer pour une annulation.
+fn classify(success: bool, stdout: &str, stderr: &str) -> Result<Option<String>, String> {
+    if success {
+        let path = stdout.trim().to_string();
+        return Ok((!path.is_empty()).then_some(path));
     }
-    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!path.is_empty()).then_some(path)
+    if stderr.contains("-128") {
+        return Ok(None);
+    }
+    Err("la boîte de choix de fichier n'a pas pu s'ouvrir".into())
+}
+
+fn run(script: &str) -> Result<Option<String>, String> {
+    let output = Command::new("osascript")
+        .arg("-e")
+        .arg(script)
+        .output()
+        .map_err(|_| "la boîte de choix de fichier n'a pas pu s'ouvrir".to_string())?;
+    classify(output.status.success(), &String::from_utf8_lossy(&output.stdout), &String::from_utf8_lossy(&output.stderr))
+}
+
+/// Le chemin choisi, ou rien si l'utilisateur annule (ou si la boîte n'a pas pu s'ouvrir).
+pub fn pick_file(title: &str, filter: &[(&str, &str)]) -> Option<String> {
+    try_pick_file(title, filter).ok().flatten()
+}
+
+/// Comme `pick_file`, mais distingue une annulation (`Ok(None)`) d'un échec (`Err`).
+pub fn try_pick_file(title: &str, filter: &[(&str, &str)]) -> Result<Option<String>, String> {
+    run(&script(title, filter))
 }
 
 /// Le script de la boîte « Enregistrer sous » : un nom proposé, que l'utilisateur change et dont il choisit le dossier.
@@ -31,14 +53,9 @@ fn save_script(title: &str, default_name: &str) -> String {
     format!("POSIX path of (choose file name with prompt \"{}\" default name \"{}\")", escape(title), escape(default_name))
 }
 
-/// Le chemin choisi pour enregistrer (macOS demande lui-même confirmation avant d'écraser), ou rien si l'utilisateur annule.
-pub fn pick_save(title: &str, default_name: &str) -> Option<String> {
-    let output = Command::new("osascript").arg("-e").arg(save_script(title, default_name)).output().ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (!path.is_empty()).then_some(path)
+/// Le chemin choisi pour enregistrer (macOS demande lui-même confirmation avant d'écraser) ; `Ok(None)` si l'utilisateur annule.
+pub fn pick_save(title: &str, default_name: &str) -> Result<Option<String>, String> {
+    run(&save_script(title, default_name))
 }
 
 #[cfg(test)]
@@ -58,5 +75,12 @@ mod tests {
             save_script("Enregistrer \"ce\" mode", "scriibe-mode-sms.scriibe.json"),
             "POSIX path of (choose file name with prompt \"Enregistrer \\\"ce\\\" mode\" default name \"scriibe-mode-sms.scriibe.json\")"
         );
+    }
+
+    #[test]
+    fn a_cancel_is_told_apart_from_a_failure() {
+        assert_eq!(classify(true, "/Users/x/m.scriibe.json\n", ""), Ok(Some("/Users/x/m.scriibe.json".to_string())));
+        assert_eq!(classify(false, "", "execution error: User canceled. (-128)"), Ok(None));
+        assert!(classify(false, "", "osascript: not allowed").is_err());
     }
 }

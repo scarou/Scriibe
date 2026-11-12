@@ -16,17 +16,23 @@ pub(crate) fn prepare(settings: &AppSettings, id: &str, include_examples: bool, 
     Ok((export::mode_file_name(&mode.name, &day), text))
 }
 
-/// Un chemin libre dans `dir` : `name`, puis `name` précédé d'un numéro (« 2-… »), sans jamais écraser un fichier.
+/// Écrit `text` dans `dir` sous `name`, puis « 2-name », « 3-name »… : le fichier est **créé** (jamais ouvert pour être tronqué), donc un
+/// fichier existant, un lien symbolique ou une course avec un autre processus ne peuvent pas être écrasés. Rend le chemin écrit.
 #[cfg_attr(any(windows, target_os = "macos"), allow(dead_code))]
-pub(crate) fn free_path(dir: &Path, name: &str, exists: impl Fn(&Path) -> bool) -> PathBuf {
-    let first = dir.join(name);
-    if !exists(&first) {
-        return first;
+pub(crate) fn write_without_overwriting(dir: &Path, name: &str, text: &str) -> std::io::Result<PathBuf> {
+    use std::io::Write;
+    for n in 1.. {
+        let path = if n == 1 { dir.join(name) } else { dir.join(format!("{n}-{name}")) };
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(mut file) => {
+                file.write_all(text.as_bytes())?;
+                return Ok(path);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(e) => return Err(e),
+        }
     }
-    (2..)
-        .map(|n| dir.join(format!("{n}-{name}")))
-        .find(|candidate| !exists(candidate))
-        .expect("une suite infinie de numéros finit par un nom libre")
+    unreachable!("une suite infinie de numéros finit par un nom libre")
 }
 
 /// Le dossier d'enregistrement quand aucune boîte n'existe : Documents, ou le dossier personnel.
@@ -37,22 +43,30 @@ fn fallback_folder() -> Option<PathBuf> {
     Some(if documents.is_dir() { documents } else { home })
 }
 
+/// Où enregistrer `name`.
+enum Target {
+    /// Un fichier choisi dans la boîte du système (qui a déjà demandé confirmation avant d'écraser).
+    File(PathBuf),
+    /// Aucune boîte (Linux) : ce dossier, sans rien écraser.
+    #[cfg_attr(any(windows, target_os = "macos"), allow(dead_code))]
+    Folder(PathBuf),
+}
+
 /// L'endroit choisi par l'utilisateur pour `name` : `None` s'il annule.
-fn choose_path(name: &str) -> Result<Option<PathBuf>, String> {
+fn choose_target(name: &str) -> Result<Option<Target>, String> {
     let _ = name;
     #[cfg(windows)]
     {
         let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
-        Ok(scriibe_platform::windows::file_dialog::pick_save("Enregistrer le mode", name, &filter).map(PathBuf::from))
+        Ok(scriibe_platform::windows::file_dialog::pick_save("Enregistrer le mode", name, &filter).map(|p| Target::File(PathBuf::from(p))))
     }
     #[cfg(target_os = "macos")]
     {
-        Ok(scriibe_platform::macos::file_dialog::pick_save("Enregistrer le mode", name).map(PathBuf::from))
+        Ok(scriibe_platform::macos::file_dialog::pick_save("Enregistrer le mode", name)?.map(|p| Target::File(PathBuf::from(p))))
     }
     #[cfg(not(any(windows, target_os = "macos")))]
     {
-        let folder = fallback_folder().ok_or("aucun dossier d’enregistrement trouvé")?;
-        Ok(Some(free_path(&folder, name, |p| p.exists())))
+        Ok(Some(Target::Folder(fallback_folder().ok_or("aucun dossier d’enregistrement trouvé")?)))
     }
 }
 
@@ -63,13 +77,14 @@ pub(crate) fn export_mode(settings: &AppSettings, input: &Value) -> Value {
         Ok(v) => v,
         Err(e) => return json!({"ok": false, "error": e}),
     };
-    let path = match choose_path(&name) {
-        Ok(Some(path)) => path,
+    let written = match choose_target(&name) {
+        Ok(Some(Target::File(path))) => std::fs::write(&path, text).map(|()| path),
+        Ok(Some(Target::Folder(dir))) => write_without_overwriting(&dir, &name, &text),
         Ok(None) => return json!({"ok": true, "saved": false}),
         Err(e) => return json!({"ok": false, "error": e}),
     };
-    match std::fs::write(&path, text) {
-        Ok(()) => json!({"ok": true, "saved": true, "path": path.to_string_lossy()}),
+    match written {
+        Ok(path) => json!({"ok": true, "saved": true, "path": path.to_string_lossy()}),
         Err(_) => json!({"ok": false, "error": "enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture"}),
     }
 }
@@ -103,9 +118,17 @@ mod tests {
 
     #[test]
     fn an_existing_file_is_never_overwritten_by_the_fallback() {
-        let dir = Path::new("dossier");
-        let taken = [dir.join("m.scriibe.json"), dir.join("2-m.scriibe.json")];
-        assert_eq!(free_path(dir, "m.scriibe.json", |p| taken.iter().any(|t| t == p)), dir.join("3-m.scriibe.json"));
-        assert_eq!(free_path(dir, "m.scriibe.json", |_| false), dir.join("m.scriibe.json"));
+        let dir = std::env::temp_dir().join(format!("scriibe-export-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let first = write_without_overwriting(&dir, "m.scriibe.json", "un").unwrap();
+        let second = write_without_overwriting(&dir, "m.scriibe.json", "deux").unwrap();
+        let third = write_without_overwriting(&dir, "m.scriibe.json", "trois").unwrap();
+        assert_eq!(
+            (first.file_name().unwrap(), second.file_name().unwrap(), third.file_name().unwrap()),
+            ("m.scriibe.json".as_ref(), "2-m.scriibe.json".as_ref(), "3-m.scriibe.json".as_ref())
+        );
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "un", "le premier fichier n'a pas bougé");
+        assert_eq!(std::fs::read_to_string(&third).unwrap(), "trois");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
