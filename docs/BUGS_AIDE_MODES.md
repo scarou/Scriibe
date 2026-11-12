@@ -76,3 +76,23 @@ Fait le 12/11 (tâche 2). Source unique : `settings.json` (déjà le cas) ; ce q
 **Résultat** : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` sans avertissement ; `cargo test --workspace` sans échec (dont les cas de référence de `fixtures/`) ; `npm test` 91 passés (17 fichiers), `npm run check` 0 erreur, `npm run build` ok.
 
 **Reste à vérifier à la main (tâche 3)** : le sous-menu de l'icône affiche-t-il la mise à jour des cases pendant qu'il est ouvert (appels depuis un fil, non prouvé) ; le rendu Mac de B ; Windows et Linux non essayés ici.
+
+## Essai réel
+
+Fait le 12/11 (tâche 3), sur le Mac Studio de l'auteur, avec `Scriibe.app` compilée (`cargo build --release`, `tools/faire_app_macos.sh`, signée « Scribe Dev ») et lancée par `open`. Journal : fenêtre prête, icône installée, moteurs prêts.
+
+Parcours en six étapes, une par message ; l'auteur a répondu « ok » à chacune, sans détail :
+1. Aide, grande fenêtre : ok.
+2. Aide, petite fenêtre : ok.
+3. Aide en anglais (petite puis grande fenêtre), retour au français : ok.
+4. Modes, page → menu de l'icône : ok. Au premier passage, le fichier de réglages disait encore « simple » alors que l'auteur avait fait d'autres essais entre-temps ; relu, il disait « formal », d'accord avec la page.
+5. Modes, menu → page, puis clic sur le mode déjà coché : ok. Vérifié dans le fichier : `rewriteMode` = `calm` après le clic dans le menu.
+6. Quitter puis relancer : ok.
+
+**Verdict de l'auteur : « ok » à chaque étape, donc les deux correctifs (Aide et modes) sont acceptés.**
+
+Limites : les réponses ne disent pas si la coche d'un sous-menu **resté ouvert** se met à jour toute seule (question posée à l'étape 4, sans réponse précise) ; Windows et Linux ne sont pas essayés ici ; seuls les passages « menu → fichier » et « redémarrage » sont confirmés par la lecture du fichier de réglages.
+
+## Ajouts
+
+Aucune nouvelle demande pendant l'essai.
