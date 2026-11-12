@@ -1,4 +1,4 @@
-/** Filtres de l'onglet Historique : période, appli et mots clés (aucun équivalent dans Scribe, voir `docs/ECARTS.md`). */
+/** Filtres de l'onglet Historique : période, appli, mots clés et dictées reformulées (aucun équivalent dans Scribe, voir `docs/ECARTS.md`). */
 
 export type Period = 'all' | 'today' | '7' | '30' | 'custom';
 
@@ -9,6 +9,14 @@ export interface HistoryFilter {
   to: string;
   app: string;
   search: string;
+  /** Ne garder que les dictées reformulées (voir `isRewritten`). */
+  rewrittenOnly?: boolean;
+}
+
+/** Une dictée est « reformulée » quand la mise au propre par le modèle a été retenue et que le texte final diffère du brut. Écartée par le garde-fou (texte brut collé), sautée, courte ou en échec : non. Texte non gardé (rien à comparer) : reformulée dès que le modèle a répondu. */
+export function isRewritten(item: { raw: string; text: string; has_text?: boolean; timing?: { outcome: string } | null }): boolean {
+  if (item.timing?.outcome !== 'model') return false;
+  return item.has_text === false || item.raw !== item.text;
 }
 
 /** `AAAA-MM-JJ` du jour local de l'instant donné. */
@@ -29,8 +37,9 @@ function firstDay(period: Period, now: Date, from: string): string {
 }
 
 /** La dictée passe-t-elle les filtres ? Le texte cherché se compare sans tenir compte des majuscules, dans le texte final et le texte brut. */
-export function matchesHistory(item: { date: string; app: string; text: string; raw: string }, filter: HistoryFilter, now: Date): boolean {
+export function matchesHistory(item: { date: string; app: string; text: string; raw: string; has_text?: boolean; timing?: { outcome: string } | null }, filter: HistoryFilter, now: Date): boolean {
   if (filter.app && item.app !== filter.app) return false;
+  if (filter.rewrittenOnly && !isRewritten(item)) return false;
   const day = dayKey(new Date(item.date));
   const first = firstDay(filter.period, now, filter.from);
   if (first && day < first) return false;

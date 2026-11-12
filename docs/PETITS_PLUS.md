@@ -109,3 +109,17 @@ Côté interface dans les deux cas : une clé dans `HistoryFilter` et une condit
 **Garde-fou** : `crates/core/tests/phrases_gender.rs` (4 tests) échoue si une phrase du Banc, français ou anglais, ou l'exemple des guides contient « je suis / je me sens / je me suis / j'étais / je serai / je reste / je deviens » suivi d'un mot qui s'accorde ; un test vérifie que le garde-fou attrape bien « Je suis content » et « Je me sens fatiguée ». Il n'y a donc **pas de test « par phrase accordée »**, puisqu'aucune ne l'est.
 
 **Tests** (12/11, Mac) : `cargo fmt`, `cargo clippy -p scriibe-core --all-targets -- -D warnings` sans erreur ; `cargo test --workspace` sans échec, dont les 4 tests nouveaux. Interface non touchée.
+
+## Historique (tâche 3)
+
+**Définition retenue (validée par l'auteur : « tout texte changé »)** : une dictée est **reformulée** quand la mise au propre par le modèle a été retenue (`timing.outcome == "model"`) **et** que le texte final diffère du texte brut (`raw !== text`), quel que soit le mode, Simple compris. **À part, donc non reformulées** : écartée par le garde-fou (`rejected`, texte brut collé), sautée, courte, sans modèle, traduite, repli, échec, et une dictée que le modèle a rendue identique. **Texte non gardé** (réglage « Garder le texte » décoché : rien à comparer) : reformulée dès que le modèle a répondu (limite acceptée, dite dans l'Aide).
+
+**Choix** : calcul à l'affichage (option 2 du § Constat), sans nouveau champ dans `history.json` ni dans le Rust : les deux données utiles (`outcome`, `rawText`/`finalText`) y sont déjà, et la définition « texte changé » n'a pas besoin du cran de fidélité, qui n'est pas enregistré. Un marqueur enregistré serait à ajouter si l'on veut un jour « modes qui réécrivent seulement » ; il faudrait alors que `services.rs::cleanup` signale le repli sur Simple (piège noté au § Constat).
+
+**Où** :
+- `ui/src/lib/historyfilter.ts` : `isRewritten(item)`, clé `rewrittenOnly` de `HistoryFilter`, condition dans `matchesHistory` (cumulable avec période, appli, mots clés).
+- `ui/src/tabs/History.svelte` : case « Dictées reformulées » dans la barre de filtres (comptée dans `filtered`, remise à zéro par « Tout afficher »), pastille « Reformulée » à côté de l'appli.
+- `ui/src/lib/locales/en.ts` : 3 textes ; Aide : question « Comment retrouver les dictées que le modèle a retouchées ? » dans `Help.svelte` et `HelpEn.svelte`.
+- `docs/ECARTS.md` : écart noté.
+
+**Tests** (12/11, Mac) : 2 tests nouveaux dans `historyfilter.test.ts` (définition : modèle retenu et texte changé, garde-fou, issues sans modèle, texte non gardé ; cumul avec période, appli et mots clés). `npm run check` 0 erreur, `npm test` 95 passés (dont `i18n.test.ts` et la comparaison des Aides FR/EN), `npm run build` ok ; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `cargo test --workspace` sans échec. Non essayé à la main dans la fenêtre (case, pastille, cumul sur de vraies dictées).

@@ -7,7 +7,7 @@
   import { i18n, t } from '../lib/i18n.svelte';
   import { outcomeLabels } from '../lib/timings';
   import { settings } from '../lib/settings.svelte';
-  import { dayKey, groupByDay, matchesHistory, type Period } from '../lib/historyfilter';
+  import { dayKey, groupByDay, isRewritten, matchesHistory, type Period } from '../lib/historyfilter';
 
   let items = $state<HistoryItem[]>([]);
   let apps = $state<string[]>([]);
@@ -16,15 +16,16 @@
   let period = $state<Period>('all');
   let from = $state('');
   let to = $state('');
+  let rewrittenOnly = $state(false);
   let copied = $state('');
 
   let keepText = $state(true);
   let keepDays = $state<number | null>(null);
   let preview = $state('');
 
-  let shown = $derived(items.filter((d) => matchesHistory(d, { period, from, to, app, search }, new Date())));
+  let shown = $derived(items.filter((d) => matchesHistory(d, { period, from, to, app, search, rewrittenOnly }, new Date())));
   let groups = $derived(groupByDay(shown));
-  let filtered = $derived(period !== 'all' || !!app || !!search.trim());
+  let filtered = $derived(period !== 'all' || !!app || !!search.trim() || rewrittenOnly);
 
   const periods: { id: Period; label: () => string }[] = [
     { id: 'today', label: () => t('Aujourd’hui') },
@@ -58,6 +59,7 @@
     from = '';
     to = '';
     app = '';
+    rewrittenOnly = false;
     search = '';
   }
 
@@ -168,6 +170,7 @@
       <option value="">{t('Toutes les applis')}</option>
       {#each apps as a (a)}<option value={a}>{a}</option>{/each}
     </select>
+    <label class="rewritten"><input type="checkbox" bind:checked={rewrittenOnly} /> {t('Dictées reformulées')}</label>
     {#if groups.length}
       <span class="seg" role="group">
         <button onclick={() => setAllFolded(false)}>{t('Tout déplier')}</button>
@@ -210,7 +213,7 @@
           <input type="checkbox" class="pick" checked={isOn(d.id)} onchange={(e) => setSelected([d.id], e.currentTarget.checked)} aria-label={t('Cocher cette dictée')} />
           <span class="muted time">{timeOf(d.date)}</span>
           <div class="body">
-            <div class="meta"><span class="chip">{d.app}</span> <span class="muted">{t('{n} mots · {s} s', { n: d.words, s: fmt(d.duration) })}{d.translation ? t(' · traduit en {language}', { language: d.translation }) : ''}</span></div>
+            <div class="meta"><span class="chip">{d.app}</span> {#if isRewritten(d)}<span class="chip rewritten-chip" title={t('Le texte a été changé par la mise au propre.')}>{t('Reformulée')}</span> {/if}<span class="muted">{t('{n} mots · {s} s', { n: d.words, s: fmt(d.duration) })}{d.translation ? t(' · traduit en {language}', { language: d.translation }) : ''}</span></div>
             {#if d.has_text}
               <div class="text">{d.text}</div>
               {#if d.raw && d.raw !== d.text}<details><summary class="muted">{t('Ce que Whisper a entendu')}</summary><div class="text muted">{d.raw}</div></details>{/if}
@@ -255,6 +258,8 @@
   .time { width: 46px; flex: none; font-variant-numeric: tabular-nums; padding-top: 2px; }
   .body { flex: 1; min-width: 0; }
   .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .rewritten-chip { background: transparent; border: 1px solid var(--accent); }
+  .rewritten { display: inline-flex; align-items: center; gap: 4px; font-size: .9rem; }
   .chip { background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: .78rem; padding: 1px 9px; border-radius: 999px; }
   .actions { display: flex; gap: 6px; align-items: flex-start; flex: none; }
   .text { white-space: pre-wrap; margin: 4px 0; overflow-wrap: anywhere; }

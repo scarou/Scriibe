@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupByDay, matchesHistory, type HistoryFilter } from './historyfilter';
+import { groupByDay, isRewritten, matchesHistory, type HistoryFilter } from './historyfilter';
 
 const now = new Date(2026, 9, 22, 15, 0);
 const item = (day: number, app = 'Mail', text = 'Bonjour Marie') => ({ date: new Date(2026, 9, day, 9, 30).toISOString(), app, text, raw: text.toLowerCase() });
@@ -41,5 +41,28 @@ describe('filtres de l’historique', () => {
     expect(groups.map((g) => g.day)).toEqual(['2026-10-22', '2026-10-20']);
     expect(groups.map((g) => g.items.map((i) => i.id))).toEqual([['22-17', '22-8'], ['20-18', '20-9']]);
     expect(groupByDay([])).toEqual([]);
+  });
+
+  it('« reformulée » : le modèle a été retenu et le texte a changé', () => {
+    const d = (outcome: string, raw: string, text: string, has_text = true) => ({ raw, text, has_text, timing: { outcome } });
+    expect(isRewritten(d('model', 'bonjour marie', 'Bonjour Marie.'))).toBe(true);
+    expect(isRewritten(d('model', 'Bonjour Marie.', 'Bonjour Marie.'))).toBe(false);
+    expect(isRewritten(d('rejected', 'bonjour marie', 'bonjour marie'))).toBe(false);
+    for (const outcome of ['skipped', 'short', 'none', 'failed', 'fallback']) expect(isRewritten(d(outcome, 'a b', 'A b.'))).toBe(false);
+    expect(isRewritten(d('model', '', '', false))).toBe(true);
+    expect(isRewritten({ raw: 'a', text: 'b', timing: null })).toBe(false);
+  });
+
+  it('le filtre « reformulées » se cumule avec la période, l’appli et les mots clés', () => {
+    const rewritten = { ...item(22), raw: 'bonjour marie', timing: { outcome: 'model' } };
+    const plain = { ...item(22), raw: 'Bonjour Marie', timing: { outcome: 'model' } };
+    const only: HistoryFilter = { ...base, rewrittenOnly: true };
+    expect(matchesHistory(rewritten, only, now)).toBe(true);
+    expect(matchesHistory(plain, only, now)).toBe(false);
+    expect(matchesHistory(plain, base, now)).toBe(true);
+    expect(matchesHistory(rewritten, { ...only, period: 'today', app: 'Mail', search: 'marie' }, now)).toBe(true);
+    expect(matchesHistory(rewritten, { ...only, period: 'today', app: 'Notes' }, now)).toBe(false);
+    expect(matchesHistory({ ...rewritten, date: new Date(2026, 9, 3).toISOString() }, { ...only, period: 'today' }, now)).toBe(false);
+    expect(matchesHistory(rewritten, { ...only, search: 'pierre' }, now)).toBe(false);
   });
 });
