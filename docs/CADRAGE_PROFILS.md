@@ -273,20 +273,26 @@ Chaque utilisateur a les éléments suivants :
 | Dictionnaire | `words`, `corrections` |
 | Modes personnalisés et mode choisi | `customModes`, `customModeID`, `rewriteMode`, `simpleFidelity`, `styleOverrides` |
 | Commandes | `customCommands`, `voiceCommandsEnabled`, `voiceCommands`, `listBullet` |
-| Historique et statistiques | `history.json`, `history-totals.json` |
+| Historique et statistiques | `history.json`, `history-totals.json`, et leurs réglages `keepDictationText`, `historyKeepDays`, `typingWPM` |
 
-L'historique et les statistiques ont été ajoutés à la demande de l'auteur, le 12/11 : « les statistiques suivent le profil ».
+L'historique et les statistiques ont été ajoutés à la demande de l'auteur, le 12/11 : « les statistiques suivent le profil ». Leurs trois réglages suivent l'utilisateur : sans cela, un utilisateur qui coupe la conservation du texte la couperait aussi pour l'autre (relecture, C1).
 
-Restent communs à tous les utilisateurs (ils appartiennent à l'ordinateur) :
+Restent communs à tous les utilisateurs, parce qu'ils appartiennent à l'ordinateur. Ce sont tous les autres champs d'`AppSettings` :
 
-- les touches de dictée et de traduction ;
-- le micro et les sons ;
-- les moteurs, les modèles et leurs chemins, `llamaDevice`, les URL ;
-- les clés d'API ;
-- l'apparence et la langue de l'interface, `formatShortcuts` ;
-- le banc d'essai, qui mesure les modèles de cet ordinateur.
+| Groupe | Champs |
+|---|---|
+| Touches | `hotkey`, `dictationKeys`, `translateKeys`, `formatShortcuts` |
+| Micro et sons | `microphoneUID`, `microphoneName`, `startSoundName`, `endSoundName` |
+| Moteurs et modèles | `transcriptionEngine`, `transcriptionModel`, `whisperModelPath`, `cleanupEngine`, `cleanupModel`, `lmStudioModel`, `ollamaModel`, `llamaCppModel`, `llamaDevice`, `lmStudioURL`, `ollamaURL`, `whisperIdleMinutes`, `llamaIdleMinutes` |
+| Comportement | `cleanupEnabled`, `skipWhenClean`, `restoreClipboard`, `pauseMedia` |
+| Apparence | `uiLanguage`, `theme`, `overlayEnabled`, `capture*` |
+| Banc d'essai | `trialCandidates`, `trialText` ; le dossier `bancs/` reste commun aussi |
+| Divers | `checkUpdates`, `setupDone` |
+| Nouveaux champs | `schemaVersion`, `activeProfile` |
 
-`cleanupEnabled` et les réglages de la pastille restent aussi communs.
+Les clés d'API restent aussi communes.
+
+**Règle de code.** Un test unitaire échoue si un champ d'`AppSettings` n'est classé ni « utilisateur » ni « ordinateur ». Un futur réglage ne peut donc pas être oublié dans la répartition (relecture, C1).
 
 Pourquoi les clés restent communes :
 
@@ -304,9 +310,11 @@ L'idée « mode par application » reste à part dans la ROADMAP. Le format pré
 
 - **Menu de l'icône.** Un sous-menu « Utilisateur » coche l'utilisateur actif. Il n'apparaît que lorsqu'il y a au moins deux utilisateurs, si bien qu'une personne seule ne voit aucun changement.
 - **Réglages.** Une liste permet de :
-  - créer un utilisateur, vide ou copié depuis l'utilisateur actif ;
+  - créer un utilisateur, vide ou copié depuis l'utilisateur actif. Une copie ne reprend **ni l'historique ni les statistiques** ;
   - le renommer ;
-  - le supprimer, après confirmation, avec la proposition d'exporter d'abord. Le dossier est déplacé dans `utilisateurs-supprimés/` et n'est jamais effacé par Scriibe.
+  - le supprimer, après confirmation, avec la proposition d'exporter d'abord. Le dossier est déplacé dans `utilisateurs-supprimes/` et n'est jamais effacé par Scriibe.
+
+Les dossiers sont nommés par un identifiant opaque (`utilisateurs/<uuid>/`), jamais par le nom affiché. Cela évite les caractères interdits sous Windows et les collisions de majuscules sous macOS.
 - **Tableau de bord.** Il salue l'utilisateur actif et montre ses statistiques.
 - **Pas de raccourci clavier.** On risquerait de changer d'utilisateur sans le voir.
 
@@ -315,7 +323,10 @@ Changer d'utilisateur change le début du prompt (mots, mode, genre) et relance 
 Ce que le changement d'utilisateur demande dans le code :
 
 - Les requêtes de la page qui envoient un bloc entier (dictionnaire, `customModes`, `customCommands`) portent l'identifiant de l'utilisateur. Le serveur les refuse avec le code 409 si ce n'est plus l'utilisateur actif, et la page se recharge. Cela évite d'écraser les données d'un autre utilisateur (constat § 9, point 9).
-- Le menu de l'icône et `preload_signature` lisent l'utilisateur actif.
+- Le menu de l'icône envoie lui aussi l'identifiant de l'utilisateur quand il choisit un mode. Sinon, un changement d'utilisateur fait entre l'ouverture du menu et le clic appliquerait le mode à l'autre utilisateur (relecture, C3).
+- Un verrou en mémoire protège la suite « lire, fusionner, écrire » des réglages et de `profile.json`. Les fichiers temporaires prennent un nom unique au lieu de `<nom>.tmp` (relecture, C3).
+- `preload_signature` lit la vue fusionnée (étape 4a), sans autre changement. Pendant le délai de stabilisation (`PRELOAD_SETTLE`, 1,5 s), la première dictée qui suit un changement peut partir avant le rechargement. C'est acceptable.
+- On change d'utilisateur par une route dédiée. `activeProfile` ne s'écrit pas par `POST api/settings`.
 
 **4. Format commun d'import et d'export** (choix technique)
 
@@ -339,7 +350,7 @@ Un export est un seul fichier JSON lisible, d'extension `.scriibe.json`, avec un
 | `dictionary` | `{words, corrections}`, comme `dictionary.json` |
 | `modes` | `{customModes: […]}` : chaque mode avec `fidelity`, `rewrites` (pour Scribe) et ses exemples |
 | `commands` | `{customCommands: […]}` |
-| `profile` | Les champs de l'utilisateur listés en décision 1, plus `dictionary`, `customModes` et `customCommands` ; **jamais l'historique ni les statistiques** |
+| `profile` | Les champs de l'utilisateur listés en décision 1, **sauf la ligne « Historique et statistiques »**, plus `dictionary`, `customModes` et `customCommands` |
 
 Pourquoi ce format :
 
@@ -351,6 +362,13 @@ Règles de lecture :
 
 - Un `format` inconnu ou une `version` plus grande que celle que Scriibe connaît : le fichier est refusé, avec un message clair.
 - Les champs inconnus de `content` sont ignorés.
+- Le fichier vient peut-être d'un tiers. Il a donc des limites : taille du fichier, nombre d'éléments, longueur des textes. Les raccourcis des commandes passent par `Shortcut::parse` ; un raccourci illisible est signalé dans l'aperçu.
+
+Règles d'écriture (relecture, C6) :
+
+- L'export est construit **champ par champ, d'après une liste blanche**, jamais en sérialisant `AppSettings` : un futur champ sensible ne peut pas partir par défaut.
+- `exportedAt` ne garde que le jour.
+- Le nom de fichier proposé ne contient pas le nom de l'utilisateur, par exemple `scriibe-dictionnaire-2026-11-12.scriibe.json`.
 
 Règles d'import : un import **ajoute, il ne remplace jamais**, et il montre toujours un aperçu avant (combien d'éléments, et lesquels sont en conflit).
 
@@ -358,8 +376,10 @@ Règles d'import : un import **ajoute, il ne remplace jamais**, et il montre tou
 |---|---|
 | Mots | Dédoublonnés sans tenir compte des majuscules, comme le fait déjà `clean_dictionary` |
 | Corrections | Dédoublonnées sur `heard`, comme Scribe. Si une correction existe déjà avec un autre `written`, celle en place est gardée et le conflit est montré |
-| Modes et commandes | Un `id` déjà présent ou un nom déjà pris donne un nouvel `id` et le suffixe « (importé) » |
-| Utilisateur entier | Crée toujours un nouvel utilisateur, n'écrase jamais l'existant |
+| Modes et commandes | Un `id` déjà présent donne un nouvel `id`, et les `id` des exemples suivent la même règle. Un nom déjà pris reçoit un numéro (« Mon mode 2 »), qui ne s'accumule pas d'un import à l'autre |
+| Utilisateur entier | Crée toujours un nouvel utilisateur, n'écrase jamais l'existant. `customModeID` suit la table des nouveaux identifiants |
+
+L'import passe par le serveur, puis la page se recharge. Sinon, la sauvegarde automatique de la page Dictionnaire (500 ms après la dernière frappe) pourrait écraser l'import.
 
 N'entrent jamais dans un export :
 
@@ -371,8 +391,9 @@ N'entrent jamais dans un export :
 **5. Protection des exports** (décision de l'auteur : « en clair, avec aperçu »)
 
 - Le fichier n'est pas chiffré.
-- Avant d'enregistrer, Scriibe montre ce qui part (« 120 mots, 8 corrections, 2 modes ») et avertit que le fichier contient des noms propres et des phrases d'exemple.
-- Des cases à cocher permettent de retirer une partie, par exemple les corrections ou les exemples des modes.
+- Avant d'enregistrer, Scriibe montre ce qui part. L'aperçu donne le nombre par catégorie (« 120 mots, 8 corrections, 2 modes »), et un clic sur une catégorie en montre la liste. Il avertit que le fichier peut contenir des noms propres et des textes libres.
+- Une case à cocher par catégorie permet de la retirer : mots, corrections, modes, exemples des modes, phrases de style, commandes et leurs phrases.
+- Pour un utilisateur entier, la case « prénom et nom affiché » est **décochée par défaut** (relecture, C6).
 - L'export se fait toujours à la demande, jamais tout seul. L'emplacement est choisi par l'utilisateur.
 
 Pourquoi pas de chiffrement :
@@ -383,14 +404,44 @@ Pourquoi pas de chiffrement :
 
 **6. Migration sans rien perdre** (décision de l'auteur : « déplacer, avec sauvegarde »)
 
-Au premier lancement de la version qui apporte les utilisateurs :
+La procédure a été corrigée d'après la relecture (B1, B2, C5).
 
-1. Scriibe copie `settings.json`, `dictionary.json`, `history.json` et `history-totals.json` dans `sauvegarde-avant-utilisateurs-<date>/`. Ce dossier n'est jamais effacé automatiquement.
-2. Il crée l'utilisateur « Principal » dans `utilisateurs/<id>/` :
-   - `profile.json` reçoit les champs de la décision 1, et le nom affiché vaut le prénom de la salutation ;
-   - `dictionary.json`, `history.json` et `history-totals.json` y sont déplacés.
-3. Il réécrit `settings.json` sans les champs de l'utilisateur, avec `schemaVersion: 2` et `activeProfile: "<id>"`.
-4. L'opération est sans effet si `utilisateurs/` existe déjà. Si une étape échoue, Scriibe s'arrête avant de réécrire `settings.json` et garde l'ancien rangement : il réessaiera au lancement suivant.
+**Quand elle tourne.** Au lancement de l'application, **après** la prise du verrou d'instance (`single_instance`), et avant :
+
+- la création de `FileHistory` ;
+- la première lecture des réglages (`config.settings()`).
+
+Aujourd'hui, `setup()` (`crates/cli/src/commands.rs:18`) crée les réglages avant de prendre le verrou ; il faudra réordonner. Les sous-commandes de diagnostic, qui ne prennent pas le verrou, ne migrent jamais : elles s'arrêtent sur un message si la migration n'est pas faite. La migration travaille dans `data_folder()`, ce qui couvre aussi `SCRIIBE_DATA`.
+
+**Ce qui dit « migré ».** `settings.json` porte `schemaVersion >= 2`. L'existence du dossier `utilisateurs/` ne compte pas.
+
+**Étapes.** Aucune n'est un déplacement avant la dernière :
+
+1. Scriibe copie `settings.json`, `dictionary.json`, `history.json` et `history-totals.json` dans `sauvegarde-avant-utilisateurs-<date>/`. Ce dossier n'est jamais effacé automatiquement. Si la place manque (disque plein), Scriibe s'arrête ici : rien n'a changé.
+2. Il construit l'utilisateur dans un dossier de travail, `utilisateurs/.migration-<uuid>/`, à partir de **copies** :
+   - `profile.json` avec les champs de la décision 1 ;
+   - `dictionary.json`, `history.json` et `history-totals.json`.
+
+   Le nom affiché vaut `firstName`, ou « Principal » si `firstName` est vide. L'identifiant de connexion de l'ordinateur ne devient jamais un nom affiché.
+3. Il renomme ce dossier en `utilisateurs/<uuid>/`. Un renommage dans le même dossier est atomique.
+4. Il réécrit `settings.json` (écriture atomique) sans les champs de l'utilisateur, avec `schemaVersion: 2` et `activeProfile: "<uuid>"`.
+5. Seulement après, il supprime de la racine `dictionary.json`, `history.json` et `history-totals.json`. Leur copie reste dans la sauvegarde.
+
+**Reprises.** Un arrêt brutal peut survenir à n'importe quelle étape :
+
+| Arrêt | Ce que trouve le lancement suivant | Ce que fait Scriibe |
+|---|---|---|
+| Avant l'étape 3 | Un dossier `.migration-*` | L'efface et recommence |
+| Entre les étapes 3 et 4 | Un `utilisateurs/<uuid>/` complet, un `settings.json` sans `schemaVersion` | Le reprend comme utilisateur actif au lieu d'en créer un deuxième |
+| Après l'étape 4 | `schemaVersion: 2` | Rien : la migration est faite. Les fichiers de l'étape 5 qui restent à la racine sont simplement effacés |
+
+**Retour à une version antérieure, puis retour ici.**
+
+- Une version antérieure lit le `settings.json` v2 sans erreur. Elle y voit ses champs utilisateur vides et, si elle enregistre, elle perd `schemaVersion` et `activeProfile`.
+- Au retour sur la nouvelle version, on trouve un `utilisateurs/` existant et un `settings.json` sans `schemaVersion`. C'est le même cas que la deuxième ligne du tableau : Scriibe reprend l'utilisateur existant (le dernier utilisé, sinon le seul) et ne recrée pas « Principal ».
+- Les champs de l'ordinateur modifiés entre-temps par l'ancienne version sont gardés.
+
+**Dossier de Scribe copié par-dessus après la migration.** Un `settings.json` sans `schemaVersion` à côté d'un `utilisateurs/` existant est traité comme ci-dessus. Les champs utilisateur venus de Scribe ne sont pas fusionnés, pour ne rien écraser. Cette limite est notée dans l'Aide.
 
 Revenir à une version antérieure de Scriibe :
 
@@ -406,11 +457,29 @@ Chaque étape peut être livrée seule. Les étapes 1 et 2 servent même si les 
 
 | Étape | Contenu | Utile seule parce que |
 |---|---|---|
-| 1. Fondations, sans changement visible | `schemaVersion` dans `settings.json`. Copie `<nom>.<date>.bak` d'un fichier illisible avant de l'écraser, comme Scribe. Refus d'écraser un fichier d'une version plus récente, la page affiche alors un avertissement. Corrections dédoublonnées sur `heard` | Protège les données dès maintenant (constat § 9, points 1 et 5) et prépare la migration |
-| 2. Import et export du dictionnaire | Enveloppe v1 (`kind: "dictionary"`), aperçu et cases à cocher, fusion. Page Dictionnaire, Aide FR et EN | Partager ou sauvegarder son vocabulaire, même sans utilisateurs |
-| 3. Import et export des modes et des commandes | `kind: "modes"` (chantier 5, après le niveau de fidélité de la ROADMAP n°18) et `kind: "commands"` | Même format que l'étape 2 : peu de code nouveau |
-| 4. Utilisateurs | Migration (décision 6), dossier `utilisateurs/`, liste dans les Réglages, sous-menu de l'icône, tableau de bord, historique et statistiques par utilisateur, garde-fou 409 | La fonction elle-même ; elle s'appuie sur les fondations de l'étape 1 |
-| 5. Export et import d'un utilisateur entier | `kind: "profile"` | Passer d'un ordinateur à l'autre, ou donner sa configuration à quelqu'un |
+| 1. Fondations, sans changement visible | Voir le détail sous ce tableau | Protège les données dès maintenant (constat § 9, points 1, 5 et 8) ; la migration en dépend |
+| 2. Import et export du dictionnaire | Enveloppe v1 (`kind: "dictionary"`), aperçu et cases à cocher, fusion par le serveur, limites. Page Dictionnaire, Aide FR et EN | Partager ou sauvegarder son vocabulaire, même sans utilisateurs. **Dépend de l'étape 1** (dédoublonnage des corrections) |
+| 3. Import et export des modes et des commandes | `kind: "modes"` (chantier 5) et `kind: "commands"` | Même format que l'étape 2. **Prérequis** : le niveau de fidélité de la ROADMAP n°18 pour les modes ; les commandes peuvent partir avant |
+| 4a. Séparer la vue des réglages, sans changement visible | Voir le détail sous ce tableau | Prépare l'étape 4b ; sans effet visible tant qu'il n'y a qu'un seul « utilisateur » |
+| 4b. Migration | Décision 6, avec un test sur un dossier temporaire pour chaque ligne du tableau des reprises | Les données sont rangées par utilisateur, toujours sans rien à choisir |
+| 4c. Utilisateurs visibles | Liste dans les Réglages (créer, copier, renommer, supprimer), sous-menu de l'icône, route de changement, garde-fou 409, verrou en mémoire, tableau de bord et statistiques par utilisateur, Aide FR et EN | La fonction elle-même |
+| 5. Export et import d'un utilisateur entier | `kind: "profile"`, case « prénom et nom affiché » décochée | Passer d'un ordinateur à l'autre, ou donner sa configuration à quelqu'un. **Dépend de 4c** |
+
+Contenu de l'étape 1 :
+
+- `schemaVersion` devient un champ d'`AppSettings`, lu et écrit.
+- Un drapeau « lecture refusée » dans `FileConfig` couvre un fichier illisible ou d'une version plus récente que celle que Scriibe connaît. Toute sauvegarde de ce fichier échoue alors, et la page affiche un avertissement. Aujourd'hui, la lecture retombe sur les réglages par défaut, que la sauvegarde suivante écrit par-dessus (relecture, B4).
+- À la première lecture d'un fichier illisible, Scriibe en fait une copie `<nom>.<date>.bak`, comme Scribe. Elle a lieu une seule fois, à la lecture et non à la sauvegarde.
+- Les fichiers temporaires prennent un nom unique.
+- Les corrections sont dédoublonnées sur `heard`.
+
+Contenu de l'étape 4a (relecture, B3) :
+
+- `FileConfig` donne toujours une vue `AppSettings` unique, fusion de `settings.json` et `profile.json`. Le reste du code n'a ainsi pas à changer : `active_profile`, `preload_signature`, le menu de l'icône, `api/status`.
+- `merge_settings` répartit chaque clé dans le bon fichier, selon le classement de la décision 1.
+- Un `Watched` par fichier, avec un chemin qui suit l'utilisateur actif, couvre aussi le dictionnaire, lu à chaque dictée.
+- `FileHistory` peut changer de dossier sous son verrou (`switch(folder)`), et `ctx.history` suit.
+- Tant que la migration n'existe pas, le « profil » est simplement la racine du dossier de données.
 
 Plus tard, hors de ce cadrage :
 
@@ -422,11 +491,30 @@ Plus tard, hors de ce cadrage :
 
 ### Conséquences pour les autres chantiers
 
-- **Chantier 3 (prénom).** `firstName` passe dans l'utilisateur à l'étape 4. D'ici là, le réglage ne change pas.
+- **Chantier 3 (prénom).** `firstName` passe dans l'utilisateur à l'étape 4b. D'ici là, le réglage ne change pas.
 - **Chantier 5 (modes).** Il adopte l'enveloppe de la décision 4 et les règles d'import des modes. L'export d'un mode doit porter `fidelity`.
-- **Compatibilité avec Scribe.** Après l'étape 4, on ne peut plus copier le dossier de Scribe tel quel dans Scriibe. La migration le prend pourtant en charge : un `settings.json` de Scribe sans `schemaVersion` est traité comme l'ancien rangement. Scribe ne lit pas les fichiers de Scriibe, c'est accepté.
+- **Compatibilité avec Scribe.** Un dossier de Scribe copié dans une Scriibe **pas encore migrée** est migré comme l'ancien rangement. Copié **après** la migration (étape 4b), ses champs d'utilisateur ne sont pas fusionnés (décision 6). Scribe ne lit pas les fichiers de Scriibe, c'est accepté.
 - **Prompt.** L'empreinte `4ed86f0c1c154918` ne change pas, puisqu'aucun texte de prompt n'est modifié.
 
 ## Relecture
 
-(Tâche 2, à venir.)
+La relecture a été faite le 12/11 (tâche 2) par un sous-agent relecteur qui n'avait pas écrit la note. Il a vérifié les décisions contre le code. J'ai contrôlé moi-même deux de ses affirmations : l'ordre `setup()` puis `single_instance` dans `commands.rs:18-75`, et les champs non classés dans `settings.rs`. Les deux sont exactes.
+
+**Verdict du relecteur.** « Solide sur le fond, pas encore prêt pour l'implémentation. » Il a relevé 4 défauts bloquants, 7 à corriger et 7 mineurs. Tous sont corrigés dans le § Cadrage ci-dessus. **Aucune décision de l'auteur ne change** : les corrections précisent comment les appliquer.
+
+| Défaut | Correction (où) |
+|---|---|
+| B1. La migration tournerait avant le verrou d'instance (`setup()` crée les réglages avant `single_instance`), et aussi dans les sous-commandes | Migration après le verrou ; les sous-commandes ne migrent jamais (décision 6) |
+| B2. Migration ni atomique ni rejouable : un arrêt après le déplacement des fichiers laissait l'utilisateur vide, et le critère « `utilisateurs/` existe » sautait la reprise | Dossier de travail, copies puis renommage ; critère `schemaVersion >= 2` ; tableau des reprises (décision 6) |
+| B3. Étape 4 sous-estimée : `AppSettings` est lu partout, `Watched` et `FileHistory` ont des chemins figés | Nouvelle étape 4a « séparer la vue », étape 4 découpée en 4a, 4b et 4c (décision 7) |
+| B4. Le refus d'écraser un fichier plus récent n'était pas réalisable : `from_value` perd `schemaVersion`, la sauvegarde écrit par-dessus les réglages par défaut | `schemaVersion` dans `AppSettings`, drapeau « lecture refusée », `.bak` fait à la lecture (étape 1) |
+| C1. Des champs n'étaient pas classés (`keepDictationText`, `historyKeepDays`, `typingWPM`, moteurs, banc, `skipWhenClean`, `setupDone`…) | Tableau complet ; réglages de l'historique dans l'utilisateur ; test unitaire de classement (décision 1) |
+| C2. Contradictions : export `profile` et historique, nom affiché pris dans le compte de l'ordinateur, copie d'un utilisateur et historique | Historique exclu explicitement ; « Principal » si `firstName` est vide ; une copie ne reprend pas l'historique |
+| C3. Le menu de l'icône écrit sans identifiant d'utilisateur ; nom fixe des fichiers temporaires | Identifiant envoyé par le menu, verrou en mémoire, nom temporaire unique (décisions 3 et 7) |
+| C4. Délai de préchargement après un changement d'utilisateur | Noté et accepté (décision 3) |
+| C5. Retour à une version antérieure puis retour ici ; dossier de Scribe copié par-dessus | Reprise de l'utilisateur existant, sans recréer « Principal » ; pas de fusion avec Scribe, noté dans l'Aide (décision 6) |
+| C6. Fuites possibles : prénom, textes libres (styles, exemples, phrases), heure exacte, nom de fichier ; export par sérialisation | Liste blanche, date au jour, nom de fichier neutre, aperçu détaillé, prénom décoché par défaut (décisions 4 et 5) |
+| C7. Import : renvoi de `customModeID`, `id` des exemples, limites, raccourcis, sauvegarde automatique de la page, suffixe cumulé | Table des identifiants, limites, `Shortcut::parse`, import par le serveur, numérotation (décision 4) |
+| Mineurs (M1 à M7) | Dépendances des étapes 2, 3 et 5 écrites ; dossier `utilisateurs/<uuid>/` opaque ; disque plein ; `utilisateurs-supprimes/` sans accent ; route dédiée au changement d'utilisateur |
+
+**Un seul choix ajouté de mon côté.** `skipWhenClean` reste à l'ordinateur, ce que le relecteur recommandait aussi.
