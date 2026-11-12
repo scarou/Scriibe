@@ -2,6 +2,13 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## S23 — 2026-11-12 · Bugs de l'Aide et des modes (non publié : part avec la prochaine version)
+
+- **Aide** : le sommaire reste en place, seule la carte de texte défile, en français et en anglais, en petite comme en grande fenêtre (il n'a jamais été fixe : ce n'était pas une régression du 06/11). Essayé à la main sur le Mac.
+- **Modes** : choisir un mode dans la page ou dans le menu de l'icône revient au même (le choix rallume la mise au propre, comme dans Scribe) ; la page des modes suit le menu sans recharger (relecture toutes les 1,5 s) ; sur Mac et Linux, les cases du menu se remettent d'accord après un clic (cliquer le mode déjà coché ne le décoche plus) ; le mode Amusant retiré est coché comme Simple dans le menu, comme dans la page. Une dictée garde le mode du relâchement de la touche (test).
+- **Technique** : `AppSettings::pick_mode` (cœur), `web::pick_mode`, `mac_tray::needs_refresh` et `MODE_CLICKED`, `ui/src/lib/modesSync.ts` ; tests `crates/cli/src/mode_sync.rs`, `modesSync.test.ts`, `tabs.test.ts`, un test de pipeline. Constat, correctifs, essai réel et **points restants de la relecture** : `docs/BUGS_AIDE_MODES.md`.
+- Pas de version : 458 tests Rust et 91 tests de l'interface passent.
+
 ## S22 — 2026-11-12 · Allègement du CLAUDE.md (documentation seulement, non publié)
 
 - **`CLAUDE.md`** : 12 308 → 6 758 octets (règle R03, cible ≤ 8 000). Trois blocs « à la demande » déplacés dans `docs/I18N.md` (interface en deux langues), `docs/TESTS.md` (détails des tests) et `docs/CLOTURE.md` (clôture, CI, publication, essais sur le PC et le Mac), chacun cité par une ligne « Lire … quand ».

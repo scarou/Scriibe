@@ -96,3 +96,15 @@ Limites : les réponses ne disent pas si la coche d'un sous-menu **resté ouvert
 ## Ajouts
 
 Aucune nouvelle demande pendant l'essai.
+
+## Relecture avant livraison (12/11, agent distinct)
+
+Aucun point bloquant ; source unique, `pick_mode` atomique, remise d'accord du menu Mac sans course dangereuse, fixtures et tests existants intacts. **Rien n'a été corrigé** (accord de l'auteur requis) ; restent :
+
+**À corriger**
+1. **Aide en fenêtre étroite** (`Help.svelte:306-307`, `HelpEn.svelte:319-320`) : de 641 à environ 800 px de large, la carte de texte ne fait que 236 à 300 px (sommaire ≥ 140 px, barre principale 210 px). De plus, le clic sur une section du sommaire ne remonte pas la page : après avoir descendu une section longue, une section plus courte peut s'ouvrir avec son titre hors de vue (option déjà notée au Constat : remonter en haut au changement de section). La largeur essayée à l'essai réel n'a pas été notée.
+2. **Page et menu pas « vus pareil » si la reformulation est coupée ou sans moteur** : moteur `none` → menu grisé sans coche, page avec radio Simple coché ; `settings.json` venu de Scribe avec `cleanupEnabled:false` → page cochée, menu non. Aucun réglage de l'interface ne touche `cleanupEnabled` (seuls `TrialBench` et `web/trial.rs`). À afficher dans la page ou à noter dans `docs/ECARTS.md`.
+3. **Test de `MODE_CLICKED`** : seul le prédicat `needs_refresh` est testé ; supprimer le `store(true)` ou la lecture de `forced` laisserait le test vert. Le comportement réel n'est couvert que par l'essai manuel.
+4. **Ordre au montage de `Modes.svelte`** : `settings.load()` ne part plus qu'après la réussite de `load()` (avant : en parallèle) ; si `api/modes` échoue, boutons « Essayer » grisés jusqu'au sondage suivant (1,5 s).
+
+**Mineurs** : réponse périmée du sondage pouvant écraser un choix de la page pendant 1,5 s ; `watchModes` ne contrôle pas la forme de la réponse (latent) ; Amusant : coche Simple mais titre « Amusant » (page et menu) ; `pick_mode` rallume `cleanup_enabled` même sans moteur (voulu, aligné sur Scribe, **pas encore noté dans `docs/ECARTS.md`**) ; le test « pendant une dictée » ne compare que le libellé gardé, pas le prompt ; drapeau `MODE_CLICKED` jamais levé si `choose_mode` paniquait ou si la source n'est pas prête ; section « Essai réel » mince (réponses « ok » sans détail).
