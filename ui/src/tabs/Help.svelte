@@ -206,6 +206,8 @@
         <li>Choisis-le dans la liste, puis dicte un texte pour vérifier que les questions restent des questions et que les reprises sont corrigées.</li>
       </ol>
       {@render tip('Avec un petit modèle sur un ordinateur ordinaire, une consigne seule change peu le texte : mesuré sur Mac, un mode « SMS » sans exemples écrivait comme Simple, et avec trois exemples il écrivait « resto » et « anniv ». Les exemples comptent plus que la consigne.')}
+      <h3>Choisir les modes du menu de l’icône</h3>
+      <p>Dans Réglages → Modes, chaque mode a une case « Afficher dans le menu de l’icône ». Au départ, tous sont cochés. Décoche un mode pour le retirer du menu de l’icône, y compris s’il est en cours : il reste alors le mode utilisé, sans coche dans le menu, jusqu’à ce que tu en choisisses un autre. Le mode n’est ni supprimé ni caché ailleurs : tu le retrouves dans cette page et tu peux le choisir ici. Au moins un mode reste toujours affiché (la dernière case ne se décoche pas). Ce choix est gardé quand tu quittes Scriibe.</p>
       <div class="links">{@render go('Les modes', 'modes')}</div>
 
     {:else if open === 'dictionary'}

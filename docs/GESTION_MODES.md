@@ -180,3 +180,18 @@ Recommandations du rédacteur, à confirmer dans les tâches 1 à 3 (choix techn
 - Le comportement des dialogues de fichier selon la version du système ; seul le Mac a été essayé (`docs/ESSAI_MACOS.md`).
 - Si une coche se met à jour dans un sous-menu resté ouvert ; le menu sous Windows et Linux.
 - Le sort de la mention « Linux sans icône » de l'Aide.
+
+## Modes affichés (tâche 1)
+
+**Décision de l'auteur (12/11).** Par défaut, tous les modes sont affichés. Décocher un mode le fait disparaître du menu de l'icône, **y compris le mode actif** (il reste le mode utilisé, sans coche dans le menu, jusqu'à ce qu'un autre soit choisi). Le mode reste choisissable dans la page. Cette décision remplace la recommandation du § 7 du Constat (garder le mode actif visible).
+
+**Ce qui a été fait.**
+
+- Réglage `hiddenModes` (`crates/core/src/settings.rs`) : liste d'identifiants, toujours écrite dans `settings.json` (donc acceptée par `merge_settings`, pas d'entrée dans `OPTIONAL_KEYS`). Lecture tolérante (`clean_hidden_modes`) : doublons, identifiants inconnus (mode supprimé, Amusant) et valeur illisible sont écartés ; si tous les modes étaient masqués, la liste est vidée. `menu_mode_ids()` donne les identifiants proposables, `is_hidden_in_menu(id)` répond pour un mode (jamais « masqué » si cela masquerait tout, par exemple après la suppression d'un mode personnel).
+- Menu de l'icône : filtre dans `menu_view_in` (`crates/cli/src/tray_source.rs`), modes livrés et personnels ; un groupe vide disparaît. Les fils de rafraîchissement Windows, macOS et Linux n'ont pas changé (la suite `(id, label)` change, le sous-menu est reconstruit).
+- Page : `ui/src/tabs/Modes.svelte`, une case par mode (livrés et personnels), la dernière case affichée est désactivée ; phrase d'explication en tête.
+- Aide : rubrique « Les modes » → « Choisir les modes du menu de l'icône », dans `Help.svelte` et `HelpEn.svelte`. Traductions dans `locales/en.ts`. Écart noté dans `docs/ECARTS.md`.
+
+**Tests.** `crates/core/tests/hidden_modes.rs` (défaut, aller-retour, identifiants écartés, tout masqué, mode supprimé) ; deux tests dans `tray_source.rs` (modes livrés masqués dont l'actif, groupe des modes personnels). Mesurés ce jour : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` et `cargo test --workspace` sans erreur ; interface : `npm run check` (0 erreur), `npm test` (95 tests passent), `npm run build`.
+
+**Non vérifié.** L'effet réel dans le menu de l'icône (Mac, puis Windows et Linux) : c'est l'essai de la tâche 4.

@@ -214,6 +214,8 @@ export const en: Record<string, string> = {
   'Modes de base': 'Basic modes',
   'Modes professionnels': 'Professional modes',
   'Mode sans nom': 'Unnamed mode',
+  'Afficher dans le menu de l’icône': 'Show in the icon menu',
+  'Chaque mode a une case « Afficher dans le menu de l’icône » : décoché, il disparaît de ce menu (même s’il est en cours) mais reste dans cette page. Au moins un mode reste affiché.': 'Each mode has a “Show in the icon menu” box: unticked, it disappears from that menu (even if it is the current one) but stays on this page. At least one mode stays shown.',
   '{n} exemple(s)': '{n} example(s)',
   'Modifier': 'Edit',
   'Aucun mode personnel.': 'No custom mode.',

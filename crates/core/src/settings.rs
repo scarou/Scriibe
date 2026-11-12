@@ -12,6 +12,31 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
 
+fn menu_ids(custom_modes: &[CustomMode]) -> Vec<String> {
+    RewriteMode::MENU_GROUPS
+        .iter()
+        .flat_map(|group| group.iter())
+        .filter(|mode| **mode != RewriteMode::Playful)
+        .map(|mode| mode.raw().to_string())
+        .chain(custom_modes.iter().map(|m| m.id.clone()))
+        .collect()
+}
+
+/// Lecture de `hiddenModes` : sans doublon, sans identifiant inconnu (mode supprimé), et jamais tous les modes (liste vidée : tout s'affiche).
+fn clean_hidden_modes(raw: Vec<String>, custom_modes: &[CustomMode]) -> Vec<String> {
+    let all = menu_ids(custom_modes);
+    let mut kept: Vec<String> = Vec::new();
+    for id in raw {
+        if all.contains(&id) && !kept.contains(&id) {
+            kept.push(id);
+        }
+    }
+    if kept.len() >= all.len() {
+        kept.clear();
+    }
+    kept
+}
+
 /// Touche à maintenir pour dicter. Les valeurs sont celles de Scribe (macOS), plus Ctrl droit pour Windows et Linux.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Hotkey {
@@ -258,6 +283,10 @@ pub struct AppSettings {
     /// Mode personnel choisi (`None` : le mode livré `rewrite_mode`).
     #[serde(rename = "customModeID", skip_serializing_if = "Option::is_none")]
     pub custom_mode_id: Option<String>,
+    /// Modes décochés dans Réglages → Les modes : absents du menu de l'icône (`raw()` d'un mode livré, UUID d'un mode personnel).
+    /// Vide : tous sont affichés. Jamais tous les modes (voir `clean_hidden_modes`).
+    #[serde(rename = "hiddenModes")]
+    pub hidden_modes: Vec<String>,
     /// Simple et Amusant : texte de Whisper déjà propre collé sans modèle.
     #[serde(rename = "skipWhenClean")]
     pub skip_when_clean: bool,
@@ -376,6 +405,7 @@ impl Default for AppSettings {
             style_overrides: BTreeMap::new(),
             custom_modes: Vec::new(),
             custom_mode_id: None,
+            hidden_modes: Vec::new(),
             skip_when_clean: false,
             microphone_uid: String::new(),
             microphone_name: String::new(),
@@ -451,6 +481,7 @@ impl AppSettings {
         // Un mode personnel supprimé ou illisible : retour au mode livré. Choisi, il s'appuie sur Simple.
         let custom_mode_id = modes::parse_id(o.get("customModeID")).filter(|id| custom_modes.iter().any(|m| &m.id == id));
         let rewrite_mode = if custom_mode_id.is_some() { RewriteMode::Simple } else { get(o, "rewriteMode").unwrap_or(d.rewrite_mode) };
+        let hidden_modes = clean_hidden_modes(get::<Vec<String>>(o, "hiddenModes").unwrap_or_default(), &custom_modes);
         Some(Self {
             hotkey: get(o, "hotkey").unwrap_or(d.hotkey),
             language: get(o, "language").unwrap_or(d.language),
@@ -480,6 +511,7 @@ impl AppSettings {
             style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
             custom_modes,
             custom_mode_id,
+            hidden_modes,
             skip_when_clean: get(o, "skipWhenClean").unwrap_or(d.skip_when_clean),
             microphone_uid: get(o, "microphoneUID").unwrap_or(d.microphone_uid),
             microphone_name: get(o, "microphoneName").unwrap_or(d.microphone_name),
@@ -573,6 +605,18 @@ impl AppSettings {
     }
 
     // MARK: Modes (extension de `Modes.swift`)
+
+    /// Les identifiants des modes que le menu de l'icône peut proposer : les modes livrés (sans Amusant, abandonné), puis les modes personnels.
+    pub fn menu_mode_ids(&self) -> Vec<String> {
+        menu_ids(&self.custom_modes)
+    }
+
+    /// Ce mode est-il masqué du menu de l'icône ? Jamais quand tous les modes le seraient (un mode personnel supprimé après coup).
+    pub fn is_hidden_in_menu(&self, id: &str) -> bool {
+        let all = self.menu_mode_ids();
+        let hidden = all.iter().filter(|m| self.hidden_modes.contains(m)).count();
+        hidden < all.len() && self.hidden_modes.iter().any(|h| h == id)
+    }
 
     /// Le mode personnel choisi, s'il existe encore.
     pub fn active_custom_mode(&self) -> Option<&CustomMode> {

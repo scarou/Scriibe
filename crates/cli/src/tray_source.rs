@@ -61,7 +61,7 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
         .map(|group| {
             group
                 .iter()
-                .filter(|mode| **mode != RewriteMode::Playful)
+                .filter(|mode| **mode != RewriteMode::Playful && !settings.is_hidden_in_menu(mode.raw()))
                 .map(|mode| {
                     entry(
                         mode.raw().to_string(),
@@ -73,14 +73,15 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
         })
         .filter(|group| !group.is_empty())
         .collect();
-    if !settings.custom_modes.is_empty() {
-        groups.push(
-            settings
-                .custom_modes
-                .iter()
-                .map(|m| entry(m.id.clone(), m.label(), (if english { "Custom mode" } else { "Mode personnel" }).to_string()))
-                .collect(),
-        );
+    // Les modes décochés dans les réglages n'y figurent pas, même le mode actif ; un groupe vide disparaît.
+    let custom: Vec<ModeEntry> = settings
+        .custom_modes
+        .iter()
+        .filter(|m| !settings.is_hidden_in_menu(&m.id))
+        .map(|m| entry(m.id.clone(), m.label(), (if english { "Custom mode" } else { "Mode personnel" }).to_string()))
+        .collect();
+    if !custom.is_empty() {
+        groups.push(custom);
     }
     let mode_label = RewriteMode::from_raw(&settings.mode_choice())
         .filter(|_| english)
@@ -183,6 +184,7 @@ impl TrayMenuSource for TraySource {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scriibe_core::modes::CustomMode;
     use scriibe_core::settings::CleanupEngine;
 
     fn settings(engine: CleanupEngine) -> AppSettings {
@@ -201,6 +203,29 @@ mod tests {
         let (key, translate) = (scriibe_platform::keys::default_dictation_label(), scriibe_platform::keys::default_translate_label());
         assert_eq!(view.dictation_hint, format!("Maintiens {key} pour dicter"));
         assert_eq!(view.translate_hint, format!("Maintiens {key} + {translate} pour traduire en anglais"));
+    }
+
+    #[test]
+    fn unchecked_modes_leave_the_menu_even_the_current_one_and_empty_groups_vanish() {
+        let mut s = settings(CleanupEngine::LlamaCpp);
+        s.hidden_modes = vec!["simple".into(), "wellness".into(), "tech".into(), "letter".into(), "sales".into()];
+        let view = menu_view_in(&s, "0.1.0", UiLang::Fr);
+        let ids: Vec<Vec<&str>> = view.groups.iter().map(|g| g.iter().map(|m| m.id.as_str()).collect()).collect();
+        assert_eq!(ids, vec![vec!["literal", "formal", "calm"]]);
+        assert!(view.groups.iter().flatten().all(|m| !m.checked), "le mode actif (Simple) est masqué : aucune coche");
+        assert_eq!(view.mode_title, "Mode : Simple", "le mode reste actif");
+    }
+
+    #[test]
+    fn unchecked_custom_modes_leave_their_group() {
+        let mut s = settings(CleanupEngine::LlamaCpp);
+        s.custom_modes = vec![CustomMode::from_value(
+            &serde_json::json!({"id": "4F6D1B7E-0C1A-4E55-9C0B-2A7F3C9D8E11", "name": "SMS", "style": "Court."}),
+        )
+        .unwrap()];
+        assert_eq!(menu_view_in(&s, "0.1.0", UiLang::Fr).groups.len(), 3);
+        s.hidden_modes = vec!["4F6D1B7E-0C1A-4E55-9C0B-2A7F3C9D8E11".into()];
+        assert_eq!(menu_view_in(&s, "0.1.0", UiLang::Fr).groups.len(), 2);
     }
 
     #[test]

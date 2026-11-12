@@ -219,6 +219,8 @@
         <li>Choose it in the list, then dictate a text to check that questions stay questions and that false starts are corrected.</li>
       </ol>
       {@render tip('With a small model on an ordinary computer, an instruction alone changes the text little: measured on a Mac, an “SMS” mode without examples wrote like Simple, and with three examples it wrote “resto” and “anniv”. The examples count more than the instruction.')}
+      <h3>Choosing the modes in the icon menu</h3>
+      <p>In Settings → Modes, each mode has a “Show in the icon menu” box. At the start, all of them are ticked. Untick a mode to remove it from the icon menu, even if it is the current one: it then stays the mode in use, with no tick in the menu, until you choose another. The mode is neither deleted nor hidden elsewhere: you find it on this page and can choose it here. At least one mode always stays shown (the last box cannot be unticked). This choice is kept when you quit Scriibe.</p>
       <div class="links">{@render go('The modes', 'modes')}</div>
 
     {:else if open === 'dictionary'}

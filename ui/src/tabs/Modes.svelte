@@ -35,6 +35,15 @@
   let custom = $derived((v?.customModes as CustomMode[] | undefined) ?? []);
   let overrides = $derived((v?.styleOverrides as Record<string, string> | undefined) ?? {});
 
+  let hidden = $derived((v?.hiddenModes as string[] | undefined) ?? []);
+  let menuIds = $derived([...(modes?.groups.flat() ?? []), ...custom.map((m) => m.id)]);
+  const shown = (id: string) => !hidden.includes(id);
+  /** Le dernier mode affiché ne se décoche pas : le menu en garde toujours un. */
+  const lastShown = (id: string) => shown(id) && menuIds.filter(shown).length <= 1;
+  async function showInMenu(id: string, on: boolean) {
+    await settings.change({ hiddenModes: on ? hidden.filter((h) => h !== id) : [...hidden, id] });
+  }
+
   async function load() {
     modes = await api<Modes>('modes');
   }
@@ -94,6 +103,8 @@
   <p class="muted">{t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode (en Littéral, sans modèle : seulement les signes dictés et le dictionnaire). En Simple, « euh, je pense qu’on pourrait, euh, décaler à jeudi » devient « Je pense qu’on pourrait décaler à jeudi. » ; en Soutenu, la phrase est en plus reformulée dans un français soigné.')}</p>
   <p class="muted">{t('Le mode règle le ton de la mise au propre. Mode en cours :')} <b>{t(modes.active_label)}</b>. {t('La consigne de base (ne jamais répondre, garder les personnes) et le garde-fou ne changent pas.')}</p>
 
+  <p class="muted">{t('Chaque mode a une case « Afficher dans le menu de l’icône » : décoché, il disparaît de ce menu (même s’il est en cours) mais reste dans cette page. Au moins un mode reste affiché.')}</p>
+
   {#if trial}
     {#key trial.key}<ModeTrial choice={trial.choice} label={trial.label} onclose={() => (trial = null)} />{/key}
   {/if}
@@ -107,6 +118,7 @@
             <input type="radio" name="mode" checked={modes.choice === m.id} disabled={!m.available} onchange={() => choose(m.id)} />
             <span><b>{t(m.label)}</b>{#if !m.available}<span class="tag">{t('bientôt : traité comme Simple')}</span>{/if}<br /><span class="muted">{t(m.summary)}</span></span>
           </label>
+          <label class="muted menu-box"><input type="checkbox" checked={shown(m.id)} disabled={lastShown(m.id)} onchange={(e) => showInMenu(m.id, e.currentTarget.checked)} /> {t('Afficher dans le menu de l’icône')}</label>
           {#if m.id !== 'literal'}
             <button onclick={() => startTrial(m.id, t(m.label))} disabled={!usable} title={usable ? '' : t('Choisis d’abord un moteur de mise au propre')}>{t('Essayer sur les phrases types')}</button>
           {/if}
@@ -133,6 +145,7 @@
           <input type="radio" name="mode" checked={modes.choice === m.id} onchange={() => choose(m.id)} />
           <span><b>{m.name || t('Mode sans nom')}</b><br /><span class="muted">{fidelityLabel(m.fidelity)} · {t('{n} exemple(s)', { n: m.examples.length })}</span></span>
         </label>
+        <label class="muted menu-box"><input type="checkbox" checked={shown(m.id)} disabled={lastShown(m.id)} onchange={(e) => showInMenu(m.id, e.currentTarget.checked)} /> {t('Afficher dans le menu de l’icône')}</label>
         <button onclick={() => startTrial(m.id, m.name || t('Mode sans nom'))} disabled={!usable}>{t('Essayer sur les phrases types')}</button>
         <button onclick={() => (editing = structuredClone($state.snapshot(m)))}>{t('Modifier')}</button>
         <button onclick={() => removeCustom(m)}>{t('Supprimer')}</button>
@@ -182,4 +195,5 @@
   .mode:last-child { border-bottom: 0; }
   .pick { display: flex; gap: 10px; align-items: flex-start; flex: 1 1 320px; cursor: pointer; }
   .style { width: 100%; }
+  .menu-box { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 </style>
