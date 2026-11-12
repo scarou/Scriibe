@@ -255,7 +255,177 @@ Exemple reconstruit :
 
 ## Cadrage
 
-(Tâche 1, à venir.)
+Le cadrage a été fait le 12/11 (tâche 1). Les questions 1, 2, 3, 5 et 6 portent sur l'usage, la sécurité ou un choix difficile à défaire : l'auteur les a tranchées. Les questions 4 et 7 sont des choix techniques, je les ai pris en donnant mes raisons.
+
+**Vocabulaire.** Un profil est **un utilisateur**. L'interface dit « utilisateur » ; le code et le format disent `profile`, puisque les identifiants du code sont en anglais.
+
+### Décisions
+
+**1. Contenu d'un utilisateur** (décision de l'auteur : « la personne »)
+
+Chaque utilisateur a les éléments suivants :
+
+| Élément | Champs |
+|---|---|
+| Nom affiché | (nouveau) |
+| Prénom et genre | `firstName`, `speakerGender` |
+| Langues | `language`, `translationLanguage` |
+| Dictionnaire | `words`, `corrections` |
+| Modes personnalisés et mode choisi | `customModes`, `customModeID`, `rewriteMode`, `simpleFidelity`, `styleOverrides` |
+| Commandes | `customCommands`, `voiceCommandsEnabled`, `voiceCommands`, `listBullet` |
+| Historique et statistiques | `history.json`, `history-totals.json` |
+
+L'historique et les statistiques ont été ajoutés à la demande de l'auteur, le 12/11 : « les statistiques suivent le profil ».
+
+Restent communs à tous les utilisateurs (ils appartiennent à l'ordinateur) :
+
+- les touches de dictée et de traduction ;
+- le micro et les sons ;
+- les moteurs, les modèles et leurs chemins, `llamaDevice`, les URL ;
+- les clés d'API ;
+- l'apparence et la langue de l'interface, `formatShortcuts` ;
+- le banc d'essai, qui mesure les modèles de cet ordinateur.
+
+`cleanupEnabled` et les réglages de la pastille restent aussi communs.
+
+Pourquoi les clés restent communes :
+
+- elles sont rangées par compte de l'ordinateur ;
+- des clés par utilisateur demanderaient de nouveaux noms dans le Trousseau et le Gestionnaire d'identifiants ;
+- deux personnes qui partagent une session partagent déjà la facture.
+
+**2. Un dictionnaire par utilisateur** (décision de l'auteur)
+
+Chaque utilisateur a un seul dictionnaire. Un import ajoute ses entrées à ce dictionnaire. Il n'y a ni plusieurs dictionnaires par utilisateur, ni choix selon l'application.
+
+L'idée « mode par application » reste à part dans la ROADMAP. Le format prévoit la place pour l'ajouter plus tard, sans migration : un champ facultatif de l'utilisateur.
+
+**3. Passer d'un utilisateur à l'autre** (décision de l'auteur : « menu de l'icône et Réglages »)
+
+- **Menu de l'icône.** Un sous-menu « Utilisateur » coche l'utilisateur actif. Il n'apparaît que lorsqu'il y a au moins deux utilisateurs, si bien qu'une personne seule ne voit aucun changement.
+- **Réglages.** Une liste permet de :
+  - créer un utilisateur, vide ou copié depuis l'utilisateur actif ;
+  - le renommer ;
+  - le supprimer, après confirmation, avec la proposition d'exporter d'abord. Le dossier est déplacé dans `utilisateurs-supprimés/` et n'est jamais effacé par Scriibe.
+- **Tableau de bord.** Il salue l'utilisateur actif et montre ses statistiques.
+- **Pas de raccourci clavier.** On risquerait de changer d'utilisateur sans le voir.
+
+Changer d'utilisateur change le début du prompt (mots, mode, genre) et relance le préchargement du modèle (constat § 6). C'est acceptable parce que c'est rare.
+
+Ce que le changement d'utilisateur demande dans le code :
+
+- Les requêtes de la page qui envoient un bloc entier (dictionnaire, `customModes`, `customCommands`) portent l'identifiant de l'utilisateur. Le serveur les refuse avec le code 409 si ce n'est plus l'utilisateur actif, et la page se recharge. Cela évite d'écraser les données d'un autre utilisateur (constat § 9, point 9).
+- Le menu de l'icône et `preload_signature` lisent l'utilisateur actif.
+
+**4. Format commun d'import et d'export** (choix technique)
+
+Un export est un seul fichier JSON lisible, d'extension `.scriibe.json`, avec une enveloppe commune :
+
+```json
+{
+  "format": "scriibe-export",
+  "version": 1,
+  "kind": "dictionary",
+  "app": "Scriibe 0.4.0",
+  "exportedAt": "2026-11-12T18:00:00+01:00",
+  "content": { "words": ["Claude Code"], "corrections": [{ "heard": "cri be", "written": "Scriibe" }] }
+}
+```
+
+`kind` prend l'une de ces valeurs :
+
+| `kind` | Contenu de `content` |
+|---|---|
+| `dictionary` | `{words, corrections}`, comme `dictionary.json` |
+| `modes` | `{customModes: […]}` : chaque mode avec `fidelity`, `rewrites` (pour Scribe) et ses exemples |
+| `commands` | `{customCommands: […]}` |
+| `profile` | Les champs de l'utilisateur listés en décision 1, plus `dictionary`, `customModes` et `customCommands` ; **jamais l'historique ni les statistiques** |
+
+Pourquoi ce format :
+
+- Les clés sont celles des fichiers actuels, ce qui permet de réutiliser les lectures tolérantes qui existent déjà (`from_value`, `UserDictionary::from_json`, `CustomMode::from_value`).
+- Un fichier reste lisible et modifiable à la main.
+- Le chantier 5 (modes) reprendra `kind: "modes"` tel quel.
+
+Règles de lecture :
+
+- Un `format` inconnu ou une `version` plus grande que celle que Scriibe connaît : le fichier est refusé, avec un message clair.
+- Les champs inconnus de `content` sont ignorés.
+
+Règles d'import : un import **ajoute, il ne remplace jamais**, et il montre toujours un aperçu avant (combien d'éléments, et lesquels sont en conflit).
+
+| Élément importé | Règle |
+|---|---|
+| Mots | Dédoublonnés sans tenir compte des majuscules, comme le fait déjà `clean_dictionary` |
+| Corrections | Dédoublonnées sur `heard`, comme Scribe. Si une correction existe déjà avec un autre `written`, celle en place est gardée et le conflit est montré |
+| Modes et commandes | Un `id` déjà présent ou un nom déjà pris donne un nouvel `id` et le suffixe « (importé) » |
+| Utilisateur entier | Crée toujours un nouvel utilisateur, n'écrase jamais l'existant |
+
+N'entrent jamais dans un export :
+
+- les clés d'API ;
+- l'historique et les statistiques ;
+- le banc d'essai ;
+- les champs propres à l'ordinateur (décision 1).
+
+**5. Protection des exports** (décision de l'auteur : « en clair, avec aperçu »)
+
+- Le fichier n'est pas chiffré.
+- Avant d'enregistrer, Scriibe montre ce qui part (« 120 mots, 8 corrections, 2 modes ») et avertit que le fichier contient des noms propres et des phrases d'exemple.
+- Des cases à cocher permettent de retirer une partie, par exemple les corrections ou les exemples des modes.
+- L'export se fait toujours à la demande, jamais tout seul. L'emplacement est choisi par l'utilisateur.
+
+Pourquoi pas de chiffrement :
+
+- il faudrait une bibliothèque de plus ;
+- un mot de passe perdu ferait perdre le fichier ;
+- le contenu le plus sensible, l'historique, n'est jamais exporté.
+
+**6. Migration sans rien perdre** (décision de l'auteur : « déplacer, avec sauvegarde »)
+
+Au premier lancement de la version qui apporte les utilisateurs :
+
+1. Scriibe copie `settings.json`, `dictionary.json`, `history.json` et `history-totals.json` dans `sauvegarde-avant-utilisateurs-<date>/`. Ce dossier n'est jamais effacé automatiquement.
+2. Il crée l'utilisateur « Principal » dans `utilisateurs/<id>/` :
+   - `profile.json` reçoit les champs de la décision 1, et le nom affiché vaut le prénom de la salutation ;
+   - `dictionary.json`, `history.json` et `history-totals.json` y sont déplacés.
+3. Il réécrit `settings.json` sans les champs de l'utilisateur, avec `schemaVersion: 2` et `activeProfile: "<id>"`.
+4. L'opération est sans effet si `utilisateurs/` existe déjà. Si une étape échoue, Scriibe s'arrête avant de réécrire `settings.json` et garde l'ancien rangement : il réessaiera au lancement suivant.
+
+Revenir à une version antérieure de Scriibe :
+
+- Le dictionnaire, les modes et l'historique y paraîtront vides tant qu'on n'aura pas remis la sauvegarde à la main.
+- L'Aide (FR et EN) et le CHANGELOG expliquent comment faire.
+- L'auteur a accepté cette conséquence, le 12/11.
+
+Pourquoi déplacer plutôt que garder une copie à l'ancienne place : les données ne sont qu'à un seul endroit, il n'y a donc pas deux copies à tenir d'accord.
+
+**7. Ordre de livraison** (choix technique)
+
+Chaque étape peut être livrée seule. Les étapes 1 et 2 servent même si les utilisateurs ne viennent jamais.
+
+| Étape | Contenu | Utile seule parce que |
+|---|---|---|
+| 1. Fondations, sans changement visible | `schemaVersion` dans `settings.json`. Copie `<nom>.<date>.bak` d'un fichier illisible avant de l'écraser, comme Scribe. Refus d'écraser un fichier d'une version plus récente, la page affiche alors un avertissement. Corrections dédoublonnées sur `heard` | Protège les données dès maintenant (constat § 9, points 1 et 5) et prépare la migration |
+| 2. Import et export du dictionnaire | Enveloppe v1 (`kind: "dictionary"`), aperçu et cases à cocher, fusion. Page Dictionnaire, Aide FR et EN | Partager ou sauvegarder son vocabulaire, même sans utilisateurs |
+| 3. Import et export des modes et des commandes | `kind: "modes"` (chantier 5, après le niveau de fidélité de la ROADMAP n°18) et `kind: "commands"` | Même format que l'étape 2 : peu de code nouveau |
+| 4. Utilisateurs | Migration (décision 6), dossier `utilisateurs/`, liste dans les Réglages, sous-menu de l'icône, tableau de bord, historique et statistiques par utilisateur, garde-fou 409 | La fonction elle-même ; elle s'appuie sur les fondations de l'étape 1 |
+| 5. Export et import d'un utilisateur entier | `kind: "profile"` | Passer d'un ordinateur à l'autre, ou donner sa configuration à quelqu'un |
+
+Plus tard, hors de ce cadrage :
+
+- un raccourci pour changer d'utilisateur ;
+- un mode ou un dictionnaire par application ;
+- plusieurs dictionnaires par utilisateur ;
+- des clés par utilisateur ;
+- un coffre à secrets sous Linux.
+
+### Conséquences pour les autres chantiers
+
+- **Chantier 3 (prénom).** `firstName` passe dans l'utilisateur à l'étape 4. D'ici là, le réglage ne change pas.
+- **Chantier 5 (modes).** Il adopte l'enveloppe de la décision 4 et les règles d'import des modes. L'export d'un mode doit porter `fidelity`.
+- **Compatibilité avec Scribe.** Après l'étape 4, on ne peut plus copier le dossier de Scribe tel quel dans Scriibe. La migration le prend pourtant en charge : un `settings.json` de Scribe sans `schemaVersion` est traité comme l'ancien rangement. Scribe ne lit pas les fichiers de Scriibe, c'est accepté.
+- **Prompt.** L'empreinte `4ed86f0c1c154918` ne change pas, puisqu'aucun texte de prompt n'est modifié.
 
 ## Relecture
 
