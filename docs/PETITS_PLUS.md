@@ -123,3 +123,28 @@ Côté interface dans les deux cas : une clé dans `HistoryFilter` et une condit
 - `docs/ECARTS.md` : écart noté.
 
 **Tests** (12/11, Mac) : 2 tests nouveaux dans `historyfilter.test.ts` (définition : modèle retenu et texte changé, garde-fou, issues sans modèle, texte non gardé ; cumul avec période, appli et mots clés). `npm run check` 0 erreur, `npm test` 95 passés (dont `i18n.test.ts` et la comparaison des Aides FR/EN), `npm run build` ok ; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `cargo test --workspace` sans échec. Non essayé à la main dans la fenêtre (case, pastille, cumul sur de vraies dictées).
+
+## Essai réel (tâche 4)
+
+Essayé le 12/11 par l'auteur sur son Mac Studio : Scriibe.app 0.3.0 compilée en release à partir de `ec744c3` et installée par `tools/faire_app_macos.sh`, lancée par `open` (Scribe quittée avant). Les écrans sont ceux de la fenêtre de Scriibe ; les chiffres ont été recoupés par moi sur `history.json`.
+
+| Étape | Attendu | Verdict de l'auteur |
+|---|---|---|
+| Tableau de bord, prénom par défaut | « Salut » + prénom du compte | « Salut Christophe » : bon |
+| Réglages → Dictée, champ « Prénom dans la salutation » | vide, « Christophe » en grisé ; après saisie de « Essai », « Salut Essai » | Bon (grisé vu ; `settings.json` contient `"firstName": "Essai"`) |
+| Après redémarrage (quitté et relancé par moi) | « Salut Essai » | Bon |
+| Genre et phrases à lire | rien à voir : aucune phrase ne s'accorde (§ Phrases) | Sans objet, essai sauté |
+| Historique, case « Dictées reformulées » | 441 sur 1779 + pastilles | Bon (« 441 dictées sur 1779 », pastille sur chaque dictée) |
+| + appli Claude | 190 sur 1779 | Bon |
+| Décochée, appli Claude | 815 (calcul sur le fichier) | 809 : écart expliqué, la page avait été chargée avant 6 nouvelles dictées (le fichier est passé à 1786) ; l'Historique ne se recharge pas tout seul |
+| + mot « bonjour » | 13, dont 2 reformulées | Bon (13, puis 2) |
+| + période « Aujourd'hui » | 0 | Bon : la seule dictée « bonjour » du jour est « sautée », donc non reformulée |
+| « Tout afficher » | case décochée, recherche vidée, période « Tout » | Bon |
+
+**Verdict** : les deux ajouts visibles (prénom réglable, gardé après redémarrage ; filtre et pastille « Reformulée », seuls et cumulés avec appli, mots clés et période) marchent sur le Mac. Le réglage du prénom a été remis à vide après l'essai.
+
+**Constat à noter** : le compteur « n dictée(s) sur total » n'apparaît que lorsqu'un filtre est actif (comportement d'origine) ; une consigne d'essai écrite de travers m'a fait croire le contraire. Pas un défaut du filtre.
+
+## Ajouts
+
+Aucune demande nouvelle de l'auteur pendant l'essai. Idée en suspens, non demandée : recharger l'Historique quand une dictée est ajoutée, pour que le compteur suive (la page d'aujourd'hui se charge une fois). À proposer comme ligne du carnet si l'auteur le souhaite.
