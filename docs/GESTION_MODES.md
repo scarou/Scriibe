@@ -227,14 +227,50 @@ Recommandations du rédacteur, à confirmer dans les tâches 1 à 3 (choix techn
 **Ce qui a été fait.**
 
 - Cœur : `crates/core/src/import.rs`.
-  - `parse_modes` contrôle **tout avant de toucher aux réglages** et refuse avec un message clair : fichier de plus de 1 Mo, JSON illisible, `format` autre que `scriibe-export`, `version` absente, nulle ou plus récente, `kind` autre que `modes`, liste vide ou de plus de 50 modes, plus de 50 exemples par mode, texte de plus de 5 000 caractères, nom de plus de 100, mode ou exemple mal formé, cran de fidélité inconnu ou absent. Un fichier de Scribe (case `rewrites` seule) est lu : Reformulé si vrai, Léger sinon.
+  - `parse_modes` contrôle **tout avant de toucher aux réglages** et refuse avec un message clair : fichier de plus de 1 Mo, JSON illisible, `format` autre que `scriibe-export`, `version` absente, nulle ou plus récente, `kind` autre que `modes`, liste vide ou de plus de 50 modes, plus de 50 exemples par mode, texte de plus de 20 000 caractères, nom de plus de 100, mode ou exemple mal formé, cran de fidélité inconnu ou absent. Un fichier de Scribe (case `rewrites` seule) est lu : Reformulé si vrai, Léger sinon.
   - Seuls les champs attendus sont lus (`id`, `name`, `style`, `fidelity`/`rewrites`, `vouvoie`, `examples`) ; tout autre champ est ignoré. Les caractères de contrôle sont retirés des textes, le nom tient sur une ligne, un nom vide devient « Mode importé ».
   - **Une consigne importée reste un texte** : stockée telle quelle, jamais interprétée ni exécutée ; l'import ne modifie aucun autre réglage et ne choisit jamais le mode (`customModeID`, `rewriteMode`, `hiddenModes` intacts).
   - `preview` donne, pour chaque mode, son conflit et le nom qu'il aurait. `apply` fusionne : un `id` de mode ou d'exemple déjà présent est remplacé par un nouveau ; un nom pris reçoit un numéro (« SMS 2 », « SMS 3 »…) calculé sur le radical, donc **sans accumulation** (« SMS 2 » importé ne devient pas « SMS 2 2 ») ; un remplacement garde la place et l'`id` du mode remplacé, donc il reste choisi s'il l'était. Un mode peut être décoché (non importé).
 - Serveur : `crates/cli/src/web/import.rs`, trois routes. `api/modes/import/read` (boîte d'ouverture du système ; sous Linux `ask_path`, la page demande le chemin), lit le fichier **par son chemin** (taille contrôlée avant et pendant la lecture), garde le résultat en attente et rend l'aperçu ; `api/modes/import/apply` fusionne dans les réglages, enregistre et rend ce qui a été ajouté ou remplacé ; `api/modes/import/cancel`. Un fichier refusé ne laisse rien en attente. L'import passe par le serveur, puis la page relit les réglages (`settings.load()`), pour que sa sauvegarde ne l'écrase pas.
 - Page : carte « Importer des modes » (`ui/src/tabs/Modes.svelte`) : aperçu (nom, cran, exemples), case par mode, choix ajouter/remplacer en cas de nom pris, bouton « Importer » désactivé si rien n'est coché. Messages de refus du serveur traduits (`en-server.ts`). Aide FR et EN : « Importer un mode ». Écart noté dans `docs/ECARTS.md`.
-- Choix techniques : limites chiffrées fixées ici (aucune dans le cadrage) : 1 Mo, 50 modes, 50 exemples, 5 000 caractères par texte, 100 pour le nom ; assez larges pour un usage normal, assez étroites pour qu'un fichier tiers ne gonfle pas le prompt.
+- Choix techniques : limites chiffrées fixées ici (aucune dans le cadrage) : 1 Mo, 50 modes, 50 exemples, 20 000 caractères par texte, 100 pour le nom ; assez larges pour un usage normal, assez étroites pour qu'un fichier tiers ne gonfle pas le prompt.
 
 **Tests.** `crates/core/tests/import_modes.rs` (22 tests : trop gros, mal formé, autre type, version plus récente, liste vide ou trop longue, textes trop longs, cran invalide ou absent, modes mal formés, fichier de Scribe, consigne hostile et champs inconnus ignorés sans toucher aux autres réglages, nom vide, **aller-retour export → import identique**, sans exemples, nom pris (numéro, existant intact), identifiants déjà présents (modes et exemples), numéro non cumulé, deux noms identiques dans un fichier, remplacement (place, `id`, cran, exemples), remplacement par son propre export, remplacement sans homonyme, mode décoché, aperçu) ; `web/import.rs` (4 : fichier refusé = rien en attente et rien de changé, fichier trop gros ou absent, aperçu puis accord ajouter ou remplacer avec attente consommée, chemin tapé). Mesurés ce jour : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (507 tests passent, 0 échec), `npm run check` (0 erreur), `npm test` (95 passent), `npm run build`.
 
 **Non vérifié.** La boîte « Ouvrir » (macOS : essai de la tâche 4 ; Windows et Linux : sur le PC, dont le champ de chemin de Linux) ; la page n'a pas été essayée dans un navigateur ; le code Windows reste non compilé sur le Mac (voir § Export).
+
+## Essai réel (tâche 4)
+
+Sur le Mac de l'auteur, le 12/11/2026, avec `Scriibe.app` compilée en release (`tools/faire_app_macos.sh`) et lancée par `open`. Les modes de l'auteur ont servi (« Langage Schtroumpfs », « Patrick BOSSO - Grammaire Marseillaise »).
+
+**Contrôlé par la session, sans l'auteur** (routes locales de l'application lancée, fichiers de la session) :
+
+- un fichier abîmé est refusé (« ce fichier n'est pas un fichier JSON lisible ») et `settings.json` reste identique à l'octet près ;
+- l'aperçu d'import repère le nom déjà pris (« Langage Schtroumpfs » serait ajouté sous « Langage Schtroumpfs 2 ») ; annulé, rien n'est écrit ;
+- après le réimport de l'auteur, le mode « Patrick BOSSO » est **identique à l'original** (identifiants, consigne, cran, 3 exemples comparés à une copie prise avant), il n'y en a qu'un, et aucun mode n'est choisi par l'import.
+
+**Verdict de l'auteur** (essai guidé, une étape à la fois) :
+
+| Étape | Résultat |
+|---|---|
+| 1. Décocher Soutenu | Il disparaît du menu de l'icône (Mac). OK |
+| 2. Décocher le mode actif (Simple) | Il disparaît de la liste, aucun mode n'est coché, le titre reste « Mode : Simple ». OK |
+| 3. Quitter et relancer | Les choix sont conservés d'une fois sur l'autre (le fichier le confirme : `hiddenModes`). OK |
+| 4A. Exporter « Patrick BOSSO » | Carte, avertissement, boîte « Enregistrer sous », nom proposé et contenu conformes ; aucune clé, aucun historique, aucun nom. OK |
+| 4B. Supprimer puis réimporter | Aperçu sans conflit, message « Importé : 1 ajouté(s), 0 remplacé(s). », mode revenu avec ses 3 exemples. OK |
+| 4C. Importer un fichier abîmé | Refus clair, sans bouton « Importer », rien de changé ; **le message était noir au lieu d'orange (corrigé, revu orange)**. OK |
+
+**Défauts trouvés à l'essai, corrigés.**
+
+1. **Limite de texte trop basse.** La consigne de « Langage Schtroumpfs » fait 5 064 caractères : la limite de 5 000 aurait refusé l'import de sa propre exportation. Limite relevée à **20 000** (consigne et chaque côté d'un exemple) ; test de régression `a_long_instruction_like_a_real_dictionary_mode_goes_back_and_forth`.
+2. **Message de refus d'import en noir** : la classe de couleur dynamique n'était pas retenue par la mise en forme de la page ; remplacée par `class:warn`.
+
+**Non essayé** : l'ajout sous un nom numéroté et le remplacement d'un mode existant (cas couverts par les tests du cœur et du serveur, pas par un essai à l'écran) ; la boîte « Enregistrer sous » et « Ouvrir » sur Windows et Linux (carnet « à vérifier sur le PC ») ; le choix du mode actif dans le menu après un masquage, sous Windows et Linux.
+
+## Ajouts
+
+Aucune nouvelle demande de l'auteur pendant l'essai. À noter, pour qui voudra y revenir :
+
+- **Question de l'auteur** sur les `id` du fichier d'export : ce sont des identifiants tirés au hasard (UUID), sans lien avec la personne ni l'ordinateur ; à l'import, un identifiant déjà présent est remplacé par un nouveau. Rien à changer.
+- **Constat** : supprimer un mode personnel retire aussi son identifiant de `hiddenModes` (lecture tolérante) ; un mode réimporté avec le même identifiant redevient donc visible dans le menu, même s'il était masqué avant sa suppression. Cohérent, mais à savoir.
+- **Constat** : en cas d'échec d'enregistrement d'un export, le message n'est pas en orange (seul le refus d'import l'est) ; sans gravité.

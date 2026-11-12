@@ -17,7 +17,7 @@ pub const MAX_MODES: usize = 50;
 /// Nombre maximal d'exemples par mode.
 pub const MAX_EXAMPLES: usize = 50;
 /// Longueur maximale (en caractères) de la consigne et de chaque côté d'un exemple.
-pub const MAX_TEXT: usize = 5_000;
+pub const MAX_TEXT: usize = 20_000;
 /// Longueur maximale (en caractères) du nom d'un mode.
 pub const MAX_NAME: usize = 100;
 
@@ -68,7 +68,7 @@ fn read_mode(value: &Value) -> Result<CustomMode, String> {
         return Err("le nom d'un mode est trop long : 100 caractères au maximum".into());
     }
     if too_long(&style, MAX_TEXT) {
-        return Err("un texte est trop long : 5 000 caractères au maximum".into());
+        return Err("un texte est trop long : 20 000 caractères au maximum".into());
     }
     // Le cran : celui du fichier, qui doit être valide ; à défaut l'ancienne case « reformule » (fichier de Scribe).
     let fidelity = match (o.get("fidelity"), o.get("rewrites")) {
@@ -100,7 +100,7 @@ fn read_mode(value: &Value) -> Result<CustomMode, String> {
         };
         let (dictation, expected) = (side("dictation")?, side("expected")?);
         if too_long(&dictation, MAX_TEXT) || too_long(&expected, MAX_TEXT) {
-            return Err("un texte est trop long : 5 000 caractères au maximum".into());
+            return Err("un texte est trop long : 20 000 caractères au maximum".into());
         }
         examples.push(ModeExample { id: modes::id_of(eo.get("id")), dictation: clean_text(&dictation), expected: clean_text(&expected) });
     }

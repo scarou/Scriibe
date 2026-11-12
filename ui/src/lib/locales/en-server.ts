@@ -14,7 +14,7 @@ export const enServer: Record<string, string> = {
   'un mode du fichier est mal formé': 'a mode in the file is malformed',
   'un exemple du fichier est mal formé': 'an example in the file is malformed',
   'le nom d\'un mode est trop long : 100 caractères au maximum': 'a mode name is too long: 100 characters at most',
-  'un texte est trop long : 5 000 caractères au maximum': 'a text is too long: 5,000 characters at most',
+  'un texte est trop long : 20 000 caractères au maximum': 'a text is too long: 20,000 characters at most',
   'un mode a un cran de fidélité inconnu': 'a mode has an unknown fidelity level',
   'un mode n\'a pas de cran de fidélité': 'a mode has no fidelity level',
   'un mode a trop d\'exemples : 50 au maximum': 'a mode has too many examples: 50 at most',

@@ -257,7 +257,7 @@
       {:else if importing.busy}
         <p class="muted">{t('Chargement…')}</p>
       {/if}
-      {#if importing.message}<p role="status" class={importing.done ? '' : 'warn'}><b>{importing.message}</b></p>{/if}
+      {#if importing.message}<p role="status" class:warn={!importing.done}><b>{importing.message}</b></p>{/if}
       <div class="row">
         <span class="grow"></span>
         <button onclick={closeImport}>{importing.done ? t('Fermer') : t('Annuler')}</button>

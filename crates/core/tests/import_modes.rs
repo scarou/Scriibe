@@ -272,3 +272,12 @@ fn the_preview_shows_conflicts_and_the_name_a_mode_would_get() {
     assert_eq!((items[0].added_as.as_str(), items[0].examples, items[0].fidelity), ("SMS 2", 2, Fidelity::Reformulated));
     assert_eq!((items[1].conflict.clone(), items[1].added_as.as_str(), items[1].examples), (None, "Neuf", 0));
 }
+
+#[test]
+fn a_long_instruction_like_a_real_dictionary_mode_goes_back_and_forth() {
+    // Un vrai mode personnel de l'auteur avait une consigne de 5 064 caractères : l'essai réel a refusé sa propre exportation.
+    let mut mode = sms();
+    mode.style = "Mot ; ".repeat(1_500);
+    assert!(mode.style.chars().count() > 5_064);
+    assert_eq!(import::parse_modes(&exported(&[&mode])).unwrap(), vec![mode]);
+}
