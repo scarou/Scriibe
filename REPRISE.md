@@ -1,4 +1,4 @@
-# Reprise — 13/11/2026 (chantier 8, logo animé ; chantier 7 système au-dessous)
+# Reprise — 13/11/2026 (chantier 8 clos, logo animé ; tri du 12/11 soldé)
 
 Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · Windows », celui des sessions du tri du 12/11).
 
@@ -24,7 +24,7 @@ POINTS EN SUSPENS :
 - Publication de la 0.3.0 : essais ggml-large-v3-turbo sur Windows et Linux, relecture de l'Aide, CI complète, aperçu et « oui » de l'auteur.
 - L'application Scriibe.app installée sur le Mac est celle du dernier essai (modes de S25) ; rien d'autre ne tourne.
 
-PROCHAINE TÂCHE : tâche 4 du découpage du chantier 8 (…/decoupages/decoupage-2026-11-12-c8-logo-anime.md : clore l'idée dans le carnet, carnets Windows et Linux avec « à vérifier » WebView2 et WebKitGTK, Bilan du tri, log.md), puis, si elle n'est pas faite, tâche 8 du découpage du chantier 7 (~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c7-systeme.md) : /carnet, deux lignes du 11/11 en Faite, carnets Windows et Linux, Bilan du tri, log.md. L'auteur dit « tâche 8 » ; suis la consigne telle quelle.
+PROCHAINE TÂCHE : le tri du 12/11 est soldé (8 chantiers faits ou cadrés : 4 et 6 restent à découper pour l'implémentation). Reste à décider avec l'auteur : publier la 0.3.0 (ROADMAP n°14), vérifier le logo animé sur les PC (WebView2, WebKitGTK ; lignes dans les carnets Windows et Linux), ou découper les chantiers 4 et 6.
 
 RÈGLES : aperçu et accord de l'auteur avant toute Release ou tout push public ; cargo fmt, cargo clippy --all-targets -- -D warnings et cargo test --workspace sans erreur avant tout commit ; ne jamais modifier scarou/scribe ni lire de .env ou de clé ; ne jamais écrire le nom ni l'adresse de l'auteur dans le dépôt ; Scriibe.app se lance par open, jamais par Bash ; peu de sollicitations, une étape à la fois pour les essais de l'auteur ; ne jamais annoncer un chiffre avant de l'avoir mesuré.
 ```
