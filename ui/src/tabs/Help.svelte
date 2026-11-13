@@ -121,6 +121,9 @@
       {@render tip('Pour vérifier le micro et voir ce que Whisper entend, lis une phrase du banc de dictée (Réglages → Mesures et essais) : elle montre le niveau du micro avant d’aller dicter dans une vraie appli.')}
       <div class="links"><button class="go" onclick={() => nav.openAssistant()} title="Ouvrir l’assistant sur le Tableau de bord">→ Relancer l’assistant de premier lancement</button></div>
 
+      <h3>Lancer Scriibe à l’ouverture de session</h3>
+      <p>Réglages → Dictée, carte « Lancer au démarrage » : coche la case et Scriibe se lance tout seul quand tu ouvres ta session, <b>sans fenêtre</b> : l’icône {trayNear} est là et la touche de dictée est prête. C’est décoché par défaut ; décocher retire l’entrée. {#if mac}L’entrée est visible dans Réglages Système → Général → Ouverture (macOS peut afficher une notification « élément d’arrière-plan ajouté », c’est normal). Si tu déplaces Scriibe.app, lance-la une fois à la main : l’entrée se met à jour. Si tu l’as désactivée dans les Réglages Système, la case est décochée ; la recocher la réactive.{:else if linux}L’entrée est un fichier dans ~/.config/autostart, visible dans « Applications au démarrage » de ton environnement de bureau. Si tu déplaces Scriibe, lance-la une fois à la main : l’entrée se met à jour.{:else}L’entrée est visible dans le Gestionnaire des tâches, onglet « Applications de démarrage » ; si tu l’y désactives, la case est décochée, et la recocher la réactive. Si tu déplaces scriibe.exe, lance-le une fois à la main : l’entrée se met à jour. Au démarrage, aucune fenêtre noire ne s’ouvre.{/if}</p>
+
       <h3>Ce qui se passe entre ta voix et le texte</h3>
       <p>Quand tu relâches la touche, ta phrase passe par plusieurs étapes, chacune faite par quelqu’un (ou quelque chose) de différent :</p>
       <ol class="steps">

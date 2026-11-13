@@ -3,6 +3,8 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'Scriibe n\'est pas lancée depuis Scriibe.app (programme compilé ?) : rien n\'est ajouté au démarrage': 'Scriibe is not running from Scriibe.app (a compiled program?): nothing is added to startup',
+  'pas encore pris en charge sur ce système': 'not supported on this system yet',
   'l\'aperçu n\'est plus à jour : recommence l\'import': 'the preview is out of date: start the import again',
   'la boîte de choix de fichier n\'a pas pu s\'ouvrir': 'the file dialog could not be opened',
   'fichier trop gros : 1 Mo au maximum': 'file too big: 1 MB at most',

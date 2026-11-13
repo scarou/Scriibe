@@ -393,6 +393,17 @@ fn handle(ctx: &Context, mut request: Request) {
                 Err(e) => fail(request, 500, &e),
             }
         }
+        (Method::Get, "api/autostart") => ok(request, autostart_view()),
+        (Method::Post, "api/autostart") => match scriibe_platform::autostart::set(input["enabled"].as_bool().unwrap_or(false)) {
+            Ok(()) => {
+                ctx.app.log.write(&format!(
+                    "démarrage: {}",
+                    if input["enabled"].as_bool().unwrap_or(false) { "entrée créée" } else { "entrée retirée" }
+                ));
+                ok(request, autostart_view())
+            }
+            Err(e) => fail(request, 409, &e),
+        },
         (Method::Get, "api/settings") => ok(request, json!({"settings": ctx.app.config.settings()})),
         (Method::Post, "api/settings") => match patch_settings(ctx, &input) {
             Ok(settings) => ok(request, json!({"ok": true, "settings": settings})),
@@ -1057,6 +1068,12 @@ fn install_update(ctx: &Context) -> Result<(), String> {
 }
 
 /// Arrête les moteurs, relance le programme (la fenêtre se rouvre) puis s'arrête.
+/// L'état de « Lancer Scriibe à l'ouverture de session », relu dans le système (rien n'est gardé dans les réglages).
+fn autostart_view() -> Value {
+    let s = scriibe_platform::autostart::status();
+    json!({"ok": true, "supported": s.supported, "reason": s.reason, "enabled": s.enabled, "disabledBySystem": s.disabled_by_system})
+}
+
 fn restart(app: &App) {
     app.whisper.stop();
     app.llama.stop();

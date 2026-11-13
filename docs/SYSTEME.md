@@ -271,3 +271,30 @@ Relecture faite le 13/11/2026 (tâche 2) par un sous-agent qui n'avait pas écri
 - Les clés : `deepgram`, `openrouter` et l'ancien `github`, sans aucun autre nom dans l'historique git.
 - L'ordre « clés après les fichiers ».
 - Le choix de `open` plutôt que `SMAppService`.
+
+## Démarrage
+
+Fait le 13/11/2026 (C7, tâche 3), d'après § Cadrage, question 6. **Essai réel pas encore fait** (tâches 5 et 6).
+
+**Code.** `crates/platform/src/autostart.rs` (contenus d'entrée purs, lecture et écriture de fichiers avec dossiers en paramètres, registre de Windows par `windows-sys`, deux fonctionnalités ajoutées : `Win32_System_Registry` et `Win32_System_Console`). Routes `GET`/`POST api/autostart` (`web/mod.rs`, `autostart_view`). Carte « Lancer au démarrage » dans Réglages → Dictée (`Settings.svelte`). Rubrique dans l'Aide « Premiers pas », FR et EN.
+
+**Comportement.**
+- Décoché par défaut ; la case lit le système (`status()`), rien dans `settings.json`. Cocher crée l'entrée (écriture par fichier voisin puis renommage), décocher la retire (absente : pas d'erreur).
+- Mac : `~/Library/LaunchAgents/fr.scriibe.app.plist`, `open -g -a <Scriibe.app> --args lancer --sans-navigateur`. Désactivation lue par `launchctl print-disabled gui/<uid>` ; recocher lance `launchctl enable`. Hors `Scriibe.app` (programme compilé, `target/`), la case est grisée avec la raison : aucune entrée vers un programme de développement.
+- Windows : valeur `Scriibe` de `HKCU\…\Run` (`"<scriibe.exe>" lancer --sans-navigateur`). Désactivation lue dans `StartupApproved\Run` (premier octet impair = désactivée) ; cocher efface cette marque, décocher efface aussi les deux valeurs. `lancer --sans-navigateur` appelle `FreeConsole` dès le début de `run()` : pas de fenêtre noire à la connexion (le double-clic ordinaire garde sa console).
+- Linux : `$XDG_CONFIG_HOME/autostart/fr.scriibe.Scriibe.desktop` (sinon `~/.config/autostart`), `Exec="<chemin>" lancer --sans-navigateur`. Désactivation lue (`Hidden=true`, `X-GNOME-Autostart-enabled=false`) ; réécrire le fichier la lève.
+- Programme déplacé : à chaque lancement, `autostart::refresh()` réécrit une entrée qui vise un autre chemin ; elle n'en crée jamais une absente et ne lève pas une désactivation du système. Une ligne de journal « démarrage: … » est écrite.
+
+**Choix techniques, avec raisons.**
+- Entrées sur dossiers paramétrables et contenus en fonctions pures, pour tester sans toucher aux vrais dossiers de l'ordinateur (règle de la tâche 4 appliquée dès ici).
+- Fonctions de fichiers non limitées à un système (compilées partout), pour que les tests Mac couvrent aussi le contenu Linux et Windows.
+- Pas de réglage dans `settings.json` ni dans le partage utilisateur/ordinateur : une valeur gardée pourrait diverger de la réalité (entrée supprimée à la main).
+
+**Résultat des vérifications (mesuré).**
+- `cargo test --workspace` : 522 tests passés, 0 échec (dont 9 nouveaux dans `autostart::tests` : contenu et relecture du LaunchAgent, de la commande Windows et du `.desktop`, désactivations, dossier Linux, `Scriibe.app` trouvée ou refusée, cycle cocher/décocher et réécriture sur dossiers factices).
+- `cargo clippy --workspace --all-targets -- -D warnings` : propre sur le Mac. `cargo fmt` appliqué.
+- Interface : `npm run check` 0 erreur, `npm test` 95 passés (dont la parité FR/EN de l'Aide et des traductions), `npm run build` réussi.
+- Windows : `cargo clippy -p scriibe-platform --target x86_64-pc-windows-gnu -- -D warnings` propre (avec un faux compilateur C, `mingw` n'étant pas installé sur ce Mac : seul le `build.rs` de `ring` en a besoin à la vérification). Le crate `scriibe-cli` n'a pas pu être vérifié pour Windows ici (son script de construction demande `mingw`) ; les deux appels ajoutés y sont sans code propre à Windows. À compiler sur le PC (tâche 6).
+
+**Non vérifié ici (essais réels, tâches 5 et 6).** Le LaunchAgent chargé par un vrai `launchd` à la prochaine ouverture de session, la notification « élément d'arrière-plan », la lecture de la désactivation par le Gestionnaire des tâches et les Réglages Système, la valeur du registre et l'absence de fenêtre noire sous Windows, le démarrage XDG sous GNOME Wayland. Les routes web n'ont pas été appelées en vrai : Scriibe ne se lance pas depuis Bash sur le Mac (autorisations).
+

@@ -7,6 +7,7 @@
 mod apple;
 pub mod apps;
 pub mod audio;
+pub mod autostart;
 pub mod bench_store;
 pub mod indicator;
 pub mod instance;

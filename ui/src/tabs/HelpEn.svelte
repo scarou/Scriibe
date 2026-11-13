@@ -134,6 +134,9 @@
       {@render tip('To check the microphone and see what Whisper hears, read a phrase of the dictation bench (Settings → Measurements and trials): it shows the microphone level before you go and dictate in a real app.')}
       <div class="links"><button class="go" onclick={() => nav.openAssistant()} title="Open the assistant on the Dashboard">→ Run the first-launch assistant again</button></div>
 
+      <h3>Launching Scriibe when you log in</h3>
+      <p>Settings → Dictation, “Launch at startup” card: tick the box and Scriibe starts by itself when you log in, <b>without a window</b>: the icon {trayNear} is there and the dictation key is ready. It is off by default; unticking removes the entry. {#if mac}The entry is shown in System Settings → General → Login Items (macOS may show a “background item added” notification, that is normal). If you move Scriibe.app, start it once by hand: the entry updates itself. If you turned it off in System Settings, the box is unticked; ticking it again turns it back on.{:else if linux}The entry is a file in ~/.config/autostart, shown in your desktop environment’s “Startup Applications”. If you move Scriibe, start it once by hand: the entry updates itself.{:else}The entry is shown in Task Manager, “Startup apps” tab; if you turn it off there, the box is unticked, and ticking it again turns it back on. If you move scriibe.exe, start it once by hand: the entry updates itself. No black window opens at startup.{/if}</p>
+
       <h3>What happens between your voice and the text</h3>
       <p>When you release the key, your sentence goes through several steps, each done by someone (or something) different:</p>
       <ol class="steps">

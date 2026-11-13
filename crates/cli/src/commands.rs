@@ -70,9 +70,17 @@ fn single_instance(folder: &std::path::Path) -> Option<InstanceLock> {
 }
 
 pub fn run() -> Result<(), String> {
+    // Démarrage discret (entrée de lancement à l'ouverture de session) : sous Windows, pas de console noire (la fermer tuerait Scriibe).
+    if std::env::args().any(|a| a == "--sans-navigateur") {
+        scriibe_platform::autostart::detach_console();
+    }
     crate::web::remove_update_leftovers();
     let (config, log) = setup(true)?;
     let Some(instance_lock) = single_instance(config.folder()) else { return Ok(()) };
+    // Scriibe déplacée : l'entrée de démarrage, si elle existe, est réécrite pour viser le nouvel emplacement.
+    if scriibe_platform::autostart::refresh() {
+        log.write("démarrage: entrée réécrite (Scriibe a changé d'emplacement)");
+    }
     let platform = scriibe_platform::system();
     let settings = config.settings();
     eprintln!("Scriibe — {}", describe_engines(&settings));
