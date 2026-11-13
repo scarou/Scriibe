@@ -234,6 +234,11 @@ pub fn run() -> Result<(), String> {
     {
         if !std::env::args().any(|a| a == "--sans-navigateur") {
             open_interface(&url, &app, &overlay);
+        } else {
+            // Démarrage discret : pas de fenêtre tout de suite, mais « Ouvrir Scriibe » (menu de l'icône) doit l'ouvrir dans sa propre
+            // fenêtre, comme sur Mac et Linux, pas dans le navigateur (essai Windows C7 : le repli par `start` ne montrait rien).
+            #[cfg(windows)]
+            lazy_window(&url, &app, &overlay);
         }
         app.controller.preload();
         if cfg!(windows) {
@@ -255,6 +260,26 @@ pub fn run() -> Result<(), String> {
             std::thread::park();
         }
     }
+}
+
+/// Windows, démarrage discret : la fenêtre se crée à la première demande d'ouverture (menu de l'icône), puis se remontre aux suivantes.
+#[cfg(windows)]
+fn lazy_window(url: &str, app: &app::App, overlay: &Arc<OverlayModel>) {
+    let (url, log, config, overlay) = (url.to_string(), app.log.clone() as Arc<dyn Log>, app.config.clone(), overlay.clone());
+    let started = std::sync::atomic::AtomicBool::new(false);
+    scriibe_platform::open::set_window_opener(move |target| {
+        if !started.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            match crate::window::start(url.clone(), log.clone()) {
+                Ok(()) => crate::window::start_overlay(url.clone(), overlay.clone(), config.clone(), log.clone()),
+                Err(e) => {
+                    log.write(&format!("fenêtre: impossible ({e})"));
+                    started.store(false, std::sync::atomic::Ordering::SeqCst);
+                    return false;
+                }
+            }
+        }
+        crate::window::show_url(target)
+    });
 }
 
 /// Ouvre l'interface : dans la fenêtre de Scriibe (Windows) ou, si elle ne peut pas s'ouvrir ou sur demande (`--navigateur`), dans le

@@ -58,6 +58,12 @@ fn show(app: &AppHandle, url: &str) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Montre la fenêtre déjà créée par [`start`] sur cette adresse. Faux si elle n'existe pas encore.
+#[cfg(windows)]
+pub fn show_url(target: &str) -> bool {
+    handle().as_ref().is_some_and(|app| show(app, target).is_ok())
+}
+
 /// Ouvre la fenêtre et rend la main quand elle est affichée (20 s au plus). Les ouvertures suivantes de l'adresse locale (menu de
 /// l'icône) passent par elle.
 #[cfg(windows)]
