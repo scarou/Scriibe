@@ -7,6 +7,7 @@ use scriibe_core::history::{lossy_list, Calendar, DayTotal, Dictation, Store};
 use scriibe_core::settings::Hotkey;
 use scriibe_core::settings::{AppSettings, CleanupEngine, TranscriptionEngine, SETTINGS_SCHEMA};
 use scriibe_engines::runtime::Log;
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -164,62 +165,121 @@ enum Parsed<T> {
 /// Dernière lecture d'un fichier : sa date de modification, la valeur lue et le refus éventuel.
 type Cached<T> = Option<(Option<SystemTime>, T, Option<ConfigProblem>)>;
 
-/// Un fichier JSON relu quand il change : modifier `settings.json` à la main s'applique à la dictée suivante.
-struct Watched<T> {
+/// Le chemin surveillé et ce qui en a été lu (sous un même verrou : changer de chemin vide aussitôt la mémoire).
+struct WatchedState<T> {
     path: PathBuf,
-    cache: Mutex<Cached<T>>,
+    cache: Cached<T>,
+}
+
+/// Un fichier JSON relu quand il change : modifier `settings.json` à la main s'applique à la dictée suivante. Son chemin peut changer
+/// (`retarget`) : c'est ainsi que les fichiers de l'utilisateur suivent l'utilisateur actif.
+struct Watched<T> {
+    state: Mutex<WatchedState<T>>,
 }
 
 impl<T: Clone> Watched<T> {
     fn new(path: PathBuf) -> Self {
-        Self { path, cache: Mutex::new(None) }
+        Self { state: Mutex::new(WatchedState { path, cache: None }) }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, WatchedState<T>> {
+        self.state.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    fn path(&self) -> PathBuf {
+        self.lock().path.clone()
+    }
+
+    /// Surveille désormais un autre fichier : rien de ce qui a été lu avant n'est gardé.
+    fn retarget(&self, path: PathBuf) {
+        let mut state = self.lock();
+        state.path = path;
+        state.cache = None;
     }
 
     /// La valeur lue (celle par défaut si le fichier manque, est vide ou est illisible) et le refus éventuel.
     /// La copie `.bak` d'un fichier illisible se fait ici, à la lecture, et non à la sauvegarde.
     fn read_state(&self, read: impl Fn(&str) -> Parsed<T>, default: impl Fn() -> T) -> (T, Option<ConfigProblem>) {
-        let modified = std::fs::metadata(&self.path).and_then(|m| m.modified()).ok();
-        let mut cache = self.cache.lock().unwrap_or_else(|p| p.into_inner());
-        if let Some((seen, value, problem)) = cache.as_ref() {
+        let mut state = self.lock();
+        let path = state.path.clone();
+        let modified = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+        if let Some((seen, value, problem)) = state.cache.as_ref() {
             if *seen == modified {
                 return (value.clone(), problem.clone());
             }
         }
-        let file = self.path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let file = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let unreadable = |path: &Path| ConfigProblem { file: file.clone(), reason: Refusal::Unreadable, backup: set_aside(path) };
-        let (value, problem, cacheable) = match std::fs::read_to_string(&self.path) {
+        let (value, problem, cacheable) = match std::fs::read_to_string(&path) {
             Ok(text) if text.trim().is_empty() => (default(), None, true),
             Ok(text) => match read(&text) {
                 Parsed::Ok(value) => (value, None, true),
                 Parsed::Newer(value, version) => (value, Some(ConfigProblem { file, reason: Refusal::Newer(version), backup: None }), true),
-                Parsed::Unreadable => (default(), Some(unreadable(&self.path)), true),
+                Parsed::Unreadable => (default(), Some(unreadable(&path)), true),
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (default(), None, true),
             // Pas du texte (octets invalides) : illisible pour de bon. Une autre erreur (accès refusé un instant…) se retente à
             // la lecture suivante au lieu de rester refusée jusqu'à la prochaine modification du fichier.
-            Err(e) => (default(), Some(unreadable(&self.path)), e.kind() == std::io::ErrorKind::InvalidData),
+            Err(e) => (default(), Some(unreadable(&path)), e.kind() == std::io::ErrorKind::InvalidData),
         };
         if cacheable {
-            *cache = Some((modified, value.clone(), problem.clone()));
+            state.cache = Some((modified, value.clone(), problem.clone()));
         }
         (value, problem)
     }
 
     fn forget(&self) {
-        *self.cache.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        self.lock().cache = None;
+    }
+}
+
+/// `settings.json` lu comme un objet JSON (la valeur brute : la vue des réglages se compose ensuite, voir `FileConfig::view`).
+fn read_settings_object(text: &str) -> Parsed<Value> {
+    match serde_json::from_str::<Value>(text) {
+        Ok(value) if value.is_object() => {
+            let version = value.get("schemaVersion").and_then(Value::as_u64).unwrap_or(1);
+            if version > SETTINGS_SCHEMA {
+                Parsed::Newer(value, version)
+            } else {
+                Parsed::Ok(value)
+            }
+        }
+        _ => Parsed::Unreadable,
+    }
+}
+
+/// `profile.json` lu comme un objet JSON. Pas encore de numéro de version propre (l'étape 4b décidera).
+fn read_profile_object(text: &str) -> Parsed<Value> {
+    match serde_json::from_str::<Value>(text) {
+        Ok(value) if value.is_object() => Parsed::Ok(value),
+        _ => Parsed::Unreadable,
     }
 }
 
 /// Les réglages et le dictionnaire, lus dans le dossier de données.
+///
+/// **Étape 4a (profils).** `settings()` est toujours une vue unique : les clés de l'ordinateur viennent de `settings.json`, celles de
+/// l'utilisateur de `profile.json` et `dictionary.json` **du dossier de l'utilisateur actif** (`switch_profile`). Tant qu'aucun
+/// utilisateur n'est rangé à part (pas de migration, étape 4b), il n'y a pas de dossier d'utilisateur : tout reste dans `settings.json`
+/// et `dictionary.json` à la racine, comme avant, et rien ne change sur le disque.
 pub struct FileConfig {
     folder: PathBuf,
-    settings: Watched<AppSettings>,
+    /// Dossier de l'utilisateur actif ; `None` : rangement d'origine (tout à la racine).
+    profile_folder: Mutex<Option<PathBuf>>,
+    settings: Watched<Value>,
+    profile: Watched<Value>,
     dictionary: Watched<UserDictionary>,
 }
 
 impl FileConfig {
     pub fn new(folder: PathBuf) -> Self {
-        Self { settings: Watched::new(folder.join("settings.json")), dictionary: Watched::new(folder.join("dictionary.json")), folder }
+        Self {
+            settings: Watched::new(folder.join("settings.json")),
+            profile: Watched::new(folder.join("profile.json")),
+            dictionary: Watched::new(folder.join("dictionary.json")),
+            profile_folder: Mutex::new(None),
+            folder,
+        }
     }
 
     pub fn folder(&self) -> &Path {
@@ -228,6 +288,21 @@ impl FileConfig {
 
     pub fn settings_path(&self) -> PathBuf {
         self.folder.join("settings.json")
+    }
+
+    /// Le dossier de l'utilisateur actif ; `None` tant que rien n'est rangé par utilisateur.
+    pub fn profile_folder(&self) -> Option<PathBuf> {
+        self.profile_folder.lock().unwrap_or_else(|p| p.into_inner()).clone()
+    }
+
+    /// Change d'utilisateur : `profile.json` et `dictionary.json` sont relus dans ce dossier. `None` : retour au rangement d'origine.
+    /// Le cadrage appelle cela depuis la route de changement d'utilisateur (4c) ; la page doit alors recharger ses données.
+    pub fn switch_profile(&self, folder: Option<PathBuf>) {
+        let mut current = self.profile_folder.lock().unwrap_or_else(|p| p.into_inner());
+        let root = folder.clone().unwrap_or_else(|| self.folder.clone());
+        self.profile.retarget(root.join("profile.json"));
+        self.dictionary.retarget(root.join("dictionary.json"));
+        *current = folder;
     }
 
     /// Écrit les réglages d'un premier lancement s'il n'y en a pas encore. Rend vrai si le fichier vient d'être créé.
@@ -239,39 +314,53 @@ impl FileConfig {
         Ok(true)
     }
 
-    /// Écrit les réglages, sauf si `settings.json` est refusé (illisible ou plus récent) : alors rien n'est écrit et l'erreur dit pourquoi.
+    /// Écrit les réglages, sauf si `settings.json` (ou `profile.json`) est refusé (illisible ou plus récent) : alors rien n'est écrit
+    /// et l'erreur dit pourquoi. Sans utilisateur rangé à part, tout va dans `settings.json`. Avec un utilisateur, chaque clé va dans le
+    /// fichier de son propriétaire (`settings.json` : l'ordinateur ; `profile.json` : l'utilisateur), selon la décision 1.
     pub fn save_settings(&self, settings: &AppSettings) -> std::io::Result<()> {
-        if let Some(problem) = self.settings_state().1 {
+        let (_, problems) = self.view();
+        if let Some(problem) = problems.first() {
             return Err(problem.refuse_write());
         }
-        let json = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
-        write_atomic(&self.settings_path(), &json)?;
+        let Some(profile_folder) = self.profile_folder() else {
+            let json = serde_json::to_string_pretty(settings).map_err(std::io::Error::other)?;
+            write_atomic(&self.settings_path(), &json)?;
+            self.settings.forget();
+            return Ok(());
+        };
+        let (computer, user) = settings.split();
+        let computer = serde_json::to_string_pretty(&computer).map_err(std::io::Error::other)?;
+        let user = serde_json::to_string_pretty(&user).map_err(std::io::Error::other)?;
+        write_atomic(&self.settings_path(), &computer)?;
         self.settings.forget();
+        write_atomic(&profile_folder.join("profile.json"), &user)?;
+        self.profile.forget();
         Ok(())
     }
 
     /// Lecture tolérante : un réglage absent ou illisible garde sa valeur par défaut. Une touche de dictée qui n'existe pas sur ce
     /// système (Option droite sur un fichier venu d'un Mac) est remplacée par celle du système.
     pub fn settings(&self) -> AppSettings {
-        self.settings_state().0
+        self.view().0
     }
 
-    fn settings_state(&self) -> (AppSettings, Option<ConfigProblem>) {
-        let (mut settings, problem) = self.settings.read_state(
-            |text| match AppSettings::from_json(text) {
-                Ok(s) if s.schema_version > SETTINGS_SCHEMA => {
-                    let version = s.schema_version;
-                    Parsed::Newer(s, version)
-                }
-                Ok(s) => Parsed::Ok(s),
-                Err(_) => Parsed::Unreadable,
-            },
-            first_run_settings,
-        );
+    /// La vue unique des réglages et les fichiers refusés (dans l'ordre : `settings.json`, puis `profile.json`).
+    fn view(&self) -> (AppSettings, Vec<ConfigProblem>) {
+        let in_a_profile = self.profile_folder().is_some();
+        let (computer, computer_problem) = self.settings.read_state(read_settings_object, || {
+            serde_json::to_value(first_run_settings()).unwrap_or_else(|_| Value::Object(Default::default()))
+        });
+        let mut problems: Vec<ConfigProblem> = computer_problem.into_iter().collect();
+        let user = in_a_profile.then(|| {
+            let (profile, problem) = self.profile.read_state(read_profile_object, || Value::Object(Default::default()));
+            problems.extend(problem);
+            profile
+        });
+        let mut settings = AppSettings::from_parts(&computer, user.as_ref()).unwrap_or_else(first_run_settings);
         if !settings.hotkey.is_available() {
             settings.hotkey = Hotkey::system_default();
         }
-        (settings, problem)
+        (settings, problems)
     }
 
     pub fn dictionary(&self) -> UserDictionary {
@@ -288,14 +377,16 @@ impl FileConfig {
             return Err(problem.refuse_write());
         }
         let json = serde_json::to_string_pretty(dictionary).map_err(std::io::Error::other)?;
-        write_atomic(&self.folder.join("dictionary.json"), &json)?;
+        write_atomic(&self.dictionary.path(), &json)?;
         self.dictionary.forget();
         Ok(())
     }
 
     /// Les fichiers que Scriibe refuse en ce moment (la page l'affiche tant que ce n'est pas réparé).
     pub fn problems(&self) -> Vec<ConfigProblem> {
-        [self.settings_state().1, self.dictionary_state().1].into_iter().flatten().collect()
+        let mut problems = self.view().1;
+        problems.extend(self.dictionary_state().1);
+        problems
     }
 }
 
@@ -320,42 +411,67 @@ pub trait HistorySink: Send + Sync {
     fn record(&self, dictation: Dictation);
 }
 
-/// Historique dans `history.json` et `history-totals.json`.
-pub struct FileHistory {
+/// L'historique en mémoire et le dossier où il s'écrit.
+struct HistoryState {
     folder: PathBuf,
-    store: Mutex<Store>,
+    store: Store,
+}
+
+/// Historique dans `history.json` et `history-totals.json`. Le dossier peut changer (`switch`) : c'est celui de l'utilisateur actif.
+pub struct FileHistory {
+    state: Mutex<HistoryState>,
     settings: Box<dyn Fn() -> AppSettings + Send + Sync>,
+}
+
+/// Lit l'historique d'un dossier. Un fichier qui existe mais ne se lit pas est mis de côté (`.bak`) avant que l'historique vide ne l'écrase.
+fn load_store(folder: &Path) -> Store {
+    let read = |name: &str| {
+        let path = folder.join(name);
+        match std::fs::read_to_string(&path) {
+            Ok(text) if text.trim().is_empty() => None,
+            Ok(text) => Some(text),
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    set_aside(&path);
+                }
+                None
+            }
+        }
+    };
+    let history = read("history.json")
+        .and_then(|t| lossy_list(&t, Dictation::from_value).map_err(|_| set_aside(&folder.join("history.json"))).ok())
+        .unwrap_or_default();
+    let archive = read("history-totals.json")
+        .and_then(|t| lossy_list(&t, DayTotal::from_value).map_err(|_| set_aside(&folder.join("history-totals.json"))).ok())
+        .unwrap_or_default();
+    Store { history, archive, ..Store::default() }
 }
 
 impl FileHistory {
     /// `settings` : les réglages courants (« garder le texte », durée de conservation).
     pub fn open(folder: PathBuf, settings: impl Fn() -> AppSettings + Send + Sync + 'static) -> Self {
-        // Un fichier qui existe mais ne se lit pas est mis de côté (`.bak`) avant que l'historique vide ne l'écrase.
-        let read = |name: &str| {
-            let path = folder.join(name);
-            match std::fs::read_to_string(&path) {
-                Ok(text) if text.trim().is_empty() => None,
-                Ok(text) => Some(text),
-                Err(e) => {
-                    if e.kind() != std::io::ErrorKind::NotFound {
-                        set_aside(&path);
-                    }
-                    None
-                }
-            }
-        };
-        let history = read("history.json")
-            .and_then(|t| lossy_list(&t, Dictation::from_value).map_err(|_| set_aside(&folder.join("history.json"))).ok())
-            .unwrap_or_default();
-        let archive = read("history-totals.json")
-            .and_then(|t| lossy_list(&t, DayTotal::from_value).map_err(|_| set_aside(&folder.join("history-totals.json"))).ok())
-            .unwrap_or_default();
-        let store = Store { history, archive, ..Store::default() };
-        Self { folder, store: Mutex::new(store), settings: Box::new(settings) }
+        let store = load_store(&folder);
+        Self { state: Mutex::new(HistoryState { folder, store }), settings: Box::new(settings) }
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, HistoryState> {
+        self.state.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// Passe à l'historique d'un autre dossier (l'utilisateur actif change). Sous le verrou : une dictée qui s'enregistre ou une page qui
+    /// lit voit l'ancien historique en entier ou le nouveau en entier, jamais un mélange. L'ancien est déjà sur le disque (chaque
+    /// changement s'écrit tout de suite) ; l'état propre à l'ancien (dernier texte dicté) n'est pas repris.
+    pub fn switch(&self, folder: PathBuf) {
+        let mut state = self.lock();
+        if state.folder == folder {
+            return;
+        }
+        let store = load_store(&folder);
+        *state = HistoryState { folder, store };
     }
 
     pub fn dictation_count(&self) -> usize {
-        self.store.lock().unwrap_or_else(|p| p.into_inner()).history.len()
+        self.lock().store.history.len()
     }
 
     /// Lit l'historique (la durée de conservation est d'abord appliquée si elle est due : « à l'ouverture des pages »).
@@ -365,22 +481,22 @@ impl FileHistory {
 
     /// Change l'historique puis l'écrit sur le disque. `f` reçoit l'état, le calendrier local et l'heure.
     pub fn update<R>(&self, f: impl FnOnce(&mut Store, &Calendar<Local>, DateTime<Utc>) -> R) -> R {
-        let mut store = self.store.lock().unwrap_or_else(|p| p.into_inner());
-        store.settings = (self.settings)();
+        let mut state = self.lock();
+        state.store.settings = (self.settings)();
         let (calendar, now) = (Calendar::new(Local), Utc::now());
-        store.apply_retention_if_due(&calendar, now);
-        let result = f(&mut store, &calendar, now);
-        self.persist(&store);
+        state.store.apply_retention_if_due(&calendar, now);
+        let result = f(&mut state.store, &calendar, now);
+        Self::persist(&state);
         result
     }
 
-    fn persist(&self, store: &Store) {
+    fn persist(state: &HistoryState) {
         for (name, json) in [
-            ("history.json", serde_json::to_string_pretty(&store.history)),
-            ("history-totals.json", serde_json::to_string_pretty(&store.archive)),
+            ("history.json", serde_json::to_string_pretty(&state.store.history)),
+            ("history-totals.json", serde_json::to_string_pretty(&state.store.archive)),
         ] {
             if let Ok(json) = json {
-                let _ = write_atomic(&self.folder.join(name), &json);
+                let _ = write_atomic(&state.folder.join(name), &json);
             }
         }
     }
@@ -695,6 +811,151 @@ mod tests {
         history.record(Dictation::new(Utc::now(), "Bloc-notes", "bonjour", "Bonjour.", 1, 1.5, 0));
         let again = FileHistory::open(dir.clone(), AppSettings::default);
         assert_eq!(again.dictation_count(), 1);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn user_json(config: &FileConfig, name: &str) -> Value {
+        serde_json::from_str(&std::fs::read_to_string(config.profile_folder().unwrap().join(name)).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn without_a_profile_folder_everything_stays_in_the_original_files() {
+        let dir = temp("no-profile");
+        let config = FileConfig::new(dir.clone());
+        assert_eq!(config.profile_folder(), None);
+        let settings = AppSettings { first_name: "Léa".into(), pause_media: true, ..first_run_settings() };
+        config.save_settings(&settings).unwrap();
+        config.save_dictionary(&UserDictionary { words: vec!["Scriibe".into()], corrections: vec![] }).unwrap();
+        // Comme avant l'étape 4a : un seul fichier de réglages avec toutes les clés, pas de profile.json.
+        let written: Value = serde_json::from_str(&std::fs::read_to_string(config.settings_path()).unwrap()).unwrap();
+        assert_eq!(written["firstName"], "Léa");
+        assert_eq!(written["pauseMedia"], true);
+        assert_eq!(std::fs::read_to_string(config.settings_path()).unwrap(), serde_json::to_string_pretty(&settings).unwrap());
+        assert!(!dir.join("profile.json").exists());
+        assert!(dir.join("dictionary.json").is_file());
+        assert_eq!(config.settings().first_name, "Léa");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn with_a_profile_folder_each_key_goes_to_its_owner_and_the_view_joins_them() {
+        let dir = temp("profile-split");
+        let config = FileConfig::new(dir.clone());
+        // Un fichier d'origine complet : les clés de l'utilisateur y sont déjà.
+        let before =
+            AppSettings { first_name: "Ancien".into(), language: scriibe_core::settings::DictationLanguage::En, ..first_run_settings() };
+        config.save_settings(&before).unwrap();
+        let user = dir.join("utilisateurs").join("A");
+        config.switch_profile(Some(user.clone()));
+        // Le profil n'existe pas encore : l'utilisateur est neuf, ses clés ont leur valeur par défaut (celles du fichier d'origine ne comptent plus).
+        assert_eq!(config.settings().first_name, "");
+        assert_eq!(config.settings().language, AppSettings::default().language);
+
+        let after = AppSettings {
+            first_name: "Léa".into(),
+            typing_wpm: 55,
+            pause_media: true,
+            theme: scriibe_core::settings::Theme::Dark,
+            ..config.settings()
+        };
+        config.save_settings(&after).unwrap();
+        let (computer, profile) = (
+            user_json(&config, "profile.json"),
+            serde_json::from_str::<Value>(&std::fs::read_to_string(config.settings_path()).unwrap()).unwrap(),
+        );
+        assert_eq!((computer["firstName"].as_str(), computer["typingWPM"].as_i64()), (Some("Léa"), Some(55)));
+        assert!(computer.get("pauseMedia").is_none() && computer.get("theme").is_none(), "rien de l'ordinateur dans le profil");
+        assert_eq!(profile["pauseMedia"], true);
+        assert!(profile.get("firstName").is_none() && profile.get("typingWPM").is_none(), "rien de l'utilisateur dans settings.json");
+        assert_eq!(config.settings(), AppSettings { trial_candidates: config.settings().trial_candidates, ..after });
+        assert!(!dir.join("profile.json").exists(), "le profil est dans le dossier de l'utilisateur, pas à la racine");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn switching_user_switches_the_settings_and_the_dictionary_and_none_reads_the_root_again() {
+        let dir = temp("profile-switch");
+        let config = FileConfig::new(dir.clone());
+        config.save_settings(&AppSettings { first_name: "Racine".into(), ..first_run_settings() }).unwrap();
+        config.save_dictionary(&UserDictionary { words: vec!["racine".into()], corrections: vec![] }).unwrap();
+        let (a, b) = (dir.join("utilisateurs").join("A"), dir.join("utilisateurs").join("B"));
+
+        config.switch_profile(Some(a.clone()));
+        assert!(config.dictionary().words.is_empty(), "un utilisateur neuf n'a pas le dictionnaire de la racine");
+        config.save_settings(&AppSettings { first_name: "Alice".into(), ..config.settings() }).unwrap();
+        config.save_dictionary(&UserDictionary { words: vec!["alice".into()], corrections: vec![] }).unwrap();
+        assert!(a.join("dictionary.json").is_file());
+
+        config.switch_profile(Some(b.clone()));
+        assert_eq!((config.settings().first_name.as_str(), config.dictionary().words.len()), ("", 0), "B ne voit rien de A");
+        config.save_settings(&AppSettings { first_name: "Bruno".into(), ..config.settings() }).unwrap();
+        config.save_dictionary(&UserDictionary { words: vec!["bruno".into()], corrections: vec![] }).unwrap();
+
+        config.switch_profile(Some(a));
+        assert_eq!(
+            (config.settings().first_name.as_str(), config.dictionary().words.as_slice()),
+            ("Alice", ["alice".to_string()].as_slice())
+        );
+        config.switch_profile(Some(b));
+        assert_eq!(
+            (config.settings().first_name.as_str(), config.dictionary().words.as_slice()),
+            ("Bruno", ["bruno".to_string()].as_slice())
+        );
+        // Les clés de l'ordinateur sont les mêmes pour tous.
+        config.save_settings(&AppSettings { pause_media: true, ..config.settings() }).unwrap();
+        config.switch_profile(None);
+        assert!(config.settings().pause_media);
+        // Sans dossier d'utilisateur, le dictionnaire de la racine n'a pas été touché ; en revanche `settings.json` n'a plus les clés de
+        // l'utilisateur (la première sauvegarde avec un utilisateur les en a retirées) : le retour en arrière n'est pas une fonction.
+        assert_eq!(config.dictionary().words, vec!["racine".to_string()]);
+        assert_eq!(config.settings().first_name, "");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_hand_edit_of_the_profile_is_picked_up_and_an_unreadable_one_blocks_only_the_save() {
+        let dir = temp("profile-edit");
+        let config = FileConfig::new(dir.clone());
+        config.save_settings(&first_run_settings()).unwrap();
+        let user = dir.join("utilisateurs").join("A");
+        config.switch_profile(Some(user.clone()));
+        config.save_settings(&config.settings()).unwrap();
+        std::fs::write(user.join("profile.json"), r#"{"firstName":"Main"}"#).unwrap();
+        config.profile.forget();
+        assert_eq!(config.settings().first_name, "Main");
+
+        std::fs::write(user.join("profile.json"), "{pas du json").unwrap();
+        config.profile.forget();
+        let problems = config.problems();
+        assert_eq!(problems.len(), 1);
+        assert_eq!((problems[0].file.as_str(), &problems[0].reason), ("profile.json", &Refusal::Unreadable));
+        assert!(problems[0].backup.is_some(), "copie .bak du profil illisible");
+        let err = config.save_settings(&config.settings()).unwrap_err();
+        assert!(err.to_string().contains("profile.json"), "{err}");
+        assert_eq!(std::fs::read_to_string(user.join("profile.json")).unwrap(), "{pas du json", "rien n'a été écrasé");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn switching_history_swaps_the_whole_history_under_the_lock_and_keeps_each_on_its_own_disk() {
+        let dir = temp("history-switch");
+        let (a, b) = (dir.join("A"), dir.join("B"));
+        let history = FileHistory::open(a.clone(), AppSettings::default);
+        history.record(Dictation::new(Utc::now(), "Bloc-notes", "un", "Un.", 1, 1.0, 0));
+        history.record(Dictation::new(Utc::now(), "Bloc-notes", "deux", "Deux.", 1, 1.0, 0));
+        assert_eq!(history.dictation_count(), 2);
+
+        history.switch(b.clone());
+        assert_eq!(history.dictation_count(), 0, "B est vide, rien de A");
+        assert_eq!(history.read(|store, _, _| store.last_dictation_text.clone()), None, "le dernier texte dicté de A n'est pas repris");
+        history.record(Dictation::new(Utc::now(), "Chrome", "trois", "Trois.", 1, 1.0, 0));
+        assert_eq!(FileHistory::open(b.clone(), AppSettings::default).dictation_count(), 1);
+        assert_eq!(FileHistory::open(a.clone(), AppSettings::default).dictation_count(), 2, "A est resté sur son disque");
+
+        history.switch(a.clone());
+        assert_eq!(history.dictation_count(), 2);
+        history.switch(a);
+        assert_eq!(history.dictation_count(), 2, "changer pour le même dossier ne recharge rien");
         let _ = std::fs::remove_dir_all(dir);
     }
 

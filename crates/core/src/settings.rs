@@ -455,6 +455,91 @@ impl Default for AppSettings {
     }
 }
 
+/// À qui appartient un réglage (décision 1 de `docs/CADRAGE_PROFILS.md`) : à la personne qui dicte (elle le retrouve d'un ordinateur
+/// à l'autre) ou à l'ordinateur (partagé par tous ses utilisateurs).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Owner {
+    User,
+    Computer,
+}
+
+/// Les clés d'`AppSettings` qui suivent l'utilisateur (`profile.json`). Les clés d'API ne sont jamais dans les fichiers.
+/// `hiddenModes` n'est pas dans le tableau du cadrage : il porte des identifiants de modes personnels, il suit donc `customModes`.
+pub const USER_KEYS: &[&str] = &[
+    "firstName",
+    "speakerGender",
+    "language",
+    "translationLanguage",
+    "customModes",
+    "customModeID",
+    "hiddenModes",
+    "rewriteMode",
+    "simpleFidelity",
+    "styleOverrides",
+    "customCommands",
+    "voiceCommandsEnabled",
+    "voiceCommands",
+    "listBullet",
+    "keepDictationText",
+    "historyKeepDays",
+    "typingWPM",
+];
+
+/// Les clés d'`AppSettings` qui restent à l'ordinateur (`settings.json`). `soundVolume` (avec les sons) et `animatedLogo` (avec
+/// l'apparence) ne sont pas dans le tableau du cadrage : ils vont avec leur groupe.
+pub const COMPUTER_KEYS: &[&str] = &[
+    "schemaVersion",
+    "hotkey",
+    "dictationKeys",
+    "translateKeys",
+    "formatShortcuts",
+    "microphoneUID",
+    "microphoneName",
+    "startSoundName",
+    "endSoundName",
+    "soundVolume",
+    "transcriptionEngine",
+    "transcriptionModel",
+    "whisperModelPath",
+    "cleanupEngine",
+    "cleanupModel",
+    "lmStudioModel",
+    "ollamaModel",
+    "llamaCppModel",
+    "llamaDevice",
+    "lmStudioURL",
+    "ollamaURL",
+    "whisperIdleMinutes",
+    "llamaIdleMinutes",
+    "cleanupEnabled",
+    "skipWhenClean",
+    "restoreClipboard",
+    "pauseMedia",
+    "uiLanguage",
+    "theme",
+    "overlayEnabled",
+    "captureStyle",
+    "capturePosition",
+    "captureColor",
+    "captureOpacity",
+    "animatedLogo",
+    "trialCandidates",
+    "trialText",
+    "checkUpdates",
+    "setupDone",
+];
+
+/// Le propriétaire d'une clé de réglage ; `None` pour une clé inconnue (refusée par la page, voir `merge_settings`).
+pub fn owner_of(key: &str) -> Option<Owner> {
+    if USER_KEYS.contains(&key) {
+        Some(Owner::User)
+    } else if COMPUTER_KEYS.contains(&key) {
+        Some(Owner::Computer)
+    } else {
+        None
+    }
+}
+
 /// 30 minutes, comme Scribe.
 pub const LLAMA_IDLE_DEFAULT: i64 = 30;
 
@@ -566,6 +651,38 @@ impl AppSettings {
             check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
             animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
         })
+    }
+
+    /// Range les réglages selon la décision 1 : `(ordinateur, utilisateur)`, deux objets JSON. Une clé sans propriétaire (le test de
+    /// classement l'interdit) reste du côté de l'ordinateur plutôt que de se perdre.
+    pub fn split(&self) -> (Map<String, Value>, Map<String, Value>) {
+        let Ok(Value::Object(all)) = serde_json::to_value(self) else { return Default::default() };
+        let (mut computer, mut user) = (Map::new(), Map::new());
+        for (key, value) in all {
+            if owner_of(&key) == Some(Owner::User) {
+                user.insert(key, value);
+            } else {
+                computer.insert(key, value);
+            }
+        }
+        (computer, user)
+    }
+
+    /// La vue unique des réglages. `user` vaut `None` tant que rien n'est rangé par utilisateur : les clés de l'utilisateur sont alors lues
+    /// dans `computer` (le `settings.json` d'origine). Avec `Some`, il fait foi pour toutes les clés de l'utilisateur : celles qu'il n'a pas
+    /// prennent leur valeur par défaut, et celles qui traînent dans `computer` sont ignorées. Lecture tolérante, comme [`Self::from_value`].
+    pub fn from_parts(computer: &Value, user: Option<&Value>) -> Option<Self> {
+        let Some(user) = user else { return Self::from_value(computer) };
+        let mut merged = computer.as_object()?.clone();
+        for key in USER_KEYS {
+            merged.remove(*key);
+        }
+        for (key, value) in user.as_object()? {
+            if owner_of(key) == Some(Owner::User) {
+                merged.insert(key.clone(), value.clone());
+            }
+        }
+        Self::from_value(&Value::Object(merged))
     }
 
     /// Le modèle de mise au propre du moteur choisi.

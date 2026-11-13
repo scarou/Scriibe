@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C4 tâche 6 — 2026-11-13 · Profils, étape 4a : vue des réglages (non publié : part avec la 0.5.0)
+
+- **Ce que l'on voit** : rien. Aucun fichier ne change sur le disque : tant qu'aucun utilisateur n'est rangé à part (la migration vient à l'étape 4b), `settings.json` et `dictionary.json` s'écrivent comme avant, octet pour octet.
+- **Technique** : le classement « utilisateur » / « ordinateur » de la décision 1 est dans le code (`USER_KEYS`, `COMPUTER_KEYS`, `owner_of`, `AppSettings::split` et `from_parts`) avec un test qui échoue, en nommant le champ, si un champ d'`AppSettings` n'est classé ni d'un côté ni de l'autre. `FileConfig` donne une vue `AppSettings` unique et lit un fichier par `Watched` (`settings.json`, `profile.json`, `dictionary.json`, chemin déplaçable par `switch_profile`) ; `save_settings` range chaque clé dans le fichier de son propriétaire dès qu'un dossier d'utilisateur est actif ; `FileHistory.switch(dossier)` change d'historique sous son verrou ; `merge_settings` s'appuie sur le classement. Trois champs absents du cadrage classés : `hiddenModes` (utilisateur), `soundVolume` et `animatedLogo` (ordinateur). Détail, choix et limites pour 4b et 4c : `docs/PROFILS.md` § Étape 4a.
+- **Mesuré** sur le Mac : 616 tests Rust et 104 tests de l'interface sans erreur (12 tests ajoutés) ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur. Pas de clippy Windows ni d'essai sur les PC (rien d'observable à essayer).
+
 ## C4 lot 1 — 2026-11-13 · Profils, étapes 1 à 3 : fichiers protégés, import et export du dictionnaire et des commandes (non publié : part avec la 0.5.0)
 
 - **Ce que l'on voit** :

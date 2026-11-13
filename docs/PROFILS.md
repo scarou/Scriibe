@@ -317,3 +317,56 @@ Relu par un agent distinct (Sonnet, lecture seule) sur `8171411..HEAD` : **aucun
 - **12** : une copie `.bak` par contenu cassé différent, sans plafond ; les `.tmp` laissés par un plantage ne sont jamais nettoyés.
 
 Mesuré après les corrections, sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` sans erreur ; **604 tests Rust** (601 avant) ; **104 tests de l'interface** (102 avant) ; `svelte-check` sans erreur ; interface construite. Les corrections n'ont **pas été revues à l'écran** (ni la page Dictionnaire avec un fichier refusé, ni l'aperçu des commandes).
+
+## Étape 4a · Vue des réglages, sans changement visible (tâche 6, 13/11/2026)
+
+Code de l'étape 4a de `docs/CADRAGE_PROFILS.md` : le code lit et écrit les réglages par une vue unique, prête à être rangée par utilisateur, sans que rien ne change pour l'auteur tant qu'il n'y a pas de migration (4b).
+
+### Ce qui est fait
+
+- **Classement de la décision 1 dans le code** (`crates/core/src/settings.rs`) : `USER_KEYS` et `COMPUTER_KEYS` (les clés JSON d'`AppSettings`), `Owner`, `owner_of(clé)`. 17 clés suivent l'utilisateur, 39 restent à l'ordinateur (`schemaVersion` compris).
+- **`AppSettings::split()`** range les réglages en deux objets JSON (ordinateur, utilisateur) ; **`AppSettings::from_parts(ordinateur, utilisateur)`** recompose la vue. Avec `Some(utilisateur)`, ce fichier fait foi pour toutes les clés de l'utilisateur (une clé absente prend sa valeur par défaut, une clé qui traîne dans le fichier de l'ordinateur est ignorée). Avec `None`, la vue est le `settings.json` d'origine, lu comme avant.
+- **`FileConfig`** (`crates/platform/src/storage.rs`) :
+  - `settings()` donne toujours une `AppSettings` unique (`view()`), donc `active_profile`, `preload_signature`, le menu de l'icône et `api/status` n'ont pas changé ;
+  - un `Watched` par fichier : `settings.json`, `profile.json` et `dictionary.json` ; le chemin d'un `Watched` peut changer (`retarget`, qui vide sa mémoire sous le même verrou) ;
+  - `switch_profile(Some(dossier))` fait suivre `profile.json` et `dictionary.json` ; `switch_profile(None)` revient au rangement d'origine ; `profile_folder()` dit où l'on en est ;
+  - `save_settings` range chaque clé dans le fichier de son propriétaire (ordinateur → `settings.json`, utilisateur → `profile.json` du dossier de l'utilisateur) et refuse d'écrire si `settings.json` **ou** `profile.json` est refusé (illisible, ou plus récent pour `settings.json`) ; `problems()` liste aussi `profile.json` ; la copie `.bak` d'un profil illisible se fait comme pour les autres fichiers.
+- **`merge_settings`** (`crates/cli/src/web/mod.rs`) accepte une clé si elle est classée (`owner_of`), au lieu de `OPTIONAL_KEYS` (supprimé : `customModeID` et `historyKeepDays` sont des clés de l'utilisateur). Le rangement dans le bon fichier se fait à l'écriture, par `FileConfig::save_settings`.
+- **`FileHistory`** : l'historique et son dossier sont dans un même état sous un seul verrou ; `switch(dossier)` relit `history.json` et `history-totals.json` du nouveau dossier (même copie `.bak` d'un fichier illisible qu'à l'ouverture), sans rien reprendre de l'ancien (dernier texte dicté compris). Changer pour le même dossier ne recharge rien. Le `FileHistory` de `commands.rs` est partagé par la page, l'icône et le chef d'orchestre : un seul `switch` suffit.
+
+### Choix techniques et pourquoi
+
+1. **Sans dossier d'utilisateur, rien n'est écrit à part** (précision apportée au cadrage, qui dit « le profil est la racine du dossier de données »). Tant que `profile_folder()` vaut `None`, `save_settings` écrit tout dans `settings.json`, octet pour octet comme avant, et le dictionnaire reste à la racine ; aucun `profile.json` n'est créé. La séparation ne s'applique qu'après `switch_profile(Some(dossier))`, que seule la migration (4b) appellera. Pourquoi : un `profile.json` à la racine, créé dès la première sauvegarde, aurait retiré les clés de l'utilisateur de `settings.json` avant toute migration. Cela aurait (a) cassé la sauvegarde complète, qui ne connaît que `settings.json`, `dictionary.json` et l'historique (`restore::FILES`, `read_data_files`) ; (b) trompé la migration de 4b, qui lit ces clés dans `settings.json` ; (c) rendu visible un changement que l'étape doit éviter (retour à une version antérieure, modification à la main). Résultat : 4a ne change rien sur le disque, et la séparation est quand même complète et testée.
+2. **Trois champs que le tableau du cadrage ne classait pas** (le test de classement les aurait fait échouer) : `hiddenModes` → utilisateur (il porte des identifiants de modes personnels et `clean_hidden_modes` a besoin de `customModes` : ils doivent venir du même fichier) ; `soundVolume` → ordinateur (avec les sons) ; `animatedLogo` → ordinateur (avec l'apparence). Les tableaux du cadrage sont complétés.
+3. **Les fichiers sont lus comme du JSON brut et la vue se compose ensuite** (`Watched<Value>`), plutôt que de lire deux `AppSettings` et de les mélanger champ par champ : la règle « le fichier de l'utilisateur fait foi pour toutes ses clés » tient en quelques lignes, et une nouvelle clé n'oblige à écrire aucune ligne de fusion (le test de classement suffit). Coût : la vue est recomposée à chaque lecture au lieu d'être gardée en mémoire ; je ne l'ai pas mesuré.
+4. **`profile.json` n'a pas de numéro de version propre** : le format de l'utilisateur sera fixé par 4b. Il est donc refusé s'il est illisible, jamais « trop récent ».
+5. **Le classement est une liste de clés JSON, pas un attribut sur chaque champ** : un attribut aurait demandé une macro. Le test lit les clés réellement écrites par `serde` (avec les clés facultatives remplies), donc un champ ajouté sans classement fait échouer la suite avec le nom du champ.
+
+### Tests (12 nouveaux)
+
+| Test | Ce qu'il prouve |
+|---|---|
+| `every_settings_field_is_classified_as_user_or_computer` (core) | **Test de la décision 1** : échoue avec le nom du champ si un champ d'`AppSettings` n'est ni « utilisateur » ni « ordinateur » (vérifié à la main en retirant `animatedLogo` de la liste : le test échoue et le nomme) |
+| `the_classification_has_no_overlap_and_no_stale_key` | aucune clé des deux côtés ; aucune clé classée qui n'existe plus |
+| `the_decision_one_table_is_followed` | les lignes du tableau de la décision 1, une à une |
+| `split_then_from_parts_gives_back_the_same_settings` | aller-retour exact, rien de l'ordinateur chez l'utilisateur et inversement |
+| `without_a_user_file_the_original_settings_json_is_read_as_is` | sans utilisateur, la vue est le fichier d'origine |
+| `a_user_file_decides_every_user_key_and_stray_ones_in_the_computer_file_are_ignored` | le fichier de l'utilisateur fait foi, même pour une clé facultative |
+| `a_user_file_that_is_not_an_object_gives_no_view` | un profil qui n'est pas un objet ne donne pas de vue |
+| `without_a_profile_folder_everything_stays_in_the_original_files` (platform) | rien de nouveau sur le disque : un seul `settings.json`, identique octet pour octet à l'ancienne écriture, pas de `profile.json` |
+| `with_a_profile_folder_each_key_goes_to_its_owner_and_the_view_joins_them` | chaque clé dans le fichier de son propriétaire ; un utilisateur neuf a les valeurs par défaut |
+| `switching_user_switches_the_settings_and_the_dictionary_and_none_reads_the_root_again` | deux utilisateurs isolés (réglages et dictionnaire), clés de l'ordinateur communes, retour à `None` |
+| `a_hand_edit_of_the_profile_is_picked_up_and_an_unreadable_one_blocks_only_the_save` | modification à la main relue ; profil illisible : copie `.bak`, avertissement, sauvegarde refusée, fichier intact |
+| `switching_history_swaps_the_whole_history_under_the_lock_and_keeps_each_on_its_own_disk` | `FileHistory.switch` |
+
+### Résultat des tests
+
+Mesuré sur le Mac : `cargo fmt --check` sans écart, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur, `cargo test --workspace` : **616 réussis, 0 échoué, 1 ignoré** ; `npm test` (interface, non modifiée) : **104 réussis**. Non fait : la compilation croisée pour Windows (clippy `x86_64-pc-windows-gnu`) et l'essai sur les PC : 4a ne change rien d'observable, l'essai viendra avec 4b et 4c.
+
+### Limites et à reprendre (pour 4b et 4c)
+
+- **4b (migration)** : construire `profile.json` et `dictionary.json` de l'utilisateur **avant** le premier `switch_profile(Some(…))`, puis appeler `config.switch_profile(Some(dossier))` et `history.switch(dossier)`. Dès que l'utilisateur est actif, la première `save_settings` retire les clés de l'utilisateur de `settings.json` : si la migration lisait `settings.json` après cela, elle ne les y trouverait plus. La migration doit lire la vue (`config.settings()`) ou les copies de la sauvegarde, jamais `settings.json` après une sauvegarde faite avec un utilisateur.
+- **4b : `activeProfile`** n'est pas encore un champ d'`AppSettings`. Quand il le deviendra, le test de classement l'obligera à le classer (« ordinateur », cadrage).
+- **4b et 4c : sauvegarde complète et désinstallation** (`restore::FILES`, `backup::read_data_files`, `files_to_restore`, `uninstall`) ne connaissent ni `utilisateurs/` ni `profile.json`. Elles marchent aujourd'hui parce que le rangement d'origine est conservé ; elles devront être étendues dans la même étape que la migration, sinon une sauvegarde faite après migration manquerait les clés de l'utilisateur.
+- **4c** : le verrou en mémoire qui protège « lire, fusionner, écrire » n'est pas encore là (cadrage, décision 3). `save_settings` écrit maintenant deux fichiers quand un utilisateur est actif (l'ordinateur d'abord, puis l'utilisateur) : un arrêt entre les deux laisse un fichier à jour et l'autre non, sans fichier cassé. Le garde-fou 409 et le rechargement de la page après `switch_profile` sont aussi à faire.
+- Notés à la relecture du lot 1 et toujours non corrigés : voir § Relecture du lot 1.

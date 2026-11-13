@@ -35,7 +35,7 @@ use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
 use scriibe_core::dictionary::{dedup_corrections, word_key, Correction, UserDictionary};
 use scriibe_core::history::Cleanup;
 use scriibe_core::microphone::MicLevel;
-use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
+use scriibe_core::settings::{is_device_name, owner_of, AppSettings, CleanupEngine, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
 use scriibe_engines::llama::{self, LlamaLauncher};
 use scriibe_engines::runtime::{KeyKind, Log};
@@ -757,7 +757,9 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
         if key == "schemaVersion" {
             continue;
         }
-        if !object.contains_key(key) && !OPTIONAL_KEYS.contains(&key.as_str()) {
+        // Toute clé est classée « utilisateur » ou « ordinateur » (décision 1, test de classement) ; le rangement dans le bon fichier
+        // se fait à l'écriture (`FileConfig::save_settings`). Une clé sans propriétaire n'est pas un réglage.
+        if owner_of(key).is_none() {
             return Err(format!("réglage inconnu : {key}"));
         }
         object.insert(key.clone(), value.clone());
@@ -811,9 +813,6 @@ fn capture_view(ctx: &Context) -> Value {
     }
     json!({"active": true, "kind": kind, "finished": capture.finished, "labels": labels, "ids": ids, "error": error})
 }
-
-/// Réglages facultatifs, absents du fichier tant qu'ils n'ont pas de valeur.
-const OPTIONAL_KEYS: [&str; 2] = ["historyKeepDays", "customModeID"];
 
 /// Ce que la pastille à l'écran montre (état, niveau, alertes) avec l'apparence choisie.
 fn overlay_view(ctx: &Context) -> Value {

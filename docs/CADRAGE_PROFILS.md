@@ -271,7 +271,7 @@ Chaque utilisateur a les éléments suivants :
 | Prénom et genre | `firstName`, `speakerGender` |
 | Langues | `language`, `translationLanguage` |
 | Dictionnaire | `words`, `corrections` |
-| Modes personnalisés et mode choisi | `customModes`, `customModeID`, `rewriteMode`, `simpleFidelity`, `styleOverrides` |
+| Modes personnalisés et mode choisi | `customModes`, `customModeID`, `hiddenModes`, `rewriteMode`, `simpleFidelity`, `styleOverrides` |
 | Commandes | `customCommands`, `voiceCommandsEnabled`, `voiceCommands`, `listBullet` |
 | Historique et statistiques | `history.json`, `history-totals.json`, et leurs réglages `keepDictationText`, `historyKeepDays`, `typingWPM` |
 
@@ -282,15 +282,17 @@ Restent communs à tous les utilisateurs, parce qu'ils appartiennent à l'ordina
 | Groupe | Champs |
 |---|---|
 | Touches | `hotkey`, `dictationKeys`, `translateKeys`, `formatShortcuts` |
-| Micro et sons | `microphoneUID`, `microphoneName`, `startSoundName`, `endSoundName` |
+| Micro et sons | `microphoneUID`, `microphoneName`, `startSoundName`, `endSoundName`, `soundVolume` |
 | Moteurs et modèles | `transcriptionEngine`, `transcriptionModel`, `whisperModelPath`, `cleanupEngine`, `cleanupModel`, `lmStudioModel`, `ollamaModel`, `llamaCppModel`, `llamaDevice`, `lmStudioURL`, `ollamaURL`, `whisperIdleMinutes`, `llamaIdleMinutes` |
 | Comportement | `cleanupEnabled`, `skipWhenClean`, `restoreClipboard`, `pauseMedia` |
-| Apparence | `uiLanguage`, `theme`, `overlayEnabled`, `capture*` |
+| Apparence | `uiLanguage`, `theme`, `overlayEnabled`, `capture*`, `animatedLogo` |
 | Banc d'essai | `trialCandidates`, `trialText` ; le dossier `bancs/` reste commun aussi |
 | Divers | `checkUpdates`, `setupDone` |
 | Nouveaux champs | `schemaVersion`, `activeProfile` |
 
 Les clés d'API restent aussi communes.
+
+**Complété à l'étape 4a (13/11).** Trois champs n'étaient pas dans ces tableaux : `hiddenModes` (utilisateur : il porte des identifiants de modes personnels), `soundVolume` et `animatedLogo` (ordinateur). Ils y sont maintenant.
 
 **Règle de code.** Un test unitaire échoue si un champ d'`AppSettings` n'est classé ni « utilisateur » ni « ordinateur ». Un futur réglage ne peut donc pas être oublié dans la répartition (relecture, C1).
 
@@ -481,7 +483,7 @@ Contenu de l'étape 4a (relecture, B3) :
 - `merge_settings` répartit chaque clé dans le bon fichier, selon le classement de la décision 1.
 - Un `Watched` par fichier, avec un chemin qui suit l'utilisateur actif, couvre aussi le dictionnaire, lu à chaque dictée.
 - `FileHistory` peut changer de dossier sous son verrou (`switch(folder)`), et `ctx.history` suit.
-- Tant que la migration n'existe pas, le « profil » est simplement la racine du dossier de données.
+- Tant que la migration n'existe pas, le « profil » est simplement la racine du dossier de données. Précisé à l'étape 4a : sans dossier d'utilisateur, tout reste dans `settings.json` et `dictionary.json` à la racine, comme avant, et aucun `profile.json` n'est créé ; la séparation ne s'applique qu'après `switch_profile(Some(dossier))` (voir `docs/PROFILS.md` § Étape 4a).
 
 Plus tard, hors de ce cadrage :
 
