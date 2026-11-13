@@ -888,6 +888,19 @@ pub fn show_message(text: &str) {
     }
 }
 
+/// Windows : la commande qui efface le dossier de l'assistant après `seconds` secondes (le temps que l'assistant se termine). Les guillemets
+/// du chemin sont écrits tels quels (`raw_arg`) : par `args`, Rust les échappe en `\"`, que `cmd` ne comprend pas (constaté à l'essai
+/// réel : le dossier restait dans `%TEMP%`).
+#[cfg(windows)]
+fn deferred_cleanup(dir: &Path, seconds: u32) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut command = std::process::Command::new("cmd");
+    command
+        .raw_arg(format!("/C ping -n {} 127.0.0.1 >nul & rmdir /S /Q \"{}\"", seconds + 1, dir.display()))
+        .creation_flags(0x0800_0000 | 0x0000_0008);
+    command
+}
+
 /// Le point d'entrée de l'assistant (`scriibe desinstaller-fin <fichier de travail>`). Rend le code de sortie.
 pub fn finish(job_file: &Path) -> i32 {
     let Some(job) = std::fs::read_to_string(job_file).ok().and_then(|t| Job::from_json(&t)) else {
@@ -907,11 +920,7 @@ pub fn finish(job_file: &Path) -> i32 {
     if let Some(dir) = work_dir.filter(|d| name_of(d).is_some_and(|n| n.starts_with("scriibe-desinstallation-"))) {
         #[cfg(windows)]
         {
-            use std::os::windows::process::CommandExt;
-            let _ = std::process::Command::new("cmd")
-                .args(["/C", &format!("ping -n 4 127.0.0.1 >nul & rmdir /S /Q \"{}\"", dir.display())])
-                .creation_flags(0x0800_0000 | 0x0000_0008)
-                .spawn();
+            let _ = deferred_cleanup(&dir, 4).spawn();
         }
         #[cfg(not(windows))]
         {
@@ -1375,6 +1384,23 @@ mod tests {
         trash_path(&link).unwrap();
         assert!(std::fs::symlink_metadata(&link).is_err());
         assert_eq!(std::fs::read_to_string(&target).unwrap(), "cible à garder");
+    }
+
+    /// Windows : le dossier de l'assistant, dont le nom contient une espace, est bien effacé par la commande différée.
+    #[cfg(windows)]
+    #[test]
+    fn the_deferred_cleanup_removes_a_folder_whose_path_has_spaces() {
+        let root = Scratch::new("nettoyage differe");
+        let folder = root.file("scriibe-desinstallation-1/travail.json", "{}").parent().unwrap().to_path_buf();
+        let mut child = deferred_cleanup(&folder, 1).spawn().unwrap();
+        child.wait().unwrap();
+        for _ in 0..40 {
+            if !folder.exists() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        panic!("le dossier est toujours là : {}", folder.display());
     }
 
     #[test]
