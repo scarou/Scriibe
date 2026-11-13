@@ -364,3 +364,46 @@ Essai sur le Mac de l'auteur le 13/11/2026 (tâche 5), avec `Scriibe.app` compil
 - Aide : autorisations après réinstallation (incident 3) : fait, tout de suite.
 - **Pour le carnet** (pas fait) : (a) `$TMPDIR/fr.scriibe.app` et `$TMPDIR/com.apple.WebKit.*+fr.scriibe.app` (dossiers vides laissés par la fenêtre, macOS vide le dossier temporaire lui-même) pourraient entrer dans la liste ; (b) les tests laissent des centaines de dossiers `scriibe-instance-*`, `scriibe-mode-sync-*` et `scriibe-import-test-*` dans le dossier temporaire (fuite des tests existants, hors désinstallation) ; (c) la ligne « Autoriser en arrière-plan » restée dans Réglages Système, à documenter si l'auteur la juge gênante.
 - Nettoyage de l'essai : lien d'essai, faux modèle et son dossier supprimés ; le dossier `avant-import-20261113-094549` et la sauvegarde `scriibe-sauvegarde-2026-11-13.scriibe.json` (Téléchargements) sont laissés à l'auteur.
+
+### Essai réel : PC Windows et PC Linux (tâche 6)
+
+Essai du 13/11/2026 par Pilote PC, avec l'auteur devant chaque PC. **Code transmis sans rien publier** : les PC étaient en retard de 52 et 54 commits et `pilote maj` ne tire que depuis GitHub, où les commits locaux n'étaient pas poussés ; par choix de l'auteur, un paquet git (`git bundle`, copié par `scp`, puis `git fetch` du paquet et `merge --ff-only`) a mis chaque dépôt au commit essayé (`71e61cd`, puis `8fc2c69`, `c81cd43`, `e901fc0`). Chaque essai s'est fait sur une **copie** du programme compilé dans un dossier d'essai (`C:\scriibe-essai\scriibe.exe`, `~/scriibe-essai/scriibe`), pour que l'étape « programme » de la désinstallation puisse être essayée sans toucher aux installations de l'auteur (`C:\scriibe`, `~/Scriibe`).
+
+**Compilation et tests sur les deux PC** : `cargo test --workspace` réussi sur Linux et sur Windows, release compilée. Premier passage Windows en échec : trois de mes tests supposaient des chemins de type Unix (`/home/a` n'est pas absolu sous Windows, séparateurs) ; corrigés, **défaut de test seulement**.
+
+#### Verdict Windows : réussi, avec trois défauts trouvés et corrigés
+
+| Étape | Résultat |
+|---|---|
+| Lancer au démarrage : cocher | Valeur `Scriibe` de `HKCU\…\Run` : `"C:\scriibe-essai\scriibe.exe" lancer --sans-navigateur`. |
+| Fermer puis rouvrir la session | Scriibe démarrée seule 16 s après l'ouverture de la session (nouveau processus), **sans fenêtre noire** (aucune fenêtre ni console vue à l'écran par vérification déléguée, aucun titre de fenêtre). |
+| « Ouvrir Scriibe » dans le menu de l'icône | **Défaut trouvé** : rien ne s'ouvrait (voir 1). Après correction, la fenêtre s'ouvre (journal « fenêtre : Tauri (WebView2) ouverte »). |
+| Décocher | Valeur retirée du registre (la valeur de NordVPN reste), journal « entrée retirée ». |
+| Sauvegarde | 164 Ko, 279 dictées, 14 mots, aucune clé ; enregistrée dans Téléchargements. |
+| Désinstallation (avec « Garder mes modèles ») | Boîte finale affichée ; 248 Mo à la Corbeille de Windows (données sauf `models`, moteurs `%LOCALAPPDATA%\Scriibe`, cache `%LOCALAPPDATA%\fr.scriibe.app`, copie du programme), retrouvés dans la Corbeille (liste lue par COM) ; clés `deepgram`, `openrouter`, `github` effacées ; modèles (6 fichiers) et installation `C:\scriibe` intacts ; valeur `Run` absente. Règle des 5 % de la Corbeille : non déclenchée (248 Mo), le déplacement de 5,8 Go n'a **pas** été essayé. |
+| Réinstallation + restauration | Nouvelle appli à zéro, puis « Restaurer » : historique (279) et dictionnaire (14) identiques à la sauvegarde, copie `avant-import-20261113-110625`, relance automatique. |
+
+Défauts Windows :
+1. **« Ouvrir Scriibe » ne faisait rien en démarrage discret.** Sans fenêtre créée au démarrage, le menu de l'icône retombait sur le navigateur (`cmd /C start`), qui ne montrait rien. **Corrigé** : la fenêtre se crée à la première demande (`commands::lazy_window`, `window::show_url`) ; vérifié sur le PC.
+2. **Le dossier temporaire de l'assistant restait** (`%TEMP%\scriibe-desinstallation-…`) : `cmd` ne comprend pas les guillemets échappés par `args`. **Corrigé** par `raw_arg` (`deferred_cleanup`), avec un test Windows du chemin à espaces (réussi sur le PC). Le dossier laissé par le premier essai a été retiré à la main.
+3. **Ma vérification des clés par SSH était fausse** : `cmdkey /list` en session SSH ne voit pas le Gestionnaire d'identifiants de la session de l'auteur. J'avais annoncé « aucune clé » ; l'assistant en a effacé trois. Dit à l'auteur après coup ; les clés sont à ressaisir si besoin. **Leçon** : sur Windows, la présence des clés ne se lit que depuis la session de l'utilisateur ; la commande `scriibe desinstaller --liste` ne les compte pas non plus, elle dit seulement qu'elles seront effacées.
+
+#### Verdict Linux (GNOME sous Wayland) : réussi, avec deux défauts trouvés et corrigés
+
+| Étape | Résultat |
+|---|---|
+| Lancer au démarrage : cocher | `~/.config/autostart/fr.scriibe.Scriibe.desktop` (`Exec="…/scriibe" lancer --sans-navigateur`). |
+| Fermer puis rouvrir la session | Scriibe démarrée seule à l'ouverture de la session (11:10:16), sans fenêtre ; icône de la barre du haut vue par l'auteur (la capture déléguée ne la distinguait pas). **Le démarrage XDG sous GNOME Wayland fonctionne.** |
+| Décocher | Fichier retiré, journal « entrée retirée ». |
+| Sauvegarde | Rangée dans Documents sans écraser (Linux n'a pas de boîte) ; 52 Ko, 80 dictées, 3 mots, aucune clé. |
+| Désinstallation (modèles non gardés) | Boîte finale ; 2,8 Go à la Corbeille de l'utilisateur (`~/.local/share/scriibe` 2,6 Go, `~/.local/share/Scriibe`, cache, lanceur et icône, copie du programme), vérifié dans `Trash/files` ; installation `~/Scriibe` intacte ; **collision de noms** gérée par la crate (`scriibe` et `scriibe.2`) ; l'assistant s'est effacé tout seul de `/tmp`. |
+| Réinstallation + restauration | Premier lancement, puis chemin tapé (Linux sans boîte) : réglages, dictionnaire et historique identiques, copie `avant-import-20261113-112151`, relance. Les 4 modèles (2,5 Go) ont été **remis en place par moi depuis la Corbeille** (le déplacement complet a bien été essayé ici). |
+
+Défauts Linux :
+1. **La Corbeille ne notait pas la date de suppression** : la crate `trash`, sans sa fonction `chrono`, n'écrit pas `DeletionDate` (champ obligatoire de la spécification). **Corrigé** : fonction `chrono` activée ; vérifié par l'essai manuel sur la vraie Corbeille du PC (`DeletionDate=…` écrit).
+2. **Texte de `scriibe desinstaller` parlant d'un « trousseau » sous Linux** : corrigé par système.
+
+#### Ajouts (pour le carnet, rien de fait)
+- Windows, démarrage discret : la pastille à l'écran (bêta) n'est lancée qu'avec la fenêtre (`start_overlay`) ; le correctif du menu la lance à la première ouverture, mais jamais avant ; à décider si on la veut dès le démarrage.
+- Linux : sous Wayland, le raccourci de dictée dépend du portail de GNOME ; le jeton `portail-wayland.json` part avec les données, la réinstallation redemande donc la mémorisation du raccourci (non essayé : l'essai ne portait pas sur la dictée).
+- Les copies d'essai (`C:\scriibe-essai`, `~/scriibe-essai`) et les dossiers `avant-import-…` des deux PC sont laissés à l'auteur.
