@@ -51,7 +51,7 @@ Idée du carnet du 11/11 : le curseur du logo clignote lentement ; animé par d�
 | Mode sombre du Mac | Logo sombre lisible, curseur clignote : vu. |
 | « Réduire les animations » (Accessibilité) | Logo fixe : vu. |
 
-**Écart noté, à clore** : juste après le premier décochage de l'auteur, `settings.json` contenait encore `animatedLogo: true` alors que l'écran montrait le logo fixe. Le chemin « cocher » est prouvé (fichier mis à jour) et l'enregistrement par le serveur aussi (essai par `curl`) ; le chemin « décocher par clic » est à reconfirmer en lisant le fichier juste après un clic.
+**Écart noté, clos** : juste après le premier décochage, `settings.json` contenait encore `animatedLogo: true` alors que l'écran montrait le logo fixe (cause non identifiée). Contrôle refait : un décochage par clic écrit bien `false` dans le fichier (12:34:33), comme le cochage écrit `true`. Les deux chemins marchent ; l'écart n'est pas reproduit.
 
 ## Ajouts
 
