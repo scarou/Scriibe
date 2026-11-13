@@ -388,6 +388,8 @@ N'entrent jamais dans un export :
 - le banc d'essai ;
 - les champs propres à l'ordinateur (décision 1).
 
+Exception, chantier 7 (`docs/SYSTEME.md`, question 3) : la **sauvegarde complète** (`kind: "backup"`), proposée avant une désinstallation, contient l'historique, les statistiques et les champs propres à l'ordinateur, jamais les clés d'API ni le banc d'essai. Son import **remplace** au lieu d'ajouter, après aperçu, confirmation et copie des fichiers actuels.
+
 **5. Protection des exports** (décision de l'auteur : « en clair, avec aperçu »)
 
 - Le fichier n'est pas chiffré.
