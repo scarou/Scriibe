@@ -5,6 +5,7 @@
 mod assets;
 mod backup;
 mod bench_view;
+mod commands_io;
 pub(crate) mod data;
 mod dictionary_io;
 pub(crate) mod downloads;
@@ -219,6 +220,23 @@ fn handle(ctx: &Context, mut request: Request) {
         ),
         // Carte « Commandes vocales » : les commandes, leurs phrases par défaut et en vigueur, puis le contrôle d'une phrase ou d'un raccourci.
         (Method::Get, "api/commands") => ok(request, commands_view(&ctx.app.config.settings())),
+        // Exporter et importer les commandes perso : aperçu d'abord, rien d'écrit avant l'accord, la fusion ajoute sans remplacer.
+        (Method::Post, "api/commands/export") => ok(request, commands_io::export(&ctx.app.config.settings())),
+        (Method::Post, "api/commands/import/read") => ok(request, commands_io::read(&ctx.app.config.settings(), &input)),
+        (Method::Post, "api/commands/import/apply") => {
+            let mut settings = ctx.app.config.settings();
+            match commands_io::apply_pending(&mut settings, &input) {
+                Ok(outcome) => match ctx.app.config.save_settings(&settings) {
+                    Ok(()) => {
+                        commands_io::consume();
+                        ok(request, commands_io::outcome_json(&outcome))
+                    }
+                    Err(e) => fail(request, 500, &e.to_string()),
+                },
+                Err(e) => fail(request, 400, &e),
+            }
+        }
+        (Method::Post, "api/commands/import/cancel") => ok(request, commands_io::cancel()),
         (Method::Post, "api/commands/validate-phrase") => ok(request, validate_command_phrase(&ctx.app.config.settings(), &input)),
         (Method::Post, "api/commands/validate-shortcut") => ok(
             request,

@@ -4,6 +4,7 @@
 //! L'export est construit **champ par champ, d'après une liste blanche**, jamais en sérialisant les réglages : un futur champ
 //! sensible ne peut pas partir par défaut. Aucune clé d'API, aucun historique, aucun champ propre à l'ordinateur.
 
+use crate::commands::CustomCommand;
 use crate::dictionary::UserDictionary;
 use crate::modes::CustomMode;
 use serde_json::{json, Value};
@@ -124,4 +125,18 @@ pub fn dictionary_export(dictionary: &UserDictionary, words: bool, corrections: 
 /// Le nom de fichier proposé : `scriibe-dictionnaire-<jour>.scriibe.json` (jamais le nom de l'utilisateur).
 pub fn dictionary_file_name(day: &str) -> String {
     format!("scriibe-dictionnaire-{day}{EXTENSION}")
+}
+
+/// Le fichier d'export des commandes perso (`kind: "commands"`, `content: {customCommands: […]}`), champ par champ.
+pub fn commands_export(commands: &[CustomCommand], app_version: &str, day: &str) -> Value {
+    let list: Vec<Value> = commands
+        .iter()
+        .map(|c| json!({"id": c.id, "name": c.name, "phrases": c.phrases, "shortcut": c.shortcut, "needsSelection": c.needs_selection}))
+        .collect();
+    envelope("commands", app_version, day, json!({"customCommands": list}))
+}
+
+/// Le nom de fichier proposé : `scriibe-commandes-<jour>.scriibe.json`.
+pub fn commands_file_name(day: &str) -> String {
+    format!("scriibe-commandes-{day}{EXTENSION}")
 }

@@ -14,6 +14,7 @@ pub mod export;
 pub mod history;
 pub mod hotkey;
 pub mod import;
+pub mod import_commands;
 pub mod import_dictionary;
 pub mod inline;
 pub mod lang;

@@ -202,3 +202,55 @@ Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` 
 - **Un seul fichier en attente à la fois** par type (dictionnaire, modes) : deux fenêtres ouvertes sur l'import se partageraient l'attente (le jeton fait refuser l'ancien aperçu). Même limite que les modes.
 - **Les nombres de l'aperçu** comptent les éléments du fichier après nettoyage et dédoublonnage, pas ceux du fichier brut.
 - **Étape 3, partie commandes** : pas faite ici (tâche suivante). Le contrôle d'enveloppe commun et le patron `dictionary_io.rs` sont prêts à servir.
+
+## Étape 3 · Import et export des commandes perso (tâche 3, 13/11/2026)
+
+Reste de l'étape 3 de `docs/CADRAGE_PROFILS.md` (la partie modes a été faite au chantier 5) : `kind: "commands"`, `content: {customCommands}`. Même enveloppe, mêmes règles que le dictionnaire. Les commandes étendues du chantier 6 ne sont pas touchées. Pas de version : part dans la 0.5.0.
+
+### Ce qui est fait
+
+| Point | Fait | Où |
+|---|---|---|
+| Export | Liste blanche champ par champ (`id`, `name`, `phrases`, `shortcut`, `needsSelection`), jour seul, nom `scriibe-commandes-<jour>.scriibe.json`. Boîte « Enregistrer sous » (Mac, Windows) ; Linux : dossier Documents, sans rien écraser. Rien à exporter sans commande. | `crates/core/src/export.rs`, `crates/cli/src/web/commands_io.rs` |
+| Lecture contrôlée | Contrôle d'enveloppe commun (étape 2). Limites : 1 Mo, 100 commandes, 20 phrases par commande, titre 100, phrase 200, raccourci 100 caractères ; dépassement ou élément mal formé : **tout le fichier refusé**, rien ne change. Textes sur une seule ligne, sans caractère de contrôle ni invisible ; champs inconnus ignorés. | `crates/core/src/import_commands.rs` |
+| `id` en collision regénéré | Un `id` du fichier libre et préfixé `perso.` est gardé ; sinon (déjà pris, ou sans le préfixe) un nouveau `perso.<n>` libre. | `import_commands.rs` (`free_id`) |
+| Nom déjà pris numéroté | Même règle que les modes (`free_name` : « Barré 2 », le numéro ne s'accumule pas, y compris entre deux commandes du même fichier). | `import_commands.rs` |
+| Raccourci validé | Par `Shortcut::parse` (donc « Mod+Q » refusé comme dans la page). Un raccourci absent ou illisible n'est **pas** une erreur du fichier : il est signalé dans l'aperçu, case grisée, la commande n'est pas importée. | `import_commands.rs` (`Problem::BadShortcut`) |
+| Phrases | Une phrase trop courte, déjà prise par une commande du programme ou par une commande en place (dans l'une ou l'autre langue), ou répétée, est écartée et **montrée** dans l'aperçu. Plus aucune phrase utilisable : commande non importée. | `import_commands.rs` (`evaluate`, via `validate_phrase`) |
+| Aperçu et accord | Une case par commande (grisée si elle ne peut pas être importée), jeton d'aperçu, statuts **recalculés à l'accord**, l'import n'ajoute que : commandes en place, phrases personnalisées des commandes du programme et autres réglages ne bougent pas. Fichier non consommé tant que l'enregistrement n'a pas réussi. | `commands_io.rs`, routes `api/commands/export`, `import/read`, `import/apply`, `import/cancel` |
+| Page et Aide | Boutons « Exporter mes commandes… » et « Importer des commandes… » dans la carte « Commandes vocales » (onglet Dictionnaire), aperçu en ligne. Aide FR et EN (puce « Mes commandes »), traductions de la page et du serveur. | `ui/src/components/VoiceCommands.svelte`, `Help.svelte`, `HelpEn.svelte`, `locales/` |
+
+### Choix techniques et pourquoi
+
+- **Pas de « remplacer »** (comme pour le dictionnaire, contrairement aux modes) : une commande importée appuie un raccourci dans une autre appli, la laisser écraser une commande en place serait plus dangereux que de l'ajouter sous un autre nom.
+- **Raccourci illisible : signalé et non importé**, plutôt que fichier refusé (cadrage : « signalé dans l'aperçu ») ; une seule mauvaise commande ne bloque pas les autres.
+- **Phrases en conflit écartées plutôt que commande refusée** : on garde ce qui reste utilisable, on dit ce qui a été laissé de côté.
+- **Un `id` du fichier est gardé s'il est libre** : un aller-retour (export puis import dans des réglages vides) redonne exactement les mêmes commandes, ce qui rend le cas testable.
+
+### Tests
+
+| Cas | Test |
+|---|---|
+| Aller-retour identique | `import_commands.rs::an_export_then_an_import_gives_back_the_same_commands` |
+| Fichiers refusés (format, version, autre type, contenu absent, mal formé) | `import_commands.rs::files_that_are_not_a_commands_export_are_refused` |
+| Limites (valeur limite acceptée, une de plus refusée) | `import_commands.rs::the_limits_refuse_the_whole_file` |
+| `id` regénéré, nom numéroté sans cumul | `import_commands.rs::a_colliding_id_is_regenerated_and_a_taken_name_is_numbered_without_piling_up` |
+| Raccourci validé par `Shortcut::parse`, titre vide | `import_commands.rs::the_shortcut_is_checked_with_shortcut_parse_and_a_bad_one_is_flagged_not_imported` |
+| Phrases prises, trop courtes, répétées ; commande sans phrase | `import_commands.rs::phrases_already_used_or_too_short_are_dropped_and_a_command_left_without_phrase_is_flagged` |
+| Pas de phrase ni de nom partagés dans le fichier | `import_commands.rs::the_preview_does_not_let_two_commands_of_the_file_share_a_phrase_or_a_name` |
+| N'ajoute que, cases décochées, second import | `import_commands.rs::an_import_only_adds_and_unticked_commands_stay_out` |
+| Export : nom et champs de la liste blanche | `commands_io::tests::the_export_has_the_agreed_name_and_the_whitelisted_fields` |
+| Fichier refusé : rien ne change, attente oubliée | `commands_io::tests::a_refused_file_changes_nothing_and_forgets_the_previous_wait` |
+| Accord : id regénéré, nom numéroté, phrase prise écartée, raccourci illisible signalé, commande en place intacte | `commands_io::tests::the_agreement_adds_with_a_new_id_and_a_numbered_name_and_keeps_what_is_there` |
+| Case décochée, jeton ou nombre de cases périmé | `commands_io::tests::an_unticked_command_is_not_imported_and_a_stale_agreement_is_refused` |
+
+Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` sans erreur ; **601 tests Rust** passent (589 après l'étape 2) ; **102 tests de l'interface**, `svelte-check` sans erreur, interface construite (les tests d'i18n et de structure de l'Aide FR/EN passent).
+
+### Limites et à reprendre
+
+- **Pas essayé à l'écran** (ni export ni import dans la fenêtre, Mac ou PC) ; boîtes de fichier Windows et chemin Linux non essayés ; Windows et Linux non compilés ici (CI).
+- **Les commandes ne marchent que sur Mac** pour l'instant (Aide) : on peut les exporter et importer partout, elles n'agissent qu'où la fonction existe.
+- **Un raccourci valide ici peut ne rien faire dans une autre appli** : `Shortcut::parse` vérifie la forme, pas l'effet.
+- **Les phrases sont comparées dans les deux langues**, plus strict que la page (qui contrôle dans la langue de l'interface) : une phrase libre en français mais prise en anglais est écartée.
+- **Un seul fichier en attente à la fois** par type, comme pour les modes et le dictionnaire.
+- Les étapes 4a à 5 (utilisateurs) viennent ensuite ; `kind: "profile"` réutilisera ces trois exports.
