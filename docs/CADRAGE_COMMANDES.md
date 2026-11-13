@@ -239,7 +239,156 @@ Ce qui existe déjà en code :
 
 ## Cadrage
 
-À remplir (tâche 1).
+Cadrage fait le 13/11 (tâche 1). Pour chaque question, j'ai proposé des options avec une recommandation. L'auteur a tranché ce qui touche à l'usage et à la sécurité (questions 1 à 5 et 7). J'ai tranché la question 6, qui est technique, et les détails techniques des autres. Aucun code n'est écrit ici.
+
+### En bref
+
+- Une **touche de commande** maintenue avec la touche de dictée fait de la dictée une commande. Elle fonctionne comme la touche de traduction. Sous cette touche, rien n'est jamais collé comme une dictée.
+- Sous la touche :
+  - recherche sur internet (Google, YouTube, Wikipédia, DuckDuckGo, plus les sites de la personne) ;
+  - extraits ;
+  - ouverture d'une application de la liste autorisée ;
+  - nouveau mail ;
+  - reformulation de la sélection par une consigne libre ;
+  - les commandes d'aujourd'hui.
+- La reformulation passe par un moteur local par défaut. Elle n'utilise un moteur en ligne que si la personne l'autorise.
+- Aucune nouvelle commande n'écrit dans l'historique. Le journal ne garde que le genre de commande et des longueurs.
+- On livre en quatre étapes : socle et recherches, puis extraits, puis applications et mail, puis reformulation.
+
+### Ce qui change dans les décisions du 07/11
+
+- **« Sans modèle »** : levé pour la **seule reformulation**. Elle a besoin de la touche de commande et d'une sélection, et passe par un moteur local par défaut. Toutes les autres commandes restent sans modèle.
+- **« Uniquement sur sélection »** : levé pour les **recherches, extraits, applications et mail**, et seulement sous la touche de commande.
+- **Les commandes d'aujourd'hui sans touche ne changent pas.** « Mets en gras » dit sans la touche de commande, sur une sélection, marche comme avant, avec le même interrupteur `voiceCommandsEnabled`. Les mêmes commandes marchent aussi sous la touche.
+
+### Décisions
+
+**1. Déclencheur : une touche dédiée** (décision de l'auteur : « touche dédiée »)
+
+L'auteur a préféré la touche au mot d'appel. Avec la touche, aucun déclenchement par erreur n'est possible, et c'est le choix du n°12 ter de Scribe.
+
+Fonctionnement :
+
+- Nouveau réglage `commandKeys`. Il suit le modèle de `translateKeys` : une touche maintenue avec la touche de dictée au début de l'appui, choisie par « Changer… » dans Réglages → Dictée.
+- La touche par défaut sera fixée à l'étape 1, après un essai sur les trois systèmes. Elle doit être différente des touches de dictée et de traduction, et respecter les limites connues : pas de touche de modification seule sous Wayland, et Fn invisible sous Windows.
+- Si la touche de commande et la touche de traduction sont maintenues ensemble, la commande l'emporte et la traduction est ignorée.
+- Sous la touche, la transcription brute passe par le filtre des phrases inventées. Elle ne passe ni par le dictionnaire ni par la mise au propre. Elle est ensuite comparée au catalogue complet (décision 4) avec la même normalisation qu'aujourd'hui (`normalize`).
+- Une phrase d'un seul mot est permise sous la touche, puisqu'aucune dictée ordinaire n'y passe. `MIN_WORDS` ne vaut que hors de la touche.
+- Ensuite :
+  - une phrase du catalogue reconnue exécute la commande ;
+  - si rien ne correspond, la sélection est lue. S'il y en a une, la phrase devient la consigne de reformulation (décision 2) ;
+  - si rien ne correspond et qu'il n'y a pas de sélection, la pastille affiche « Commande inconnue : <mots entendus> ». **Rien n'est collé.** La pastille n'est pas journalisée.
+- La sélection n'est lue que sous la touche, et seulement quand c'est nécessaire (commande sur sélection ou reformulation), comme dans `try_command` aujourd'hui.
+
+**2. Reformulation de la sélection** (décisions de l'auteur : « consigne libre » ; « local, en ligne sur accord »)
+
+- **Consigne.** Sous la touche, avec une sélection, tout ce qui n'est pas une commande du catalogue est la consigne : « rends ça plus amical », « raccourcis », « mets au vouvoiement », « traduis en anglais ».
+- **Moteur** :
+  - Par défaut, seulement un moteur local : llama.cpp, LM Studio ou Ollama, s'il est réglé comme moteur de mise au propre.
+  - Nouveau réglage `allowSelectionOnline`, **décoché par défaut**, intitulé « Autoriser l'envoi de la sélection à un moteur en ligne ». Coché, la reformulation peut passer par OpenRouter.
+  - Sans moteur autorisé : refus avec un message fixe, qui renvoie au réglage. Rien n'est envoyé.
+  - Choix technique : le réglage appartient à l'ordinateur, comme les moteurs (cadrage des profils, décision 1).
+- **Prompt** (choix technique) :
+  - Un second prompt, à part, sur le modèle de la traduction (`translation_prompt`) : une consigne système fixe et quelques exemples, puis un message avec `<texte>…</texte>` et `<consigne>…</consigne>`.
+  - Les prompts livrés et leur empreinte `4ed86f0c1c154918` ne changent pas.
+  - Le début reste fixe pour la mémoire du serveur.
+  - Préchauffage quand la touche de commande est appuyée avec un moteur local, comme pour la traduction.
+- **Crans de fidélité (n°18) : non utilisés.** C'est la consigne qui dit à quel point changer le texte. Un seuil de mots gardés refuserait « raccourcis » ou « traduis ». Choix technique.
+- **Garde-fou propre** `accepts_rewrite` (choix technique) :
+  - réponse non vide ;
+  - pas de formule de réponse ni de préambule (« Voici… ») ;
+  - pas de balises ;
+  - longueur au plus 3 fois celle de la sélection plus 300 signes ;
+  - une réponse identique à la sélection donne le message « Rien à changer ».
+- **Limites** (choix technique) :
+  - sélection limitée à 4 000 signes : llama.cpp a 4 096 jetons par emplacement (`-c 8192 -np 2`) ;
+  - `max_tokens` dimensionné sur 3 fois la sélection ;
+  - délai de 40 s en local et 20 s en ligne, comme aujourd'hui.
+- **Échec.** Rien n'est remplacé, la sélection reste intacte, et la pastille affiche « Reformulation impossible (…) » avec un texte fixe. Pas de nouvel essai dans un autre mode.
+- **Annulation.** Le texte reformulé remplace la sélection en un seul collage. ⌘Z ou Ctrl+Z rend l'original. Il n'y a pas d'aperçu, comme dans le n°12 ter de Scribe. Exception connue : dans Chrome sur Mac, le texte est tapé et demande plusieurs ⌘Z. L'Aide le dira.
+
+**3. Macros** (décisions de l'auteur : « liste autorisée » ; « objet dicté en option »)
+
+- **Applications** :
+  - La personne ajoute chaque application dans l'interface : une ou plusieurs phrases, et l'application choisie dans la liste des applications installées. Rien d'autre ne peut s'ouvrir.
+  - Pas de confirmation. La pastille affiche « Ouverture de <nom> ».
+  - **Aucune commande système, aucun script, aucun argument.**
+  - Identifiant rangé (choix technique) : identifiant d'application sur Mac (bundle id), raccourci du menu Démarrer sous Windows (AppUserModelID ou chemin du `.lnk`), identifiant `.desktop` sous Linux. Le nom affiché est rangé aussi.
+  - Une application devenue introuvable donne un message et ne lance rien d'autre.
+- **Nouveau mail** :
+  - « nouveau mail » (aussi « nouveau courriel », « new email ») ouvre `mailto:` dans la messagerie par défaut.
+  - « nouveau mail réunion de lundi » préremplit l'objet (`mailto:?subject=…`, encodé).
+  - Pas de destinataire, car Scriibe ne lit pas les contacts. Rien n'est envoyé.
+  - Choix technique : le mail demande un argument facultatif, alors que `Argument::Rest` exige un reste non vide. On ajoutera une variante, ou deux fiches.
+- **Ouverture** (choix technique). Une nouvelle fonction de `crates/platform`, distincte d'`open::open`, qui reste réservée aux usages internes :
+  - elle n'accepte que `https:` et `mailto:` pour les adresses, et un identifiant de la liste pour les applications ;
+  - elle **ne passe jamais par un interpréteur de commandes** : `ShellExecuteW` sous Windows au lieu de `cmd /C start`, et commande lancée avec ses arguments, sans shell, sur Mac et Linux (`open`, `xdg-open`, `gtk-launch`).
+
+**4. Catalogue commun** (décisions de l'auteur : « touche de commande seule » pour les extraits ; les quatre sites)
+
+Une seule carte « Commandes vocales » (onglet Dictionnaire), en plusieurs parties :
+
+| Partie | Contenu | Réglable |
+|---|---|---|
+| Sur la sélection | Les commandes d'aujourd'hui (entourer, gras, italique, souligné, dictionnaire) | Phrases, comme aujourd'hui |
+| Mes raccourcis | « Mes commandes » d'aujourd'hui (phrase → raccourci de l'appli active) | Oui |
+| Recherches | Google (aussi « cherche … » seul), YouTube, Wikipédia (fr ou en selon la langue de dictée), DuckDuckGo, plus les sites de la personne | Phrases, et sites ajoutés |
+| Extraits | Nom, phrases, texte (plusieurs lignes, au plus 5 000 signes) | Oui |
+| Applications | Phrases → application de la liste | Oui |
+| Mail | « nouveau mail » | Phrases |
+
+- **Extraits.** Seulement sous la touche de commande. Le texte est collé tel quel, sans modèle, sans dictionnaire et sans typographie. L'extrait au milieu d'une dictée ordinaire (n°33 de Scribe) est écarté pour l'instant ; ce serait une étape à part, plus tard.
+- **Recherches.** « recherche <site> <requête> » ouvre l'adresse du site dans le navigateur par défaut. `{q}` y est remplacé par la requête encodée (RFC 3986). Un site ajouté par la personne doit avoir une adresse `https://` contenant `{q}`. La règle est contrôlée à la page **et** à l'enregistrement des réglages : la relecture de la tâche 10 avait relevé que le refus des phrases ne se faisait qu'à la page.
+- **Langues.** Les commandes livrées ont leurs phrases en français et en anglais, comme aujourd'hui. Les phrases que la personne écrit (extraits, applications, sites) sont essayées quelle que soit la langue de dictée : ce sont ses mots. Choix technique.
+- **Rangement** (choix technique, d'après le cadrage des profils) :
+  - nouveaux champs `snippets` et `webSearches` **à l'utilisateur**, groupe « Commandes » ;
+  - `voiceApps`, `commandKeys` et `allowSelectionOnline` **à l'ordinateur** : les identifiants d'applications et les moteurs dépendent de la machine ;
+  - le test de classement des champs les couvrira.
+
+**5. Confidentialité** (décisions de l'auteur : « rien, comme aujourd'hui » pour l'historique ; extraits « décochés par défaut » à l'export)
+
+- **Historique** : aucune entrée pour une nouvelle commande, ni texte, ni fiche chiffrée. C'est le cas de `try_command` aujourd'hui.
+- **Journal** : seulement le genre de commande (`recherche.youtube`, `extrait.<n>`, `appli.<n>`, `mail`, `reformulation`), des longueurs, le moteur et les durées. Jamais la sélection, la consigne, la requête, l'objet du mail ni le texte d'un extrait.
+- **Envois** :
+  - la sélection et la consigne vont seulement au moteur autorisé (décision 2) ;
+  - la requête va au site de recherche par le navigateur ;
+  - l'objet va à la messagerie ;
+  - rien d'autre ne sort.
+- **Presse-papiers.** Un extrait ou une reformulation est collé comme texte transitoire : drapeaux d'exclusion de l'historique sous Windows, marque `org.nspasteboard.TransientType` sur Mac comme dans Scribe. Choix technique.
+- **Export d'un utilisateur** (cadrage des profils, décision 5) : les extraits sont dans l'aperçu mais **décochés par défaut**, comme le prénom. Les sites de recherche sont cochés. Les applications ne sont pas exportées, car elles appartiennent à l'ordinateur.
+- **Tests.** Chaque nouvelle commande a un test « SECRET » sur le modèle de `commands_110` et `209` : le texte confidentiel n'apparaît ni dans le journal, ni dans l'historique, ni dans les requêtes non autorisées.
+
+**6. Windows et Linux** (choix technique)
+
+| | macOS | Windows | Linux (X11 et Wayland) |
+|---|---|---|---|
+| Touche de commande | oui | oui | oui, dans les limites des touches de Wayland (à essayer à l'étape 1) |
+| Recherches, mail | oui | oui (`ShellExecuteW`) | oui (`xdg-open`) |
+| Extraits | oui | oui | oui (collage) |
+| Applications | oui | oui | oui (`gtk-launch`) |
+| Reformulation | oui | oui | **non**, tant que la lecture de la sélection n'existe pas (ROADMAP n°3). La partie est grisée avec « Non disponible sous Linux » |
+| Mes raccourcis | oui | oui | non (envoi de raccourci non pris en charge, inchangé) |
+
+Pourquoi : tout ce qui ne lit pas la sélection et n'envoie pas de raccourci marche déjà sur les trois systèmes (collage, ouverture). La lecture de la sélection sous Linux est un chantier à part (n°3), qui ne doit pas bloquer celui-ci.
+
+**7. Ordre de livraison** (décision de l'auteur : « reformulation en dernier »)
+
+Du plus simple au plus risqué. Chaque étape est livrable seule, avec ses tests, son Aide en français et en anglais, ses traductions et sa ligne dans `docs/ECARTS.md`.
+
+| Étape | Contenu | Systèmes | Livrable seule parce que |
+|---|---|---|---|
+| 1. Socle et recherches | Réglage et capture de `commandKeys` ; aiguillage sous la touche ; « Commande inconnue » sans collage ; commandes d'aujourd'hui sous la touche ; recherches (4 sites et sites de la personne) ; fonction d'ouverture contrôlée | Les trois | Sans modèle ni sélection, utile dès le premier jour |
+| 2. Extraits | Partie « Extraits », rangement `snippets`, collage transitoire, export décoché | Les trois | Ne dépend que du socle |
+| 3. Applications et mail | Liste autorisée (`voiceApps`, choix dans les applications installées), « nouveau mail » avec objet facultatif | Les trois | Ne dépend que du socle et de la fonction d'ouverture |
+| 4. Reformulation | Second prompt, `accepts_rewrite`, `allowSelectionOnline`, limites, préchauffage | Mac, Windows | Seule étape avec un modèle ; elle profite d'un socle déjà essayé |
+
+Hors de ce chantier : l'extrait au milieu d'une dictée (plus tard), la lecture de la sélection sous Linux (ROADMAP n°3) et l'envoi de raccourcis sous Linux.
+
+### Conséquences pour les autres chantiers
+
+- **Profils (chantier 4).** Les nouveaux champs se classent comme dit en décision 4. L'enveloppe d'export recevra `snippets` (décochés) et `webSearches`.
+- **ROADMAP.** Les n°4 et n°7 des idées du 03/11, ainsi que le transfert vers un modèle du n°6, renvoient à cette note (tâche 3).
+- **Scribe.** Écarts à noter dans `docs/ECARTS.md` à chaque étape. Scribe n'a rien de tout cela ; les n°12, 12 bis, 12 ter, 13 et 33 de sa ROADMAP en sont la source.
 
 ## Relecture
 
