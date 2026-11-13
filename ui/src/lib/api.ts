@@ -19,6 +19,8 @@ export interface Status {
   os: string;
   /** Le prénom du compte, pour le bandeau d'accueil (vide si inconnu). */
   first_name: string;
+  /** Le système demande de réduire les animations, lu par Scriibe (Linux : WebKitGTK ne le transmet pas à la page). */
+  reduced_motion?: boolean;
   recording: boolean;
   busy: boolean;
   keys_error: string | null;

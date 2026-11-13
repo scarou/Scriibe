@@ -657,6 +657,7 @@ fn status(ctx: &Context) -> Value {
         "version": build_id(),
         "windows": cfg!(windows),
         "os": std::env::consts::OS,
+        "reduced_motion": scriibe_platform::motion::reduced(),
         "first_name": settings.greeting_name(scriibe_platform::machine::first_name()),
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),

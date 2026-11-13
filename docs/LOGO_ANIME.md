@@ -56,3 +56,11 @@ Idée du carnet du 11/11 : le curseur du logo clignote lentement ; animé par d�
 ## Ajouts
 
 Aucune demande nouvelle pendant l'essai.
+
+## Essai réel : PC Linux (GNOME 50, Wayland, WebKitGTK 2.52)
+
+*13/11/2026, programme compilé sur le PC au commit `6bcda46`.*
+
+- Curseur du logo : clignote. Case décochée : fixe, gardé après relance. Recochée : clignote. Mode sombre : lisible, clignote. Tous vus.
+- **Réduction des animations : défaut trouvé.** Le curseur clignotait encore, avec GNOME (`org.gnome.desktop.a11y.interface reduced-motion = reduce`) et le portail (`org.freedesktop.appearance reduced-motion = 1`) corrects, Scriibe relancé. WebKitGTK ne le transmet pas à la page.
+- **Correction** : `crates/platform/src/motion.rs` lit le portail (ashpd, `Settings::reduced_motion`, gardé 5 s) ; l'état l'envoie (`reduced_motion`) ; `shouldAnimate` (`ui/src/lib/logotype.ts`) garde le logo fixe. Sur macOS et Windows la fonction rend faux : la webview transmet déjà le réglage (Mac essayé ; Windows à essayer).

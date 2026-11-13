@@ -14,12 +14,12 @@
   import Dashboard from './tabs/Dashboard.svelte';
   import Help from './tabs/Help.svelte';
   import HelpEn from './tabs/HelpEn.svelte';
-  import { logotype } from './lib/logotype';
+  import { logotype, shouldAnimate } from './lib/logotype';
   import { applyTheme, isDark } from './lib/theme';
   import Dialog from './components/Dialog.svelte';
 
   let stopped = $state(false);
-  let logo = $derived(logotype(status.os, settings.value ? settings.value.animatedLogo !== false : false));
+  let logo = $derived(logotype(status.os, shouldAnimate(settings.value?.animatedLogo, !!settings.value, status.value?.reduced_motion)));
   let systemDark = $state(false);
   let dark = $derived(isDark(settings.value?.theme, systemDark));
 

@@ -50,6 +50,7 @@ Tout écart de comportement entre Scriibe et la version de référence (Scribe, 
 | 2026-10-27 | Téléchargements | Une connexion coupée **reprend toute seule** à l'octet atteint (en-tête `Range`, 6 reprises) ; un `.part` laissé par un échec est repris au clic suivant ; un fichier reçu en entier mais de la mauvaise taille est supprimé | Un modèle de 465 Mo avait échoué à 6 Mo (S03) ; Scribe ne télécharge rien lui-même | `downloads.rs` (fausse source) |
 | 2026-10-27 | Historique | La durée de conservation est aussi appliquée à l'ouverture de la page (une fois par jour), comme dans Scribe ; réglage « garder le texte » et durée avec aperçu de ce qui serait supprimé avant confirmation | — | `storage::tests`, `bench_archive` |
 | 2026-10-25 | Banc de dictée, test de frappe | Voir les lignes ci-dessus (portés en S04) | — | — |
+| 2026-11-13 | Logo animé et réduction des animations | Scribe n'a pas de logo animé. Sous Linux, Scriibe lit lui-même `reduced-motion` du portail du bureau (`platform/motion.rs`) et le dit à l'interface (`reduced_motion` de l'état) ; ailleurs la webview le transmet à la page | WebKitGTK 2.52 ne suit pas le réglage de GNOME 50 (constaté sur le PC) | — |
 
 Différences de détail connues, sans effet mesuré : Swift compte des *grapheme clusters* (`Character`) là où Rust compte des *points de code* (`char`) pour les longueurs et les tests « est une lettre » ; les accents décomposés (NFD) peuvent donc changer une longueur de 1 ou 2.
 

@@ -24,3 +24,8 @@ export function logotype(os: string | undefined, animate = true): { light: strin
   const set = animate ? animated : files;
   return set[os as keyof typeof set] ?? set.windows;
 }
+
+/** Le curseur du logo clignote-t-il ? Quand la case « Logo animé » est cochée (`setting`, vrai tant que les réglages ne sont pas lus : la case décochée ne doit pas clignoter au démarrage) et que le système ne demande pas de réduire les animations (`reduced`, lu par le programme). */
+export function shouldAnimate(setting: boolean | undefined, loaded: boolean, reduced: boolean | undefined): boolean {
+  return loaded && setting !== false && !reduced;
+}
