@@ -336,3 +336,31 @@ Faite le 13/11/2026 (C7, tâche 4), d'après § Cadrage et § Relecture, en deux
 - L'effacement d'une clé créée par une version précédente et les demandes du trousseau ; `tccutil` ; les caches réels de WebView2 et WebKitGTK ; le rôle de `HTTPStorages` et `Saved Application State` (ajoutés à la liste des caches seulement s'ils existent, noms exacts).
 - La restauration d'une sauvegarde par redémarrage sur chaque système (relance par `open` sur Mac).
 
+## Essai réel
+
+Essai sur le Mac de l'auteur le 13/11/2026 (tâche 5), avec `Scriibe.app` compilée, signée « Scribe Dev » et installée dans `~/Applications`, lancée par `open`. Les vérifications sur le disque, le trousseau et le journal sont de moi ; les gestes et ce qui s'affiche à l'écran sont ceux de l'auteur.
+
+### Verdict : réussi sur le Mac
+
+| Étape | Résultat |
+|---|---|
+| Lancer au démarrage : cocher | Réussi. Le LaunchAgent `fr.scriibe.app.plist` est créé (`open -g -a … lancer --sans-navigateur`). Notification macOS « élément d'arrière-plan ajouté » : apparue, comme prévu. |
+| Fermer puis rouvrir la session | Réussi (constat de l'auteur) : Scriibe a démarré seule à 09:19:37, nouveau processus, 1 minute après l'ouverture de session. |
+| Décocher | Réussi. Fichier retiré, journal « entrée retirée », « Ouvrir à la connexion » ne la montre plus. **Reste vu** : la ligne « Scriibe » de « Autoriser en arrière-plan » (Réglages Système → Général → Ouverture et extensions) est toujours là, interrupteur activé ; c'est un enregistrement de macOS (base des éléments d'arrière-plan, existant depuis la veille), hors de portée de Scriibe. |
+| Sauvegarde `.scriibe.json` | Réussie : 1,2 Mo, enveloppe `backup`, 53 réglages dont 2 modes, 28 mots, 45 corrections, 1 853 dictées ; réglages, dictionnaire et totaux identiques aux fichiers d'origine ; aucune clé dedans. L'historique avait 6 dictées de plus que la sauvegarde (dictées faites entre-temps). |
+| Désinstallation (liste montrée, accord donné, option « Garder mes modèles ») | Réussie. Boîte finale affichée ; compte rendu conforme (copie dans `$TMPDIR/scriibe-desinstallation.txt`) : 57 Mo à la Corbeille (données sauf `models/`, trois caches, `Scriibe.app`), 24 sons temporaires effacés, clés `deepgram` et `openrouter` effacées, autorisations retirées. Vérifié sur le disque : programme, caches, LaunchAgent absents, `models/` (4 modèles, 8,3 Go) intact, lien d'essai et **sa cible intacts**, ancienne sauvegarde dans Téléchargements intacte. |
+| Réinstallation + restauration de la sauvegarde | Réussie : nouvelle appli à zéro (aucun réglage, `setupDone` faux), puis « Restaurer » : les quatre fichiers sont **identiques** à la sauvegarde, copie de l'état précédent dans `avant-import-20261113-094549`, Scriibe relancée toute seule. |
+| Autorisations après réinstallation | Comme prévu, à redonner : Surveillance de l'entrée (touche), Accessibilité (collage), Micro. Une fois donnée, **dictée collée dans TextEdit** (journal : « route : ⌘V », 10:06:05). |
+
+### Incidents et ce qu'ils ont donné
+
+1. **Clé `github` non effacée** : l'ancienne entrée du trousseau (créée par une version précédente) a refusé la suppression directe (« Invalid attempt to change the owner of this item »), signalée dans le message final avec la marche à suivre. La commande `security delete-generic-password -s Scriibe -a github` l'a effacée. **Corrigé** : `delete_credentials` essaie cette commande en repli quand la suppression directe échoue autrement que par « absente » (compilé, installé ; à confirmer par une prochaine clé du même genre).
+2. **Corbeille illisible depuis ma session** (macOS refuse `~/.Trash` au processus de Claude Code) : je n'ai pas pu y vérifier les éléments ni remettre moi-même les modèles. D'où l'option « Garder mes modèles » à l'essai : le déplacement de 8,9 Go dans la Corbeille n'a **pas** été essayé en vrai (mécanisme couvert par l'essai manuel `real_trash_*` et les tests). La Corbeille n'a pas été regardée par l'auteur : à faire à l'occasion (57 Mo attendus).
+3. **Autorisation retirée par erreur** : l'auteur a retiré Scriibe d'une liste de Confidentialité et sécurité avec le « − » puis n'a pas retrouvé l'appli dans le sélecteur de fichiers (`~/Applications` n'est pas le dossier Applications du sélecteur). Remis par ⌘ + Maj + G puis `~/Applications`. **Ajout à l'Aide** (FR et EN, rubrique « Désinstaller Scriibe ») : les autorisations redemandées après une réinstallation et cette astuce.
+
+### Ajouts
+
+- Repli de suppression des clés (incident 1) : fait, tout de suite.
+- Aide : autorisations après réinstallation (incident 3) : fait, tout de suite.
+- **Pour le carnet** (pas fait) : (a) `$TMPDIR/fr.scriibe.app` et `$TMPDIR/com.apple.WebKit.*+fr.scriibe.app` (dossiers vides laissés par la fenêtre, macOS vide le dossier temporaire lui-même) pourraient entrer dans la liste ; (b) les tests laissent des centaines de dossiers `scriibe-instance-*`, `scriibe-mode-sync-*` et `scriibe-import-test-*` dans le dossier temporaire (fuite des tests existants, hors désinstallation) ; (c) la ligne « Autoriser en arrière-plan » restée dans Réglages Système, à documenter si l'auteur la juge gênante.
+- Nettoyage de l'essai : lien d'essai, faux modèle et son dossier supprimés ; le dossier `avant-import-20261113-094549` et la sauvegarde `scriibe-sauvegarde-2026-11-13.scriibe.json` (Téléchargements) sont laissés à l'auteur.

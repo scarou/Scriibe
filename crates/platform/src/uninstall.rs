@@ -685,7 +685,16 @@ pub fn delete_credentials() -> Vec<(String, Result<bool, String>)> {
                     Ok(()) => Ok(true),
                     // -25300 : errSecItemNotFound.
                     Err(e) if e.code() == -25300 => Ok(false),
-                    Err(e) => Err(e.to_string()),
+                    // Une entrée créée par une autre appli ou une autre version (ancien compte github, constaté à l'essai réel) refuse la
+                    // suppression directe (« Invalid attempt to change the owner of this item ») : l'outil `security` du système, qui passe
+                    // par le même trousseau avec ses propres droits, a pu la supprimer.
+                    Err(e) => match std::process::Command::new("/usr/bin/security")
+                        .args(["delete-generic-password", "-s", "Scriibe", "-a", account])
+                        .output()
+                    {
+                        Ok(out) if out.status.success() => Ok(true),
+                        _ => Err(e.to_string()),
+                    },
                 };
                 ((*account).to_string(), result)
             })
