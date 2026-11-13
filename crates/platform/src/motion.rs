@@ -61,10 +61,16 @@ mod linux {
                 let value = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
                     Err(e) => Err(format!("boucle : {e}")),
                     Ok(runtime) => runtime.block_on(async {
-                        let settings = tokio::time::timeout(Duration::from_secs(2), ashpd::desktop::settings::Settings::new())
+                        // Une connexion à nous : celle que `Settings::new()` partage est tenue par la boucle des portails (`linux/wayland.rs`), qui ne tourne pas ici.
+                        let connection = tokio::time::timeout(Duration::from_secs(2), ashpd::zbus::Connection::session())
                             .await
-                            .map_err(|_| "portail : pas de réponse".to_string())?
-                            .map_err(|e| format!("portail : {e}"))?;
+                            .map_err(|_| "bus : pas de réponse".to_string())?
+                            .map_err(|e| format!("bus : {e}"))?;
+                        let settings =
+                            tokio::time::timeout(Duration::from_secs(2), ashpd::desktop::settings::Settings::with_connection(connection))
+                                .await
+                                .map_err(|_| "portail : pas de réponse".to_string())?
+                                .map_err(|e| format!("portail : {e}"))?;
                         let value = tokio::time::timeout(Duration::from_secs(2), settings.reduced_motion())
                             .await
                             .map_err(|_| "lecture : pas de réponse".to_string())?
