@@ -47,24 +47,35 @@ mod linux {
         value
     }
 
-    /// Lecture par le portail, dans un fil à part (une boucle `tokio` d'un coup) ; une seconde au plus.
+    /// Lecture par le portail, dans un fil à part (une boucle `tokio` d'un coup) ; quelques secondes au plus.
     fn read() -> Option<bool> {
+        read_detailed().ok()
+    }
+
+    /// Comme `read`, avec la raison de l'échec (essai à la main : `cargo test -p scriibe-platform --lib motion -- --ignored --nocapture`).
+    pub(super) fn read_detailed() -> Result<bool, String> {
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::Builder::new()
             .name("scriibe-mouvement".into())
             .spawn(move || {
-                let value = tokio::runtime::Builder::new_current_thread().enable_all().build().ok().and_then(|runtime| {
-                    runtime.block_on(async {
-                        let settings =
-                            tokio::time::timeout(Duration::from_secs(1), ashpd::desktop::settings::Settings::new()).await.ok()?.ok()?;
-                        let value = tokio::time::timeout(Duration::from_secs(1), settings.reduced_motion()).await.ok()?.ok()?;
-                        Some(matches!(value, ashpd::desktop::settings::ReducedMotion::ReducedMotion))
-                    })
-                });
+                let value = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+                    Err(e) => Err(format!("boucle : {e}")),
+                    Ok(runtime) => runtime.block_on(async {
+                        let settings = tokio::time::timeout(Duration::from_secs(2), ashpd::desktop::settings::Settings::new())
+                            .await
+                            .map_err(|_| "portail : pas de réponse".to_string())?
+                            .map_err(|e| format!("portail : {e}"))?;
+                        let value = tokio::time::timeout(Duration::from_secs(2), settings.reduced_motion())
+                            .await
+                            .map_err(|_| "lecture : pas de réponse".to_string())?
+                            .map_err(|e| format!("lecture : {e}"))?;
+                        Ok(matches!(value, ashpd::desktop::settings::ReducedMotion::ReducedMotion))
+                    }),
+                };
                 let _ = tx.send(value);
             })
-            .ok()?;
-        rx.recv_timeout(Duration::from_secs(3)).ok().flatten()
+            .map_err(|e| format!("fil : {e}"))?;
+        rx.recv_timeout(Duration::from_secs(5)).map_err(|e| format!("attente : {e}"))?
     }
 }
 
@@ -78,6 +89,14 @@ mod tests {
         assert!(is_fresh(Duration::from_secs(4)));
         assert!(!is_fresh(KEEP_FOR));
         assert!(!is_fresh(Duration::from_secs(60)));
+    }
+
+    /// À la main sur un PC Linux avec une session de bureau : montre ce que le portail répond.
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore]
+    fn reads_the_portal_on_this_machine() {
+        println!("réduire les animations : {:?}", linux::read_detailed());
     }
 
     #[cfg(not(target_os = "linux"))]
