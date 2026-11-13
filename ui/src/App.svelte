@@ -19,7 +19,7 @@
   import Dialog from './components/Dialog.svelte';
 
   let stopped = $state(false);
-  let logo = $derived(logotype(status.os, settings.value?.animatedLogo !== false));
+  let logo = $derived(logotype(status.os, settings.value ? settings.value.animatedLogo !== false : false));
   let systemDark = $state(false);
   let dark = $derived(isDark(settings.value?.theme, systemDark));
 
