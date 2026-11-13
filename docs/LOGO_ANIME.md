@@ -37,3 +37,22 @@ Idée du carnet du 11/11 : le curseur du logo clignote lentement ; animé par d�
 - **Aide** FR et EN (Réglages → Apparence), traductions EN ajoutées.
 - **Tests** : `settings_scriibe.rs` (défaut vrai, valeur gardée), `logotype.test.ts`. `cargo fmt`, `clippy -D warnings`, `cargo test --workspace`, `npm run check`, `npm test` (97) et `npm run build` : sans erreur.
 - **Pas vérifié** (tâche 2 sur le Mac, puis PC) : le clignotement à l'écran, le rendu en WebView2 et WebKitGTK, la réduction des animations.
+
+## Essai réel
+
+*Tâche 2, Mac de l'auteur, 13/11/2026 ; Scriibe.app compilée en release, lancée par `open`.*
+
+| Étape | Résultat |
+|---|---|
+| Curseur du logo (clair) | Clignote lentement : vu. |
+| Case « Logo animé » décochée | Logo fixe : vu. |
+| Après redémarrage (réglage mis à « faux » par moi via le serveur local, pour l'essai) | Logo fixe : vu. |
+| Case recochée | Clignote de nouveau ; `settings.json` passe à `true` (12:30:03) : vu. |
+| Mode sombre du Mac | Logo sombre lisible, curseur clignote : vu. |
+| « Réduire les animations » (Accessibilité) | Logo fixe : vu. |
+
+**Écart noté, à clore** : juste après le premier décochage de l'auteur, `settings.json` contenait encore `animatedLogo: true` alors que l'écran montrait le logo fixe. Le chemin « cocher » est prouvé (fichier mis à jour) et l'enregistrement par le serveur aussi (essai par `curl`) ; le chemin « décocher par clic » est à reconfirmer en lisant le fichier juste après un clic.
+
+## Ajouts
+
+Aucune demande nouvelle pendant l'essai.
