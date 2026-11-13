@@ -257,11 +257,11 @@ Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` 
 
 ## Essai lot 1 (tâche 4, 13/11/2026)
 
-Essai réel des étapes 1 à 3 sur le code du commit `58e9898` (non publié). **Mac : fait à la main** (l'auteur a fait les gestes des boîtes de fichier). **Linux : fait par `pilote-pc`**, sans geste de l'auteur. **Windows : pas fait** (le PC ne répond pas : éteint, ou NordVPN actif).
+Essai réel des étapes 1 à 3 sur le code du commit `58e9898` (non publié). **Mac : fait à la main** (l'auteur a fait les gestes des boîtes de fichier). **Linux : fait par `pilote-pc`**, sans geste de l'auteur. **Windows : fait par `pilote-pc`**, l'auteur faisant les gestes des boîtes de fichier (le PC a d'abord été injoignable, puis allumé sur sa demande).
 
 ### Méthode (et pourquoi)
 
-- **Données jetables** : variable `SCRIIBE_DATA` vers un dossier d'essai, jamais le dossier de l'auteur. Sur le Mac, une copie de l'application fabriquée hors de `~/Applications` (`SCRIIBE_INSTALL=…`), lancée par `open -n --env SCRIIBE_DATA=…` (règle : Scriibe.app se lance par `open`, jamais par Bash). Sur Linux, `scriibe lancer --sans-navigateur` sur `/tmp/essai-lot1`, page atteinte par un tunnel SSH ; l'instance habituelle du PC n'a pas été touchée.
+- **Données jetables** : variable `SCRIIBE_DATA` vers un dossier d'essai, jamais le dossier de l'auteur. Sur le Mac, une copie de l'application fabriquée hors de `~/Applications` (`SCRIIBE_INSTALL=…`), lancée par `open -n --env SCRIIBE_DATA=…` (règle : Scriibe.app se lance par `open`, jamais par Bash). Sur Linux, `scriibe lancer --sans-navigateur` sur `/tmp/essai-lot1`, page atteinte par un tunnel SSH ; l'instance habituelle du PC n'a pas été touchée. Sur Windows, même chose avec `C:\essai-lot1`, l'instance étant lancée **dans la session ouverte de l'auteur** par une tâche planifiée temporaire (`schtasks … /it`, supprimée ensuite) pour que les boîtes de fichier s'affichent devant lui ; arrêtée à la fin par son identifiant, après avoir vérifié son emplacement (`C:\scriibe-dev\target\release`, pas `C:\scriibe\`).
 - **Code transmis aux PC sans rien publier** : paquet git (`git bundle`, 65 Ko) copié sur le PC Linux, `git merge --ff-only`, puis compilation par `pilote compiler linux --mode release`. Même procédé que pour le chantier 7.
 - **Le serveur est piloté par ses routes** (`curl`) et par la page (volet navigateur du Mac) ; seules les boîtes « Enregistrer sous » et « Ouvrir » de macOS demandent l'auteur.
 
@@ -269,25 +269,26 @@ Essai réel des étapes 1 à 3 sur le code du commit `58e9898` (non publié). **
 
 | Cas | Mac | Linux | Windows |
 |---|---|---|---|
-| `settings.json` et `dictionary.json` illisibles : copie `<nom>.<date>.bak` à la lecture, contenu identique, originaux intacts | ✔ | ✔ | — |
-| Avertissement : `config_problems` dans `api/status` (un par fichier, avec le nom de la copie) | ✔ | ✔ | — |
-| Bandeau rouge dans la page, avec le nom de la copie | ✔ (vu) | non vu (pas d'écran piloté) | — |
-| Écriture refusée (dictionnaire et réglages : HTTP 400, message clair), fichiers intacts, aucun `.tmp` | ✔ | ✔ | — |
-| Réparation à la main : l'avertissement tombe tout seul, les copies restent | ✔ | ✔ | — |
-| `schemaVersion: 1` écrit dans `settings.json` | ✔ | ✔ | — |
-| Export du dictionnaire (4 mots, 3 corrections) : enveloppe v1 `dictionary`, rien d'autre | ✔ (boîte « Enregistrer sous ») | ✔ (dossier Documents) | — |
-| Import du dictionnaire dans un dictionnaire vidé : aperçu 4 + 3, fichier identique à l'original (mots, corrections, ordre) | ✔ (boîte « Ouvrir ») | ✔ (chemin tapé) | — |
-| Export puis import des commandes (2 commandes) : `id`, champs et ordre identiques | ✔ | ✔ | — |
+| `settings.json` et `dictionary.json` illisibles : copie `<nom>.<date>.bak` à la lecture, contenu identique, originaux intacts | ✔ | ✔ | ✔ |
+| Avertissement : `config_problems` dans `api/status` (un par fichier, avec le nom de la copie) | ✔ | ✔ | ✔ |
+| Bandeau rouge dans la page, avec le nom de la copie | ✔ (vu) | non vu (pas d'écran piloté) | non vu (état du serveur seulement) |
+| Écriture refusée (dictionnaire et réglages : HTTP 400, message clair), fichiers intacts, aucun `.tmp` | ✔ | ✔ | ✔ |
+| Réparation à la main : l'avertissement tombe tout seul, les copies restent | ✔ | ✔ | ✔ |
+| `schemaVersion: 1` écrit dans `settings.json` | ✔ | ✔ | ✔ |
+| Export du dictionnaire (4 mots, 3 corrections) : enveloppe v1 `dictionary`, rien d'autre | ✔ (boîte « Enregistrer sous ») | ✔ (dossier Documents) | ✔ (boîte « Enregistrer sous ») |
+| Import du dictionnaire dans un dictionnaire vidé : aperçu 4 + 3, fichier identique à l'original (mots, corrections, ordre) | ✔ (boîte « Ouvrir ») | ✔ (chemin tapé) | ✔ (boîte « Ouvrir ») |
+| Export puis import des commandes (2 commandes) : `id`, champs et ordre identiques | ✔ | ✔ | ✔ |
 | Fichier d'un autre type refusé, message clair, attente oubliée | (tests automatiques) | ✔ | — |
-| Aucun fichier temporaire laissé | ✔ | ✔ | — |
+| Aucun fichier temporaire laissé | ✔ | ✔ | ✔ |
 
 ### Constats
 
 - **Rien à corriger dans le code du lot 1** : tous les cas essayés ont passé du premier coup.
 - **Trousseau (macOS)** : la copie d'essai, dans un autre dossier, a redemandé l'accès aux clés. Tant que la fenêtre était ouverte, `api/status` restait bloqué (il lit les clés). Comportement connu (mémoire « trousseau »), pas un défaut du lot ; une session sur le Mac doit s'y attendre quand elle lance une copie d'essai.
 - **Capture d'écran du Mac depuis la session** : noire (pas d'autorisation d'enregistrement d'écran pour cet outil) ; la vérification visuelle s'est faite dans le volet navigateur sur la page de l'instance.
+- **Windows** : les boîtes proposent le dossier Téléchargements (les fichiers y sont allés) ; une première tentative de casser le dictionnaire l'a **vidé** par erreur de ma commande (`echo [1, 2>` redirige l'erreur) : le serveur a traité le fichier vide comme voulu (pas un problème, écriture possible), puis le cas « illisible » a été refait correctement. La tâche planifiée a d'abord échoué parce que le journal était écrit à la racine de `C:\` (droits) ; il va maintenant dans le dossier d'essai.
 - **Linux** : l'export va dans `~/Documents` (comportement voulu, sans boîte) ; l'import prend le chemin tapé, `~/` développé. L'instance habituelle du PC tourne encore sur l'ancien programme (son fichier a été remplacé par la compilation) : à relancer à l'occasion.
-- **Reste à essayer** : Windows (PC à allumer, NordVPN coupé ; les boîtes « Ouvrir » et « Enregistrer sous » y demandent l'auteur) ; le bandeau sur Linux ; un import avec **conflit** (correction du même « entendu », phrase déjà prise) et un second import du même fichier, couverts par les tests automatiques mais pas essayés à l'écran.
+- **Reste à essayer** : le bandeau sur Linux et Windows (état du serveur seulement) ; le refus d'un fichier d'un autre type sur Windows et le Mac (tests automatiques) ; un import avec **conflit** (correction du même « entendu », phrase déjà prise) et un second import du même fichier, couverts par les tests automatiques mais pas essayés à l'écran.
 
 ### Ajouts
 
