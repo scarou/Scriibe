@@ -2,14 +2,21 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
-## C8 — 2026-11-13 · Logo animé (non publié : part avec la prochaine version)
+## 0.4.0 — 2026-11-13 · Publication : Système, modes, logo animé, petits plus
+
+- Version publiée : réunit les sessions S23 (bugs de l'Aide et des modes), S24 (prénom, historique « Reformulée »), S25 (gestion des modes : menu de l'icône, export, import), C7 (Système : démarrage, sauvegarde, désinstallation) et C8 (logo animé), soit 60 commits depuis la 0.3.0. Les chantiers 4 (profils) et 6 (commandes vocales étendues) partent dans la 0.5.0.
+- Numéro dans `Cargo.toml` (0.3.0 → 0.4.0). `tools/publier_macos.sh` accepte `SCRIIBE_NOTES_FILE` (notes détaillées de la Release : nouveautés, essais par système, limites) et cite le zip Linux.
+- Avant publication : `cargo fmt`, `cargo clippy --all-targets -- -D warnings`, 559 tests Rust et 99 tests de l'interface sans erreur sur le Mac (mesurés).
+
+
+## C8 — 2026-11-13 · Logo animé (publié en 0.4.0)
 
 - **Ce que l'on voit** : le curseur du logo, en haut de la barre latérale, clignote lentement (environ toutes les 2,4 s), en clair comme en sombre. Réglages → Apparence → « Logo animé » : coché par défaut, décoché le logo reste fixe ; le choix est gardé après redémarrage. Quand le système demande de réduire les animations, le logo reste fixe de lui-même. Le logo du README, des icônes et de la zone de notification ne bouge pas.
 - **Technique** : `tools/faire_logotype.py` fabrique aussi `logo/anime/scriibe-logotype-*.svg` (six fichiers ; animation CSS sur le curseur, `prefers-reduced-motion` dans le SVG) ; les logos fixes de `logo/` sont inchangés. Réglage `animatedLogo` (`AppSettings.animated_logo`, vrai par défaut) ; `logotype(os, animate)` choisit le fichier. Aide FR et EN, traductions, tests (`settings_scriibe.rs`, `logotype.test.ts`). Détail : `docs/LOGO_ANIME.md`.
 - **Corrigé à l'essai sur le PC Linux** : avec « Réduire les animations » activé dans GNOME 50, le curseur clignotait encore (WebKitGTK ne transmet pas ce réglage à la page). Scriibe le lit maintenant lui-même par le portail du bureau (`platform/motion.rs`, `reduced_motion` dans l'état) et garde le logo fixe. Écart noté dans `docs/ECARTS.md`.
 - **Essayé sur le Mac** : clignotement, case décochée puis recochée, redémarrage, mode sombre, « Réduire les animations ». **Essayé aussi sur les PC** : Windows (WebView2 : clignote, case, relance, sombre ; fixe quand « Effets d'animation » de Windows est désactivé) et Linux (WebKitGTK sous GNOME 50, avec la correction ci-dessus).
 
-## C6 et C7 — 2026-11-13 · Système : lancer au démarrage, sauvegarde, désinstallation (non publié : part avec la prochaine version)
+## C6 et C7 — 2026-11-13 · Système : lancer au démarrage, sauvegarde, désinstallation (publié en 0.4.0)
 
 - **Lancer au démarrage** : Réglages → Système (nouvel onglet), case « Lancer Scriibe à l'ouverture de session », décochée par défaut. Cochée, Scriibe démarre à l'ouverture de session, sans fenêtre : icône seule, touche prête. Mac : un LaunchAgent (`open -g -a Scriibe.app`) ; Windows : la clé `Run` (plus de console noire en démarrage discret) ; Linux : un fichier `autostart` XDG. La case lit le système (rien n'est gardé dans `settings.json`) et suit une désactivation faite dans les réglages du système ; un programme déplacé est retrouvé au lancement.
 - **Sauvegarde complète et restauration** : Réglages → Système → « Sauvegarde de vos données ». Un fichier `.scriibe.json` (`kind: backup`) avec réglages et modes, dictionnaire, historique et statistiques, jamais les clés, les modèles, les bancs ni les journaux. Il est relu avant d'être déclaré écrit. « Restaurer » montre ce qui sera remplacé, garde une copie de l'état actuel (`avant-import-…`), puis redémarre Scriibe : les fichiers sont échangés au lancement suivant. Une sauvegarde d'un autre système garde les touches, le micro et les chemins de modèles de l'ordinateur.
@@ -19,7 +26,7 @@ Une section par session de travail, la plus récente en haut. Versions publiées
 - **Relecture par un agent distinct** : aucun bloquant (garde-fous de suppression confirmés), 6 importants et 7 mineurs ; corrigés : message honnête quand le programme échoue après l'effacement des clés, contrôle de la place de la Corbeille aussi dans la commande et l'assistant, sauvegarde refusée si un fichier existe mais ne se lit pas, copie `avant-import-…` obligatoire avant l'échange, pas d'entrée de démarrage vers un programme de développement, une image disque ou une copie temporaire, nom du dossier de copie dans l'Aide, message macOS contradictoire, `XDG_DATA_HOME` vide. Au carnet : pastille en démarrage discret sous Windows, restauration avant le verrou d'instance, dossier temporaire de l'assistant sous Linux (nom prévisible dans un `/tmp` partagé), contrôle de place sur plusieurs volumes, erreurs dynamiques non traduites.
 - Essayé de bout en bout sur le Mac, le PC Windows et le PC Linux (démarrage après réouverture de session, sauvegarde, désinstallation, réinstallation, restauration identique à la sauvegarde). Pas essayés : le déplacement de gros volumes à la Corbeille sous Windows et Mac (essais avec « Garder mes modèles » ; mécanisme couvert par un essai manuel et les tests), la dictée après réinstallation sous Linux (raccourci du portail de GNOME), la pastille à l'écran en démarrage discret sous Windows.
 
-## S25 — 2026-11-12 · Gestion des modes : menu de l'icône, export et import (non publié : part avec la prochaine version)
+## S25 — 2026-11-12 · Gestion des modes : menu de l'icône, export et import (publié en 0.4.0)
 
 - **Modes affichés dans le menu de l'icône** : Réglages → Modes, une case « Afficher dans le menu de l'icône » par mode. Tous cochés par défaut ; décocher retire le mode du menu, même le mode en cours (il reste utilisé, sans coche dans le menu, et reste choisissable dans la page) ; au moins un mode reste affiché ; le choix est gardé après redémarrage.
 - **Export d'un mode personnel** : bouton « Exporter » (« Mes modes »). Un aperçu dit ce qui part, la case « Inclure les exemples » les retire, un avertissement prévient que la consigne et les exemples peuvent contenir du texte personnel et que le fichier n'est pas chiffré. Fichier `.scriibe.json` lisible (enveloppe `scriibe-export` v1, `kind: "modes"`, jour seul), jamais de clé ni d'historique. Boîte « Enregistrer sous » du système sous macOS et Windows ; sous Linux, dossier Documents sans rien écraser.
@@ -28,7 +35,7 @@ Une section par session de travail, la plus récente en haut. Versions publiées
 - **Corrigé à l'essai** : la limite des textes importés (5 000) refusait la propre exportation d'un mode réel (consigne de 5 064 caractères), portée à 20 000 ; le message de refus d'import s'affichait en noir au lieu d'orange.
 - Essayé à la main sur le Mac (masquage, mode actif masqué, redémarrage, export, suppression puis réimport identique, fichier abîmé). Pas essayés : l'ajout numéroté et le remplacement à l'écran (tests seulement), les boîtes de fichier sur Windows et Linux, le code Windows non compilé sur le Mac. Pas de version.
 
-## S24 — 2026-11-12 · Petits plus : prénom, historique « reformulées » (non publié : part avec la prochaine version)
+## S24 — 2026-11-12 · Petits plus : prénom, historique « reformulées » (publié en 0.4.0)
 
 - **Prénom de la salutation** : Réglages → Dictée, « Prénom dans la salutation ». Vide (par défaut), le Tableau de bord garde le prénom du compte de l'ordinateur ; rempli, il le remplace, y compris après redémarrage. Aide FR et EN.
 - **Historique** : case « Dictées reformulées » (cumulable avec période, appli et mots clés) et pastille « Reformulée » : le modèle a été retenu et le texte final diffère du texte brut, quel que soit le mode. Écartée par le garde-fou, sautée, courte, traduite : non. Aide FR et EN.
@@ -37,7 +44,7 @@ Une section par session de travail, la plus récente en haut. Versions publiées
 - **Relecture** par un agent distinct : aucun défaut bloquant ; mineurs notés dans `docs/PETITS_PLUS.md` § Relecture.
 - Essayé à la main sur le Mac (prénom, redémarrage, filtre seul et cumulé). Pas de version : 465 tests Rust et 95 tests de l'interface passent.
 
-## S23 — 2026-11-12 · Bugs de l'Aide et des modes (non publié : part avec la prochaine version)
+## S23 — 2026-11-12 · Bugs de l'Aide et des modes (publié en 0.4.0)
 
 - **Aide** : le sommaire reste en place, seule la carte de texte défile, en français et en anglais, en petite comme en grande fenêtre (il n'a jamais été fixe : ce n'était pas une régression du 06/11). Essayé à la main sur le Mac.
 - **Modes** : choisir un mode dans la page ou dans le menu de l'icône revient au même (le choix rallume la mise au propre, comme dans Scribe) ; la page des modes suit le menu sans recharger (relecture toutes les 1,5 s) ; sur Mac et Linux, les cases du menu se remettent d'accord après un clic (cliquer le mode déjà coché ne le décoche plus) ; le mode Amusant retiré est coché comme Simple dans le menu, comme dans la page. Une dictée garde le mode du relâchement de la touche (test).

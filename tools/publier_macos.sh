@@ -35,6 +35,8 @@ echo "Dépôt     : scarou/Scriibe (public : tout le monde verra cette version)"
 read -r -p "Publier cette version ? (oui/non) " answer
 [ "$answer" = "oui" ] || { echo "Annulé : rien n'est publié."; exit 0; }
 
-gh release create "$tag" "$zip" --repo scarou/Scriibe --target "$(git rev-parse HEAD)" --title "Scriibe $version" \
-  --notes "Scriibe $version (commit $commit). Mac à puce Apple (macOS 14 ou plus récent) : Scriibe-$version-macos.zip, installation pas à pas dans docs/INSTALLATION_MACOS.md. Windows : scriibe-windows-x64.zip, ajouté automatiquement quelques minutes après la publication, installation dans docs/INSTALLATION_WINDOWS.md."
+notes="Scriibe $version (commit $commit). Mac à puce Apple (macOS 14 ou plus récent) : Scriibe-$version-macos.zip, installation pas à pas dans docs/INSTALLATION_MACOS.md. Windows : scriibe-windows-x64.zip et Linux : scriibe-linux-x64.zip, ajoutés automatiquement quelques minutes après la publication (guides docs/INSTALLATION_WINDOWS.md et docs/INSTALLATION_LINUX.md). Mise à jour : depuis la fenêtre de Scriibe, onglet « Mise à jour »."
+# Notes détaillées (nouveautés, essais par système, limites) : SCRIIBE_NOTES_FILE=chemin.md, ajoutées après l'en-tête.
+[ -n "${SCRIIBE_NOTES_FILE:-}" ] && notes="$notes"$'\n\n'"$(cat "$SCRIIBE_NOTES_FILE")"
+gh release create "$tag" "$zip" --repo scarou/Scriibe --target "$(git rev-parse HEAD)" --title "Scriibe $version" --notes "$notes"
 echo "Publié : $tag"
