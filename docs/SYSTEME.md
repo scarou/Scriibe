@@ -102,7 +102,97 @@ Micro, Surveillance de l'entrée (`platform/src/macos/ffi.rs` `CGPreflightListen
 
 ## Cadrage
 
-À venir (tâche 1).
+Cadrage fait le 13/11/2026 (tâche 1). Les questions 1, 2, 3, 5 et 6 portent sur l'usage, la sécurité ou l'irréversible : l'auteur les a tranchées, chaque fois sur l'option recommandée. Les questions 4 et 7, et les mécanismes techniques, sont des choix techniques : je les ai pris en donnant mes raisons.
+
+### 1. D'où se lance la désinstallation (décision de l'auteur)
+
+**Un bouton « Désinstaller Scriibe » au bas de l'onglet Réglages**, le même sur Mac, Windows et Linux, plus une commande `scriibe desinstaller` pour le dépannage.
+
+- Pourquoi : aucun système n'a d'installateur (simple zip), le programme peut être n'importe où. Le programme en cours sait où il est (`current_exe`), connaît ses dossiers et peut proposer la sauvegarde. Un seul code pour les trois systèmes.
+- Écartés : créer un vrai installateur et son désinstalleur par système (gros chantier d'empaquetage, rien d'équivalent sur Mac) ; une procédure manuelle dans l'Aide (un dossier oublié est vite arrivé).
+- `scriibe desinstaller --liste` affiche la liste exacte sans rien toucher (essais, tâche 5). Sans `--liste`, la commande demande de taper « oui » ; elle ne propose pas la sauvegarde (qui passe par la fenêtre) et le dit.
+
+### 2. Ce qui est supprimé (décision de l'auteur : « tout, à la Corbeille »)
+
+**Tout ce qui appartient à Scriibe part à la Corbeille** (Corbeille du Mac, Corbeille de Windows, Corbeille freedesktop sous Linux) : c'est récupérable tant qu'elle n'est pas vidée. Une case **« Garder mes modèles téléchargés »**, décochée par défaut, laisse `models/` en place pour une réinstallation.
+
+| Élément | Mac | Windows | Linux | Traitement |
+|---|---|---|---|---|
+| Programme | `Scriibe.app` en cours (`current_exe`, remonté au `.app`) | `scriibe.exe` en cours, plus `scriibe.exe.old` et `.new` à côté | `scriibe` en cours | Corbeille, en dernier (voir « Programme en cours ») |
+| Dossier de données (réglages et modes, dictionnaire, historique, totaux, bancs, journaux, verrou, `models/` sauf case cochée) | `~/Library/Application Support/Scriibe` | `%APPDATA%\Scriibe` | `~/.local/share/scriibe` | Corbeille |
+| Moteurs téléchargés | dans le dossier de données | `%LOCALAPPDATA%\Scriibe` (le dossier entier) | `~/.local/share/Scriibe` (le dossier entier) | Corbeille |
+| Restes de mise à jour | `Scriibe.app.old`, `.Scriibe-mise-a-jour` à côté de l'app | voir Programme | — | Corbeille |
+| Caches de la fenêtre | ceux nommés exactement `fr.scriibe.app` sous `~/Library/Caches`, `~/Library/WebKit`, `~/Library/HTTPStorages` | `%LOCALAPPDATA%\fr.scriibe.app` | ceux nommés `fr.scriibe.app` sous `~/.cache` et `~/.local/share` | Corbeille ; liste exacte à mesurer en tâche 5 et 6 |
+| Lanceur | — | — | `~/.local/share/applications/fr.scriibe.Scriibe.desktop` et son icône | Corbeille |
+| Entrée de démarrage | voir question 6 | voir question 6 | voir question 6 | Retirée |
+| Sons temporaires | `$TMPDIR/scriibe-son-*.wav` | — | `$TMPDIR/scriibe-son-*.wav` | Effacés directement (jetables) |
+
+Pas touchés : tout fichier hors de ces emplacements, dont les modèles choisis ailleurs (question 4) ; l'autorisation « RemoteDesktop » mémorisée par le portail GNOME (hors de Scriibe, citée dans l'Aide).
+
+**Garde-fous (choix technique).** Une suppression de trop est irréversible si la Corbeille est vidée, d'où :
+- La liste est construite **uniquement** à partir des emplacements ci-dessus ; aucun chemin venu de `settings.json` n'y entre.
+- Chaque racine doit être un chemin **absolu** dont le dernier élément est `Scriibe`, `scriibe`, `engines` ou `fr.scriibe.app` (ou `Scriibe.app`, `scriibe.exe`, `scriibe` pour le programme). Sinon, refus. Raison : `data_folder` retombe sur `.` sous Windows sans `APPDATA`, et sur un chemin relatif sans `HOME` ; `SCRIIBE_DATA=~` viserait tout le dossier personnel.
+- Les liens symboliques ne sont **jamais suivis** (`symlink_metadata`) : un lien trouvé est retiré comme lien.
+- Si la Corbeille est indisponible (Linux sans Corbeille, autre volume), Scriibe s'arrête et le dit : il ne bascule jamais vers une suppression définitive.
+- Corbeille par la crate `trash` (macOS, Windows, freedesktop), plutôt qu'un code maison par système : elle est éprouvée et couvre les trois. C'est une dépendance de code, pas un téléchargement de modèle ou de binaire.
+
+**Programme en cours (choix technique).** Avant de toucher aux fichiers, Scriibe arrête `whisper-server` et `llama-server` (Windows verrouille un exécutable lancé). Mac et Linux savent mettre à la Corbeille un programme en cours. Windows non : Scriibe copie son exécutable dans `%TEMP%`, lance cette copie avec `desinstaller-fin <pid> <chemin>`, puis quitte ; la copie attend la fin du processus, met `scriibe.exe` à la Corbeille, puis s'efface au prochain nettoyage de `%TEMP%`.
+
+**Fin.** Un dernier message dit ce qui est parti, ce qui reste (modèles ailleurs, Corbeille à vider pour libérer N Go, variables d'environnement sous Linux) puis Scriibe quitte.
+
+### 3. Sauvegarde et confirmation (décision de l'auteur : « proposée, cochée »)
+
+Fenêtre en trois temps :
+1. **Liste exacte** de ce qui part, avec les tailles, et de ce qui reste (modèles ailleurs, case « Garder mes modèles téléchargés »).
+2. Case **« Faire d'abord une sauvegarde »**, cochée : « Enregistrer sous », Documents par défaut, nom `scriibe-sauvegarde-<jour>.scriibe.json`. Si la sauvegarde échoue ou est annulée, **rien n'est supprimé**.
+3. Bouton rouge **« Désinstaller »**, puis un dernier **« Oui, désinstaller »**.
+
+**Sauvegarde complète (choix technique).** Aujourd'hui seul l'export des modes existe ; l'export d'un utilisateur (`kind: "profile"`) est cadré mais pas codé et exclut l'historique. On ajoute à l'enveloppe de `docs/CADRAGE_PROFILS.md` (décision 4) un `kind: "backup"` dont `content` reprend les fichiers du dossier de données tels quels : `settings` (`settings.json`), `dictionary`, `history`, `historyTotals`. Jamais les clés d'API, jamais les modèles (seulement leurs chemins, dans les réglages), ni les bancs ni les journaux.
+- Raison : réutiliser les lectures tolérantes existantes (`from_value`, `UserDictionary::from_json`) ; quand les utilisateurs (chantier 4) arriveront, le `backup` suivra les fichiers grâce à `schemaVersion`.
+- **Import** depuis l'onglet Réglages (« Restaurer une sauvegarde ») : aperçu de ce qui sera remplacé, confirmation, copie des fichiers actuels dans `sauvegarde-avant-import-<date>/` avant d'écraser, puis la page se recharge (même règle que l'import du dictionnaire).
+- L'historique contient les textes dictés : le fichier reste où l'auteur le range, la fenêtre le dit.
+
+### 4. Modèles liés (choix technique)
+
+Le constat montre que Scriibe **ne crée aucun lien et ne copie rien** : il garde seulement le chemin (`whisperModelPath`, `llamaCppModel`) dans `settings.json`. Règle :
+- Un modèle hors du dossier de Scriibe (`~/.lmstudio/models`, futur Magasin de modèles, tout autre dossier) n'est **jamais** dans la liste ; la fenêtre le cite dans « ce qui reste ».
+- Si un lien symbolique se trouve un jour dans un dossier de Scriibe (dossier partagé de la ROADMAP), il est retiré comme lien sans suivre sa cible (garde-fou de la question 2).
+- Test exigé (tâche 4) : un lien dans `models/` vers un faux modèle hors du dossier ; après désinstallation factice, le lien a disparu et la cible est intacte.
+
+### 5. Clés d'API (décision de l'auteur : « effacées, listées »)
+
+- **Mac** : entrées du trousseau, service `Scriibe`, comptes `deepgram`, `openrouter`, et l'ancien `github` s'il existe (`SecItemDelete` par service et compte).
+- **Windows** : identifiants génériques `Scriibe/deepgram`, `Scriibe/openrouter` et l'ancien `Scriibe/github` s'il existe (`CredDeleteW`).
+- **Linux** : aucun coffre ; l'Aide dit de retirer `DEEPGRAM_API_KEY` et `OPENROUTER_API_KEY` de son profil de shell. Scriibe ne touche pas aux fichiers du shell.
+- Les clés sont **nommées** dans la liste, jamais leur valeur. La sauvegarde n'en contient jamais.
+- À créer dans `crates/platform` : `delete_credential(kind)` derrière l'interface des secrets, plus l'effacement de l'ancien compte `github` (seul endroit où ce nom reste dans le code). Une clé absente n'est pas une erreur.
+- Effacées **en dernier avant le programme**, après les fichiers : si la Corbeille échoue, les clés sont encore là.
+
+### 6. Lancement au démarrage
+
+**Décision de l'auteur : décoché par défaut, démarrage discret.** Une case « Lancer Scriibe à l'ouverture de session » dans l'onglet Réglages. Cochée, Scriibe démarre avec `lancer --sans-navigateur` : icône seule, touche de dictée prête, sans fenêtre.
+
+**Mécanismes (choix technique)** — chaque fois un simple fichier ou une valeur, facile à créer, retirer et tester sur des dossiers factices :
+
+| Système | Entrée | Commande lancée | Où l'utilisateur la voit |
+|---|---|---|---|
+| Mac | `~/Library/LaunchAgents/fr.scriibe.app.plist` (`RunAtLoad`, `AssociatedBundleIdentifiers` = `fr.scriibe.app`) | `/usr/bin/open -g -a <chemin de Scriibe.app> --args lancer --sans-navigateur` | Réglages Système › Général › Ouverture |
+| Windows | Valeur `Scriibe` de `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` | `"<chemin>\scriibe.exe" lancer --sans-navigateur` | Gestionnaire des tâches › Applications de démarrage |
+| Linux | `$XDG_CONFIG_HOME/autostart/fr.scriibe.Scriibe.desktop` (sinon `~/.config/autostart`) | `Exec="<chemin>/scriibe" lancer --sans-navigateur` | Applications au démarrage de l'environnement |
+
+- **Mac par `open` plutôt que `SMAppService.mainApp`** : `open` rend `Scriibe.app` processus responsable, donc les autorisations (micro, surveillance de l'entrée, accessibilité) restent les siennes (`docs/PIEGES.md`) ; il passe les arguments du démarrage discret, ce que `mainApp` ne fait pas. macOS 13 et plus affiche une notification « élément d'arrière-plan ajouté » : normal. Repli si l'essai réel échoue : `SMAppService` (macOS 14 minimum, `objc2` déjà présent).
+- **Vérité = le système** : la case lit la présence de l'entrée, rien n'est rangé dans `settings.json`. Si l'utilisateur retire l'entrée dans les réglages du système, la case se décoche d'elle-même ; et le réglage n'entre pas dans le partage « utilisateur / ordinateur » de `docs/CADRAGE_PROFILS.md`.
+- **Programme déplacé** : à chaque lancement, si l'entrée existe et vise un autre chemin que le programme en cours, Scriibe la réécrit.
+- Pas de `tauri-plugin-autostart` : la fenêtre Tauri n'est pas le centre de Scriibe, et l'interface de `crates/platform` garde le code propre à chaque système hors du cœur.
+- Scribe n'a pas cette option : écart à noter dans `docs/ECARTS.md` avec le code.
+
+**Autorisations macOS à la désinstallation (choix technique).** Scriibe lance `tccutil reset All fr.scriibe.app`, qui ne vise que lui ; un échec n'arrête rien et l'Aide dit où retirer à la main ce qui reste (Réglages Système › Confidentialité et sécurité). Une réinstallation redemande les autorisations, comme une première installation.
+
+### 7. Ordre de livraison (choix technique)
+
+1. **Tâche 3, démarrage** : le plus simple et le plus utile au quotidien ; la désinstallation devra retirer cette entrée, elle vient donc après.
+2. **Tâche 4, en deux commits** : (a) sauvegarde complète `kind: "backup"`, export et import, utile seule ; (b) liste exacte (`--liste`), Corbeille, clés, entrée de démarrage, autorisations macOS, programme en cours, fenêtre en trois temps.
+3. Tâches 5 et 6 : essais réels, sauvegarde d'abord. Rubriques d'Aide FR et EN à chaque étape ; livraison sans version (tâche 7).
 
 ## Relecture
 
