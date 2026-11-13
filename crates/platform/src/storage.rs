@@ -36,7 +36,10 @@ pub fn data_folder() -> PathBuf {
     } else if cfg!(target_os = "macos") {
         home().join("Library/Application Support/Scriibe")
     } else {
-        std::env::var_os("XDG_DATA_HOME").map_or_else(|| home().join(".local/share"), PathBuf::from).join("scriibe")
+        std::env::var_os("XDG_DATA_HOME")
+            .filter(|v| !v.is_empty())
+            .map_or_else(|| home().join(".local/share"), PathBuf::from)
+            .join("scriibe")
     }
 }
 

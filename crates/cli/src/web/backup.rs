@@ -56,6 +56,14 @@ pub(crate) fn prepare(folder: &Path, os: &str, now_secs: i64) -> Result<(String,
     if files.settings.is_none() {
         return Err("aucun réglage à sauvegarder dans le dossier de données".into());
     }
+    // Un fichier présent mais illisible (trop gros, abîmé) ne doit pas disparaître en silence : la désinstallation s'appuie sur la sauvegarde.
+    for (name, value) in
+        [("dictionary.json", &files.dictionary), ("history.json", &files.history), ("history-totals.json", &files.history_totals)]
+    {
+        if value.is_none() && folder.join(name).exists() {
+            return Err(format!("{name} n'a pas pu être lu : la sauvegarde est refusée, rien n'est supprimé"));
+        }
+    }
     let day = scriibe_core::export::day_of(now_secs);
     let value = backup::backup_export(super::update::current_version(), &day, os, &files);
     let text = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())? + "\n";
@@ -239,6 +247,18 @@ mod tests {
         let b = backup::parse_backup(&text).unwrap();
         assert!(b.files.settings.is_some() && b.files.dictionary.is_some() && b.files.history.is_some());
         assert!(b.files.history_totals.is_none(), "un fichier absent reste absent");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn an_unreadable_history_is_refused_instead_of_silently_left_out() {
+        let dir = sample_folder("historique-abime");
+        std::fs::write(dir.join("history.json"), "{pas du json").unwrap();
+        let err = prepare(&dir, "macos", 0).unwrap_err();
+        assert!(err.contains("history.json") && err.contains("rien n'est supprimé"), "{err}");
+        // Un fichier simplement absent reste permis (jamais d'historique).
+        std::fs::remove_file(dir.join("history.json")).unwrap();
+        assert!(prepare(&dir, "macos", 0).is_ok());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

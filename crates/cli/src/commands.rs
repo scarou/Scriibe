@@ -438,6 +438,9 @@ pub fn uninstall(args: &[String]) -> Result<(), String> {
         println!("(--liste : rien n'a été touché.)");
         return Ok(());
     }
+    if let Some(problem) = uninstall::capacity_problem(&plan) {
+        return Err(problem);
+    }
     if plan.items.is_empty() {
         return Err("rien à désinstaller".into());
     }

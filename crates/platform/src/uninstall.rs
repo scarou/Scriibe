@@ -472,7 +472,8 @@ pub struct Report {
     pub keys_deleted: Vec<String>,
     pub keys_failed: Vec<(String, String)>,
     pub permissions_error: Option<String>,
-    /// L'exécution s'est arrêtée après un échec de la Corbeille : la raison. Clés, autorisations et programme sont alors intacts.
+    /// L'exécution s'est arrêtée après un échec de la Corbeille : la raison. Si c'est le programme (dernier élément), les clés et les
+    /// autorisations ont déjà été effacées ; si c'est un autre élément, clés, autorisations et programme sont intacts.
     pub stopped: Option<String>,
 }
 
@@ -567,10 +568,17 @@ pub fn final_message(plan: &Plan, report: &Report, os: Os) -> String {
     if let Some(reason) = &report.stopped {
         lines.push("La désinstallation s'est arrêtée : la Corbeille n'a pas pu recevoir un élément.".into());
         lines.push(format!("Raison : {reason}"));
-        lines.push(
-            "Rien d'autre n'a été supprimé définitivement. Relance « scriibe desinstaller » ou le bouton de Scriibe quand c'est réglé."
-                .into(),
-        );
+        if report.keys_deleted.is_empty() {
+            lines.push(
+                "Rien n'a été supprimé définitivement. Relance « scriibe desinstaller » ou le bouton de Scriibe quand c'est réglé.".into(),
+            );
+        } else {
+            // Les clés sont effacées avant le programme : si c'est lui que la Corbeille refuse, elles ne reviennent pas.
+            lines.push(format!(
+                "Seules les clés d'API déjà effacées ({}) ne sont pas récupérables ; tout le reste est dans la Corbeille ou en place. Relance « scriibe desinstaller » ou le bouton de Scriibe quand c'est réglé.",
+                report.keys_deleted.join(", ")
+            ));
+        }
     } else {
         lines.push("Scriibe est désinstallée.".into());
     }
@@ -604,7 +612,7 @@ pub fn final_message(plan: &Plan, report: &Report, os: Os) -> String {
     if let Some(e) = &report.permissions_error {
         lines.push(format!("Les autorisations n'ont pas pu être retirées ({e}) : Réglages Système › Confidentialité et sécurité."));
     }
-    if os == Os::Mac {
+    if os == Os::Mac && report.permissions_error.is_none() {
         lines.push(
             "Autorisations de Scriibe (micro, accessibilité, surveillance de l'entrée) : retirées ; une réinstallation les redemandera."
                 .into(),
@@ -914,6 +922,10 @@ pub fn finish(job_file: &Path) -> i32 {
     // La liste est reconstruite ici, avec les mêmes garde-fous : le fichier de travail ne désigne rien à supprimer.
     let env = Env::real(job.exe.clone(), job.keep_models);
     let plan = build_plan(&env, &job.external_models, job.startup_present);
+    if let Some(problem) = capacity_problem(&plan) {
+        show_message(&format!("{problem}\nRien n'a été supprimé."));
+        return 4;
+    }
     let report = execute(&plan, &mut RealEffects, 5, Duration::from_millis(1500));
     show_message(&final_message(&plan, &report, env.os));
     // Windows ne vide pas `%TEMP%` de lui-même : le dossier de l'assistant s'efface par un `cmd` différé. Ailleurs, la copie s'efface seule.
@@ -1128,6 +1140,27 @@ mod tests {
         assert!(!fake.log.iter().any(|l| l == "clés" || l == "tccutil"), "clés et autorisations après les fichiers : {:?}", fake.log);
         let message = final_message(&plan, &report, Os::Mac);
         assert!(message.contains("s'est arrêtée") && message.contains("Corbeille indisponible"), "{message}");
+    }
+
+    #[test]
+    fn a_failing_program_after_the_keys_is_told_honestly() {
+        let root = Scratch::new("echec-programme");
+        let exe = fake_mac(&root);
+        let plan = build_plan(&env(Os::Mac, &root, exe, false), &[], false);
+        let mut fake = Fake::new(&root);
+        fake.fail_on = Some(root.path("home/Applications/Scriibe.app"));
+        let report = execute(&plan, &mut fake, 0, Duration::ZERO);
+        assert!(report.stopped.is_some() && !report.keys_deleted.is_empty(), "les clés sont effacées avant le programme");
+        let message = final_message(&plan, &report, Os::Mac);
+        assert!(
+            message.contains("Seules les clés d'API déjà effacées") && !message.contains("Rien n'a été supprimé définitivement"),
+            "{message}"
+        );
+        // Une panne de `tccutil` n'est pas suivie d'un « retirées » contradictoire.
+        let mut ok_report = Report { permissions_error: Some("refusé".into()), ..Report::default() };
+        ok_report.trashed.push((PathBuf::from("/x"), 1));
+        let text = final_message(&plan, &ok_report, Os::Mac);
+        assert!(text.contains("n'ont pas pu être retirées") && !text.contains("retirées ; une réinstallation"), "{text}");
     }
 
     #[test]

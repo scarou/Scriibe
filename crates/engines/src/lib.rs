@@ -29,6 +29,7 @@ pub fn engines_folder() -> Option<std::path::PathBuf> {
         std::path::PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support")
     } else {
         std::env::var_os("XDG_DATA_HOME")
+            .filter(|v| !v.is_empty())
             .map(std::path::PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".local/share")))?
     };

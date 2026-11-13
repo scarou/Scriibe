@@ -50,7 +50,12 @@ pub fn apply_pending(folder: &Path) -> Option<String> {
     for name in FILES {
         let (current, copy) = (folder.join(name), before.join(name));
         if current.is_file() && !copy.exists() {
-            let _ = std::fs::copy(&current, &copy);
+            if let Err(e) = std::fs::copy(&current, &copy) {
+                // Sans copie de l'état actuel, rien n'est remplacé (disque plein, antivirus…) : la restauration est abandonnée, à refaire.
+                let _ = std::fs::remove_file(&copy);
+                let _ = std::fs::remove_dir_all(&staging);
+                return Some(format!("restauration: copie de {name} impossible ({e}), rien n'a changé ; recommence la restauration"));
+            }
         }
     }
     let mut replaced = Vec::new();
@@ -128,6 +133,31 @@ mod tests {
         apply_pending(&dir).unwrap();
         assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "neuf2");
         assert_eq!(std::fs::read_to_string(dir.join("avant-import-20261113-000000").join("settings.json")).unwrap(), "origine");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Si la copie de l'état actuel échoue, rien n'est remplacé et la restauration est abandonnée.
+    #[cfg(unix)]
+    #[test]
+    fn a_failed_copy_of_the_current_state_stops_the_swap() {
+        use std::os::unix::fs::PermissionsExt;
+        // En tant que root, une copie n'échoue pas : le test n'a pas de sens.
+        // SAFETY : geteuid n'a pas d'effet de bord.
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+        let dir = scratch("copie-impossible");
+        std::fs::write(dir.join("settings.json"), "actuel").unwrap();
+        stage(&dir, &[("settings.json", "neuf".into())], "20261113-120000").unwrap();
+        // Le dossier de copie existe mais n'est pas modifiable : la copie échoue.
+        let before = dir.join("avant-import-20261113-120000");
+        std::fs::create_dir_all(&before).unwrap();
+        std::fs::set_permissions(&before, std::fs::Permissions::from_mode(0o555)).unwrap();
+        let message = apply_pending(&dir).unwrap();
+        std::fs::set_permissions(&before, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(message.contains("rien n'a changé"), "{message}");
+        assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "actuel", "l'état actuel est intact");
+        assert!(!dir.join(STAGING).exists(), "la restauration est abandonnée, pas rejouée à chaque lancement");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

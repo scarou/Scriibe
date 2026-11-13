@@ -3,6 +3,8 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'Scriibe est lancée depuis un dossier de développement (target/ ou dépôt git) : rien n\'est ajouté au démarrage': 'Scriibe is running from a development folder (target/ or git repository): nothing is added to startup',
+  'Scriibe est lancée depuis une image disque, un volume externe ou un emplacement temporaire : copie-la dans le dossier Applications, puis relance-la': 'Scriibe is running from a disk image, an external volume or a temporary location: copy it to the Applications folder, then relaunch it',
   'La variable SCRIIBE_DATA est définie (essais) : elle déplace les données mais pas les moteurs ni les clés, la désinstallation est désactivée.': 'The SCRIIBE_DATA variable is set (trials): it moves the data but not the engines or keys, so uninstalling is disabled.',
   'Un dossier de Scriibe n\'a pas la structure attendue (réglages absents) : il est laissé en place.': 'A Scriibe folder does not have the expected structure (settings missing): it is left in place.',
   'Un dossier de Scriibe n\'a pas la structure attendue (moteurs absents) : il est laissé en place.': 'A Scriibe folder does not have the expected structure (engines missing): it is left in place.',

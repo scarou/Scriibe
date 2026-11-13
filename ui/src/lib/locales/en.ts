@@ -543,7 +543,7 @@ export const en: Record<string, string> = {
   'Elle vient d’un autre système : les touches, le micro, les sons et les chemins de modèles de cet ordinateur sont gardés.': 'It comes from another system: this computer’s keys, microphone, sounds and model paths are kept.',
   'Restaurer': 'Restore',
   'Lecture…': 'Reading…',
-  'Remplacer vos réglages, votre dictionnaire et votre historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (sauvegarde-avant-import-…), puis Scriibe redémarre.': 'Replace your settings, dictionary and history with those of this backup? A copy of the current state is kept in the data folder (avant-import-…), then Scriibe restarts.',
+  'Remplacer vos réglages, votre dictionnaire et votre historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (avant-import-…), puis Scriibe redémarre.': 'Replace your settings, dictionary and history with those of this backup? A copy of the current state is kept in the data folder (avant-import-…), then Scriibe restarts.',
   'Remplacer': 'Replace',
   'Restauration préparée : Scriibe redémarre, cette fenêtre va se fermer et se rouvrir.': 'Restore prepared: Scriibe is restarting, this window will close and reopen.',
   'Lancer au démarrage': 'Launch at startup',

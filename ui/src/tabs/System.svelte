@@ -56,7 +56,7 @@
 
   async function applyBackup() {
     if (!restoring?.preview) return;
-    const ok = await dialog.confirm(t('Remplacer vos réglages, votre dictionnaire et votre historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (sauvegarde-avant-import-…), puis Scriibe redémarre.'), { confirm: t('Remplacer'), danger: true });
+    const ok = await dialog.confirm(t('Remplacer vos réglages, votre dictionnaire et votre historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (avant-import-…), puis Scriibe redémarre.'), { confirm: t('Remplacer'), danger: true });
     if (!ok) return;
     restoring.busy = true;
     const out = await api<{ ok: boolean; error?: string }>('backup/import/apply', { token: restoring.preview.token });

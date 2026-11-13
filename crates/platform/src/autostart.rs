@@ -216,12 +216,31 @@ fn entry_file() -> Option<PathBuf> {
 /// Ce que l'entrée doit viser : `Scriibe.app` sur Mac, le programme en cours ailleurs.
 fn target_program() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| format!("programme en cours introuvable : {e}"))?;
-    if cfg!(target_os = "macos") {
-        app_bundle_of(&exe)
-            .ok_or_else(|| "Scriibe n'est pas lancée depuis Scriibe.app (programme compilé ?) : rien n'est ajouté au démarrage".to_string())
+    let program = if cfg!(target_os = "macos") {
+        app_bundle_of(&exe).ok_or_else(|| {
+            "Scriibe n'est pas lancée depuis Scriibe.app (programme compilé ?) : rien n'est ajouté au démarrage".to_string()
+        })?
     } else {
-        Ok(exe)
+        exe
+    };
+    match launch_location_problem(&program) {
+        Some(problem) => Err(problem.to_string()),
+        None => Ok(program),
     }
+}
+
+/// Pourquoi ce programme ne doit pas être mis au démarrage : programme de développement (`target/`, dépôt git), image disque, volume externe
+/// ou copie temporaire de macOS (`AppTranslocation`). Une entrée vers un tel programme cesserait de marcher (ou lancerait une version de
+/// développement) au démarrage suivant.
+pub fn launch_location_problem(program: &Path) -> Option<&'static str> {
+    if crate::uninstall::is_dev_location(program) {
+        return Some("Scriibe est lancée depuis un dossier de développement (target/ ou dépôt git) : rien n'est ajouté au démarrage");
+    }
+    let text = program.to_string_lossy();
+    if text.contains("/AppTranslocation/") || text.starts_with("/Volumes/") {
+        return Some("Scriibe est lancée depuis une image disque, un volume externe ou un emplacement temporaire : copie-la dans le dossier Applications, puis relance-la");
+    }
+    None
 }
 
 /// L'état du réglage, relu dans le système.
@@ -603,6 +622,15 @@ mod tests {
         assert_eq!(linux_autostart_dir(Some("cfg"), Some(&home)), Some(defaut));
         assert_eq!(linux_autostart_dir(None, None), None);
         assert_eq!(linux_autostart_dir(None, Some(Path::new("rel"))), None);
+    }
+
+    #[test]
+    fn pas_d_entree_vers_un_programme_de_developpement_ni_un_emplacement_temporaire() {
+        assert!(launch_location_problem(Path::new("/Users/a/dev/Scriibe/target/release/scriibe")).is_some());
+        assert!(launch_location_problem(Path::new("/private/var/folders/x/AppTranslocation/ABC/d/Scriibe.app")).is_some());
+        assert!(launch_location_problem(Path::new("/Volumes/Scriibe 0.3.0/Scriibe.app")).is_some());
+        assert!(launch_location_problem(Path::new("/Users/a/Applications/Scriibe.app")).is_none());
+        assert!(launch_location_problem(Path::new("/opt/scriibe/scriibe")).is_none());
     }
 
     #[test]
