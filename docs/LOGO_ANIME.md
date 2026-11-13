@@ -66,3 +66,11 @@ Aucune demande nouvelle pendant l'essai.
 - **Correction** : `crates/platform/src/motion.rs` lit le portail (ashpd, `Settings::reduced_motion`, gardé 5 s) ; l'état l'envoie (`reduced_motion`) ; `shouldAnimate` (`ui/src/lib/logotype.ts`) garde le logo fixe. Sur macOS et Windows la fonction rend faux : la webview transmet déjà le réglage (Mac essayé ; Windows à essayer).
 - **Deuxième défaut, trouvé à l'essai** : la première version de la correction ne marchait pas dans le programme (état : `reduced_motion` faux) alors qu'une lecture isolée rendait « réduit ». Cause probable : `Settings::new()` d'ashpd partage une connexion D-Bus tenue par la boucle des portails (`linux/wayland.rs`). La lecture ouvre maintenant sa propre connexion (`Settings::with_connection`). Essai à la main : `cargo test -p scriibe-platform --lib motion -- --ignored --nocapture`.
 - **Verdict Linux (programme `04bc842`)** : l'état dit `reduced_motion` vrai ; avec « Réduire les animations » activé, logo **fixe** (vu). Reste à essayer sur le PC Windows.
+
+## Essai réel : PC Windows (WebView2)
+
+*13/11/2026, programme compilé sur le PC au commit `5b7e08e` (`C:\scriibe-dev\target\release\scriibe.exe`).*
+
+- **Réduction des animations** : au premier lancement le logo était **fixe** : « Effets d'animation » était désactivé dans Windows (Paramètres → Accessibilité → Effets visuels ; `MinAnimate` = 0), et WebView2 le transmet à la page. Réactivé : le curseur **clignote**. Donc respecté dans les deux sens, sans code propre à Windows (`motion::reduced()` rend faux).
+- Case décochée : fixe, `animatedLogo: false` écrit dans `settings.json`, gardé après relance ; recochée : clignote ; apparence sombre réglée dans Scriibe : lisible, clignote. Tous vus.
+- Piège à connaître : un PC où les effets d'animation de Windows sont coupés montre un logo fixe même case cochée. Voulu ; à dire si un utilisateur s'en étonne.
