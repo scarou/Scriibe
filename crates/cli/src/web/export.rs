@@ -37,7 +37,7 @@ pub(crate) fn write_without_overwriting(dir: &Path, name: &str, text: &str) -> s
 
 /// Le dossier d'enregistrement quand aucune boîte n'existe : Documents, ou le dossier personnel.
 #[cfg_attr(any(windows, target_os = "macos"), allow(dead_code))]
-fn fallback_folder() -> Option<PathBuf> {
+pub(crate) fn fallback_folder() -> Option<PathBuf> {
     let home = PathBuf::from(std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?);
     let documents = home.join("Documents");
     Some(if documents.is_dir() { documents } else { home })
@@ -45,7 +45,7 @@ fn fallback_folder() -> Option<PathBuf> {
 
 /// Où enregistrer `name` (selon le système, une des deux variantes ne sert pas).
 #[allow(dead_code)]
-enum Target {
+pub(crate) enum Target {
     /// Un fichier choisi dans la boîte du système (qui a déjà demandé confirmation avant d'écraser).
     File(PathBuf),
     /// Aucune boîte (Linux) : ce dossier, sans rien écraser.
@@ -53,16 +53,16 @@ enum Target {
 }
 
 /// L'endroit choisi par l'utilisateur pour `name` : `None` s'il annule.
-fn choose_target(name: &str) -> Result<Option<Target>, String> {
-    let _ = name;
+pub(crate) fn choose_target(title: &str, name: &str) -> Result<Option<Target>, String> {
+    let _ = (title, name);
     #[cfg(windows)]
     {
         let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
-        Ok(scriibe_platform::windows::file_dialog::pick_save("Enregistrer le mode", name, &filter).map(|p| Target::File(PathBuf::from(p))))
+        Ok(scriibe_platform::windows::file_dialog::pick_save(title, name, &filter).map(|p| Target::File(PathBuf::from(p))))
     }
     #[cfg(target_os = "macos")]
     {
-        Ok(scriibe_platform::macos::file_dialog::pick_save("Enregistrer le mode", name)?.map(|p| Target::File(PathBuf::from(p))))
+        Ok(scriibe_platform::macos::file_dialog::pick_save(title, name)?.map(|p| Target::File(PathBuf::from(p))))
     }
     #[cfg(not(any(windows, target_os = "macos")))]
     {
@@ -77,7 +77,7 @@ pub(crate) fn export_mode(settings: &AppSettings, input: &Value) -> Value {
         Ok(v) => v,
         Err(e) => return json!({"ok": false, "error": e}),
     };
-    let written = match choose_target(&name) {
+    let written = match choose_target("Enregistrer le mode", &name) {
         Ok(Some(Target::File(path))) => std::fs::write(&path, text).map(|()| path),
         Ok(Some(Target::Folder(dir))) => write_without_overwriting(&dir, &name, &text),
         Ok(None) => return json!({"ok": true, "saved": false}),

@@ -38,24 +38,7 @@
     { id: 'pt', label: tx('Portugais (Brésil)') },
   ];
 
-  /** Lancer à l'ouverture de session : lu dans le système (rien n'est gardé dans les réglages). */
-  type Autostart = { supported: boolean; reason: string | null; enabled: boolean; disabledBySystem: boolean };
-  let autostart = $state<Autostart | null>(null);
-
-  async function loadAutostart() {
-    autostart = await api<Autostart>('autostart');
-  }
-
-  async function setAutostart(on: boolean) {
-    const out = await api<Autostart & { ok: boolean; error?: string }>('autostart', { enabled: on });
-    if (!out.ok) void notice(out.error ?? t('réglage refusé'));
-    await loadAutostart();
-  }
-
-  onMount(() => {
-    void settings.load();
-    void loadAutostart();
-  });
+  onMount(() => void settings.load());
 
   /** LM Studio et Ollama : le moteur du réglage, la clé de son modèle et celle de son adresse. */
   let localEngine = $derived(
@@ -347,23 +330,6 @@
       <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
         {t('Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)')}</label>
     </div>
-  </Card>
-  {/if}
-
-  {#if section === 'dictation'}
-  <Card help="start" id="demarrage" title={t('Lancer au démarrage')} intro={t('Scriibe se lance à l’ouverture de votre session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que vous ne le cochez pas.')}>
-    {#if autostart}
-      <div class="row">
-        <label><input type="checkbox" checked={autostart.enabled} disabled={!autostart.supported} onchange={(e) => setAutostart(e.currentTarget.checked)} />
-          {t('Lancer Scriibe à l’ouverture de session')}</label>
-      </div>
-      {#if !autostart.supported}
-        <p class="muted">{autostart.reason ? t(autostart.reason) : ''}</p>
-      {:else if autostart.disabledBySystem}
-        <p class="muted">{t('Cet élément est désactivé dans les réglages du système : cochez la case pour le réactiver.')}</p>
-      {/if}
-      <p class="muted">{osName === 'macos' ? t('Visible dans Réglages Système → Général → Ouverture.') : osName === 'linux' ? t('Visible dans « Applications au démarrage » de votre environnement de bureau.') : t('Visible dans le Gestionnaire des tâches, onglet « Applications de démarrage ».')}</p>
-    {/if}
   </Card>
   {/if}
 

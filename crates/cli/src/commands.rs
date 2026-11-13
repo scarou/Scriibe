@@ -17,11 +17,16 @@ use std::time::{Duration, Instant};
 
 fn setup(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
     let config = app::open_config();
+    // Une sauvegarde à restaurer (préparée avant la relance) est appliquée avant toute lecture du dossier.
+    let restored = scriibe_platform::restore::apply_pending(config.folder());
     if config.create_settings_if_missing().map_err(|e| format!("impossible d'écrire {} ({e})", config.settings_path().display()))? {
         eprintln!("Premier lancement : réglages créés dans {}", config.settings_path().display());
     }
     app::migrate_engine_options(&config);
     let log = Arc::new(FileLog::new(config.folder(), echo_log));
+    if let Some(message) = restored {
+        log.write(&message);
+    }
     Ok((config, log))
 }
 

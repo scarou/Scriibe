@@ -3,6 +3,22 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'enregistrement impossible': 'saving failed',
+  'restauration impossible': 'restore failed',
+  'sauvegarde trop grosse : 64 Mo au maximum': 'backup too big: 64 MB at most',
+  'ce fichier n\'est pas une sauvegarde complète (autre type d\'export)': 'this file is not a full backup (another type of export)',
+  'cette sauvegarde est vide': 'this backup is empty',
+  'cette sauvegarde ne contient pas de réglages': 'this backup contains no settings',
+  'ces réglages viennent d\'une version plus récente de Scriibe : mets Scriibe à jour pour les lire': 'these settings come from a newer version of Scriibe: update Scriibe to read them',
+  'les réglages de cette sauvegarde sont illisibles': 'the settings of this backup are unreadable',
+  'le dictionnaire de cette sauvegarde est illisible': 'the dictionary of this backup is unreadable',
+  'l\'historique de cette sauvegarde est illisible': 'the history of this backup is unreadable',
+  'les totaux de cette sauvegarde sont illisibles': 'the totals of this backup are unreadable',
+  'aucun réglage à sauvegarder dans le dossier de données': 'no settings to back up in the data folder',
+  'cet emplacement est dans un dossier que la désinstallation supprime : choisis un autre dossier (Documents, par exemple)': 'this location is inside a folder that uninstalling removes: choose another folder (Documents, for example)',
+  'aucune sauvegarde en attente : recommence la restauration': 'no backup waiting: start the restore again',
+  'l\'aperçu n\'est plus à jour : recommence la restauration': 'the preview is out of date: start the restore again',
+  'la sauvegarde écrite ne se relit pas ({e}) : elle a été effacée, rien n\'est supprimé': 'the saved backup cannot be read back ({e}): it was deleted, nothing is removed',
   'Scriibe n\'est pas lancée depuis Scriibe.app (programme compilé ?) : rien n\'est ajouté au démarrage': 'Scriibe is not running from Scriibe.app (a compiled program?): nothing is added to startup',
   'pas encore pris en charge sur ce système': 'not supported on this system yet',
   'l\'aperçu n\'est plus à jour : recommence l\'import': 'the preview is out of date: start the import again',

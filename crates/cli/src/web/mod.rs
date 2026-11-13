@@ -3,6 +3,7 @@
 //! banc de dictée de Scribe et de voir ce que Whisper a entendu, ce qui serait collé, les contrôles et les temps, puis de copier un rapport.
 
 mod assets;
+mod backup;
 mod bench_view;
 pub(crate) mod data;
 pub(crate) mod downloads;
@@ -393,6 +394,24 @@ fn handle(ctx: &Context, mut request: Request) {
                 Err(e) => fail(request, 500, &e),
             }
         }
+        // Sauvegarde complète : l'enregistrer (relue avant de dire « fait »), puis la restaurer (aperçu, accord, relance : les fichiers sont
+        // échangés au lancement suivant, avant toute lecture).
+        (Method::Post, "api/backup/export") => ok(request, backup::export(ctx.app.config.folder(), &protected_roots())),
+        (Method::Post, "api/backup/import/read") => ok(request, backup::read(&input)),
+        (Method::Post, "api/backup/import/cancel") => ok(request, backup::cancel()),
+        (Method::Post, "api/backup/import/apply") => match backup::apply(ctx.app.config.folder(), &input) {
+            Ok(()) => {
+                ok(request, json!({"ok": true}));
+                backup::cancel();
+                let app = ctx.app.clone();
+                ctx.app.log.write("restauration: sauvegarde préparée, relance de Scriibe");
+                std::thread::spawn(move || {
+                    std::thread::sleep(Duration::from_millis(800));
+                    restart(&app);
+                });
+            }
+            Err(e) => fail(request, 409, &e),
+        },
         (Method::Get, "api/autostart") => ok(request, autostart_view()),
         (Method::Post, "api/autostart") => match scriibe_platform::autostart::set(input["enabled"].as_bool().unwrap_or(false)) {
             Ok(()) => {
@@ -1068,6 +1087,11 @@ fn install_update(ctx: &Context) -> Result<(), String> {
 }
 
 /// Arrête les moteurs, relance le programme (la fenêtre se rouvre) puis s'arrête.
+/// Les dossiers que la désinstallation supprimera : une sauvegarde rangée dedans partirait avec.
+fn protected_roots() -> Vec<std::path::PathBuf> {
+    Vec::new()
+}
+
 /// L'état de « Lancer Scriibe à l'ouverture de session », relu dans le système (rien n'est gardé dans les réglages).
 fn autostart_view() -> Value {
     let s = scriibe_platform::autostart::status();

@@ -8,6 +8,7 @@
   import Journal from './Journal.svelte';
   import Modes from './Modes.svelte';
   import Settings from './Settings.svelte';
+  import System from './System.svelte';
   import Update from './Update.svelte';
 
   let current = $derived(settingsTabs.find((x) => x.id === nav.settingsTab) ?? settingsTabs[0]);
@@ -30,6 +31,7 @@
 {:else if nav.settingsTab === 'appearance'}<Settings section="appearance" />
 {:else if nav.settingsTab === 'modes'}<Modes />
 {:else if nav.settingsTab === 'measures'}<Bench /><Journal />
+{:else if nav.settingsTab === 'system'}<System />
 {:else}<Update />{/if}
 
 <style>

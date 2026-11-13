@@ -21,19 +21,24 @@ fn pending() -> std::sync::MutexGuard<'static, Option<(String, Vec<CustomMode>)>
 
 /// Le contenu du fichier, après les contrôles de taille. `Err` : un message pour la page.
 pub(crate) fn read_file(path: &Path) -> Result<String, String> {
+    read_file_max(path, import::MAX_BYTES, "fichier trop gros : 1 Mo au maximum")
+}
+
+/// Comme [`read_file`], avec une autre limite de taille (la sauvegarde complète : 64 Mio).
+pub(crate) fn read_file_max(path: &Path, max: u64, too_big: &str) -> Result<String, String> {
     let unreadable = || "le fichier n'a pas pu être lu".to_string();
     let metadata = std::fs::metadata(path).map_err(|_| unreadable())?;
     if !metadata.is_file() {
         return Err(unreadable());
     }
-    if metadata.len() > import::MAX_BYTES {
-        return Err("fichier trop gros : 1 Mo au maximum".into());
+    if metadata.len() > max {
+        return Err(too_big.into());
     }
     // Lecture bornée aussi : le fichier a pu grossir depuis le contrôle.
     let mut bytes = Vec::new();
-    std::fs::File::open(path).map_err(|_| unreadable())?.take(import::MAX_BYTES + 1).read_to_end(&mut bytes).map_err(|_| unreadable())?;
-    if bytes.len() as u64 > import::MAX_BYTES {
-        return Err("fichier trop gros : 1 Mo au maximum".into());
+    std::fs::File::open(path).map_err(|_| unreadable())?.take(max + 1).read_to_end(&mut bytes).map_err(|_| unreadable())?;
+    if bytes.len() as u64 > max {
+        return Err(too_big.into());
     }
     String::from_utf8(bytes).map_err(|_| "ce fichier n'est pas un fichier JSON lisible".to_string())
 }
@@ -63,7 +68,7 @@ pub(crate) fn read_modes(settings: &AppSettings, path: &Path) -> Value {
 }
 
 /// Ce que l'utilisateur a tapé comme chemin (Linux) : sans guillemets ni espaces autour, `~` développé.
-fn typed_path(text: &str) -> PathBuf {
+pub(crate) fn typed_path(text: &str) -> PathBuf {
     let text = text.trim().trim_matches(|c| c == '"' || c == '\'').trim();
     match (text.strip_prefix("~/"), std::env::var_os("HOME")) {
         (Some(rest), Some(home)) => PathBuf::from(home).join(rest),
@@ -73,7 +78,7 @@ fn typed_path(text: &str) -> PathBuf {
 
 /// Ce que donne la boîte « Ouvrir » du système (selon le système, certaines variantes ne servent pas).
 #[allow(dead_code)]
-enum Picked {
+pub(crate) enum Picked {
     File(PathBuf),
     Cancelled,
     /// Aucune boîte sur ce système (Linux) : la page demande le chemin.
@@ -81,11 +86,12 @@ enum Picked {
     Failed(String),
 }
 
-fn choose_file() -> Picked {
+pub(crate) fn choose_file(title: &str) -> Picked {
+    let _ = title;
     #[cfg(windows)]
     {
         let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
-        match scriibe_platform::windows::file_dialog::pick_file("Importer un mode", &filter) {
+        match scriibe_platform::windows::file_dialog::pick_file(title, &filter) {
             Some(path) => Picked::File(PathBuf::from(path)),
             None => Picked::Cancelled,
         }
@@ -93,7 +99,7 @@ fn choose_file() -> Picked {
     #[cfg(target_os = "macos")]
     {
         let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
-        match scriibe_platform::macos::file_dialog::try_pick_file("Importer un mode", &filter) {
+        match scriibe_platform::macos::file_dialog::try_pick_file(title, &filter) {
             Ok(Some(path)) => Picked::File(PathBuf::from(path)),
             Ok(None) => Picked::Cancelled,
             Err(e) => Picked::Failed(e),
@@ -111,7 +117,7 @@ pub(crate) fn read(settings: &AppSettings, input: &Value) -> Value {
     let typed = input["path"].as_str().filter(|p| !p.trim().is_empty());
     let path = match (cfg!(not(any(windows, target_os = "macos"))), typed) {
         (true, Some(typed)) => typed_path(typed),
-        _ => match choose_file() {
+        _ => match choose_file("Importer un mode") {
             Picked::File(path) => path,
             Picked::Cancelled => return json!({"ok": true, "cancelled": true}),
             Picked::Failed(e) => return json!({"ok": false, "error": e}),

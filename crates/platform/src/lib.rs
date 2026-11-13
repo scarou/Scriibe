@@ -19,6 +19,7 @@ pub mod open;
 pub mod paste;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod recorder;
+pub mod restore;
 pub mod secrets;
 pub mod sounds;
 pub mod storage;
