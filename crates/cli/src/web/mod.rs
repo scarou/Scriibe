@@ -6,6 +6,7 @@ mod assets;
 mod backup;
 mod bench_view;
 pub(crate) mod data;
+mod dictionary_io;
 pub(crate) mod downloads;
 mod export;
 mod hub;
@@ -30,7 +31,7 @@ use crate::overlay::OverlayModel;
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
-use scriibe_core::dictionary::{dedup_corrections, Correction, UserDictionary};
+use scriibe_core::dictionary::{dedup_corrections, word_key, Correction, UserDictionary};
 use scriibe_core::history::Cleanup;
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
@@ -354,6 +355,24 @@ fn handle(ctx: &Context, mut request: Request) {
             }
         }
         (Method::Post, "api/modes/import/cancel") => ok(request, import::cancel()),
+        // Exporter le dictionnaire (l'utilisateur choisit où enregistrer) ; l'importer : aperçu d'abord, rien d'écrit avant l'accord, la fusion
+        // ajoute sans jamais remplacer.
+        (Method::Post, "api/dictionary/export") => ok(request, dictionary_io::export(&ctx.app.config.dictionary(), &input)),
+        (Method::Post, "api/dictionary/import/read") => ok(request, dictionary_io::read(&ctx.app.config.dictionary(), &input)),
+        (Method::Post, "api/dictionary/import/apply") => {
+            let mut dictionary = ctx.app.config.dictionary();
+            match dictionary_io::apply_pending(&mut dictionary, &input) {
+                Ok(outcome) => match ctx.app.config.save_dictionary(&dictionary) {
+                    Ok(()) => {
+                        dictionary_io::consume();
+                        ok(request, dictionary_io::outcome_json(&outcome))
+                    }
+                    Err(e) => fail(request, 500, &e.to_string()),
+                },
+                Err(e) => fail(request, 400, &e),
+            }
+        }
+        (Method::Post, "api/dictionary/import/cancel") => ok(request, dictionary_io::cancel()),
         (Method::Get, "api/dictionary") => ok(request, dictionary_view(&ctx.app.config.dictionary())),
         (Method::Post, "api/dictionary") => match save_dictionary(ctx, &input) {
             Ok(view) => ok(request, view),
@@ -850,7 +869,7 @@ fn clean_dictionary(input: &Value) -> UserDictionary {
     let mut words: Vec<String> = Vec::new();
     for word in input["words"].as_array().into_iter().flatten().filter_map(Value::as_str) {
         let word = word.trim();
-        if !word.is_empty() && !words.iter().any(|w| w.eq_ignore_ascii_case(word)) {
+        if !word.is_empty() && !words.iter().any(|w| word_key(w) == word_key(word)) {
             words.push(word.to_string());
         }
     }
@@ -1286,6 +1305,12 @@ mod tests {
         let after = merge_settings(&before, &json!({"schemaVersion": 99, "language": "en"})).unwrap();
         assert_eq!(after.schema_version, before.schema_version, "ignoré sans erreur : la page peut renvoyer le bloc entier");
         assert_eq!(after.language, scriibe_core::settings::DictationLanguage::En);
+    }
+
+    #[test]
+    fn words_that_differ_only_by_an_accented_capital_are_the_same_word() {
+        let cleaned = clean_dictionary(&json!({"words": ["École", "école", "Claude  Code", "claude code"], "corrections": []}));
+        assert_eq!(cleaned.words, vec!["École", "Claude  Code"]);
     }
 
     #[test]

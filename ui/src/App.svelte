@@ -96,8 +96,8 @@
       {#each status.value?.config_problems ?? [] as problem (problem.file)}
         <div class="card bad">
           {problem.reason === 'newer'
-            ? t('Le fichier {file} vient d’une version plus récente de Scriibe : Scriibe n’y écrit rien pour ne pas l’abîmer. Mettez Scriibe à jour.', { file: problem.file })
-            : t('Le fichier {file} est illisible : Scriibe n’y écrit plus rien (vos changements ne sont pas enregistrés) tant qu’il n’est pas réparé ou supprimé.', { file: problem.file })}
+            ? t('Le fichier {file} vient d’une version plus récente de Scriibe : Scriibe n’y écrit rien pour ne pas l’abîmer. Mets Scriibe à jour.', { file: problem.file })
+            : t('Le fichier {file} est illisible : Scriibe n’y écrit plus rien (tes changements ne sont pas enregistrés) tant qu’il n’est pas réparé ou supprimé.', { file: problem.file })}
           {#if problem.backup}{t('Une copie a été mise de côté : {backup}.', { backup: problem.backup })}{/if}
         </div>
       {/each}

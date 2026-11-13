@@ -103,15 +103,126 @@
     corrections = d.corrections;
   }
 
+  /** Des modifications faites dans la page, pas encore enregistrées. */
+  let dirty = false;
+
   /** Enregistre un instant après la dernière modification. */
   function changed() {
     if (!loaded) return;
     saved = '';
+    dirty = true;
     clearTimeout(timer);
-    timer = setTimeout(async () => {
-      apply(await api<Dictionary>('dictionary', { words, corrections }));
-      saved = t('Enregistré ✔');
-    }, 500);
+    timer = setTimeout(flush, 500);
+  }
+
+  /** Enregistre tout de suite ce qui attend : avant un export ou un import, pour que le fichier et le serveur voient la même chose, et que
+   *  l'enregistrement automatique ne vienne pas écraser un import après coup. */
+  async function flush() {
+    clearTimeout(timer);
+    if (!dirty) return;
+    dirty = false;
+    apply(await api<Dictionary>('dictionary', { words, corrections }));
+    saved = t('Enregistré ✔');
+  }
+
+  /** L'export : aperçu, catégories à cocher et avertissement avant que le serveur ne demande où enregistrer. */
+  let exporting = $state<{ words: boolean; corrections: boolean; busy: boolean; result: string } | null>(null);
+
+  async function openExport() {
+    await closeImport();
+    await flush();
+    exporting = { words: words.length > 0, corrections: corrections.length > 0, busy: false, result: '' };
+  }
+
+  async function exportDictionary() {
+    if (!exporting) return;
+    exporting.busy = true;
+    exporting.result = '';
+    const out = await api<{ ok: boolean; saved?: boolean; path?: string; error?: string }>('dictionary/export', {
+      words: exporting.words,
+      corrections: exporting.corrections,
+    });
+    exporting.busy = false;
+    exporting.result = !out.ok
+      ? t(out.error ?? 'enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture')
+      : out.saved
+        ? t('Enregistré : {path}', { path: out.path ?? '' })
+        : t('Export annulé : rien n’a été enregistré.');
+  }
+
+  /** L'import : le serveur lit et contrôle le fichier, la page montre l'aperçu, rien n'est écrit avant l'accord ; la fusion ajoute sans remplacer. */
+  type ImportStatus = { status: 'new' | 'same' | 'conflict'; existing?: string };
+  type ImportedWord = ImportStatus & { word: string };
+  type ImportedCorrection = ImportStatus & { heard: string; written: string };
+  let importing = $state<{
+    words: ImportedWord[];
+    corrections: ImportedCorrection[];
+    tickWords: boolean[];
+    tickCorrections: boolean[];
+    token: string;
+    askPath: boolean;
+    path: string;
+    busy: boolean;
+    message: string;
+    done: boolean;
+  } | null>(null);
+
+  const emptyImport = () => ({ words: [], corrections: [], tickWords: [], tickCorrections: [], token: '', askPath: false, path: '', busy: true, message: '', done: false });
+
+  async function readImport(path?: string) {
+    exporting = null;
+    await flush();
+    if (!importing) importing = emptyImport();
+    importing.busy = true;
+    importing.message = '';
+    const out = await api<{ ok: boolean; cancelled?: boolean; ask_path?: boolean; error?: string; token?: string; words?: ImportedWord[]; corrections?: ImportedCorrection[] }>(
+      'dictionary/import/read',
+      path ? { path } : {},
+    );
+    if (!importing) return;
+    importing.busy = false;
+    if (out.ok && out.cancelled) importing = null;
+    else if (out.ok && out.words && out.corrections) {
+      importing.askPath = false;
+      importing.words = out.words;
+      importing.corrections = out.corrections;
+      importing.token = out.token ?? '';
+      importing.tickWords = out.words.map((w) => w.status === 'new');
+      importing.tickCorrections = out.corrections.map((c) => c.status === 'new');
+    } else if (out.ask_path) importing.askPath = true;
+    else importing.message = t(out.error ?? "le fichier n'a pas pu être lu");
+  }
+
+  const toAdd = (i: NonNullable<typeof importing>) => i.tickWords.filter(Boolean).length + i.tickCorrections.filter(Boolean).length;
+
+  async function applyImport() {
+    if (!importing) return;
+    importing.busy = true;
+    const out = await api<{ ok: boolean; words_added?: number; corrections_added?: number; already?: number; conflicts?: number; error?: string }>('dictionary/import/apply', {
+      token: importing.token,
+      words: importing.tickWords,
+      corrections: importing.tickCorrections,
+    });
+    importing.busy = false;
+    if (!out.ok) {
+      importing.message = t(out.error ?? "le fichier n'a pas pu être lu");
+      return;
+    }
+    importing.words = [];
+    importing.corrections = [];
+    importing.done = true;
+    importing.message = t('Importé : {words} mot(s) et {corrections} correction(s) ajouté(s).', { words: out.words_added ?? 0, corrections: out.corrections_added ?? 0 });
+    const left = (out.already ?? 0) + (out.conflicts ?? 0);
+    if (left > 0) importing.message += ' ' + t('{n} élément(s) étaient déjà présents : ils n’ont pas été touchés.', { n: left });
+    // Le serveur a écrit le dictionnaire : la page le relit, pour que son enregistrement automatique ne l'écrase pas.
+    clearTimeout(timer);
+    dirty = false;
+    apply(await api<Dictionary>('dictionary'));
+  }
+
+  async function closeImport() {
+    if (importing && !importing.done) await api('dictionary/import/cancel', {});
+    importing = null;
   }
 
   function addWord() {
@@ -209,6 +320,79 @@
   onkeydown={handleKey}
 ><span></span></div>
 
+<Card id="dictionary-export-import" title={t('Exporter et importer le dictionnaire')} help="dictionary" intro={t('Sauvegarder ton vocabulaire dans un fichier, le reprendre sur un autre ordinateur ou le partager.')}>
+  <div class="row">
+    <button onclick={openExport} disabled={exporting !== null || (words.length === 0 && corrections.length === 0)}>{t('Exporter…')}</button>
+    <button onclick={() => readImport()} disabled={importing !== null}>{t('Importer…')}</button>
+  </div>
+</Card>
+
+{#if exporting}
+  <Card id="dictionary-export" accent title={t('Exporter le dictionnaire')} help="dictionary">
+    <p>{t('Le fichier (.scriibe.json) contient les catégories cochées. Une boîte te demande où l’enregistrer (sous Linux, il est placé dans le dossier Documents).')}</p>
+    <div class="row"><label><input type="checkbox" bind:checked={exporting.words} disabled={exporting.busy || words.length === 0} /> {t('{n} mot(s)', { n: words.length })}</label></div>
+    {#if words.length > 0}<details><summary>{t('Voir les mots')}</summary><div class="chips scroll">{#each words as w, i (w + i)}<span class="sign">{w}</span>{/each}</div></details>{/if}
+    <div class="row"><label><input type="checkbox" bind:checked={exporting.corrections} disabled={exporting.busy || corrections.length === 0} /> {t('{n} correction(s)', { n: corrections.length })}</label></div>
+    {#if corrections.length > 0}<details><summary>{t('Voir les corrections')}</summary><div class="scroll"><table><tbody>{#each corrections as c, i (c.heard + i)}<tr><td>{c.heard}</td><td>→</td><td><b>{c.written}</b></td></tr>{/each}</tbody></table></div></details>{/if}
+    <p class="warn">{t('Attention : le fichier n’est pas chiffré et peut contenir des noms propres, des adresses ou d’autres textes personnels. Relis-le avant de le partager.')}</p>
+    {#if exporting.result}<p role="status"><b>{exporting.result}</b></p>{/if}
+    <div class="row">
+      <span class="grow"></span>
+      <button onclick={() => (exporting = null)}>{t('Fermer')}</button>
+      <button class="primary" disabled={exporting.busy || !(exporting.words || exporting.corrections)} onclick={exportDictionary}>{t('Enregistrer le fichier')}</button>
+    </div>
+  </Card>
+{/if}
+
+{#if importing}
+  <Card id="dictionary-import" accent title={t('Importer un dictionnaire')} help="dictionary">
+    {#if importing.askPath}
+      <p>{t('Sur ce système, indique le chemin du fichier .scriibe.json à importer :')}</p>
+      <div class="row"><input type="text" class="grow" bind:value={importing.path} placeholder="/home/…/scriibe-dictionnaire.scriibe.json" disabled={importing.busy} />
+        <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button></div>
+    {:else if importing.words.length + importing.corrections.length > 0}
+      <p>{t('Ce fichier contient {words} mot(s) et {corrections} correction(s). Rien n’est modifié tant que tu n’as pas cliqué sur « Importer ». L’import ajoute : ce qui est déjà dans ton dictionnaire n’est jamais remplacé. Si le fichier vient de quelqu’un d’autre, relis-le : une correction remplace un mot par un autre dans toutes tes dictées.', { words: importing.words.length, corrections: importing.corrections.length })}</p>
+      {#if importing.words.length > 0}
+        <h3>{t('Mots')}</h3>
+        <div class="row"><button onclick={() => (importing!.tickWords = importing!.words.map((w) => w.status === 'new'))}>{t('Tout cocher')}</button><button onclick={() => (importing!.tickWords = importing!.words.map(() => false))}>{t('Tout décocher')}</button></div>
+        <div class="scroll">
+          {#each importing.words as item, i (i)}
+            <label class="pick">
+              <input type="checkbox" bind:checked={importing.tickWords[i]} disabled={importing.busy || item.status !== 'new'} />
+              <span>{item.word}{#if item.status !== 'new'} <span class="muted">· {t('déjà dans ton dictionnaire')}</span>{/if}</span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+      {#if importing.corrections.length > 0}
+        <h3>{t('Corrections')}</h3>
+        <div class="row"><button onclick={() => (importing!.tickCorrections = importing!.corrections.map((c) => c.status === 'new'))}>{t('Tout cocher')}</button><button onclick={() => (importing!.tickCorrections = importing!.corrections.map(() => false))}>{t('Tout décocher')}</button></div>
+        <div class="scroll">
+          {#each importing.corrections as item, i (i)}
+            <label class="pick">
+              <input type="checkbox" bind:checked={importing.tickCorrections[i]} disabled={importing.busy || item.status !== 'new'} />
+              <span>{item.heard} → <b>{item.written}</b>
+                {#if item.status === 'same'}<span class="muted">· {t('déjà dans ton dictionnaire')}</span>{/if}
+                {#if item.status === 'conflict'}<span class="warn">· {t('« {heard} » est déjà corrigé en « {existing} » : la correction en place est gardée.', { heard: item.heard, existing: item.existing ?? '' })}</span>{/if}
+              </span>
+            </label>
+          {/each}
+        </div>
+      {/if}
+    {:else if importing.busy}
+      <p class="muted">{t('Chargement…')}</p>
+    {/if}
+    {#if importing.message}<p role="status" class:warn={!importing.done}><b>{importing.message}</b></p>{/if}
+    <div class="row">
+      <span class="grow"></span>
+      <button onclick={closeImport}>{importing.done ? t('Fermer') : t('Annuler')}</button>
+      {#if importing.words.length + importing.corrections.length > 0}
+        <button class="primary" disabled={importing.busy || toAdd(importing) === 0} onclick={applyImport}>{t('Importer')}</button>
+      {/if}
+    </div>
+  </Card>
+{/if}
+
 <Card id="dictionary-signes-dictes" title={t('Signes dictés')} help="dictionary" intro={t('Toujours reconnus, avec leurs variantes (« ouvre » ou « ouvrez », « ferme » ou « fermez la parenthèse », « retour » ou « passe à la ligne »…). Pour un signe à toi, ajoute une correction : « trois points d’exclamation » → !!!')}>
   <div class="chips">
     {#each signs as sign (sign.said)}
@@ -252,6 +436,8 @@
   .grip:focus-visible { outline: 2px solid var(--accent); }
   /* Au-delà d'une quinzaine d'entrées, la liste défile dans sa carte au lieu d'allonger la page. */
   .scroll { max-height: 17rem; overflow-y: auto; padding-right: 6px; }
+  .pick { display: flex; gap: 10px; align-items: flex-start; padding: 3px 0; cursor: pointer; }
+  details { margin: 2px 0 8px 26px; }
   .sign { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   h3 { margin: 14px 0 4px; font-size: 1rem; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }

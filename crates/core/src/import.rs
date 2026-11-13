@@ -26,21 +26,13 @@ pub const UNNAMED: &str = "Mode importé";
 
 /// Lit un fichier d'export de modes. `Err` : un message clair pour la page (rien n'a été modifié).
 pub fn parse_modes(text: &str) -> Result<Vec<CustomMode>, String> {
-    if text.len() as u64 > MAX_BYTES {
-        return Err("fichier trop gros : 1 Mo au maximum".into());
-    }
-    let root: Value = serde_json::from_str(text).map_err(|_| "ce fichier n'est pas un fichier JSON lisible".to_string())?;
-    if root["format"] != export::FORMAT {
-        return Err("ce n'est pas un fichier d'export de Scriibe".into());
-    }
-    match root["version"].as_u64() {
-        Some(v) if v <= u64::from(export::VERSION) && v >= 1 => {}
-        Some(_) => return Err("ce fichier vient d'une version plus récente de Scriibe : mets Scriibe à jour pour le lire".into()),
-        None => return Err("ce n'est pas un fichier d'export de Scriibe".into()),
-    }
-    if root["kind"] != "modes" {
-        return Err("ce fichier ne contient pas de modes (autre type d'export)".into());
-    }
+    let root = export::open_envelope(
+        text,
+        "modes",
+        MAX_BYTES,
+        "fichier trop gros : 1 Mo au maximum",
+        "ce fichier ne contient pas de modes (autre type d'export)",
+    )?;
     let list = root["content"]["customModes"].as_array().ok_or("ce fichier ne contient pas de modes")?;
     if list.is_empty() {
         return Err("aucun mode dans ce fichier".into());
@@ -118,10 +110,15 @@ fn is_invisible_format(c: char) -> bool {
     matches!(c, '\u{00AD}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{2064}' | '\u{2066}'..='\u{2069}' | '\u{FEFF}')
 }
 
+/// Un texte sur une seule ligne, sans espaces en trop ni caractères de contrôle ou invisibles (un mot du dictionnaire, un nom de mode).
+pub(crate) fn one_line(text: &str) -> String {
+    let visible: String = clean_text(text).chars().filter(|c| !is_invisible_format(*c)).collect();
+    visible.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 /// Un nom sur une seule ligne, sans espaces en trop ni caractères invisibles ; « Mode importé » s'il est vide.
 fn clean_name(name: &str) -> String {
-    let visible: String = clean_text(name).chars().filter(|c| !is_invisible_format(*c)).collect();
-    let one_line: String = visible.split_whitespace().collect::<Vec<_>>().join(" ");
+    let one_line = one_line(name);
     if one_line.is_empty() {
         UNNAMED.to_string()
     } else {

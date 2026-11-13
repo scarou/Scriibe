@@ -4,6 +4,7 @@
 //! L'export est construit **champ par champ, d'après une liste blanche**, jamais en sérialisant les réglages : un futur champ
 //! sensible ne peut pas partir par défaut. Aucune clé d'API, aucun historique, aucun champ propre à l'ordinateur.
 
+use crate::dictionary::UserDictionary;
 use crate::modes::CustomMode;
 use serde_json::{json, Value};
 
@@ -24,6 +25,31 @@ pub fn envelope(kind: &str, app_version: &str, day: &str, content: Value) -> Val
         "exportedAt": day,
         "content": content,
     })
+}
+
+/// Ouvre un fichier d'export : taille, JSON, `format`, `version`, `kind`. Rend la racine du fichier ; `Err` : un message clair pour la page
+/// (rien n'a été modifié). Le contrôle est le même pour tous les types de fichier (modes, dictionnaire, sauvegarde…) ; chacun garde ses
+/// propres messages de taille (`too_big`) et de mauvais type (`wrong_kind`).
+pub fn open_envelope(text: &str, kind: &str, max_bytes: u64, too_big: &str, wrong_kind: &str) -> Result<Value, String> {
+    if text.len() as u64 > max_bytes {
+        return Err(too_big.into());
+    }
+    let root: Value = serde_json::from_str(text).map_err(|_| "ce fichier n'est pas un fichier JSON lisible".to_string())?;
+    if root["format"] != FORMAT {
+        return Err("ce n'est pas un fichier d'export de Scriibe".into());
+    }
+    match root["version"].as_u64() {
+        Some(v) if (1..=u64::from(VERSION)).contains(&v) => {}
+        Some(v) if v > u64::from(VERSION) => {
+            return Err("ce fichier vient d'une version plus récente de Scriibe : mets Scriibe à jour pour le lire".into())
+        }
+        // Pas de numéro, ou 0 : ce n'est pas un fichier d'export (il n'y a pas de version « plus ancienne » que la 1).
+        _ => return Err("ce n'est pas un fichier d'export de Scriibe".into()),
+    }
+    if root["kind"] != kind {
+        return Err(wrong_kind.into());
+    }
+    Ok(root)
 }
 
 /// Le jour (UTC) d'un instant donné en secondes depuis 1970, au format « 2026-11-12 ».
@@ -79,4 +105,23 @@ pub fn mode_file_name(mode_name: &str, day: &str) -> String {
     let slug = slug.trim_end_matches('-');
     let slug = if slug.is_empty() { "sans-nom" } else { slug };
     format!("scriibe-mode-{slug}-{day}{EXTENSION}")
+}
+
+/// Le fichier d'export du dictionnaire (`kind: "dictionary"`, `content: {words, corrections}`). Seules les catégories demandées partent
+/// (une catégorie retirée n'a pas de clé) ; mots et corrections sont recopiés champ par champ.
+pub fn dictionary_export(dictionary: &UserDictionary, words: bool, corrections: bool, app_version: &str, day: &str) -> Value {
+    let mut content = serde_json::Map::new();
+    if words {
+        content.insert("words".into(), json!(dictionary.words));
+    }
+    if corrections {
+        let list: Vec<Value> = dictionary.corrections.iter().map(|c| json!({"heard": c.heard, "written": c.written})).collect();
+        content.insert("corrections".into(), Value::Array(list));
+    }
+    envelope("dictionary", app_version, day, Value::Object(content))
+}
+
+/// Le nom de fichier proposé : `scriibe-dictionnaire-<jour>.scriibe.json` (jamais le nom de l'utilisateur).
+pub fn dictionary_file_name(day: &str) -> String {
+    format!("scriibe-dictionnaire-{day}{EXTENSION}")
 }

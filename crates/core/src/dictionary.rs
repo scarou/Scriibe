@@ -39,6 +39,11 @@ impl UserDictionary {
     }
 }
 
+/// La clé qui dit que deux mots du dictionnaire sont le même : sans tenir compte des majuscules (accents compris) ni des espaces multiples.
+pub fn word_key(word: &str) -> String {
+    word.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+}
+
 /// La clé qui dit que deux « entendu » sont le même : sans tenir compte des majuscules, des espaces multiples ni de l'apostrophe
 /// droite ou courbe (comme `heard_pattern` les reconnaît à l'application).
 pub fn heard_key(heard: &str) -> String {

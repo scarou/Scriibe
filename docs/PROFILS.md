@@ -145,3 +145,60 @@ Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` 
 - **Mots du dictionnaire** : le dédoublonnage reste ASCII seulement (`eq_ignore_ascii_case`), seules les corrections ont changé.
 - **Factorisation du contrôle d'enveloppe** (constat § 1) : pas faite ici, elle appartient à l'étape 2 (nouveaux `kind`).
 - `docs/GESTION_MODES.md:105` dit encore que les étapes 1 et 2 ne sont pas faites : non touché.
+
+## Étape 2 · Import et export du dictionnaire (tâche 2, 13/11/2026)
+
+Code de l'étape 2 de `docs/CADRAGE_PROFILS.md` (décisions 4 et 5, `kind: "dictionary"`). Même démarche que pour les modes (chantier 5). Pas de version : part dans la 0.5.0.
+
+### Ce qui est fait
+
+| Point | Fait | Où |
+|---|---|---|
+| Enveloppe v1, `kind: "dictionary"` | `content: {words, corrections}`, clés de `dictionary.json`. Export **champ par champ** (liste blanche), jamais d'autre clé ; une catégorie décochée n'a pas de clé ; `exportedAt` = le jour seul ; nom `scriibe-dictionnaire-<jour>.scriibe.json`. | `crates/core/src/export.rs` (`dictionary_export`, `dictionary_file_name`) |
+| Contrôle d'enveloppe **factorisé** | `open_envelope(text, kind, max, too_big, wrong_kind)` : taille, JSON, `format`, `version`, `kind`. Repris par les modes, la sauvegarde complète et le dictionnaire (trois copies du contrôle ramenées à une). Un fichier en version 0 n'est plus annoncé « plus récent ». | `export.rs`, `import.rs`, `backup.rs` |
+| Export en clair avec aperçu | Carte « Exporter et importer le dictionnaire » → « Exporter… » : nombre de mots et de corrections, une case par catégorie, listes dépliables, avertissement (fichier non chiffré, noms propres et textes personnels). Boîte « Enregistrer sous » (Mac, Windows) ; Linux : dossier Documents, sans rien écraser. Les modifications en attente dans la page sont enregistrées avant. | `crates/cli/src/web/dictionary_io.rs`, `ui/src/tabs/Dictionary.svelte` |
+| Import avec aperçu et cases | Boîte « Ouvrir » (Mac, Windows) ou chemin tapé (Linux). Aperçu : chaque mot et chaque correction avec son statut — **nouveau** (coché), **déjà là** (grisé), **conflit** (même « entendu », autre « écrit » : la correction en place est gardée, le conflit est montré). « Tout cocher / décocher » par catégorie. | `crates/core/src/import_dictionary.rs`, `dictionary_io.rs`, `Dictionary.svelte` |
+| Fusion par le serveur, ajoute sans remplacer | `apply` ne fait qu'ajouter à la fin : rien de ce qui est en place n'est modifié, déplacé ni retiré. Les statuts sont **recalculés à l'accord**, face au dictionnaire d'à présent. Jeton d'aperçu : l'accord le rappelle, sinon « l'aperçu n'est plus à jour ». Fichier non enregistré tant que `save_dictionary` n'a pas réussi (attente gardée pour recommencer). Après l'import, la page relit le dictionnaire. | `import_dictionary.rs`, `dictionary_io.rs`, routes `api/dictionary/export`, `import/read`, `import/apply`, `import/cancel` |
+| Limites | Fichier 1 Mo ; 5 000 mots ; 5 000 corrections ; mot 100 caractères ; « entendu » 200 ; « écrit » 500. Dépassement : **tout le fichier est refusé** (rien n'est tronqué en silence). | `import_dictionary.rs` |
+| Fichier d'un tiers | Seuls `words` et `corrections` sont lus (le reste est ignoré, jamais copié). Un élément mal formé refuse le fichier. Textes nettoyés : une seule ligne, sans caractère de contrôle ni invisible (RTL, largeur nulle). Éléments vides écartés. Doublons du fichier : le premier reste. Un fichier refusé ne change rien et **efface l'attente précédente**. Le texte « écrit » est inséré tel quel dans les dictées (jamais interprété comme motif ni comme `$1`, vérifié dans `dictionary::replace`). | `import_dictionary.rs`, `import.rs` (`one_line`) |
+| Aide FR et EN | Section « Exporter et importer le dictionnaire » dans « Dictionnaire et signes » (`Help.svelte`, `HelpEn.svelte`). Traductions de la page et des messages du serveur (`en.ts`, `en-server.ts`). | `ui/src/` |
+
+### Choix techniques et pourquoi
+
+- **Conflit de correction : celle en place gagne, le fichier ne la remplace jamais** (cadrage, décision 4). Pas de choix « remplacer » (contrairement aux modes) : une correction d'un tiers remplace un mot par un autre dans toutes les dictées, la laisser écraser la sienne serait le pire défaut. Qui veut la changer la modifie à la main.
+- **Éléments non nouveaux : cases grisées**, pas de choix. Les cocher n'aurait rien changé ; les griser le dit.
+- **Refuser plutôt que tronquer** au-delà des limites : un import partiel en silence est pire qu'un refus clair.
+- **Même clé de comparaison partout** : `word_key` (sans casse Unicode, espaces réduits) pour les mots, `heard_key` (étape 1) pour les corrections. `clean_dictionary` passe aussi à `word_key` : « École » et « école » ne font plus deux mots (avant, seule la casse ASCII comptait : limite de l'étape 1 levée).
+- **Les modifications en attente de la page sont enregistrées avant un export ou un import** (`flush()`), et l'enregistrement automatique est annulé après l'import (la page relit le dictionnaire) : sinon les 500 ms d'attente de la page pouvaient écraser l'import ou exporter un état périmé.
+- **Chemin du fichier jamais envoyé par la page** (sauf Linux, sans boîte, où le chemin tapé est le seul moyen) : même règle que les modes.
+- **Tutoiement** : les textes nouveaux suivent la page Dictionnaire (« ton dictionnaire »). Les messages de l'étape 1 (bandeau, « Mets Scriibe à jour ») ont été alignés dessus.
+
+### Tests
+
+| Cas | Test |
+|---|---|
+| Aller-retour identique (mêmes mots, corrections, ordre) | `import_dictionary.rs::an_export_then_an_import_gives_back_the_same_dictionary` |
+| Export : enveloppe, catégories choisies, rien d'autre | `import_dictionary.rs::the_export_has_the_envelope_the_chosen_categories_and_nothing_else` ; `web::dictionary_io::tests::the_export_has_the_agreed_name_and_only_the_chosen_categories` |
+| Rien à exporter | `dictionary_io::tests::nothing_to_export_is_refused` |
+| Fichiers refusés : pas du JSON, autre format, sans version, version 0, version plus récente, autre type (modes, sauvegarde, commandes, profil), contenu absent | `import_dictionary.rs::files_that_are_not_a_dictionary_export_are_refused_with_a_clear_message` |
+| Contenu vide ou mal formé | `import_dictionary.rs::an_empty_or_malformed_content_is_refused` |
+| Limites : taille, nombre, longueurs (valeur limite acceptée, une de plus refusée) | `import_dictionary.rs::the_limits_on_size_count_and_length_refuse_the_whole_file` |
+| Doublons du fichier, nettoyage des textes, champ futur ignoré | `import_dictionary.rs::repeats_inside_the_file_are_collapsed_to_the_first_and_texts_are_cleaned` |
+| Aperçu : nouveau, déjà là, conflit | `import_dictionary.rs::the_preview_says_what_is_new_what_is_already_there_and_what_conflicts` |
+| N'ajoute que, deux fois le même fichier = rien de plus | `import_dictionary.rs::an_import_only_adds_it_never_replaces_moves_or_removes_what_is_there` |
+| Cases décochées non importées | `import_dictionary.rs::only_the_ticked_items_are_imported` ; `dictionary_io::tests::an_unticked_item_is_not_imported` |
+| Fichier refusé : rien ne change, attente précédente oubliée | `dictionary_io::tests::a_refused_file_changes_nothing_and_forgets_the_previous_wait` |
+| Aperçu puis accord : ajoute sans remplacer, conflit gardé | `dictionary_io::tests::the_preview_then_the_agreement_adds_without_replacing` |
+| Jeton ou nombre de cases périmé : refusé, attente gardée | `dictionary_io::tests::a_wrong_token_or_wrong_number_of_boxes_is_stale_and_keeps_the_wait` |
+| Mots « École » / « école » | `web::tests::words_that_differ_only_by_an_accented_capital_are_the_same_word` |
+
+Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` sans erreur ; **589 tests Rust** passent (573 après l'étape 1) ; **102 tests de l'interface** ; `svelte-check` sans erreur ; l'interface se construit. Les tests de traduction (`i18n.test.ts`) et de structure de l'Aide FR/EN passent. Pas de nouveau cas dans `fixtures/` : aucune logique de texte de Scribe ne change.
+
+### Limites et à reprendre
+
+- **Pas essayé à l'écran** : ni l'export ni l'import n'ont été faits dans la fenêtre de Scriibe, ni sur le Mac ni sur un PC (tests automatiques des fonctions du serveur et du cœur seulement). À essayer à la main : exporter, relire le fichier, importer dans un dictionnaire vide (aller-retour), puis dans un dictionnaire qui a un conflit ; boîtes « Ouvrir » et « Enregistrer sous » sur Windows ; champ de chemin sous Linux.
+- **Windows et Linux non compilés ni testés ici** : le code propre au système est celui déjà utilisé par les modes (`choose_file`, `choose_target`) ; la CI complète le dira.
+- **Pas de route exercée en HTTP** : les routes sont de simples appels aux fonctions testées (comme pour les modes).
+- **Un seul fichier en attente à la fois** par type (dictionnaire, modes) : deux fenêtres ouvertes sur l'import se partageraient l'attente (le jeton fait refuser l'ancien aperçu). Même limite que les modes.
+- **Les nombres de l'aperçu** comptent les éléments du fichier après nettoyage et dédoublonnage, pas ceux du fichier brut.
+- **Étape 3, partie commandes** : pas faite ici (tâche suivante). Le contrôle d'enveloppe commun et le patron `dictionary_io.rs` sont prêts à servir.

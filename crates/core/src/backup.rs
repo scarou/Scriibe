@@ -87,21 +87,13 @@ pub struct Summary {
 
 /// Lit et contrôle une sauvegarde. `Err` : un message clair pour la page, rien n'a été modifié.
 pub fn parse_backup(text: &str) -> Result<Backup, String> {
-    if text.len() as u64 > MAX_BYTES {
-        return Err("sauvegarde trop grosse : 64 Mo au maximum".into());
-    }
-    let root: Value = serde_json::from_str(text).map_err(|_| "ce fichier n'est pas un fichier JSON lisible".to_string())?;
-    if root["format"] != export::FORMAT {
-        return Err("ce n'est pas un fichier d'export de Scriibe".into());
-    }
-    match root["version"].as_u64() {
-        Some(v) if (1..=u64::from(export::VERSION)).contains(&v) => {}
-        Some(_) => return Err("ce fichier vient d'une version plus récente de Scriibe : mets Scriibe à jour pour le lire".into()),
-        None => return Err("ce n'est pas un fichier d'export de Scriibe".into()),
-    }
-    if root["kind"] != "backup" {
-        return Err("ce fichier n'est pas une sauvegarde complète (autre type d'export)".into());
-    }
+    let root = export::open_envelope(
+        text,
+        "backup",
+        MAX_BYTES,
+        "sauvegarde trop grosse : 64 Mo au maximum",
+        "ce fichier n'est pas une sauvegarde complète (autre type d'export)",
+    )?;
     let content = root["content"].as_object().ok_or("cette sauvegarde est vide")?;
     let settings = content.get("settings").filter(|v| v.is_object()).ok_or("cette sauvegarde ne contient pas de réglages")?;
     if settings["schemaVersion"].as_u64().is_some_and(|v| v > SETTINGS_SCHEMA) {

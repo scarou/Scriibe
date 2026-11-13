@@ -113,7 +113,7 @@ impl ConfigProblem {
                 self.file
             ),
             Refusal::Newer(_) => format!(
-                "Le fichier {} vient d'une version plus récente de Scriibe : Scriibe n'y écrit rien pour ne pas l'abîmer. Mettez Scriibe à jour.",
+                "Le fichier {} vient d'une version plus récente de Scriibe : Scriibe n'y écrit rien pour ne pas l'abîmer. Mets Scriibe à jour.",
                 self.file
             ),
         }
