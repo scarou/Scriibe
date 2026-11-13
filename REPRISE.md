@@ -1,11 +1,11 @@
-# Reprise — 13/11/2026 (chantier 7, système : démarrage, sauvegarde, désinstallation)
+# Reprise — 13/11/2026 (chantier 8, logo animé ; chantier 7 système au-dessous)
 
 Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · Windows », celui des sessions du tri du 12/11).
 
 ```text
 Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Session sur le MAC de l'auteur, dossier ~/Documents/Mes projets IA/Scriibe-dev/Scriibe. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md (C6 et C7) et la mémoire (projet-scriibe), puis résume l'état en 5 lignes avant d'agir.
 
-ÉTAT : dépôt public scarou/Scriibe, branche main, derniers commits : voir `git log` (livraison du chantier 7 poussée le 13/11 ; CI à vérifier avec tools/attendre_ci.sh). Release v0.2.4 publiée le 06/11/2026 ; Cargo.toml en 0.3.0 ; RIEN n'est publié depuis (ROADMAP n°14 à terminer). Tri du 12/11 en 8 chantiers (~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/tri-2026-11-12-scriibe.md) : chantiers 1 à 5 faits ; 6 cadré (docs/CADRAGE_COMMANDES.md, note seulement) ; 7 fait (non publié) ; 8 à découper ou à finir (voir le découpage).
+ÉTAT : dépôt public scarou/Scriibe, branche main, derniers commits : voir `git log` (livraison du chantier 7 poussée le 13/11, puis chantier 8 (logo animé, case « Logo animé », `docs/LOGO_ANIME.md`) poussé le 13/11, non publié ; CI à vérifier avec tools/attendre_ci.sh). Release v0.2.4 publiée le 06/11/2026 ; Cargo.toml en 0.3.0 ; RIEN n'est publié depuis (ROADMAP n°14 à terminer). Tri du 12/11 en 8 chantiers (~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/tri-2026-11-12-scriibe.md) : chantiers 1 à 5 faits ; 6 cadré (docs/CADRAGE_COMMANDES.md, note seulement) ; 7 fait (non publié) ; 8 à découper ou à finir (voir le découpage).
 
 FAIT EN C7 (chantier 7, système, sans version ; détail dans docs/SYSTEME.md) :
 - Réglages → Système (nouvel onglet) : lancer au démarrage (Mac LaunchAgent, Windows clé Run, Linux autostart XDG ; démarrage discret), sauvegarde complète (.scriibe.json kind backup, relue) et restauration par redémarrage, désinstallation (liste exacte, tout à la Corbeille, clés effacées, assistant après la sortie, commande scriibe desinstaller [--liste]).
@@ -24,7 +24,7 @@ POINTS EN SUSPENS :
 - Publication de la 0.3.0 : essais ggml-large-v3-turbo sur Windows et Linux, relecture de l'Aide, CI complète, aperçu et « oui » de l'auteur.
 - L'application Scriibe.app installée sur le Mac est celle du dernier essai (modes de S25) ; rien d'autre ne tourne.
 
-PROCHAINE TÂCHE : tâche 8 du découpage du chantier 7 (~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c7-systeme.md) : /carnet, deux lignes du 11/11 en Faite, carnets Windows et Linux, Bilan du tri, log.md. L'auteur dit « tâche 8 » ; suis la consigne telle quelle.
+PROCHAINE TÂCHE : tâche 4 du découpage du chantier 8 (…/decoupages/decoupage-2026-11-12-c8-logo-anime.md : clore l'idée dans le carnet, carnets Windows et Linux avec « à vérifier » WebView2 et WebKitGTK, Bilan du tri, log.md), puis, si elle n'est pas faite, tâche 8 du découpage du chantier 7 (~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c7-systeme.md) : /carnet, deux lignes du 11/11 en Faite, carnets Windows et Linux, Bilan du tri, log.md. L'auteur dit « tâche 8 » ; suis la consigne telle quelle.
 
 RÈGLES : aperçu et accord de l'auteur avant toute Release ou tout push public ; cargo fmt, cargo clippy --all-targets -- -D warnings et cargo test --workspace sans erreur avant tout commit ; ne jamais modifier scarou/scribe ni lire de .env ou de clé ; ne jamais écrire le nom ni l'adresse de l'auteur dans le dépôt ; Scriibe.app se lance par open, jamais par Bash ; peu de sollicitations, une étape à la fois pour les essais de l'auteur ; ne jamais annoncer un chiffre avant de l'avoir mesuré.
 ```

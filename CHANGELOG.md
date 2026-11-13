@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C8 — 2026-11-13 · Logo animé (non publié : part avec la prochaine version)
+
+- **Ce que l'on voit** : le curseur du logo, en haut de la barre latérale, clignote lentement (environ toutes les 2,4 s), en clair comme en sombre. Réglages → Apparence → « Logo animé » : coché par défaut, décoché le logo reste fixe ; le choix est gardé après redémarrage. Quand le système demande de réduire les animations, le logo reste fixe de lui-même. Le logo du README, des icônes et de la zone de notification ne bouge pas.
+- **Technique** : `tools/faire_logotype.py` fabrique aussi `logo/anime/scriibe-logotype-*.svg` (six fichiers ; animation CSS sur le curseur, `prefers-reduced-motion` dans le SVG) ; les logos fixes de `logo/` sont inchangés. Réglage `animatedLogo` (`AppSettings.animated_logo`, vrai par défaut) ; `logotype(os, animate)` choisit le fichier. Aide FR et EN, traductions, tests (`settings_scriibe.rs`, `logotype.test.ts`). Détail : `docs/LOGO_ANIME.md`.
+- **Essayé sur le Mac** : clignotement, case décochée puis recochée, redémarrage, mode sombre, « Réduire les animations ». **À vérifier** sur les PC : rendu dans WebView2 (Windows) et WebKitGTK (Linux).
+
 ## C6 et C7 — 2026-11-13 · Système : lancer au démarrage, sauvegarde, désinstallation (non publié : part avec la prochaine version)
 
 - **Lancer au démarrage** : Réglages → Système (nouvel onglet), case « Lancer Scriibe à l'ouverture de session », décochée par défaut. Cochée, Scriibe démarre à l'ouverture de session, sans fenêtre : icône seule, touche prête. Mac : un LaunchAgent (`open -g -a Scriibe.app`) ; Windows : la clé `Run` (plus de console noire en démarrage discret) ; Linux : un fichier `autostart` XDG. La case lit le système (rien n'est gardé dans `settings.json`) et suit une désactivation faite dans les réglages du système ; un programme déplacé est retrouvé au lancement.
