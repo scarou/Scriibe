@@ -885,9 +885,10 @@ fn dictionary_view(dictionary: &UserDictionary) -> Value {
 /// corrections de même « entendu » : la première reste).
 fn clean_dictionary(input: &Value) -> UserDictionary {
     let mut words: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     for word in input["words"].as_array().into_iter().flatten().filter_map(Value::as_str) {
         let word = word.trim();
-        if !word.is_empty() && !words.iter().any(|w| word_key(w) == word_key(word)) {
+        if !word.is_empty() && seen.insert(word_key(word)) {
             words.push(word.to_string());
         }
     }
@@ -905,7 +906,14 @@ fn clean_dictionary(input: &Value) -> UserDictionary {
 
 fn save_dictionary(ctx: &Context, input: &Value) -> Result<Value, String> {
     let dictionary = clean_dictionary(input);
-    ctx.app.config.save_dictionary(&dictionary).map_err(|e| format!("impossible d'écrire le dictionnaire ({e})"))?;
+    ctx.app.config.save_dictionary(&dictionary).map_err(|e| {
+        // Fichier refusé : le message dit déjà tout (et il est traduit) ; une autre erreur garde son enveloppe.
+        if e.kind() == std::io::ErrorKind::PermissionDenied {
+            e.to_string()
+        } else {
+            format!("impossible d'écrire le dictionnaire ({e})")
+        }
+    })?;
     Ok(dictionary_view(&dictionary))
 }
 

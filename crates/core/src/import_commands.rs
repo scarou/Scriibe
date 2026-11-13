@@ -1,7 +1,7 @@
 //! L'import d'un fichier `.scriibe.json` de commandes perso (chantier 4, étape 3) : lecture contrôlée, aperçu, fusion.
 //!
 //! Même règles que pour le dictionnaire : le fichier peut venir d'un tiers, tout est contrôlé avant de toucher aux réglages, un fichier
-//! refusé ne change rien, un import **ajoute** (jamais de remplacement). Un `id` déjà pris est regénéré, un nom déjà pris est numéroté, le
+//! refusé ne change rien, un import **ajoute** (jamais de remplacement). L'`id` est toujours regénéré, un nom déjà pris est numéroté, le
 //! raccourci doit être lisible par [`Shortcut::parse`], une phrase déjà utilisée par une autre commande (ou trop courte) est écartée.
 
 use crate::commands::{all_defs, normalize, validate_phrase, CustomCommand, Lang, CUSTOM_PREFIX};
@@ -77,7 +77,8 @@ fn read_command(value: &Value) -> Result<CustomCommand, String> {
         Some(_) => return Err(bad()),
     };
     Ok(CustomCommand {
-        id: text_of("id", MAX_NAME)?,
+        // L'identifiant du fichier est ignoré : l'import en donne toujours un nouveau (`free_id`).
+        id: String::new(),
         name: text_of("name", MAX_NAME)?,
         phrases,
         shortcut: text_of("shortcut", MAX_SHORTCUT)?,
@@ -109,11 +110,8 @@ fn id_is_free(settings: &AppSettings, id: &str) -> bool {
     id.starts_with(CUSTOM_PREFIX) && !settings.custom_commands.iter().any(|c| c.id == id)
 }
 
-/// Un identifiant `perso.<n>` libre : celui du fichier s'il est valide et libre, sinon un nouveau.
-fn free_id(settings: &AppSettings, wanted: &str) -> String {
-    if id_is_free(settings, wanted) {
-        return wanted.to_string();
-    }
+/// Un identifiant `perso.<n>` (toujours numérique) libre.
+fn free_id(settings: &AppSettings) -> String {
     let start = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
     (0u128..)
         .map(|n| format!("{CUSTOM_PREFIX}{}", start + n))
@@ -150,7 +148,7 @@ pub fn evaluate(settings: &AppSettings, incoming: &CustomCommand) -> Candidate {
         None
     };
     let command = CustomCommand {
-        id: free_id(settings, &incoming.id),
+        id: free_id(settings),
         name,
         phrases: kept,
         shortcut: incoming.shortcut.clone(),

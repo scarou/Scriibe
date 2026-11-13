@@ -154,7 +154,7 @@ pub(crate) fn cancel() -> Value {
 }
 
 pub(crate) fn outcome_json(o: &Outcome) -> Value {
-    json!({"ok": true, "words_added": o.words_added, "corrections_added": o.corrections_added, "already": o.already, "conflicts": o.conflicts})
+    json!({"ok": true, "words_added": o.words_added, "corrections_added": o.corrections_added, "already": o.already, "conflicts": o.conflicts, "over_limit": o.over_limit})
 }
 
 #[cfg(test)]

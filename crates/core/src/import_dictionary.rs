@@ -9,12 +9,17 @@ use crate::dictionary::{dedup_corrections, heard_key, word_key, Correction, User
 use crate::export;
 use crate::import::{one_line, MAX_BYTES};
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-/// Nombre maximal de mots dans un fichier.
-pub const MAX_WORDS: usize = 5_000;
-/// Nombre maximal de corrections dans un fichier.
-pub const MAX_CORRECTIONS: usize = 5_000;
+/// Nombre maximal de mots dans un fichier. Les mots vont tous dans le prompt du modèle à chaque dictée : un fichier d'un tiers ne doit pas
+/// pouvoir le gonfler au point de dépasser le contexte.
+pub const MAX_WORDS: usize = 500;
+/// Nombre total maximal de caractères des mots d'un fichier (≈ 2 500 jetons).
+pub const MAX_WORDS_CHARS: usize = 10_000;
+/// Nombre de mots au-delà duquel un import n'en ajoute plus (le dictionnaire de la personne, mots déjà là compris).
+pub const MAX_TOTAL_WORDS: usize = 1_000;
+/// Nombre maximal de corrections dans un fichier (chacune est une recherche faite à chaque dictée).
+pub const MAX_CORRECTIONS: usize = 500;
 /// Longueur maximale (en caractères) d'un mot ou d'une expression.
 pub const MAX_WORD: usize = 100;
 /// Longueur maximale (en caractères) d'un « entendu ».
@@ -39,7 +44,7 @@ pub fn parse_dictionary(text: &str) -> Result<Incoming, String> {
         "ce fichier ne contient pas de dictionnaire (autre type d'export)",
     )?;
     let content = root["content"].as_object().ok_or("ce fichier ne contient pas de dictionnaire")?;
-    let words = list_of(content.get("words"), MAX_WORDS, "trop de mots dans ce fichier : 5 000 au maximum")?
+    let words = list_of(content.get("words"), MAX_WORDS, "trop de mots dans ce fichier : 500 au maximum")?
         .iter()
         .map(|w| {
             let word = w.as_str().ok_or("un mot du fichier est mal formé")?;
@@ -49,7 +54,10 @@ pub fn parse_dictionary(text: &str) -> Result<Incoming, String> {
             Ok(one_line(word))
         })
         .collect::<Result<Vec<_>, String>>()?;
-    let corrections = list_of(content.get("corrections"), MAX_CORRECTIONS, "trop de corrections dans ce fichier : 5 000 au maximum")?
+    if words.iter().map(|w| w.chars().count()).sum::<usize>() > MAX_WORDS_CHARS {
+        return Err("les mots de ce fichier sont trop longs en tout : 10 000 caractères au maximum".into());
+    }
+    let corrections = list_of(content.get("corrections"), MAX_CORRECTIONS, "trop de corrections dans ce fichier : 500 au maximum")?
         .iter()
         .map(|c| {
             let o = c.as_object().ok_or("une correction du fichier est mal formée")?;
@@ -106,29 +114,44 @@ pub struct Preview {
     pub corrections: Vec<(Correction, Status)>,
 }
 
-fn word_status(existing: &UserDictionary, word: &str) -> Status {
-    let key = word_key(word);
-    if existing.words.iter().any(|w| word_key(w) == key) {
-        Status::Same
-    } else {
-        Status::New
-    }
+/// Les clés du dictionnaire en place, calculées une fois : l'aperçu et la fusion comparent des milliers d'éléments, ce ne doit pas être
+/// un parcours complet (avec allocations) par élément.
+struct Index {
+    words: HashSet<String>,
+    heard: HashMap<String, String>,
 }
 
-fn correction_status(existing: &UserDictionary, correction: &Correction) -> Status {
-    let key = heard_key(&correction.heard);
-    match existing.corrections.iter().find(|c| heard_key(&c.heard) == key) {
-        None => Status::New,
-        Some(c) if c.written == correction.written => Status::Same,
-        Some(c) => Status::Conflict { existing: c.written.clone() },
+impl Index {
+    fn of(dictionary: &UserDictionary) -> Self {
+        Self {
+            words: dictionary.words.iter().map(|w| word_key(w)).collect(),
+            heard: dictionary.corrections.iter().map(|c| (heard_key(&c.heard), c.written.clone())).collect(),
+        }
+    }
+
+    fn word(&self, word: &str) -> Status {
+        if self.words.contains(&word_key(word)) {
+            Status::Same
+        } else {
+            Status::New
+        }
+    }
+
+    fn correction(&self, correction: &Correction) -> Status {
+        match self.heard.get(&heard_key(&correction.heard)) {
+            None => Status::New,
+            Some(written) if *written == correction.written => Status::Same,
+            Some(written) => Status::Conflict { existing: written.clone() },
+        }
     }
 }
 
 /// L'aperçu de `incoming` face au dictionnaire en place.
 pub fn preview(existing: &UserDictionary, incoming: &Incoming) -> Preview {
+    let index = Index::of(existing);
     Preview {
-        words: incoming.words.iter().map(|w| (w.clone(), word_status(existing, w))).collect(),
-        corrections: incoming.corrections.iter().map(|c| (c.clone(), correction_status(existing, c))).collect(),
+        words: incoming.words.iter().map(|w| (w.clone(), index.word(w))).collect(),
+        corrections: incoming.corrections.iter().map(|c| (c.clone(), index.correction(c))).collect(),
     }
 }
 
@@ -141,6 +164,8 @@ pub struct Outcome {
     pub already: usize,
     /// Les corrections cochées dont l'« entendu » existait avec un autre « écrit » (celle en place est gardée).
     pub conflicts: usize,
+    /// Les mots cochés qui n'ont pas été ajoutés : le dictionnaire avait atteint [`MAX_TOTAL_WORDS`].
+    pub over_limit: usize,
 }
 
 /// Fusionne dans `existing` les éléments cochés de `incoming`. **Ajoute seulement** : rien de ce qui est en place n'est modifié,
@@ -148,12 +173,15 @@ pub struct Outcome {
 /// `words` et `corrections` : un choix par élément du fichier (un choix manquant vaut « coché »).
 pub fn apply(existing: &mut UserDictionary, incoming: &Incoming, words: &[bool], corrections: &[bool]) -> Outcome {
     let mut outcome = Outcome::default();
+    let mut index = Index::of(existing);
     for (i, word) in incoming.words.iter().enumerate() {
         if !words.get(i).copied().unwrap_or(true) {
             continue;
         }
-        match word_status(existing, word) {
+        match index.word(word) {
+            Status::New if existing.words.len() >= MAX_TOTAL_WORDS => outcome.over_limit += 1,
             Status::New => {
+                index.words.insert(word_key(word));
                 existing.words.push(word.clone());
                 outcome.words_added += 1;
             }
@@ -164,8 +192,9 @@ pub fn apply(existing: &mut UserDictionary, incoming: &Incoming, words: &[bool],
         if !corrections.get(i).copied().unwrap_or(true) {
             continue;
         }
-        match correction_status(existing, correction) {
+        match index.correction(correction) {
             Status::New => {
+                index.heard.insert(heard_key(&correction.heard), correction.written.clone());
                 existing.corrections.push(correction.clone());
                 outcome.corrections_added += 1;
             }

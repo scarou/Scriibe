@@ -388,6 +388,7 @@
               <span><b>{item.name || t('(sans titre)')}</b> · {item.shortcut || '—'}<br />
                 <span class="muted">{item.phrases.map((p) => '« ' + p + ' »').join(' ')}</span>
                 {#if item.dropped.length > 0}<br /><span class="warn">{t('Phrase(s) écartée(s) (déjà prises ou trop courtes) : {list}', { list: item.dropped.map((p) => '« ' + p + ' »').join(' ') })}</span>{/if}
+                {#if !item.needs_selection}<br /><span class="warn">{t('Agit même sans texte sélectionné : le raccourci est appuyé à chaque fois que la phrase est dite.')}</span>{/if}
                 {#if item.problem}<br /><span class="warn">{problemText(item.problem)}</span>{/if}</span>
             </label>
           {/each}

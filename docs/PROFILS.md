@@ -159,7 +159,7 @@ Code de l'étape 2 de `docs/CADRAGE_PROFILS.md` (décisions 4 et 5, `kind: "dict
 | Export en clair avec aperçu | Carte « Exporter et importer le dictionnaire » → « Exporter… » : nombre de mots et de corrections, une case par catégorie, listes dépliables, avertissement (fichier non chiffré, noms propres et textes personnels). Boîte « Enregistrer sous » (Mac, Windows) ; Linux : dossier Documents, sans rien écraser. Les modifications en attente dans la page sont enregistrées avant. | `crates/cli/src/web/dictionary_io.rs`, `ui/src/tabs/Dictionary.svelte` |
 | Import avec aperçu et cases | Boîte « Ouvrir » (Mac, Windows) ou chemin tapé (Linux). Aperçu : chaque mot et chaque correction avec son statut — **nouveau** (coché), **déjà là** (grisé), **conflit** (même « entendu », autre « écrit » : la correction en place est gardée, le conflit est montré). « Tout cocher / décocher » par catégorie. | `crates/core/src/import_dictionary.rs`, `dictionary_io.rs`, `Dictionary.svelte` |
 | Fusion par le serveur, ajoute sans remplacer | `apply` ne fait qu'ajouter à la fin : rien de ce qui est en place n'est modifié, déplacé ni retiré. Les statuts sont **recalculés à l'accord**, face au dictionnaire d'à présent. Jeton d'aperçu : l'accord le rappelle, sinon « l'aperçu n'est plus à jour ». Fichier non enregistré tant que `save_dictionary` n'a pas réussi (attente gardée pour recommencer). Après l'import, la page relit le dictionnaire. | `import_dictionary.rs`, `dictionary_io.rs`, routes `api/dictionary/export`, `import/read`, `import/apply`, `import/cancel` |
-| Limites | Fichier 1 Mo ; 5 000 mots ; 5 000 corrections ; mot 100 caractères ; « entendu » 200 ; « écrit » 500. Dépassement : **tout le fichier est refusé** (rien n'est tronqué en silence). | `import_dictionary.rs` |
+| Limites | Fichier 1 Mo ; **500 mots** (10 000 caractères en tout) ; **500 corrections** ; mot 100 caractères ; « entendu » 200 ; « écrit » 500 ; un import n'ajoute plus de mot quand le dictionnaire en compte **1 000** (dit dans le message de fin). Dépassement dans le fichier : **tout le fichier est refusé** (rien n'est tronqué en silence). *(Plafonds posés après la relecture : au départ 5 000 et 5 000, ce qui laissait un fichier d'un tiers gonfler le prompt du modèle.)* | `import_dictionary.rs` |
 | Fichier d'un tiers | Seuls `words` et `corrections` sont lus (le reste est ignoré, jamais copié). Un élément mal formé refuse le fichier. Textes nettoyés : une seule ligne, sans caractère de contrôle ni invisible (RTL, largeur nulle). Éléments vides écartés. Doublons du fichier : le premier reste. Un fichier refusé ne change rien et **efface l'attente précédente**. Le texte « écrit » est inséré tel quel dans les dictées (jamais interprété comme motif ni comme `$1`, vérifié dans `dictionary::replace`). | `import_dictionary.rs`, `import.rs` (`one_line`) |
 | Aide FR et EN | Section « Exporter et importer le dictionnaire » dans « Dictionnaire et signes » (`Help.svelte`, `HelpEn.svelte`). Traductions de la page et des messages du serveur (`en.ts`, `en-server.ts`). | `ui/src/` |
 
@@ -211,9 +211,9 @@ Reste de l'étape 3 de `docs/CADRAGE_PROFILS.md` (la partie modes a été faite 
 
 | Point | Fait | Où |
 |---|---|---|
-| Export | Liste blanche champ par champ (`id`, `name`, `phrases`, `shortcut`, `needsSelection`), jour seul, nom `scriibe-commandes-<jour>.scriibe.json`. Boîte « Enregistrer sous » (Mac, Windows) ; Linux : dossier Documents, sans rien écraser. Rien à exporter sans commande. | `crates/core/src/export.rs`, `crates/cli/src/web/commands_io.rs` |
+| Export | Liste blanche champ par champ (`name`, `phrases`, `shortcut`, `needsSelection` ; pas d'`id`), jour seul, nom `scriibe-commandes-<jour>.scriibe.json`. Boîte « Enregistrer sous » (Mac, Windows) ; Linux : dossier Documents, sans rien écraser. Rien à exporter sans commande. | `crates/core/src/export.rs`, `crates/cli/src/web/commands_io.rs` |
 | Lecture contrôlée | Contrôle d'enveloppe commun (étape 2). Limites : 1 Mo, 100 commandes, 20 phrases par commande, titre 100, phrase 200, raccourci 100 caractères ; dépassement ou élément mal formé : **tout le fichier refusé**, rien ne change. Textes sur une seule ligne, sans caractère de contrôle ni invisible ; champs inconnus ignorés. | `crates/core/src/import_commands.rs` |
-| `id` en collision regénéré | Un `id` du fichier libre et préfixé `perso.` est gardé ; sinon (déjà pris, ou sans le préfixe) un nouveau `perso.<n>` libre. | `import_commands.rs` (`free_id`) |
+| `id` regénéré | **Jamais exporté** (il contient l'heure exacte de création de la commande : `perso.<millisecondes>`) et **toujours regénéré à l'import** (`perso.<n>` numérique et libre). Un `id` présent dans un fichier est ignoré. *(Après la relecture : au départ l'id était exporté et gardé s'il était libre.)* | `import_commands.rs` (`free_id`) |
 | Nom déjà pris numéroté | Même règle que les modes (`free_name` : « Barré 2 », le numéro ne s'accumule pas, y compris entre deux commandes du même fichier). | `import_commands.rs` |
 | Raccourci validé | Par `Shortcut::parse` (donc « Mod+Q » refusé comme dans la page). Un raccourci absent ou illisible n'est **pas** une erreur du fichier : il est signalé dans l'aperçu, case grisée, la commande n'est pas importée. | `import_commands.rs` (`Problem::BadShortcut`) |
 | Phrases | Une phrase trop courte, déjà prise par une commande du programme ou par une commande en place (dans l'une ou l'autre langue), ou répétée, est écartée et **montrée** dans l'aperçu. Plus aucune phrase utilisable : commande non importée. | `import_commands.rs` (`evaluate`, via `validate_phrase`) |
@@ -225,7 +225,7 @@ Reste de l'étape 3 de `docs/CADRAGE_PROFILS.md` (la partie modes a été faite 
 - **Pas de « remplacer »** (comme pour le dictionnaire, contrairement aux modes) : une commande importée appuie un raccourci dans une autre appli, la laisser écraser une commande en place serait plus dangereux que de l'ajouter sous un autre nom.
 - **Raccourci illisible : signalé et non importé**, plutôt que fichier refusé (cadrage : « signalé dans l'aperçu ») ; une seule mauvaise commande ne bloque pas les autres.
 - **Phrases en conflit écartées plutôt que commande refusée** : on garde ce qui reste utilisable, on dit ce qui a été laissé de côté.
-- **Un `id` du fichier est gardé s'il est libre** : un aller-retour (export puis import dans des réglages vides) redonne exactement les mêmes commandes, ce qui rend le cas testable.
+- **L'`id` n'est pas exporté et toujours regénéré** (relecture) : l'aller-retour redonne les mêmes titres, phrases, raccourcis et réglages de sélection, avec des `id` neufs.
 
 ### Tests
 
@@ -293,3 +293,27 @@ Essai réel des étapes 1 à 3 sur le code du commit `58e9898` (non publié). **
 ### Ajouts
 
 Aucune nouvelle demande de l'auteur pendant l'essai.
+
+
+## Relecture du lot 1 (tâche 5, 13/11/2026)
+
+Relu par un agent distinct (Sonnet, lecture seule) sur `8171411..HEAD` : **aucun bloquant, 4 importants, 8 mineurs**. Corrigés avec l'accord de l'auteur : les 4 importants et 3 mineurs ; les 5 autres notés plus bas.
+
+| # | Constat | Correction | Test |
+|---|---|---|---|
+| 1 (important) | `dictionary.json` refusé : l'enregistrement de la page répond une erreur, la page la prend pour un dictionnaire (`words` devient `undefined`) et le composant plante ; modification perdue sans message. **Régression de l'étape 1** que l'essai (fait par `curl`) n'avait pas vue. | `flush()` ne remplace plus le dictionnaire de la page par une réponse d'erreur, garde `dirty`, affiche le message ; le message du serveur n'est plus enveloppé quand le fichier est refusé (il est traduit). | `ui/src/lib/dictionary.test.ts` (`storedDictionary`, `saveError`) |
+| 2 (important) | Un dictionnaire importé de 5 000 mots de 100 caractères gonflait le prompt du modèle (tous les mots y sont joints, `cleaner.rs`) : dictée bloquée, consignes cachées dans des « mots ». | Plafonds ci-dessus (500 mots, 10 000 caractères, 1 000 au total) ; l'avertissement de l'aperçu dit que les mots vont au modèle. | `import_dictionary.rs::the_words_of_a_file_cannot_swell_the_prompt`, `…an_import_stops_adding_words_once_the_dictionary_is_full_and_says_so` |
+| 3 (important) | L'export des commandes écrivait leur `id` (heure de création à la milliseconde), contre l'esprit du cadrage (`exportedAt` réduit au jour). | `id` non exporté et toujours regénéré (voir étape 3). | `import_commands.rs` (aller-retour, id) ; `commands_io::tests::the_export_has_the_agreed_name_and_the_whitelisted_fields` |
+| 4 (important) | Aperçu, fusion et `clean_dictionary` quadratiques (clé recalculée pour chaque élément en place). | Index calculé une fois (`HashSet`/`HashMap`), tenu à jour pendant la fusion ; `clean_dictionary` par ensemble. | `import_dictionary.rs::preview_and_merge_stay_fast_with_thousands_of_words` (< 2 s pour 5 000 + 2 000 en place) |
+| 6 (mineur) | L'aperçu des commandes ne disait pas qu'une commande agit sans texte sélectionné. | Ligne d'avertissement dans l'aperçu (français et anglais). | pas de test de composant |
+| 7 (mineur) | Un `id` `perso.nouveau` importé échappait au contrôle des phrases (identifiant réservé). | Conséquence du 3 : plus aucun `id` de fichier n'est gardé. | `import_commands.rs::a_colliding_id_is_regenerated_and_a_taken_name_is_numbered_without_piling_up` |
+| 10 (mineur) | Une saisie faite pendant l'import pouvait être perdue. | `flush()` avant l'accord, champs d'ajout désactivés pendant la requête. | pas de test de composant |
+
+**Notés, non corrigés** (à mettre au carnet) :
+- **5** : `patch_settings` change `llama` (appareil, délais) avant l'écriture ; si le fichier est refusé, le comportement diverge du fichier jusqu'au redémarrage.
+- **8** : un fichier vide est traité comme « pas de problème » ; une coupure de courant pendant une écriture (pas de `fsync`) pourrait en laisser un, et les réglages repartent aux valeurs par défaut sans avertissement.
+- **9** : une erreur de lecture passagère (antivirus) déclenche la copie `.bak` d'un fichier bon, et `FileHistory::open` en copie sur toute erreur non-`NotFound`.
+- **11** : `tray_source.rs` ignore l'échec d'écriture du menu de l'icône (aucun signe avec un fichier refusé).
+- **12** : une copie `.bak` par contenu cassé différent, sans plafond ; les `.tmp` laissés par un plantage ne sont jamais nettoyés.
+
+Mesuré après les corrections, sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` sans erreur ; **604 tests Rust** (601 avant) ; **104 tests de l'interface** (102 avant) ; `svelte-check` sans erreur ; interface construite. Les corrections n'ont **pas été revues à l'écran** (ni la page Dictionnaire avec un fichier refusé, ni l'aperçu des commandes).

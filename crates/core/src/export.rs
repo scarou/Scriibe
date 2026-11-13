@@ -127,11 +127,12 @@ pub fn dictionary_file_name(day: &str) -> String {
     format!("scriibe-dictionnaire-{day}{EXTENSION}")
 }
 
-/// Le fichier d'export des commandes perso (`kind: "commands"`, `content: {customCommands: […]}`), champ par champ.
+/// Le fichier d'export des commandes perso (`kind: "commands"`, `content: {customCommands: […]}`), champ par champ. L'`id` n'est pas exporté :
+/// il contient l'heure exacte de création de la commande, et l'import en donne toujours un nouveau.
 pub fn commands_export(commands: &[CustomCommand], app_version: &str, day: &str) -> Value {
     let list: Vec<Value> = commands
         .iter()
-        .map(|c| json!({"id": c.id, "name": c.name, "phrases": c.phrases, "shortcut": c.shortcut, "needsSelection": c.needs_selection}))
+        .map(|c| json!({"name": c.name, "phrases": c.phrases, "shortcut": c.shortcut, "needsSelection": c.needs_selection}))
         .collect();
     envelope("commands", app_version, day, json!({"customCommands": list}))
 }

@@ -6,7 +6,7 @@
   import { nav } from '../lib/nav.svelte';
   import { api, type Dictionary, type Stats } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
-  import { withCorrection } from '../lib/dictionary';
+  import { saveError, storedDictionary, withCorrection, type SaveResult } from '../lib/dictionary';
   import { i18n, t, tx } from '../lib/i18n.svelte';
 
   let words = $state<string[]>([]);
@@ -120,9 +120,16 @@
   async function flush() {
     clearTimeout(timer);
     if (!dirty) return;
-    dirty = false;
-    apply(await api<Dictionary>('dictionary', { words, corrections }));
-    saved = t('Enregistré ✔');
+    const out = await api<SaveResult>('dictionary', { words, corrections });
+    const stored = storedDictionary(out);
+    if (stored) {
+      dirty = false;
+      apply(stored);
+      saved = t('Enregistré ✔');
+    } else {
+      // Refusé (fichier illisible…) : la page garde ce que la personne a tapé, le dit, et ne remplace rien par la réponse d'erreur.
+      saved = t(saveError(out) ?? 'enregistrement impossible');
+    }
   }
 
   /** L'export : aperçu, catégories à cocher et avertissement avant que le serveur ne demande où enregistrer. */
@@ -198,7 +205,8 @@
   async function applyImport() {
     if (!importing) return;
     importing.busy = true;
-    const out = await api<{ ok: boolean; words_added?: number; corrections_added?: number; already?: number; conflicts?: number; error?: string }>('dictionary/import/apply', {
+    await flush();
+    const out = await api<{ ok: boolean; words_added?: number; corrections_added?: number; already?: number; conflicts?: number; over_limit?: number; error?: string }>('dictionary/import/apply', {
       token: importing.token,
       words: importing.tickWords,
       corrections: importing.tickCorrections,
@@ -214,6 +222,7 @@
     importing.message = t('Importé : {words} mot(s) et {corrections} correction(s) ajouté(s).', { words: out.words_added ?? 0, corrections: out.corrections_added ?? 0 });
     const left = (out.already ?? 0) + (out.conflicts ?? 0);
     if (left > 0) importing.message += ' ' + t('{n} élément(s) étaient déjà présents : ils n’ont pas été touchés.', { n: left });
+    if ((out.over_limit ?? 0) > 0) importing.message += ' ' + t('{n} mot(s) n’ont pas été ajoutés : le dictionnaire est plein (1 000 mots au plus).', { n: out.over_limit ?? 0 });
     // Le serveur a écrit le dictionnaire : la page le relit, pour que son enregistrement automatique ne l'écrase pas.
     clearTimeout(timer);
     dirty = false;
@@ -265,8 +274,8 @@
 
 <Card id="dictionary-mots-a-ecrire-exactement" title={t('Mots à écrire exactement')} help="dictionary" intro={t('Noms propres, sigles, marques : « Claude Code », « to-do »… Whisper les entend parfois en deux mots ou sans majuscule.')}>
   <div class="row">
-    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} onkeydown={(e) => e.key === 'Enter' && addWord()} />
-    <button onclick={addWord} disabled={!newWord.trim()}>{t('Ajouter')}</button>
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} disabled={!!importing?.busy} onkeydown={(e) => e.key === 'Enter' && addWord()} />
+    <button onclick={addWord} disabled={!newWord.trim() || !!importing?.busy}>{t('Ajouter')}</button>
   </div>
   <div class="chips scroll">
     {#each words as w, i (w + i)}
@@ -279,10 +288,10 @@
 
 <Card id="dictionary-corrections-entendu-ecrit" title={t('Corrections « entendu → écrit »')} help="dictionary" intro={t('Quand Whisper entend toujours « cri be », on écrit « Scriibe ». Mot entier, majuscules ignorées.')}>
   <div class="row">
-    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Entendu')} bind:value={heard} />
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Entendu')} bind:value={heard} disabled={!!importing?.busy} />
     <span>→</span>
-    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Écrit')} bind:this={writtenInput} bind:value={written} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
-    <button onclick={addCorrection} disabled={!heard.trim() || !written.trim()}>{t('Ajouter')}</button>
+    <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Écrit')} bind:this={writtenInput} bind:value={written} disabled={!!importing?.busy} onkeydown={(e) => e.key === 'Enter' && addCorrection()} />
+    <button onclick={addCorrection} disabled={!heard.trim() || !written.trim() || !!importing?.busy}>{t('Ajouter')}</button>
   </div>
   {#if corrections.length}
     <div class="scroll"><table>
@@ -351,7 +360,7 @@
       <div class="row"><input type="text" class="grow" bind:value={importing.path} placeholder="/home/…/scriibe-dictionnaire.scriibe.json" disabled={importing.busy} />
         <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button></div>
     {:else if importing.words.length + importing.corrections.length > 0}
-      <p>{t('Ce fichier contient {words} mot(s) et {corrections} correction(s). Rien n’est modifié tant que tu n’as pas cliqué sur « Importer ». L’import ajoute : ce qui est déjà dans ton dictionnaire n’est jamais remplacé. Si le fichier vient de quelqu’un d’autre, relis-le : une correction remplace un mot par un autre dans toutes tes dictées.', { words: importing.words.length, corrections: importing.corrections.length })}</p>
+      <p>{t('Ce fichier contient {words} mot(s) et {corrections} correction(s). Rien n’est modifié tant que tu n’as pas cliqué sur « Importer ». L’import ajoute : ce qui est déjà dans ton dictionnaire n’est jamais remplacé. Si le fichier vient de quelqu’un d’autre, relis-le : les mots sont donnés au modèle de mise au propre à chaque dictée, et une correction remplace un mot par un autre dans toutes tes dictées.', { words: importing.words.length, corrections: importing.corrections.length })}</p>
       {#if importing.words.length > 0}
         <h3>{t('Mots')}</h3>
         <div class="row"><button onclick={() => (importing!.tickWords = importing!.words.map((w) => w.status === 'new'))}>{t('Tout cocher')}</button><button onclick={() => (importing!.tickWords = importing!.words.map(() => false))}>{t('Tout décocher')}</button></div>

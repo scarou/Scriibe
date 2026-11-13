@@ -37,12 +37,21 @@ fn an_export_then_an_import_gives_back_the_same_commands() {
     let file = commands_export(&original, "0.4.0", "2026-11-13");
     assert_eq!((file["kind"].as_str(), file["exportedAt"].as_str()), (Some("commands"), Some("2026-11-13")));
     assert_eq!(commands_file_name("2026-11-13"), "scriibe-commandes-2026-11-13.scriibe.json");
+    assert!(
+        file["content"]["customCommands"].as_array().unwrap().iter().all(|c| c.get("id").is_none()),
+        "l'id (heure de création) n'est pas exporté"
+    );
+    assert!(!file.to_string().contains("perso."), "aucune trace des identifiants dans le fichier");
     let incoming = parse_commands(&file.to_string()).unwrap();
-    assert_eq!(incoming, original);
     let mut empty = AppSettings::default();
     let out = apply(&mut empty, &incoming, &[]);
     assert_eq!(out.added, vec!["Barré", "Copier tout"]);
-    assert_eq!(empty.custom_commands, original, "mêmes champs, mêmes identifiants (libres), même ordre");
+    let strip = |list: &[CustomCommand]| list.iter().map(|c| CustomCommand { id: String::new(), ..c.clone() }).collect::<Vec<_>>();
+    assert_eq!(strip(&empty.custom_commands), strip(&original), "mêmes titres, phrases, raccourcis, réglage de sélection, même ordre");
+    assert!(
+        empty.custom_commands.iter().all(|c| c.id.starts_with("perso.") && c.id[6..].chars().all(|d| d.is_ascii_digit())),
+        "identifiants neufs et numériques"
+    );
 }
 
 #[test]
@@ -92,11 +101,20 @@ fn a_colliding_id_is_regenerated_and_a_taken_name_is_numbered_without_piling_up(
     assert_eq!(ids[0], "perso.1");
     assert!(ids.iter().all(|id| id.starts_with("perso.")));
     assert_eq!(ids.iter().collect::<std::collections::HashSet<_>>().len(), 3, "trois identifiants distincts : {ids:?}");
-    // Un id libre et valide est gardé ; un id sans préfixe est regénéré.
-    let kept = evaluate(&AppSettings::default(), &command("perso.77", "A", &["dire a b"], "Mod+B"));
-    assert_eq!(kept.command.id, "perso.77");
-    let renamed = evaluate(&AppSettings::default(), &command("n'importe quoi", "A", &["dire a b"], "Mod+B"));
-    assert!(renamed.command.id.starts_with("perso.") && renamed.command.id != "n'importe quoi");
+    // L'id du fichier n'est jamais repris, même libre : toujours un nouveau, numérique (jamais « perso.nouveau », réservé au contrôle des phrases).
+    for wanted in ["perso.77", "n'importe quoi", "perso.nouveau"] {
+        let got = evaluate(&AppSettings::default(), &command(wanted, "A", &["dire a b"], "Mod+B"));
+        assert!(
+            got.command.id.starts_with("perso.") && got.command.id[6..].chars().all(|d| d.is_ascii_digit()) && got.command.id != wanted,
+            "{wanted} → {}",
+            got.command.id
+        );
+    }
+    // Un fichier qui porte l'id « perso.nouveau » ne garde pas cet id : ses phrases restent contrôlées par la suite.
+    let mut s = AppSettings::default();
+    apply(&mut s, &[command("perso.nouveau", "A", &["dire un truc"], "Mod+B")], &[]);
+    let again = evaluate(&s, &command("perso.x", "B", &["dire un truc"], "Mod+I"));
+    assert_eq!(again.problem, Some(Problem::NoPhrase), "la phrase est déjà prise par la première commande");
 }
 
 #[test]

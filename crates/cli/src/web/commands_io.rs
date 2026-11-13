@@ -174,7 +174,7 @@ mod tests {
         assert_eq!(value["kind"], "commands");
         let mut keys: Vec<&String> = value["content"]["customCommands"][0].as_object().unwrap().keys().collect();
         keys.sort();
-        assert_eq!(keys, ["id", "name", "needsSelection", "phrases", "shortcut"]);
+        assert_eq!(keys, ["name", "needsSelection", "phrases", "shortcut"], "pas d'id : il contient l'heure exacte de création");
         assert!(prepare(&AppSettings::default(), 0).is_err(), "rien à exporter sans commande");
     }
 

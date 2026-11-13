@@ -3,7 +3,8 @@
 use scriibe_core::dictionary::{Correction, UserDictionary};
 use scriibe_core::export::{dictionary_export, dictionary_file_name, envelope};
 use scriibe_core::import_dictionary::{
-    apply, parse_dictionary, preview, Incoming, Status, MAX_CORRECTIONS, MAX_HEARD, MAX_WORD, MAX_WORDS, MAX_WRITTEN,
+    apply, parse_dictionary, preview, Incoming, Status, MAX_CORRECTIONS, MAX_HEARD, MAX_TOTAL_WORDS, MAX_WORD, MAX_WORDS, MAX_WORDS_CHARS,
+    MAX_WRITTEN,
 };
 use serde_json::{json, Value};
 
@@ -176,4 +177,43 @@ fn only_the_ticked_items_are_imported() {
     assert_eq!((out.words_added, out.corrections_added), (2, 1));
     assert_eq!(empty.words, vec!["Un", "Trois"]);
     assert_eq!(empty.corrections, vec![correction("b", "B")]);
+}
+
+#[test]
+fn the_words_of_a_file_cannot_swell_the_prompt() {
+    // 500 mots de 100 caractères = 50 000 caractères : refusé, alors que chaque mot et le nombre de mots sont dans les limites.
+    let long = (0..MAX_WORDS).map(|i| format!("{i:0>100}")).collect::<Vec<_>>();
+    assert!(refused(&file_of(json!({"words": long}))).contains("trop longs en tout"));
+    // Pile à la limite de caractères : accepté.
+    let per_word = MAX_WORDS_CHARS / 100;
+    let ok = (0..100).map(|i| format!("{i:0>per_word$}")).collect::<Vec<_>>();
+    assert_eq!(parse_dictionary(&file_of(json!({"words": ok}))).unwrap().words.len(), 100);
+}
+
+#[test]
+fn an_import_stops_adding_words_once_the_dictionary_is_full_and_says_so() {
+    let mut mine = UserDictionary { words: (0..MAX_TOTAL_WORDS - 2).map(|i| format!("mot {i}")).collect(), corrections: vec![] };
+    let incoming = Incoming { words: vec!["Un".into(), "Deux".into(), "Trois".into()], corrections: vec![correction("a", "A")] };
+    let out = apply(&mut mine, &incoming, &[], &[]);
+    assert_eq!((out.words_added, out.over_limit, out.corrections_added), (2, 1, 1));
+    assert_eq!(mine.words.len(), MAX_TOTAL_WORDS);
+    assert!(!mine.words.contains(&"Trois".to_string()));
+}
+
+#[test]
+fn preview_and_merge_stay_fast_with_thousands_of_words() {
+    let mine = UserDictionary {
+        words: (0..5_000).map(|i| format!("mot existant {i}")).collect(),
+        corrections: (0..2_000).map(|i| correction(&format!("entendu {i}"), "x")).collect(),
+    };
+    let incoming = Incoming {
+        words: (0..MAX_WORDS).map(|i| format!("mot existant {}", i * 10)).chain((0..MAX_WORDS).map(|i| format!("nouveau {i}"))).collect(),
+        corrections: (0..MAX_CORRECTIONS).map(|i| correction(&format!("entendu {}", i * 4), "x")).collect(),
+    };
+    let started = std::time::Instant::now();
+    let seen = preview(&mine, &incoming);
+    assert_eq!(seen.words.iter().filter(|(_, s)| *s == Status::Same).count(), MAX_WORDS);
+    let mut merged = mine.clone();
+    apply(&mut merged, &incoming, &[], &[]);
+    assert!(started.elapsed() < std::time::Duration::from_secs(2), "aperçu et fusion ont pris {:?}", started.elapsed());
 }

@@ -4,6 +4,20 @@ export function heardKey(heard: string): string {
   return heard.split(/\s+/).filter(Boolean).join(' ').replace(/\u2019/g, "'").toLowerCase();
 }
 
+/** Ce que répond `api/dictionary` à un enregistrement : le dictionnaire enregistré, ou `{ok: false, error}` quand le serveur refuse. */
+export type SaveResult = { words: string[]; corrections: { heard: string; written: string }[] } | { ok: false; error?: string };
+
+/** Le dictionnaire enregistré, ou `null` si le serveur a refusé (la réponse d'erreur n'est pas un dictionnaire : la poser dans la page
+ *  la casserait). */
+export function storedDictionary(out: SaveResult): { words: string[]; corrections: { heard: string; written: string }[] } | null {
+  return 'words' in out && Array.isArray(out.words) && Array.isArray(out.corrections) ? out : null;
+}
+
+/** Le message d'un enregistrement refusé. */
+export function saveError(out: SaveResult): string | undefined {
+  return 'error' in out ? out.error : undefined;
+}
+
 /** Ajoute une correction ; si cet « entendu » existe déjà, sa valeur « écrit » est remplacée (à la même place) au lieu d'ajouter
  *  une seconde ligne qui ne servirait jamais. */
 export function withCorrection<T extends { heard: string; written: string }>(list: T[], added: T): T[] {
