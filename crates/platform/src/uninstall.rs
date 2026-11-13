@@ -1045,7 +1045,7 @@ mod tests {
         let exe = fake_mac(&root);
         let plan = build_plan(&env(Os::Mac, &root, exe, false), &[], true);
         let mut paths: Vec<String> =
-            plan.items.iter().map(|i| i.path.strip_prefix(&root.0).unwrap().to_string_lossy().into_owned()).collect();
+            plan.items.iter().map(|i| i.path.strip_prefix(&root.0).unwrap().to_string_lossy().replace('\\', "/")).collect();
         paths.sort();
         assert_eq!(
             paths,
@@ -1207,7 +1207,7 @@ mod tests {
         let exe = root.file("home/scriibe/scriibe", "exe");
         let plan = build_plan(&env(Os::Linux, &root, exe.clone(), false), &[], false);
         let mut paths: Vec<String> =
-            plan.items.iter().map(|i| i.path.strip_prefix(&root.0).unwrap().to_string_lossy().into_owned()).collect();
+            plan.items.iter().map(|i| i.path.strip_prefix(&root.0).unwrap().to_string_lossy().replace('\\', "/")).collect();
         paths.sort();
         assert_eq!(
             paths,

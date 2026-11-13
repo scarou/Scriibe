@@ -593,11 +593,14 @@ mod tests {
 
     #[test]
     fn linux_dossier_autostart() {
-        let home = Path::new("/home/a");
-        assert_eq!(linux_autostart_dir(None, Some(home)), Some(PathBuf::from("/home/a/.config/autostart")));
-        assert_eq!(linux_autostart_dir(Some("/cfg"), Some(home)), Some(PathBuf::from("/cfg/autostart")));
+        // Chemins absolus propres à chaque système (sous Windows, « /home/a » n'est pas absolu).
+        let base = std::env::temp_dir();
+        let (home, cfg) = (base.join("home-a"), base.join("cfg"));
+        let defaut = home.join(".config").join("autostart");
+        assert_eq!(linux_autostart_dir(None, Some(&home)), Some(defaut.clone()));
+        assert_eq!(linux_autostart_dir(Some(cfg.to_str().unwrap()), Some(&home)), Some(cfg.join("autostart")));
         // Une valeur relative est ignorée ; sans dossier personnel absolu : rien.
-        assert_eq!(linux_autostart_dir(Some("cfg"), Some(home)), Some(PathBuf::from("/home/a/.config/autostart")));
+        assert_eq!(linux_autostart_dir(Some("cfg"), Some(&home)), Some(defaut));
         assert_eq!(linux_autostart_dir(None, None), None);
         assert_eq!(linux_autostart_dir(None, Some(Path::new("rel"))), None);
     }
