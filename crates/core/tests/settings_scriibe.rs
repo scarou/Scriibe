@@ -48,6 +48,16 @@ fn the_window_theme_defaults_to_the_system_one_and_survives_a_round_trip() {
 }
 
 #[test]
+fn the_animated_logo_is_on_by_default_and_is_kept() {
+    assert!(AppSettings::default().animated_logo);
+    assert!(AppSettings::from_json("{}").unwrap().animated_logo);
+    let off = AppSettings::from_json(r#"{"animatedLogo": false}"#).unwrap();
+    assert!(!off.animated_logo);
+    let back = AppSettings::from_json(&serde_json::to_string(&off).unwrap()).unwrap();
+    assert!(!back.animated_logo);
+}
+
+#[test]
 fn the_update_check_is_off_by_default_and_can_be_turned_on() {
     assert!(!AppSettings::default().check_updates);
     let on = AppSettings::from_json(r#"{"checkUpdates": true}"#).unwrap();

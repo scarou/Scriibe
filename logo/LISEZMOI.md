@@ -16,6 +16,8 @@ Le symbole est celui de Scribe : **une plume de stylo percée d'une onde sonore*
 | `scriibe-logotype-windows-sombre.svg`, `-macos-sombre.svg`, `-linux-sombre.svg` | Mot complet, fond sombre (dégradé vers `#F4F7F7`) |
 | `scriibe-logotype-mono.svg` | Mot complet, un ton (`currentColor`) |
 
+`anime/` : les six logotypes (par système, clair et sombre) dont le curseur clignote lentement (animation CSS, immobile si le système réduit les animations) ; ils servent à la barre latérale de l'appli quand « Logo animé » est coché, le README garde les fixes. Fabriqués par le même `tools/faire_logotype.py`.
+
 ## Où la couleur est utilisée
 
 - **L'interface** : variables CSS `--brand`, `--brand-deep`, `--brand-bright` et `--accent` dans `ui/src/app.css`, choisies par `data-os` (que le serveur local renseigne : `windows`, `macos` ou `linux`). Un seul jeu de fichiers pour les trois systèmes : rien n'alourdit l'exécutable.

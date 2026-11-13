@@ -117,6 +117,11 @@
     </label>
   </Card>
 
+  <Card help="start" id="logo-anime" title={t('Logo animé')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement. Décochez pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.')}>
+    <label><input type="checkbox" checked={v.animatedLogo !== false} onchange={(e) => settings.change({ animatedLogo: e.currentTarget.checked })} />
+      {t('Logo animé')}</label>
+  </Card>
+
   <Card help="dictate" id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}>
     <label>{t('Langue :')}
       <select value={v.uiLanguage} onchange={(e) => settings.change({ uiLanguage: e.currentTarget.value as never })}>

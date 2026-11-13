@@ -102,6 +102,8 @@ export interface Settings {
   theme: 'auto' | 'light' | 'dark';
   /** Chercher toutes les 6 heures s'il existe une nouvelle version. */
   checkUpdates: boolean;
+  /** Le curseur du logo de la barre latérale clignote (vrai par défaut) ou reste fixe. */
+  animatedLogo?: boolean;
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
   captureColor: 'scribe' | 'gray' | 'red' | 'blue' | 'black';

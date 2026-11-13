@@ -11,6 +11,8 @@ export const en: Record<string, string> = {
   'Apparence de la fenêtre': 'Window appearance',
   'Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.': 'Light, dark, or the system one (Automatic). It only changes the Scriibe window.',
   'Apparence :': 'Appearance:',
+  'Logo animé': 'Animated logo',
+  'Le curseur du logo, en haut de la barre latérale, clignote lentement. Décochez pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.': 'The logo’s cursor, at the top of the sidebar, blinks slowly. Untick to keep it still. It also stays still when the system asks to reduce animations.',
   'Automatique (apparence du système)': 'Automatic (the system appearance)',
   'Claire': 'Light',
   'Sombre': 'Dark',

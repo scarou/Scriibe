@@ -377,6 +377,9 @@ pub struct AppSettings {
     /// Chercher toutes les 6 heures s'il existe une nouvelle version (S12) ; faux (par défaut, décision de l'auteur en S13) : seulement le bouton de l'onglet « Mise à jour ». Propre à Scriibe.
     #[serde(rename = "checkUpdates")]
     pub check_updates: bool,
+    /// Logo de la barre latérale : le curseur clignote lentement (vrai, par défaut) ou reste fixe (chantier 8). Propre à Scriibe.
+    #[serde(rename = "animatedLogo")]
+    pub animated_logo: bool,
 }
 
 impl Default for AppSettings {
@@ -439,6 +442,7 @@ impl Default for AppSettings {
             ui_language: UiLanguage::default(),
             theme: Theme::default(),
             check_updates: false,
+            animated_logo: true,
         }
     }
 }
@@ -551,6 +555,7 @@ impl AppSettings {
             ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
             theme: get(o, "theme").unwrap_or(d.theme),
             check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
+            animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
         })
     }
 

@@ -27,3 +27,13 @@ Idée du carnet du 11/11 : le curseur du logo clignote lentement ; animé par d�
 3. **Réduction des animations** : `@media (prefers-reduced-motion: reduce)` dans le SVG lui-même (fonctionne en `<img>`), en plus du réglage ; à vérifier sur WebView2 et WebKitGTK.
 4. **Mode sombre** : déjà géré par le choix du fichier (`-sombre`) ; il faut donc 6 fichiers animés (3 systèmes × clair/sombre).
 5. Le réglage est à ajouter dans la configuration (comme les autres cases d'apparence) ; `i18n.test.ts` exigera sa traduction EN.
+
+## Logo animé
+
+*Tâche 1, 13/11/2026.*
+
+- **Logos** : `tools/faire_logotype.py` fabrique aussi `logo/anime/scriibe-logotype-{windows,macos,linux}[-sombre].svg` : le `<rect>` du curseur reçoit la classe `c`, animée par CSS (`opacity`, cycle de 2,4 s, plein puis éteint en douceur). `@media (prefers-reduced-motion: reduce)` dans le SVG coupe l'animation. Les 7 logos fixes sont inchangés (régénérés, aucune différence) ; le README garde les fixes.
+- **Réglage** : `animatedLogo` (`AppSettings.animated_logo`, vrai par défaut, gardé dans les réglages), case « Logo animé » dans Réglages → Apparence. `logotype(os, animate)` choisit le fichier animé ou fixe ; clair et sombre par les fichiers `-sombre`.
+- **Aide** FR et EN (Réglages → Apparence), traductions EN ajoutées.
+- **Tests** : `settings_scriibe.rs` (défaut vrai, valeur gardée), `logotype.test.ts`. `cargo fmt`, `clippy -D warnings`, `cargo test --workspace`, `npm run check`, `npm test` (97) et `npm run build` : sans erreur.
+- **Pas vérifié** (tâche 2 sur le Mac, puis PC) : le clignotement à l'écran, le rendu en WebView2 et WebKitGTK, la réduction des animations.
