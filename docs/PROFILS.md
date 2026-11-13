@@ -254,3 +254,41 @@ Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` 
 - **Les phrases sont comparées dans les deux langues**, plus strict que la page (qui contrôle dans la langue de l'interface) : une phrase libre en français mais prise en anglais est écartée.
 - **Un seul fichier en attente à la fois** par type, comme pour les modes et le dictionnaire.
 - Les étapes 4a à 5 (utilisateurs) viennent ensuite ; `kind: "profile"` réutilisera ces trois exports.
+
+## Essai lot 1 (tâche 4, 13/11/2026)
+
+Essai réel des étapes 1 à 3 sur le code du commit `58e9898` (non publié). **Mac : fait à la main** (l'auteur a fait les gestes des boîtes de fichier). **Linux : fait par `pilote-pc`**, sans geste de l'auteur. **Windows : pas fait** (le PC ne répond pas : éteint, ou NordVPN actif).
+
+### Méthode (et pourquoi)
+
+- **Données jetables** : variable `SCRIIBE_DATA` vers un dossier d'essai, jamais le dossier de l'auteur. Sur le Mac, une copie de l'application fabriquée hors de `~/Applications` (`SCRIIBE_INSTALL=…`), lancée par `open -n --env SCRIIBE_DATA=…` (règle : Scriibe.app se lance par `open`, jamais par Bash). Sur Linux, `scriibe lancer --sans-navigateur` sur `/tmp/essai-lot1`, page atteinte par un tunnel SSH ; l'instance habituelle du PC n'a pas été touchée.
+- **Code transmis aux PC sans rien publier** : paquet git (`git bundle`, 65 Ko) copié sur le PC Linux, `git merge --ff-only`, puis compilation par `pilote compiler linux --mode release`. Même procédé que pour le chantier 7.
+- **Le serveur est piloté par ses routes** (`curl`) et par la page (volet navigateur du Mac) ; seules les boîtes « Enregistrer sous » et « Ouvrir » de macOS demandent l'auteur.
+
+### Résultats
+
+| Cas | Mac | Linux | Windows |
+|---|---|---|---|
+| `settings.json` et `dictionary.json` illisibles : copie `<nom>.<date>.bak` à la lecture, contenu identique, originaux intacts | ✔ | ✔ | — |
+| Avertissement : `config_problems` dans `api/status` (un par fichier, avec le nom de la copie) | ✔ | ✔ | — |
+| Bandeau rouge dans la page, avec le nom de la copie | ✔ (vu) | non vu (pas d'écran piloté) | — |
+| Écriture refusée (dictionnaire et réglages : HTTP 400, message clair), fichiers intacts, aucun `.tmp` | ✔ | ✔ | — |
+| Réparation à la main : l'avertissement tombe tout seul, les copies restent | ✔ | ✔ | — |
+| `schemaVersion: 1` écrit dans `settings.json` | ✔ | ✔ | — |
+| Export du dictionnaire (4 mots, 3 corrections) : enveloppe v1 `dictionary`, rien d'autre | ✔ (boîte « Enregistrer sous ») | ✔ (dossier Documents) | — |
+| Import du dictionnaire dans un dictionnaire vidé : aperçu 4 + 3, fichier identique à l'original (mots, corrections, ordre) | ✔ (boîte « Ouvrir ») | ✔ (chemin tapé) | — |
+| Export puis import des commandes (2 commandes) : `id`, champs et ordre identiques | ✔ | ✔ | — |
+| Fichier d'un autre type refusé, message clair, attente oubliée | (tests automatiques) | ✔ | — |
+| Aucun fichier temporaire laissé | ✔ | ✔ | — |
+
+### Constats
+
+- **Rien à corriger dans le code du lot 1** : tous les cas essayés ont passé du premier coup.
+- **Trousseau (macOS)** : la copie d'essai, dans un autre dossier, a redemandé l'accès aux clés. Tant que la fenêtre était ouverte, `api/status` restait bloqué (il lit les clés). Comportement connu (mémoire « trousseau »), pas un défaut du lot ; une session sur le Mac doit s'y attendre quand elle lance une copie d'essai.
+- **Capture d'écran du Mac depuis la session** : noire (pas d'autorisation d'enregistrement d'écran pour cet outil) ; la vérification visuelle s'est faite dans le volet navigateur sur la page de l'instance.
+- **Linux** : l'export va dans `~/Documents` (comportement voulu, sans boîte) ; l'import prend le chemin tapé, `~/` développé. L'instance habituelle du PC tourne encore sur l'ancien programme (son fichier a été remplacé par la compilation) : à relancer à l'occasion.
+- **Reste à essayer** : Windows (PC à allumer, NordVPN coupé ; les boîtes « Ouvrir » et « Enregistrer sous » y demandent l'auteur) ; le bandeau sur Linux ; un import avec **conflit** (correction du même « entendu », phrase déjà prise) et un second import du même fichier, couverts par les tests automatiques mais pas essayés à l'écran.
+
+### Ajouts
+
+Aucune nouvelle demande de l'auteur pendant l'essai.
