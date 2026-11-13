@@ -35,8 +35,21 @@ impl UserDictionary {
                     .collect()
             })
             .unwrap_or_default();
-        Ok(Self { words, corrections })
+        Ok(Self { words, corrections: dedup_corrections(corrections) })
     }
+}
+
+/// La clé qui dit que deux « entendu » sont le même : sans tenir compte des majuscules, des espaces multiples ni de l'apostrophe
+/// droite ou courbe (comme `heard_pattern` les reconnaît à l'application).
+pub fn heard_key(heard: &str) -> String {
+    heard.split_whitespace().collect::<Vec<_>>().join(" ").replace('’', "'").to_lowercase()
+}
+
+/// Garde la première correction de chaque « entendu » (c'est déjà celle qui s'applique : les corrections se suivent dans l'ordre,
+/// la seconde n'aurait plus rien à corriger) ; l'ordre des autres ne change pas.
+pub fn dedup_corrections(corrections: Vec<Correction>) -> Vec<Correction> {
+    let mut seen = std::collections::HashSet::new();
+    corrections.into_iter().filter(|c| seen.insert(heard_key(&c.heard))).collect()
 }
 
 /// Le texte corrigé et le nombre de corrections du dictionnaire appliquées.

@@ -31,6 +31,8 @@ export interface Status {
   gnome_translate_shortcut: string | null;
   /** Une version plus récente que celle qui tourne, trouvée par la vérification automatique (absent : à jour ou pas vérifié). */
   update: { sha: string; title: string; date: string } | null;
+  /** Fichiers de données (`settings.json`, `dictionary.json`) que Scriibe refuse de réécrire : illisible, ou d'une version plus récente. */
+  config_problems?: { file: string; reason: 'unreadable' | 'newer'; version: number | null; backup: string | null }[];
   hotkey: string;
   /** « Ctrl gauche + F9 » : la dictée et la traduction en vigueur. */
   dictation_label: string;

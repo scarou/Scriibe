@@ -6,6 +6,7 @@
   import { nav } from '../lib/nav.svelte';
   import { api, type Dictionary, type Stats } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
+  import { withCorrection } from '../lib/dictionary';
   import { i18n, t, tx } from '../lib/i18n.svelte';
 
   let words = $state<string[]>([]);
@@ -123,7 +124,7 @@
 
   function addCorrection() {
     if (!heard.trim() || !written.trim()) return;
-    corrections = [...corrections, { heard: heard.trim(), written: written.trim() }];
+    corrections = withCorrection(corrections, { heard: heard.trim(), written: written.trim() });
     heard = '';
     written = '';
     changed();

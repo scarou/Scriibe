@@ -92,3 +92,56 @@ Encore à faire :
 - **Étape 2** : tout (export, import, routes, interface, Aide FR et EN).
 - **Étape 3** : seul `commands` manque (export, import, interface).
 - Factoriser le contrôle d'enveloppe avant d'ajouter `dictionary` et `commands`.
+
+## Étape 1 · Fondations (tâche 1, 13/11/2026)
+
+Code de ce qui manquait de l'étape 1 de `docs/CADRAGE_PROFILS.md` (décision 7), d'après le constat ci-dessus. Aucun changement visible, sauf l'avertissement quand un fichier est refusé. Pas de version : part dans la 0.5.0.
+
+### Ce qui est fait
+
+| Point | Fait | Où |
+|---|---|---|
+| `schemaVersion` lu et écrit | Champ `AppSettings.schema_version` (JSON `schemaVersion`), **en tête du fichier** ; défaut 1 ; un fichier sans numéro (ou un numéro illisible) vaut 1 ; écrit à chaque sauvegarde. Constante unique `SETTINGS_SCHEMA` (`settings.rs`), reprise par `backup.rs` (son contrôle sert enfin : un vrai `settings.json` porte le champ). La page ne peut pas le changer (`merge_settings` l'ignore sans erreur, car elle renvoie parfois le bloc entier). | `crates/core/src/settings.rs`, `backup.rs`, `crates/cli/src/web/mod.rs` |
+| Drapeau « lecture refusée » | Par fichier, dans `FileConfig` : `settings.json` illisible ou de version plus récente ; `dictionary.json` illisible. `save_settings` et `save_dictionary` échouent alors (`PermissionDenied`, message clair). Le refus tombe tout seul quand le fichier est réparé, remplacé ou supprimé (relecture à chaque changement de date). | `crates/platform/src/storage.rs` (`Watched::read_state`, `ConfigProblem`, `Refusal`) |
+| Avertissement dans la page | `api/status` rend `config_problems` ; bandeau rouge en haut de chaque page (français et anglais), avec le nom de la copie. Les erreurs de sauvegarde renvoyées au serveur sont traduites (`en-server.ts`). | `ui/src/App.svelte`, `api.ts`, `locales/` |
+| Copie `<nom>.<date>.bak` | À la **lecture** d'un fichier illisible, une seule fois par contenu (si une copie identique existe déjà, on la réutilise : pas de pile de copies à chaque lancement). Aussi pour `history.json` et `history-totals.json` (ouverture de l'historique). | `storage.rs` (`set_aside`, `FileHistory::open`) |
+| Fichiers temporaires à nom unique | `.<nom>.<pid>-<n>.tmp`, supprimé si l'écriture ou le renommage échoue. Couvre réglages, dictionnaire, historique et totaux (les trois appelants de `write_atomic`). | `storage.rs` (`write_atomic`) |
+| Corrections dédoublonnées sur `heard` | Clé `heard_key` : sans casse, espaces multiples réduits, apostrophe courbe = droite (comme `heard_pattern`). La première correction reste (c'est déjà celle qui s'appliquait). Appliqué à la lecture (`from_json`), à l'enregistrement (`clean_dictionary`) et à l'ajout dans la page (une même phrase entendue **remplace** la valeur existante au lieu de doubler la ligne). | `crates/core/src/dictionary.rs`, `web/mod.rs`, `ui/src/lib/dictionary.ts`, `tabs/Dictionary.svelte` |
+
+### Choix techniques et pourquoi
+
+- **Fichier plus récent : lu, jamais réécrit.** Scriibe garde les réglages qu'il comprend pour que l'appli reste utilisable, mais n'écrit rien : la sauvegarde suivante aurait supprimé les champs qu'il ne connaît pas. Fichier illisible : réglages du premier lancement en mémoire, rien d'écrit. Recommandé plutôt que « tout refuser » parce que bloquer la dictée à cause d'un champ futur est pire que bloquer seulement la sauvegarde.
+- **Fichier vide ou blanc : pas un problème** (rien à perdre, la sauvegarde peut l'écrire). Une erreur de lecture passagère (accès refusé un instant) n'est pas gardée en cache : elle se retente au lieu de bloquer jusqu'au prochain changement du fichier.
+- **Pas de `.bak` pour un fichier lisible mais plus récent** : il n'est jamais écrasé, une copie n'apporterait rien.
+- **Un seul exemplaire de copie par contenu** plutôt que « une fois par lancement » : sans cela, chaque lancement avec le même fichier cassé aurait ajouté une copie identique.
+- **Même clé de dédoublonnage côté Rust et côté page**, pour que la page ne laisse jamais passer un doublon que le serveur retirerait ensuite sans prévenir.
+
+### Tests (un par cas)
+
+| Cas | Test |
+|---|---|
+| `schemaVersion` par défaut, lu, illisible, écrit en tête | `settings_scriibe.rs::the_schema_version_defaults_to_one_is_read_when_present_and_is_written_first` |
+| Écrit à la sauvegarde ; fichier sans numéro = 1 | `storage::tests::saved_settings_carry_the_schema_version_and_a_file_without_one_counts_as_version_one` |
+| Page : numéro non modifiable | `web::tests::the_page_cannot_change_the_schema_version_of_the_settings` |
+| Illisible : sauvegarde bloquée, fichier intact, repart une fois réparé | `storage::tests::an_unreadable_settings_file_blocks_every_save_until_it_is_repaired` |
+| Plus récent : lu, jamais réécrit, champs inconnus intacts, pas de `.bak` | `storage::tests::a_settings_file_from_a_newer_version_is_read_but_never_rewritten` |
+| Dictionnaire illisible : bloqué, réglages non | `storage::tests::an_unreadable_dictionary_blocks_its_save_but_not_the_settings` |
+| `.bak` une seule fois, à la lecture, nom rendu à la page, autre contenu = autre copie | `storage::tests::an_unreadable_file_is_copied_aside_once_at_reading_time` |
+| Fichier vide : pas un problème | `storage::tests::an_empty_file_is_not_a_problem` |
+| Historique illisible : copie avant écrasement | `storage::tests::an_unreadable_history_is_copied_aside_before_the_empty_one_overwrites_it` |
+| Écritures simultanées : temporaires distincts, aucun reste | `storage::tests::simultaneous_writes_use_their_own_temporary_files_and_leave_none_behind` (vérifié : il **échoue** avec l'ancien nom fixe `.tmp`) |
+| Clé `heard`, première correction gardée, lecture, résultat de la dictée inchangé | `dictionary_corrections.rs` (3 tests) |
+| Doublon envoyé par la page | `web::tests::a_heard_phrase_sent_twice_by_the_page_is_kept_once` |
+| Ajout d'une correction existante dans la page | `ui/src/lib/dictionary.test.ts` (3 tests) |
+
+Mesuré sur le Mac : `cargo fmt` et `cargo clippy --all-targets -- -D warnings` sans erreur ; **573 tests Rust** passent (559 avant), **102 tests de l'interface** (99 avant), `svelte-check` sans erreur. Pas de nouveau cas dans `fixtures/` : rien de ce qui change n'est de la logique de texte de Scribe (le dédoublonnage ne modifie pas le résultat d'une dictée, vérifié par un test).
+
+### Limites et à reprendre
+
+- **Pas essayé à l'écran** : l'avertissement n'a été vu ni dans la fenêtre du Mac ni sur un PC (tests automatiques du cas seulement). À essayer à la main : casser `settings.json`, relancer, regarder le bandeau, réparer.
+- **Historique** : copie `.bak` oui, refus d'écrire non (le cadrage ne parle que de `FileConfig`) ; l'historique vide écrase donc le fichier cassé, dont la copie reste à côté. À revoir à l'étape 4a (`FileHistory` change de dossier).
+- **Message en français dans « impossible d'écrire le dictionnaire (…) »** : le motif entre parenthèses n'est pas traduit en anglais (le bandeau, lui, l'est).
+- **Autres écritures non atomiques** (bancs, journal, export de sauvegarde, lanceur de démarrage `tmp-scriibe`) : hors de l'étape 1, inchangées.
+- **Mots du dictionnaire** : le dédoublonnage reste ASCII seulement (`eq_ignore_ascii_case`), seules les corrections ont changé.
+- **Factorisation du contrôle d'enveloppe** (constat § 1) : pas faite ici, elle appartient à l'étape 2 (nouveaux `kind`).
+- `docs/GESTION_MODES.md:105` dit encore que les étapes 1 et 2 ne sont pas faites : non touché.

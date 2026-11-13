@@ -1,6 +1,6 @@
 //! Les réglages propres à Scriibe (absents de Scribe) : appareil et durée de conservation de llama.cpp.
 
-use scriibe_core::settings::{is_device_name, AppSettings, Theme, UiLanguage, LLAMA_IDLE_DEFAULT};
+use scriibe_core::settings::{is_device_name, AppSettings, Theme, UiLanguage, LLAMA_IDLE_DEFAULT, SETTINGS_SCHEMA};
 
 #[test]
 fn llama_options_default_to_scribes_behaviour_and_survive_a_round_trip() {
@@ -97,4 +97,15 @@ fn one_badly_written_custom_command_is_dropped_alone() {
     let s = AppSettings::from_json(json).unwrap();
     let ids: Vec<_> = s.custom_commands.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(ids, vec!["perso.1"], "la commande sans raccourci et celle qui quitte l'appli sont écartées, pas la liste entière");
+}
+
+#[test]
+fn the_schema_version_defaults_to_one_is_read_when_present_and_is_written_first() {
+    assert_eq!(SETTINGS_SCHEMA, 1);
+    assert_eq!(AppSettings::default().schema_version, SETTINGS_SCHEMA);
+    assert_eq!(AppSettings::from_json("{}").unwrap().schema_version, SETTINGS_SCHEMA, "un fichier sans numéro est de la version 1");
+    assert_eq!(AppSettings::from_json(r#"{"schemaVersion": 7}"#).unwrap().schema_version, 7);
+    assert_eq!(AppSettings::from_json(r#"{"schemaVersion": "deux"}"#).unwrap().schema_version, SETTINGS_SCHEMA, "illisible : version 1");
+    let json = serde_json::to_string_pretty(&AppSettings::default()).unwrap();
+    assert!(json.trim_start_matches("{\n").trim_start().starts_with("\"schemaVersion\": 1"), "le numéro ouvre le fichier");
 }

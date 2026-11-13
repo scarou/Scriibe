@@ -93,6 +93,14 @@
       {#if status.failed}
         <div class="card bad">{status.os === 'macos' ? t('Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.') : status.value?.os === 'linux' ? t('Scriibe ne répond plus. Relancez-le depuis la liste des applications.') : t('Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.')}</div>
       {/if}
+      {#each status.value?.config_problems ?? [] as problem (problem.file)}
+        <div class="card bad">
+          {problem.reason === 'newer'
+            ? t('Le fichier {file} vient d’une version plus récente de Scriibe : Scriibe n’y écrit rien pour ne pas l’abîmer. Mettez Scriibe à jour.', { file: problem.file })
+            : t('Le fichier {file} est illisible : Scriibe n’y écrit plus rien (vos changements ne sont pas enregistrés) tant qu’il n’est pas réparé ou supprimé.', { file: problem.file })}
+          {#if problem.backup}{t('Une copie a été mise de côté : {backup}.', { backup: problem.backup })}{/if}
+        </div>
+      {/each}
       {#if nav.tab === 'dashboard'}<Dashboard goto={choose} />
       {:else if nav.tab === 'history'}<History />
       {:else if nav.tab === 'dictionary'}<Dictionary />

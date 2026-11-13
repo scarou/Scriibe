@@ -17,6 +17,8 @@ export const enServer: Record<string, string> = {
   'rien à désinstaller': 'nothing to uninstall',
   'Ce qui doit partir ({size}) est trop gros pour la Corbeille de ce disque : Windows le supprimerait définitivement. Coche « Garder mes modèles téléchargés », ou efface les modèles à la main, puis recommence.': 'What must go ({size}) is too big for this disk’s Recycle Bin: Windows would delete it permanently. Tick “Keep my downloaded models”, or delete the models by hand, then try again.',
   'désinstallation impossible': 'uninstall failed',
+  'Le fichier {file} est illisible : Scriibe n\'y écrit plus rien tant qu\'il n\'est pas réparé ou supprimé.': 'The {file} file is unreadable: Scriibe no longer writes to it until it is repaired or deleted.',
+  'Le fichier {file} vient d\'une version plus récente de Scriibe : Scriibe n\'y écrit rien pour ne pas l\'abîmer. Mettez Scriibe à jour.': 'The {file} file comes from a newer version of Scriibe: Scriibe writes nothing to it so as not to damage it. Please update Scriibe.',
   'enregistrement impossible': 'saving failed',
   'restauration impossible': 'restore failed',
   'sauvegarde trop grosse : 64 Mo au maximum': 'backup too big: 64 MB at most',

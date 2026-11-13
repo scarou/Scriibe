@@ -15,8 +15,7 @@ use serde_json::{json, Map, Value};
 
 /// Taille maximale d'une sauvegarde : 64 Mio (un historique dépasse vite la limite de 1 Mio des imports de modes).
 pub const MAX_BYTES: u64 = 64 * 1024 * 1024;
-/// La version des réglages que cette version de Scriibe sait lire (un fichier plus récent est refusé).
-pub const SETTINGS_SCHEMA: u64 = 1;
+pub use crate::settings::SETTINGS_SCHEMA;
 
 /// Les réglages propres à l'ordinateur : touches, micro, sons, chemins de modèles, carte graphique, adresses de serveurs locaux.
 /// Ils ne sont restaurés que si la sauvegarde vient du même système (`docs/CADRAGE_PROFILS.md`, décision 1).

@@ -236,8 +236,15 @@ impl TrialCandidate {
     }
 }
 
+/// La version du fichier de réglages que cette version de Scriibe sait lire et écrire. Un fichier plus récent est refusé (jamais
+/// réécrit : la sauvegarde suivante lui ferait perdre ce que Scriibe ne comprend pas) ; un fichier sans numéro est de la version 1.
+pub const SETTINGS_SCHEMA: u64 = 1;
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AppSettings {
+    /// Version du format du fichier (voir [`SETTINGS_SCHEMA`]) : lue et réécrite telle quelle, la page ne la change jamais.
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: u64,
     pub hotkey: Hotkey,
     pub language: DictationLanguage,
     #[serde(rename = "transcriptionEngine")]
@@ -385,6 +392,7 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            schema_version: SETTINGS_SCHEMA,
             hotkey: Hotkey::default(),
             language: DictationLanguage::default(),
             transcription_engine: TranscriptionEngine::default(),
@@ -487,6 +495,7 @@ impl AppSettings {
         let rewrite_mode = if custom_mode_id.is_some() { RewriteMode::Simple } else { get(o, "rewriteMode").unwrap_or(d.rewrite_mode) };
         let hidden_modes = clean_hidden_modes(get::<Vec<String>>(o, "hiddenModes").unwrap_or_default(), &custom_modes);
         Some(Self {
+            schema_version: get(o, "schemaVersion").unwrap_or(d.schema_version),
             hotkey: get(o, "hotkey").unwrap_or(d.hotkey),
             language: get(o, "language").unwrap_or(d.language),
             transcription_engine: get(o, "transcriptionEngine").unwrap_or(d.transcription_engine),

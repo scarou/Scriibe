@@ -30,7 +30,7 @@ use crate::overlay::OverlayModel;
 use downloads::{Downloads, Progress};
 use scriibe_core::bench;
 use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
-use scriibe_core::dictionary::{Correction, UserDictionary};
+use scriibe_core::dictionary::{dedup_corrections, Correction, UserDictionary};
 use scriibe_core::history::Cleanup;
 use scriibe_core::microphone::MicLevel;
 use scriibe_core::settings::{is_device_name, AppSettings, CleanupEngine, TranscriptionEngine};
@@ -662,6 +662,7 @@ fn status(ctx: &Context) -> Value {
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),
+        "config_problems": app.config.problems().iter().map(config_problem_view).collect::<Vec<_>>(),
         "update": update::available().as_ref().map(|v| json!({"version": v.version, "title": v.title, "date": v.date})),
         "hotkey": format!("{:?}", settings.hotkey),
         "gnome_shortcut": gnome_shortcut(),
@@ -699,12 +700,26 @@ fn status(ctx: &Context) -> Value {
     })
 }
 
+/// Un fichier de données refusé, pour l'avertissement de la page : `reason` vaut « unreadable » ou « newer » (avec sa `version`).
+fn config_problem_view(problem: &scriibe_platform::storage::ConfigProblem) -> Value {
+    use scriibe_platform::storage::Refusal;
+    let (reason, version) = match problem.reason {
+        Refusal::Unreadable => ("unreadable", None),
+        Refusal::Newer(v) => ("newer", Some(v)),
+    };
+    json!({"file": problem.file, "reason": reason, "version": version, "backup": problem.backup})
+}
+
 /// Les réglages après des changements (clés et valeurs du fichier de réglages, comme dans Scribe) : lecture tolérante du résultat.
 fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, String> {
     let Some(changes) = changes.as_object() else { return Err("changements illisibles".into()) };
     let mut merged = serde_json::to_value(before).map_err(|e| e.to_string())?;
     let object = merged.as_object_mut().ok_or("réglages illisibles")?;
     for (key, value) in changes {
+        // Le numéro de version du fichier n'est pas un réglage : la page ne le change jamais (Scriibe l'écrit seul).
+        if key == "schemaVersion" {
+            continue;
+        }
         if !object.contains_key(key) && !OPTIONAL_KEYS.contains(&key.as_str()) {
             return Err(format!("réglage inconnu : {key}"));
         }
@@ -829,7 +844,8 @@ fn dictionary_view(dictionary: &UserDictionary) -> Value {
     })
 }
 
-/// Enregistre le dictionnaire tel que la page l'envoie : mots et corrections nettoyés (espaces, lignes vides, doublons de mots).
+/// Enregistre le dictionnaire tel que la page l'envoie : mots et corrections nettoyés (espaces, lignes vides, doublons de mots, et de
+/// corrections de même « entendu » : la première reste).
 fn clean_dictionary(input: &Value) -> UserDictionary {
     let mut words: Vec<String> = Vec::new();
     for word in input["words"].as_array().into_iter().flatten().filter_map(Value::as_str) {
@@ -847,7 +863,7 @@ fn clean_dictionary(input: &Value) -> UserDictionary {
             (!heard.is_empty() && !written.is_empty()).then(|| Correction { heard: heard.to_string(), written: written.to_string() })
         })
         .collect();
-    UserDictionary { words, corrections }
+    UserDictionary { words, corrections: dedup_corrections(corrections) }
 }
 
 fn save_dictionary(ctx: &Context, input: &Value) -> Result<Value, String> {
@@ -1263,6 +1279,33 @@ fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_page_cannot_change_the_schema_version_of_the_settings() {
+        let before = AppSettings::default();
+        let after = merge_settings(&before, &json!({"schemaVersion": 99, "language": "en"})).unwrap();
+        assert_eq!(after.schema_version, before.schema_version, "ignoré sans erreur : la page peut renvoyer le bloc entier");
+        assert_eq!(after.language, scriibe_core::settings::DictationLanguage::En);
+    }
+
+    #[test]
+    fn a_heard_phrase_sent_twice_by_the_page_is_kept_once() {
+        let cleaned = clean_dictionary(&json!({
+            "words": [],
+            "corrections": [
+                {"heard": "cloud code", "written": "Claude Code"},
+                {"heard": " Cloud   Code ", "written": "autre"},
+                {"heard": "cri be", "written": "Scriibe"},
+            ],
+        }));
+        assert_eq!(
+            cleaned.corrections,
+            vec![
+                Correction { heard: "cloud code".into(), written: "Claude Code".into() },
+                Correction { heard: "cri be".into(), written: "Scriibe".into() }
+            ]
+        );
+    }
 
     #[test]
     fn the_dictionary_sent_by_the_page_is_cleaned() {
