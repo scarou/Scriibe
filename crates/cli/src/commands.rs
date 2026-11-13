@@ -354,6 +354,93 @@ pub fn trial(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// `scriibe desinstaller [--liste] [--garder-les-modeles]` : la liste exacte de ce qui partirait ; sans `--liste`, demande « oui » puis lance
+/// l'assistant (tout se fait après la sortie de ce programme). Pas de sauvegarde ici : elle passe par la fenêtre.
+pub fn uninstall(args: &[String]) -> Result<(), String> {
+    use scriibe_platform::uninstall::{self, human_size, Kind};
+    let list_only = args.iter().any(|a| a == "--liste");
+    let keep_models = args.iter().any(|a| a == "--garder-les-modeles");
+    if let Some(unknown) = args.iter().find(|a| !matches!(a.as_str(), "--liste" | "--garder-les-modeles")) {
+        return Err(format!("option inconnue : « {unknown} » (usage : scriibe desinstaller [--liste] [--garder-les-modeles])"));
+    }
+    let folder = scriibe_platform::storage::data_folder();
+    let settings = scriibe_platform::storage::FileConfig::new(folder.clone()).settings();
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let env = uninstall::Env::real(exe, keep_models);
+    let external = [settings.whisper_model_path.clone(), settings.llama_cpp_model.clone()];
+    let startup = scriibe_platform::autostart::status();
+    let plan = uninstall::build_plan(&env, &external, startup.enabled || startup.disabled_by_system);
+    if let Some(reason) = &plan.blocked {
+        return Err(reason.clone());
+    }
+    println!("Ce qui part à la Corbeille ({}) :", human_size(plan.trash_size()));
+    for item in plan.items.iter().filter(|i| i.kind != Kind::TempSound) {
+        let what = match item.kind {
+            Kind::Data => "données",
+            Kind::Engines => "moteurs",
+            Kind::Cache => "cache de la fenêtre",
+            Kind::Launcher => "lanceur",
+            Kind::Leftover => "reste de mise à jour",
+            Kind::Program => "programme",
+            Kind::TempSound => "",
+        };
+        let link = if item.link { " [lien : sa cible reste en place]" } else { "" };
+        println!("  • {what} : {} ({}){link}", item.path.display(), human_size(item.size));
+    }
+    let sounds: Vec<_> = plan.items.iter().filter(|i| i.kind == Kind::TempSound).collect();
+    if !sounds.is_empty() {
+        println!(
+            "  • {} son(s) temporaire(s) « scriibe-son-*.wav » du dossier temporaire ({}, effacés directement)",
+            sounds.len(),
+            human_size(sounds.iter().map(|i| i.size).sum())
+        );
+    }
+    if plan.startup {
+        println!("  • entrée de démarrage (retirée)");
+    }
+    println!(
+        "Clés d'API : effacées du trousseau ou du Gestionnaire d'identifiants (deepgram, openrouter, ancien github), jamais affichées."
+    );
+    for (kind, path, _) in &plan.kept {
+        println!("Reste en place : {} ({kind})", path.display());
+    }
+    for warning in &plan.warnings {
+        println!("Attention : {warning}");
+    }
+    if list_only {
+        println!("(--liste : rien n'a été touché.)");
+        return Ok(());
+    }
+    if plan.items.is_empty() {
+        return Err("rien à désinstaller".into());
+    }
+    println!(
+        "\nAttention : cette commande ne propose pas de sauvegarde (elle passe par le bouton « Désinstaller Scriibe » de la fenêtre)."
+    );
+    let lock = match instance::acquire(&folder) {
+        Instance::First(lock) => lock,
+        Instance::Running => return Err("Scriibe tourne : quitte-la d'abord (icône → Quitter), puis recommence.".into()),
+    };
+    println!("Tape « oui » pour désinstaller (tout part à la Corbeille, récupérable tant qu'elle n'est pas vidée) :");
+    let mut answer = String::new();
+    std::io::stdin().read_line(&mut answer).map_err(|e| e.to_string())?;
+    if answer.trim() != "oui" {
+        return Err("abandon : rien n'a été supprimé.".into());
+    }
+    let job = uninstall::Job {
+        exe: env.exe.clone(),
+        keep_models,
+        pid: std::process::id(),
+        external_models: external.to_vec(),
+        startup_present: plan.startup,
+    };
+    scriibe_platform::storage::set_frozen(true);
+    uninstall::start_helper(&job)?;
+    println!("L'assistant termine après la fin de cette commande ; un message dira ce qui est parti.");
+    drop(lock);
+    Ok(())
+}
+
 pub fn key(kind: Option<&str>) -> Result<(), String> {
     let kind = match kind {
         Some("deepgram") => KeyKind::Deepgram,

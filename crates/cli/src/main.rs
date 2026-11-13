@@ -33,6 +33,8 @@ Usage : scriibe [commande]\n\n\
                              transcrit un fichier WAV (ou la dernière prise) avec la vraie chaîne, sans coller\n\
   cle deepgram|openrouter|github
                              enregistre une clé d'API (lue sur l'entrée standard, jamais affichée ensuite)\n\
+  desinstaller [--liste] [--garder-les-modeles]
+                             désinstalle Scriibe (tout à la Corbeille) ; --liste montre ce qui partirait, sans rien toucher\n\
   aide                       ce message\n";
 
 fn main() -> ExitCode {
@@ -44,6 +46,14 @@ fn main() -> ExitCode {
         Some("verifier") => commands::check(),
         Some("micro") => commands::microphone(args.get(1).and_then(|s| s.parse().ok()).unwrap_or(3.0)),
         Some("essai") => commands::trial(&args[1..]),
+        Some("desinstaller") => commands::uninstall(&args[1..]),
+        // L'assistant de la désinstallation (copie du programme lancée par Scriibe) : code de sortie propre.
+        Some("desinstaller-fin") => {
+            return match args.get(1) {
+                Some(file) => ExitCode::from(u8::try_from(scriibe_platform::uninstall::finish(std::path::Path::new(file))).unwrap_or(1)),
+                None => ExitCode::from(2),
+            };
+        }
         Some("cle") => commands::key(args.get(1).map(String::as_str)),
         Some("aide" | "--aide" | "-h" | "--help" | "help") => {
             print!("{HELP}");

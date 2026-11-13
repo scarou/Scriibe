@@ -11,6 +11,19 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::SystemTime;
 
+/// Désinstallation en cours : plus aucune écriture dans le dossier de données (le processus vivant réécrirait l'historique ou le journal
+/// dans un dossier qui part à la Corbeille). Posé juste avant le lancement de l'assistant, jamais levé par la suite.
+static FROZEN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Coupe (ou rétablit, si le lancement de l'assistant échoue) toute écriture dans le dossier de données.
+pub fn set_frozen(frozen: bool) {
+    FROZEN.store(frozen, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn is_frozen() -> bool {
+    FROZEN.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 /// `%APPDATA%\Scriibe` (Windows), `~/Library/Application Support/Scriibe` (macOS), `~/.local/share/scriibe` (Linux).
 /// `SCRIIBE_DATA` remplace tout (essais).
 pub fn data_folder() -> PathBuf {
@@ -47,6 +60,9 @@ pub fn first_run_settings() -> AppSettings {
 }
 
 fn write_atomic(path: &Path, content: &str) -> std::io::Result<()> {
+    if is_frozen() {
+        return Ok(());
+    }
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -241,6 +257,9 @@ impl Log for FileLog {
         let line = format!("{} {message}\n", Local::now().format("%Y-%m-%d %H:%M:%S%.3f"));
         if self.echo {
             eprint!("{line}");
+        }
+        if is_frozen() {
+            return;
         }
         if let Some(dir) = self.path.parent() {
             let _ = std::fs::create_dir_all(dir);

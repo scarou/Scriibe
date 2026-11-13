@@ -13,6 +13,8 @@ scriibe-engines = { path = "../engines" }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 serde_json = "1"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+# Corbeille (désinstallation) : macOS par NSFileManager (jamais le Finder en AppleScript), Windows par IFileOperation, freedesktop. Code lu avant adoption (S26).
+trash = { version = "=5.2.9", default-features = false, features = ["coinit_apartmentthreaded"] }
 
 # Micro : WASAPI sous Windows, ALSA (donc PulseAudio ou PipeWire) sous Linux, CoreAudio sous macOS.
 [target.'cfg(any(windows, target_os = "linux", target_os = "macos"))'.dependencies]
@@ -54,6 +56,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_Media",
     "Win32_Media_Audio",
     "Win32_Security_Credentials",
+    "Win32_Storage_FileSystem",
     "Win32_System_Com",
     "Win32_System_Console",
     "Win32_System_DataExchange",

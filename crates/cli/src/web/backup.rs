@@ -31,7 +31,6 @@ fn pending() -> std::sync::MutexGuard<'static, Option<(String, Backup)>> {
 }
 
 /// La sauvegarde validée il y a moins de `max_age`, si elle existe encore.
-#[allow(dead_code)] // utilisé par la désinstallation (commit suivant)
 pub(crate) fn recent_backup(max_age: Duration) -> Option<PathBuf> {
     last().as_ref().filter(|(path, at)| at.elapsed() <= max_age && path.is_file()).map(|(path, _)| path.clone())
 }

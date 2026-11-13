@@ -25,6 +25,7 @@ pub mod sounds;
 pub mod storage;
 pub mod testing;
 pub mod tray_menu;
+pub mod uninstall;
 mod unsupported;
 
 #[cfg(target_os = "linux")]

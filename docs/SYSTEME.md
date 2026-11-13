@@ -276,7 +276,7 @@ Relecture faite le 13/11/2026 (tâche 2) par un sous-agent qui n'avait pas écri
 
 Fait le 13/11/2026 (C7, tâche 3), d'après § Cadrage, question 6. **Essai réel pas encore fait** (tâches 5 et 6).
 
-**Code.** `crates/platform/src/autostart.rs` (contenus d'entrée purs, lecture et écriture de fichiers avec dossiers en paramètres, registre de Windows par `windows-sys`, deux fonctionnalités ajoutées : `Win32_System_Registry` et `Win32_System_Console`). Routes `GET`/`POST api/autostart` (`web/mod.rs`, `autostart_view`). Carte « Lancer au démarrage » dans Réglages → Dictée (`Settings.svelte`). Rubrique dans l'Aide « Premiers pas », FR et EN.
+**Code.** `crates/platform/src/autostart.rs` (contenus d'entrée purs, lecture et écriture de fichiers avec dossiers en paramètres, registre de Windows par `windows-sys`, deux fonctionnalités ajoutées : `Win32_System_Registry` et `Win32_System_Console`). Routes `GET`/`POST api/autostart` (`web/mod.rs`, `autostart_view`). Carte « Lancer au démarrage » dans Réglages → Système (`System.svelte` ; d'abord dans Dictée, déplacée à la tâche 4). Rubrique dans l'Aide « Premiers pas », FR et EN.
 
 **Comportement.**
 - Décoché par défaut ; la case lit le système (`status()`), rien dans `settings.json`. Cocher crée l'entrée (écriture par fichier voisin puis renommage), décocher la retire (absente : pas d'erreur).
@@ -297,4 +297,42 @@ Fait le 13/11/2026 (C7, tâche 3), d'après § Cadrage, question 6. **Essai rée
 - Windows : `cargo clippy -p scriibe-platform --target x86_64-pc-windows-gnu -- -D warnings` propre (avec un faux compilateur C, `mingw` n'étant pas installé sur ce Mac : seul le `build.rs` de `ring` en a besoin à la vérification). Le crate `scriibe-cli` n'a pas pu être vérifié pour Windows ici (son script de construction demande `mingw`) ; les deux appels ajoutés y sont sans code propre à Windows. À compiler sur le PC (tâche 6).
 
 **Non vérifié ici (essais réels, tâches 5 et 6).** Le LaunchAgent chargé par un vrai `launchd` à la prochaine ouverture de session, la notification « élément d'arrière-plan », la lecture de la désactivation par le Gestionnaire des tâches et les Réglages Système, la valeur du registre et l'absence de fenêtre noire sous Windows, le démarrage XDG sous GNOME Wayland. Les routes web n'ont pas été appelées en vrai : Scriibe ne se lance pas depuis Bash sur le Mac (autorisations).
+
+## Désinstallation
+
+Faite le 13/11/2026 (C7, tâche 4), d'après § Cadrage et § Relecture, en deux commits : (a) sauvegarde complète et restauration, (b) désinstallation. **Essai réel pas encore fait** (tâches 5 et 6) ; aucun test n'a touché aux vrais dossiers de cette machine.
+
+**Où est le code.**
+- (a) `crates/core/src/backup.rs` (enveloppe `kind: "backup"`, lecture contrôlée, limite 64 Mio, champs propres à l'ordinateur), `crates/platform/src/restore.rs` (dossier de travail `.restauration/`, marque `ok` posée en dernier, échange au lancement suivant avant toute lecture, copie de l'état actuel dans `avant-import-<date>/`), `crates/cli/src/web/backup.rs` (routes `api/backup/*`), appel au démarrage dans `commands::setup`.
+- (b) `crates/platform/src/uninstall.rs` (liste, garde-fous, exécution, assistant), `crates/cli/src/web/uninstall.rs` (routes `api/uninstall/plan` et `run`), `commands::uninstall` (`scriibe desinstaller [--liste] [--garder-les-modeles]`) et `desinstaller-fin` (assistant) dans `main.rs`, coupure des écritures (`storage::set_frozen`), effacement des clés (`uninstall::delete_credentials`).
+- Interface : nouvel onglet **Réglages → Système** (`System.svelte`) : lancer au démarrage (déplacé depuis Dictée), sauvegarde et restauration, désinstaller. Aide FR et EN : « Premiers pas ».
+
+**Comment ça se passe.**
+1. Bouton « Désinstaller Scriibe… » : le serveur construit la liste exacte (jamais à partir d'un chemin de la page), la fenêtre la montre avec les tailles, ce qui reste, ce qui n'est pas sauvegardé, les avertissements.
+2. Cases « Garder mes modèles téléchargés » et « Faire d'abord une sauvegarde » (cochée), puis « Désinstaller », puis la boîte « Oui, désinstaller ».
+3. Sauvegarde cochée : « Enregistrer sous », fichier **relu et contrôlé**, effacé s'il ne se relit pas ; chemin sous une racine à supprimer refusé. Le serveur exige ensuite une sauvegarde relue avec succès il y a moins de 30 minutes (sinon rien ne part).
+4. Scriibe arrête les moteurs, **coupe toute écriture**, copie son programme dans le dossier temporaire, lance l'assistant (`desinstaller-fin`) et quitte. L'assistant attend la fin du processus (handle sous Windows, `kill -0` sous Mac et Linux ; 60 s au plus, sinon il ne fait rien) puis **reconstruit la liste lui-même** : son fichier de travail ne contient que le programme, l'option « garder les modèles », le numéro du processus et les modèles cités ; aucun chemin à supprimer.
+5. Ordre : entrée de démarrage, données puis moteurs puis caches puis lanceur Linux (Corbeille, avec reprises de 1,5 s en cas de verrou), sons temporaires (effacés directement, fichiers ordinaires à l'utilisateur au nom `scriibe-son-<chiffres>-…​.wav`), clés d'API, `tccutil reset All fr.scriibe.app` (Mac), programme en dernier.
+6. Un échec de la Corbeille arrête tout avant les clés et le programme et le dit ; jamais de suppression définitive à la place.
+7. Un dernier message (boîte du système : `osascript`, `MessageBoxW`, `zenity`/`kdialog`/`notify-send`) dit ce qui est parti, ce qui reste (modèles gardés, modèles hors de Scriibe, clés non effacées avec la marche à suivre, Corbeille à vider pour libérer N Go) ; copie dans `scriibe-desinstallation.txt` du dossier temporaire. L'assistant s'efface (Windows : `cmd` différé).
+
+**Garde-fous mesurés par des tests (dossiers factices).** Racines absolues reconstruites une à une et comparées aux formules réelles (`data_folder`, `engines_folder`) ; nom (`Scriibe`, `scriibe`, `fr.scriibe.app`…) et structure (`settings.json` ou `instance.lock` ; moteurs reconnus par `engines` dans un dossier `Scriibe` entier) ; programme exclu sous `target/`, dans un dépôt `.git`, sous un autre nom, partagé (propriétaire ou dossier non modifiable) ; `SCRIIBE_DATA` bloque tout ; liens jamais suivis ; sons : ni lien ni dossier ; voisins (`Scriibe-copie`, `Autre`, `Documents`) jamais touchés ; ordre des étapes ; arrêt sur échec ; lien de modèle retiré et cible intacte ; « Garder mes modèles » (enfant par enfant, `models/` intact, lien enfant retiré comme lien).
+
+**Choix techniques, avec raisons.**
+- Crate `trash` épinglée à `=5.2.9`, la version dont j'ai lu le code (Mac : `NSFileManager`, jamais le Finder en AppleScript ; Windows : `IFileOperation` ; Linux : freedesktop avec repli par copie entre disques). `canonicalize_paths` ne canonicalise que le dossier parent : un lien est mis à la Corbeille comme lien. Vérifié sur ce Mac par l'essai manuel `real_trash_removes_a_link_and_leaves_its_target` (`cargo test -p scriibe-platform real_trash -- --ignored`, un petit dossier factice mis à la vraie Corbeille) : le lien part, la cible reste.
+- L'assistant reconstruit la liste au lieu de lire des chemins : même si le fichier de travail était altéré, il ne peut rien désigner.
+- Liste des sons temporaires regroupée en une ligne dans la fenêtre et la commande (22 fichiers sur ce Mac).
+- Windows, place de la Corbeille : règle prudente sans lire le registre : ce qui part ne doit pas dépasser 5 % de la taille du volume (`windows_trash_ok`), sinon la fenêtre bloque et propose « Garder mes modèles ». À affiner à l'essai réel si elle bloque à tort.
+- Pas de journal de reprise séparé : relancer `scriibe desinstaller` recalcule la liste sur ce qui reste (sans données, rien à supprimer côté données) ; le message final dit ce qui reste.
+
+**Sur ce Mac (lecture seule).** `scriibe desinstaller --liste` n'a rien touché : données `Application Support/Scriibe` (8,9 Go), trois caches de la fenêtre déjà présents (`Caches`, `WebKit`, `Preferences`), 22 sons temporaires ; le programme compilé (`target/`) est exclu, comme prévu.
+
+**Résultat des vérifications (mesuré).** `cargo test --workspace` : 552 passés, 0 échec, 1 ignoré (l'essai manuel de la Corbeille, qui passe quand on le lance) ; `cargo clippy --workspace --all-targets -- -D warnings` propre ; Windows : `cargo clippy -p scriibe-platform --target x86_64-pc-windows-gnu -- -D warnings` propre (faux compilateur C, `mingw` absent) ; interface : `check` 0 erreur, `npm test` 95 passés, construction réussie.
+
+**Non vérifié ici (essais réels, tâches 5 et 6).**
+- Le crate `scriibe-cli` pour Windows et pour Linux (pas de `mingw` ni de cible Linux ici) : compiler sur les deux PC.
+- Une vraie désinstallation de bout en bout (assistant détaché, attente du processus, boîte finale, auto-effacement), sur Mac puis sur chaque PC.
+- La Corbeille sous Windows et Linux, un lien symbolique ou une jonction sous Windows, la règle des 5 %.
+- L'effacement d'une clé créée par une version précédente et les demandes du trousseau ; `tccutil` ; les caches réels de WebView2 et WebKitGTK ; le rôle de `HTTPStorages` et `Saved Application State` (ajoutés à la liste des caches seulement s'ils existent, noms exacts).
+- La restauration d'une sauvegarde par redémarrage sur chaque système (relance par `open` sur Mac).
 

@@ -12,6 +12,7 @@ mod hub;
 mod import;
 mod sinks;
 mod trial;
+mod uninstall;
 pub(crate) mod update;
 
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
@@ -396,7 +397,9 @@ fn handle(ctx: &Context, mut request: Request) {
         }
         // Sauvegarde complète : l'enregistrer (relue avant de dire « fait »), puis la restaurer (aperçu, accord, relance : les fichiers sont
         // échangés au lancement suivant, avant toute lecture).
-        (Method::Post, "api/backup/export") => ok(request, backup::export(ctx.app.config.folder(), &protected_roots())),
+        (Method::Post, "api/backup/export") => {
+            ok(request, backup::export(ctx.app.config.folder(), &uninstall::protected_roots(&ctx.app.config.settings())))
+        }
         (Method::Post, "api/backup/import/read") => ok(request, backup::read(&input)),
         (Method::Post, "api/backup/import/cancel") => ok(request, backup::cancel()),
         (Method::Post, "api/backup/import/apply") => match backup::apply(ctx.app.config.folder(), &input) {
@@ -408,6 +411,18 @@ fn handle(ctx: &Context, mut request: Request) {
                 std::thread::spawn(move || {
                     std::thread::sleep(Duration::from_millis(800));
                     restart(&app);
+                });
+            }
+            Err(e) => fail(request, 409, &e),
+        },
+        // Désinstaller : la liste exacte, puis, sur accord, l'assistant (tout se fait après la sortie de Scriibe).
+        (Method::Post, "api/uninstall/plan") => ok(request, uninstall::plan_view(&ctx.app.config.settings(), &input)),
+        (Method::Post, "api/uninstall/run") => match uninstall::run(&ctx.app, &input) {
+            Ok(result) => {
+                ok(request, result);
+                std::thread::spawn(|| {
+                    std::thread::sleep(Duration::from_millis(1500));
+                    std::process::exit(0);
                 });
             }
             Err(e) => fail(request, 409, &e),
@@ -1087,11 +1102,6 @@ fn install_update(ctx: &Context) -> Result<(), String> {
 }
 
 /// Arrête les moteurs, relance le programme (la fenêtre se rouvre) puis s'arrête.
-/// Les dossiers que la désinstallation supprimera : une sauvegarde rangée dedans partirait avec.
-fn protected_roots() -> Vec<std::path::PathBuf> {
-    Vec::new()
-}
-
 /// L'état de « Lancer Scriibe à l'ouverture de session », relu dans le système (rien n'est gardé dans les réglages).
 fn autostart_view() -> Value {
     let s = scriibe_platform::autostart::status();

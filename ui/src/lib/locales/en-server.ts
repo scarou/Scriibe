@@ -3,6 +3,18 @@
  * Même forme que `en.ts`, mais la page ne les écrit pas elle-même : pas de contrôle d'orphelins (`i18n.test.ts` vérifie les `{valeurs}`).
  */
 export const enServer: Record<string, string> = {
+  'La variable SCRIIBE_DATA est définie (essais) : elle déplace les données mais pas les moteurs ni les clés, la désinstallation est désactivée.': 'The SCRIIBE_DATA variable is set (trials): it moves the data but not the engines or keys, so uninstalling is disabled.',
+  'Un dossier de Scriibe n\'a pas la structure attendue (réglages absents) : il est laissé en place.': 'A Scriibe folder does not have the expected structure (settings missing): it is left in place.',
+  'Un dossier de Scriibe n\'a pas la structure attendue (moteurs absents) : il est laissé en place.': 'A Scriibe folder does not have the expected structure (engines missing): it is left in place.',
+  'Scriibe est lancée depuis un dossier de développement (target/ ou dépôt git) : seules les données partent, le programme reste.': 'Scriibe is running from a development folder (target/ or git repository): only the data goes, the program stays.',
+  'Le programme porte un autre nom que celui de Scriibe : il n\'est pas supprimé, à retirer à la main.': 'The program has a different name than Scriibe’s: it is not removed, remove it by hand.',
+  'Le programme (ou son dossier) n\'est pas modifiable par votre compte : seules vos données partent.': 'The program (or its folder) cannot be changed by your account: only your data goes.',
+  'Le programme de Scriibe n\'a pas été retrouvé : seules les données partent.': 'Scriibe’s program was not found: only the data goes.',
+  'la désinstallation n\'a pas été confirmée': 'the uninstall was not confirmed',
+  'fais d\'abord la sauvegarde : aucune sauvegarde relue avec succès n\'a été trouvée': 'make the backup first: no successfully read-back backup was found',
+  'rien à désinstaller': 'nothing to uninstall',
+  'Ce qui doit partir ({size}) est trop gros pour la Corbeille de ce disque : Windows le supprimerait définitivement. Coche « Garder mes modèles téléchargés », ou efface les modèles à la main, puis recommence.': 'What must go ({size}) is too big for this disk’s Recycle Bin: Windows would delete it permanently. Tick “Keep my downloaded models”, or delete the models by hand, then try again.',
+  'désinstallation impossible': 'uninstall failed',
   'enregistrement impossible': 'saving failed',
   'restauration impossible': 'restore failed',
   'sauvegarde trop grosse : 64 Mo au maximum': 'backup too big: 64 MB at most',
