@@ -436,3 +436,33 @@ Mesuré sur le Mac : `cargo fmt --check` sans écart, `cargo clippy --workspace 
 - **Le journal seul signale une migration ratée** : pas encore de bandeau dans la page.
 - **4c** : verrou en mémoire, garde-fou 409, route de changement d'utilisateur (qui écrira `activeProfile`), `name` montré et modifiable.
 - La restauration d'une sauvegarde préparée par une version **non migrée** puis appliquée par une version migrée remet les fichiers à la racine ; la migration les traite alors comme un retour d'une version antérieure (pas de fusion, tout dans la sauvegarde). Cas improbable (la restauration relance la même version).
+
+## Relecture de la migration (tâche 8, 14/11/2026)
+
+Relecture du commit de l'étape 4b par un sous-agent (Sonnet, effort Élevé) qui ne l'avait pas écrit, en lecture seule. Il a lu `migration.rs`, ses tests, `restore.rs`, `backup.rs`, le lancement et la décision 6, et lancé les tests de la migration et de la restauration. J'ai vérifié chacun de ses constats dans le code avant de corriger. **Verdict du relecteur** : pas de perte de données trouvée ; trois points à corriger avant l'essai réel. **Aucune décision du cadrage ne change.**
+
+| Constat | Gravité | Suite |
+|---|---|---|
+| Aucun bloquant : rien n'est effacé ou écrasé sans copie complète ailleurs ; la sauvegarde passe avant tout déplacement, reprise comprise ; noms lus dans les fichiers contrôlés | — | — |
+| **I1.** Un deuxième utilisateur, vide, pouvait être créé si `utilisateurs/` était mal lu (erreur passagère prise pour « aucun utilisateur ») ou si l'utilisateur avait perdu son `profile.json` | Important | **Corrigé** : `scan_users` réessaie la lecture puis, en cas d'échec, rien n'est touché ; un dossier d'identifiant valide qui a un dictionnaire ou un historique mais pas de `profile.json` est réparé sur place (nom « Principal », données gardées) ; un utilisateur n'est recréé que si `utilisateurs/` ne contient aucun dossier inconnu non vide |
+| **I2.** Sous Windows, un renommage de dossier juste après l'écriture échoue souvent (antivirus, indexeur), sans nouvel essai ; chaque nouvel essai refaisait une sauvegarde complète (`-2`, `-3`…) | Important | **Corrigé** : les deux renommages de dossier (et la lecture de `utilisateurs/`) sont réessayés 5 fois à 200 ms ; une sauvegarde existante qui a déjà tous les fichiers à l'identique resert au lieu d'être refaite |
+| **I3.** Restauration : un arrêt pendant la copie de « l'état avant import » laissait une copie tronquée que la reprise prenait pour complète, puis l'original était remplacé (défaut d'avant 4b, étendu par 4b aux fichiers de l'utilisateur) | Important | **Corrigé** : copie sous un nom temporaire puis renommage |
+| **I4.** Tests manquants | Important | **Ajoutés** (voir ci-dessous) ; pas de test Windows : la CI Windows le fera au push |
+| M1. Fichier temporaire d'une réécriture de `settings.json` interrompue jamais effacé | Mineur | **Corrigé** |
+| M3. `activeProfile` comparé avec les majuscules (macOS et Windows ne les distinguent pas) ; un dossier d'utilisateur en lien symbolique accepté par la restauration | Mineur | **Corrigé** (comparaison sans les majuscules ; lien refusé). Restreindre l'identifiant à un UUID : non, inutile tant que seul Scriibe les crée |
+| M6. Message « profile.json illisible » quand c'est `settings.json` | Mineur | **Corrigé** |
+| M7. Messages de la migration en double à l'écran | Mineur | **Corrigé** (le journal les recopie déjà) |
+| M2. `settings.json` illisible : l'utilisateur ouvert est le dernier utilisé, pas forcément l'actif (plusieurs utilisateurs) | Mineur | Pour 4c |
+| M4. « Dernier utilisé » par date de modification (peu fiable sur FAT, copie de dossier) | Mineur | Pour 4c (choix technique 4 de 4b, acceptable avec un seul utilisateur) |
+| M5. Les sauvegardes de la migration gardent l'historique pour toujours, sans tenir compte de « garder le texte » | Mineur | Conforme au cadrage ; à dire dans l'Aide (4c), avec le fait que la désinstallation les envoie à la Corbeille |
+| M8. 4c doit créer un utilisateur par dossier de travail puis renommage (sinon I1 revient) | Mineur | Noté pour 4c |
+| M9. `"schemaVersion": "2"` lu comme version 1 | Mineur | Laissé : retombe sur la ligne 2 du tableau, sans danger |
+| M10. Écritures ordinaires sans `sync_all` (`write_atomic`, d'avant 4b) | Mineur | Déjà noté à la relecture du lot 1 |
+
+### Tests ajoutés (9)
+
+`an_unreadable_users_folder_never_makes_a_second_user`, `a_user_without_its_profile_file_is_repaired_in_place`, `unknown_folders_in_the_users_folder_stop_a_rebuild` (I1) ; `a_missing_or_empty_settings_file_takes_the_existing_user_back`, `after_a_failed_step_4_what_the_app_saved_is_kept_on_the_next_launch`, `a_pending_restore_from_the_old_layout_is_applied_then_migrated` (I4) ; `a_temporary_file_left_by_an_interrupted_rewrite_is_removed` (M1) ; `the_active_user_is_found_whatever_the_case` (M3) ; `an_interrupted_copy_of_the_current_state_is_redone_in_full` (I3, restauration). Le test de la ligne 1 vérifie maintenant qu'aucune sauvegarde n'est faite en double (I2).
+
+### Résultat des tests
+
+Mesuré sur le Mac : `cargo fmt --check` sans écart, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur, `cargo test --workspace` : **649 réussis, 0 échoué, 1 ignoré**. Non fait : la compilation croisée pour Windows (outil absent du Mac).

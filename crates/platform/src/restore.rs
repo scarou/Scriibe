@@ -63,7 +63,8 @@ pub fn apply_pending(folder: &Path) -> Option<String> {
     let user_folder = match profile.flatten() {
         Some(id) => {
             let dir = folder.join(USERS_DIR).join(id);
-            if !dir.join(PROFILE_FILE).is_file() {
+            let real_dir = std::fs::symlink_metadata(&dir).is_ok_and(|m| m.is_dir());
+            if !real_dir || !dir.join(PROFILE_FILE).is_file() {
                 let _ = std::fs::remove_dir_all(&staging);
                 return Some(format!("restauration: l'utilisateur {id} n'existe plus, rien n'a changé ; recommence la restauration"));
             }
@@ -80,9 +81,12 @@ pub fn apply_pending(folder: &Path) -> Option<String> {
     for name in FILES {
         let (current, copy) = (target(name), before.join(name));
         if current.is_file() && !copy.exists() {
-            if let Err(e) = std::fs::copy(&current, &copy) {
+            // Copie sous un nom temporaire puis renommage : une copie visible est toujours complète (un arrêt en pleine copie ne laisse
+            // pas un fichier tronqué que la reprise prendrait pour l'état d'origine).
+            let temp = before.join(format!(".{name}.tmp"));
+            if let Err(e) = std::fs::copy(&current, &temp).and_then(|_| std::fs::rename(&temp, &copy)) {
                 // Sans copie de l'état actuel, rien n'est remplacé (disque plein, antivirus…) : la restauration est abandonnée, à refaire.
-                let _ = std::fs::remove_file(&copy);
+                let _ = std::fs::remove_file(&temp);
                 let _ = std::fs::remove_dir_all(&staging);
                 return Some(format!("restauration: copie de {name} impossible ({e}), rien n'a changé ; recommence la restauration"));
             }
@@ -238,6 +242,22 @@ mod tests {
         std::fs::write(dir.join(STAGING).join(MARK), "avant-import-20261114-100000\nutilisateur=../..").unwrap();
         assert!(apply_pending(&dir).unwrap().contains("marque invalide"));
         assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "racine");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Relecture de la migration, I3 : une copie de l'état actuel interrompue (temporaire laissé) ne compte pas comme faite.
+    #[test]
+    fn an_interrupted_copy_of_the_current_state_is_redone_in_full() {
+        let dir = scratch("copie-tronquee");
+        std::fs::write(dir.join("settings.json"), "origine complète").unwrap();
+        stage(&dir, &[("settings.json", "neuf".into())], "20261114-120000", None).unwrap();
+        let before = dir.join("avant-import-20261114-120000");
+        std::fs::create_dir_all(&before).unwrap();
+        std::fs::write(before.join(".settings.json.tmp"), "orig").unwrap();
+        apply_pending(&dir).unwrap();
+        assert_eq!(std::fs::read_to_string(before.join("settings.json")).unwrap(), "origine complète");
+        assert!(!before.join(".settings.json.tmp").exists());
+        assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "neuf");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -62,8 +62,11 @@ pub(crate) fn read_data_files(folder: &Path, profile: Option<&Path>) -> BackupFi
 pub(crate) fn prepare(folder: &Path, profile: Option<&Path>, os: &str, now_secs: i64) -> Result<(String, String), String> {
     let files = read_data_files(folder, profile);
     let user = profile.unwrap_or(folder);
-    if files.settings.is_none() && profile.is_some_and(|dir| dir.join(migration::PROFILE_FILE).exists()) {
-        return Err("profile.json n'a pas pu être lu : la sauvegarde est refusée, rien n'est supprimé".into());
+    if let (None, Some(dir)) = (&files.settings, profile) {
+        let unreadable = if read_json(&folder.join("settings.json")).is_none() { "settings.json" } else { migration::PROFILE_FILE };
+        if folder.join("settings.json").exists() && dir.join(migration::PROFILE_FILE).exists() {
+            return Err(format!("{unreadable} n'a pas pu être lu : la sauvegarde est refusée, rien n'est supprimé"));
+        }
     }
     if files.settings.is_none() {
         return Err("aucun réglage à sauvegarder dans le dossier de données".into());

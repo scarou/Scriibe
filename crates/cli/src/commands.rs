@@ -30,8 +30,8 @@ fn setup_locked() -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<Fil
     }
     app::migrate_engine_options(&config);
     let log = Arc::new(FileLog::new(config.folder(), true));
+    // Le journal les recopie aussi à l'écran (`echo`).
     for message in restored.iter().chain(&migration.messages) {
-        eprintln!("{message}");
         log.write(message);
     }
     Ok((config, log))

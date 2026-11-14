@@ -197,7 +197,9 @@ fn row_1_a_stop_before_step_3_changes_nothing_and_the_next_launch_erases_the_wor
         if stop != Stop::AfterBackup {
             assert!(report.messages.iter().any(|m| m.contains("travail inachevé effacé")), "{stop:?} : {:?}", report.messages);
         }
-        assert_eq!(backups(&dir).len(), 2, "{stop:?} : la première sauvegarde n'est jamais écrasée, une deuxième est faite");
+        // Relecture, I2 : la sauvegarde du premier essai a déjà tous les fichiers à l'identique, elle resert (pas de copie en double).
+        assert_eq!(backups(&dir).len(), 1, "{stop:?} : pas de sauvegarde en double");
+        assert!(report.messages.iter().any(|m| m.contains("déjà copiés")), "{stop:?} : {:?}", report.messages);
         let _ = std::fs::remove_dir_all(dir);
     }
 }
@@ -520,4 +522,162 @@ fn joined_then_split_settings_give_back_both_files() {
     assert_eq!(user, json!({"name": "Léa", "firstName": "Léa", "language": "en"}));
     let (_, fresh) = split_for_profile(&json!({"firstName": ""}), "BBBB", None).unwrap();
     assert_eq!(fresh, json!({"name": DEFAULT_NAME, "firstName": ""}));
+}
+
+// ---- Ajouts de la relecture de la migration (tâche 8) ----
+
+/// I1 : une lecture impossible de `utilisateurs/` ne fait jamais créer un deuxième utilisateur.
+#[cfg(unix)]
+#[test]
+fn an_unreadable_users_folder_never_makes_a_second_user() {
+    use std::os::unix::fs::PermissionsExt;
+    // SAFETY : geteuid n'a pas d'effet de bord.
+    if unsafe { libc::geteuid() } == 0 {
+        return;
+    }
+    let dir = old_folder("users-unreadable");
+    run_until(&dir, TODAY, Stop::Never);
+    let (id, _) = users(&dir).pop().unwrap();
+    let settings = std::fs::read(dir.join("settings.json")).unwrap();
+    std::fs::set_permissions(dir.join(USERS_DIR), std::fs::Permissions::from_mode(0o000)).unwrap();
+    let report = run_until(&dir, TODAY, Stop::Never);
+    std::fs::set_permissions(dir.join(USERS_DIR), std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(report.profile, None);
+    assert!(report.messages.iter().any(|m| m.contains("illisible")), "{:?}", report.messages);
+    assert_eq!(std::fs::read(dir.join("settings.json")).unwrap(), settings, "settings.json n'est pas réécrit");
+    assert_eq!(users(&dir).into_iter().map(|u| u.0).collect::<Vec<_>>(), vec![id], "toujours un seul utilisateur");
+    assert_eq!(backups(&dir).len(), 1);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// I1 : un utilisateur dont `profile.json` a disparu (mais qui a ses données) est réparé sur place, pas remplacé.
+#[test]
+fn a_user_without_its_profile_file_is_repaired_in_place() {
+    let dir = old_folder("repair");
+    run_until(&dir, TODAY, Stop::Never);
+    let (id, user) = users(&dir).pop().unwrap();
+    std::fs::remove_file(user.join(PROFILE_FILE)).unwrap();
+    let report = run_until(&dir, TODAY, Stop::Never);
+    assert_eq!(report.profile, Some(user.clone()), "{:?}", report.messages);
+    assert_eq!(users(&dir), vec![(id.clone(), user.clone())]);
+    assert_eq!(read_json(&user.join(PROFILE_FILE))[NAME_KEY], DEFAULT_NAME);
+    assert!(std::fs::read_to_string(user.join("dictionary.json")).unwrap().contains("Whisper"), "les données restent");
+    assert_eq!(read_json(&dir.join("settings.json"))["activeProfile"], id.as_str());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// I1 : migré, aucun utilisateur reconnu, mais un dossier inconnu non vide dans `utilisateurs/` : rien n'est touché.
+#[test]
+fn unknown_folders_in_the_users_folder_stop_a_rebuild() {
+    let dir = scratch("unknown");
+    std::fs::create_dir_all(dir.join(USERS_DIR).join("Mes données")).unwrap();
+    std::fs::write(dir.join(USERS_DIR).join("Mes données").join("notes.txt"), "à moi").unwrap();
+    std::fs::create_dir_all(dir.join(USERS_DIR).join("vide")).unwrap();
+    std::fs::write(dir.join("settings.json"), r#"{"schemaVersion":2}"#).unwrap();
+    let before = tree(&dir);
+    let report = run_until(&dir, TODAY, Stop::Never);
+    assert_eq!(report.profile, None);
+    assert!(report.messages.iter().any(|m| m.contains("inconnu")), "{:?}", report.messages);
+    assert_eq!(tree(&dir), before);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// I4 : `settings.json` absent ou vide (coupure de courant, réinitialisation à la main) avec un utilisateur déjà là : il est repris.
+#[test]
+fn a_missing_or_empty_settings_file_takes_the_existing_user_back() {
+    for (n, content) in [None, Some("")].into_iter().enumerate() {
+        let dir = old_folder(&format!("no-settings-{n}"));
+        run_until(&dir, TODAY, Stop::Never);
+        let (id, user) = users(&dir).pop().unwrap();
+        let profile_before = tree(&user);
+        match content {
+            None => std::fs::remove_file(dir.join("settings.json")).unwrap(),
+            Some(text) => std::fs::write(dir.join("settings.json"), text).unwrap(),
+        }
+        let report = run_until(&dir, TODAY, Stop::Never);
+        assert_eq!(report.profile, Some(user.clone()));
+        assert_eq!(users(&dir).len(), 1);
+        assert_eq!(tree(&user), profile_before, "l'utilisateur est intact");
+        let settings = read_json(&dir.join("settings.json"));
+        assert_eq!((settings["schemaVersion"].clone(), settings["activeProfile"].clone()), (json!(2), json!(id)));
+        assert_eq!(settings["transcriptionEngine"], "whisper", "réglages de l'ordinateur d'un premier lancement");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
+/// I4 : l'étape 4 échoue, l'application tourne quand même avec l'utilisateur renommé et enregistre ; au lancement suivant, rien n'est perdu.
+#[test]
+fn after_a_failed_step_4_what_the_app_saved_is_kept_on_the_next_launch() {
+    let dir = old_folder("step4-failed");
+    let report = run_until(&dir, TODAY, Stop::AfterRename);
+    let user = report.profile.clone().unwrap();
+    let config = FileConfig::new(dir.clone());
+    config.switch_profile(Some(user.clone()));
+    let mut settings = config.settings();
+    settings.first_name = "Paul".into();
+    settings.theme = scriibe_core::settings::Theme::Light;
+    config.save_settings(&settings).unwrap();
+    let mut dictionary = config.dictionary();
+    dictionary.words.push("Ajouté".into());
+    config.save_dictionary(&dictionary).unwrap();
+    FileHistory::open(user.clone(), AppSettings::default).record(Dictation::new(Utc::now(), "Mail", "trois", "trois", 5, 2.0, 0));
+
+    let report = run_until(&dir, TODAY, Stop::Never);
+    assert_eq!(report.profile, Some(user.clone()));
+    assert_eq!(users(&dir).len(), 1);
+    let config = FileConfig::new(dir.clone());
+    config.switch_profile(Some(user.clone()));
+    let view = config.settings();
+    assert_eq!((view.first_name.as_str(), view.theme), ("Paul", scriibe_core::settings::Theme::Light));
+    assert!(config.dictionary().words.contains(&"Ajouté".to_string()));
+    assert_eq!(FileHistory::open(user, AppSettings::default).dictation_count(), 3);
+    assert_eq!(read_json(&dir.join("settings.json"))["schemaVersion"], 2);
+    for name in USER_FILES {
+        assert!(!dir.join(name).exists(), "{name}");
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// Mineur 1 : le fichier temporaire d'une réécriture de settings.json interrompue est effacé ; l'ancien fichier sert.
+#[test]
+fn a_temporary_file_left_by_an_interrupted_rewrite_is_removed() {
+    let dir = old_folder("tmp-left");
+    let before = originals(&dir);
+    std::fs::write(dir.join(".settings.json.ABC.tmp"), "{\"coupé").unwrap();
+    run_until(&dir, TODAY, Stop::Never);
+    assert!(!dir.join(".settings.json.ABC.tmp").exists());
+    assert_migrated(&dir, &before);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// I4 : au lancement, une restauration préparée par une version non migrée est appliquée, puis migrée avec ce qu'elle a remis.
+#[test]
+fn a_pending_restore_from_the_old_layout_is_applied_then_migrated() {
+    let dir = old_folder("restore-then-migrate");
+    let restored = r#"{"firstName":"Zoé","theme":"light","trialCandidates":[]}"#;
+    crate::restore::stage(
+        &dir,
+        &[("settings.json", restored.into()), ("dictionary.json", r#"{"words":["Restauré"],"corrections":[]}"#.into())],
+        "20261114-090000",
+        None,
+    )
+    .unwrap();
+    assert!(crate::restore::apply_pending(&dir).is_some());
+    let report = run_until(&dir, TODAY, Stop::Never);
+    let user = report.profile.unwrap();
+    assert_eq!(read_json(&user.join(PROFILE_FILE))["firstName"], "Zoé");
+    assert!(std::fs::read_to_string(user.join("dictionary.json")).unwrap().contains("Restauré"));
+    assert_eq!(read_json(&dir.join("settings.json"))["theme"], "light");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// Mineur 3 : `activeProfile` écrit avec d'autres majuscules retrouve le dossier (macOS et Windows ne les distinguent pas).
+#[test]
+fn the_active_user_is_found_whatever_the_case() {
+    let dir = scratch("case");
+    let user = make_user(&dir, "ABCD", 0);
+    make_user(&dir, "EFGH", 100);
+    std::fs::write(dir.join("settings.json"), r#"{"schemaVersion":2,"activeProfile":"abcd"}"#).unwrap();
+    assert_eq!(run_until(&dir, TODAY, Stop::Never).profile, Some(user));
+    let _ = std::fs::remove_dir_all(dir);
 }

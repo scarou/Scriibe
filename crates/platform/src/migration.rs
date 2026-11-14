@@ -131,9 +131,21 @@ fn run_until(folder: &Path, today: &str, stop: Stop) -> Report {
         report.messages.push(format!("migration: settings.json vient d'une version plus récente ({version}), rien n'est touché"));
         return report;
     }
+    // Les utilisateurs, lus une seule fois. Une lecture impossible de `utilisateurs/` ne doit jamais faire croire qu'il n'y en a pas
+    // (on en créerait un deuxième, vide) : rien n'est touché.
+    let scan = match scan_users(folder) {
+        Ok(scan) => scan,
+        Err(e) => {
+            report
+                .messages
+                .push(format!("migration: {USERS_DIR}/ est illisible ({e}), rien n'est touché ; nouvel essai au prochain lancement"));
+            return report;
+        }
+    };
+    let list = repair_users(scan.complete, scan.repairable, &mut report);
     if version >= SETTINGS_SCHEMA {
-        if let Some((id, dir)) = pick_user(folder, wanted.as_deref()) {
-            if wanted.as_deref() != Some(id.as_str()) {
+        if let Some((id, dir)) = pick_from(&list, wanted.as_deref()) {
+            if !wanted.as_deref().is_some_and(|w| w.eq_ignore_ascii_case(&id)) {
                 // L'utilisateur noté n'existe plus (dossier retiré à la main) : un autre devient l'actif.
                 let mut fixed = object.clone().unwrap_or_default();
                 fixed.insert("activeProfile".into(), Value::String(id.clone()));
@@ -146,15 +158,24 @@ fn run_until(folder: &Path, today: &str, stop: Stop) -> Report {
             report.profile = Some(dir);
             return report;
         }
-        // Migré, mais plus aucun utilisateur (dossier `utilisateurs/` retiré à la main) : on en refait un avec ce qui reste.
+        // Migré, mais plus aucun utilisateur (dossier `utilisateurs/` retiré à la main) : on en refait un avec ce qui reste. Pas si
+        // `utilisateurs/` contient des dossiers que Scriibe ne reconnaît pas : ce sont peut-être des données, on ne décide pas à leur place.
+        if scan.unknown > 0 {
+            report.messages.push(format!(
+                "migration: aucun utilisateur reconnu, mais {} dossier(s) inconnu(s) dans {USERS_DIR}/ : rien n'est touché",
+                scan.unknown
+            ));
+            return report;
+        }
         report.messages.push("migration: aucun utilisateur trouvé, un utilisateur est recréé avec ce qui reste à la racine".into());
     }
-    let existing = if version < SETTINGS_SCHEMA { pick_user(folder, wanted.as_deref()) } else { None };
+    let existing = if version < SETTINGS_SCHEMA { pick_from(&list, wanted.as_deref()) } else { None };
     let source = object.unwrap_or_else(first_run_object);
 
     // Étape 1 : sauvegarde. Si elle échoue, rien n'a changé : l'ancien rangement sert pour ce lancement, on réessaiera.
     match backup(folder, today) {
-        Ok(Some(dir)) => report.messages.push(format!("migration: copie des fichiers dans {}", file_name(&dir))),
+        Ok(Some((dir, false))) => report.messages.push(format!("migration: copie des fichiers dans {}", file_name(&dir))),
+        Ok(Some((dir, true))) => report.messages.push(format!("migration: fichiers déjà copiés à l'identique dans {}", file_name(&dir))),
         Ok(None) => {}
         Err(e) => {
             report.messages.push(format!("migration: sauvegarde impossible ({e}), rien n'a changé ; nouvel essai au prochain lancement"));
@@ -262,20 +283,82 @@ fn file_name(path: &Path) -> String {
     path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
-/// Les utilisateurs complets : `utilisateurs/<id>/` (vrai dossier, pas un lien), identifiant valide, avec un `profile.json`.
-/// Un dossier de travail (`.migration-…`) n'en est jamais un. Triés par identifiant.
+/// Ce que contient `utilisateurs/`.
+#[derive(Default)]
+struct Scan {
+    /// `utilisateurs/<id>/` : vrai dossier (pas un lien), identifiant valide, avec un `profile.json`. Triés par identifiant.
+    complete: Vec<(String, PathBuf)>,
+    /// Identifiant valide, sans `profile.json` mais avec un dictionnaire ou un historique (fichier perdu, création interrompue) : réparable.
+    repairable: Vec<(String, PathBuf)>,
+    /// Dossiers visibles ni complets, ni réparables, ni vides (ou liens) : peut-être des données, jamais traitées comme « pas d'utilisateur ».
+    unknown: usize,
+}
+
+/// Lit `utilisateurs/` (absent : vide). Une erreur de lecture (antivirus, droits) est réessayée, puis rendue : jamais une liste vide.
+fn scan_users(folder: &Path) -> std::io::Result<Scan> {
+    let dir = folder.join(USERS_DIR);
+    let entries = match retry(|| std::fs::read_dir(&dir)) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Scan::default()),
+        Err(e) => return Err(e),
+    };
+    let mut scan = Scan::default();
+    for entry in entries {
+        let entry = entry?;
+        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+            scan.unknown += 1;
+            continue;
+        };
+        if name.starts_with('.') {
+            continue;
+        }
+        let kind = entry.file_type()?;
+        if kind.is_symlink() {
+            scan.unknown += 1;
+            continue;
+        }
+        if !kind.is_dir() {
+            continue;
+        }
+        let path = entry.path();
+        if is_profile_id(&name) && path.join(PROFILE_FILE).is_file() {
+            scan.complete.push((name, path));
+        } else if is_profile_id(&name) && USER_FILES.iter().any(|f| path.join(f).is_file()) {
+            scan.repairable.push((name, path));
+        } else if std::fs::read_dir(&path)?.next().is_some() {
+            scan.unknown += 1;
+        }
+    }
+    scan.complete.sort();
+    scan.repairable.sort();
+    Ok(scan)
+}
+
+/// Les utilisateurs complets (pour `state` et les tests) ; vide si `utilisateurs/` est illisible.
 fn users(folder: &Path) -> Vec<(String, PathBuf)> {
-    let Ok(entries) = std::fs::read_dir(folder.join(USERS_DIR)) else { return Vec::new() };
-    let mut found: Vec<(String, PathBuf)> = entries
-        .flatten()
-        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
-        .filter_map(|e| {
-            let id = e.file_name().to_str()?.to_string();
-            (is_profile_id(&id) && e.path().join(PROFILE_FILE).is_file()).then(|| (id, e.path()))
-        })
-        .collect();
-    found.sort();
-    found
+    scan_users(folder).map(|s| s.complete).unwrap_or_default()
+}
+
+/// Rend complets les utilisateurs réparables : un `profile.json` neuf (nom « Principal », réglages par défaut) ; leur dictionnaire et leur
+/// historique restent. Rend la liste des utilisateurs complets.
+fn repair_users(mut complete: Vec<(String, PathBuf)>, repairable: Vec<(String, PathBuf)>, report: &mut Report) -> Vec<(String, PathBuf)> {
+    for (id, dir) in repairable {
+        let mut profile = Map::new();
+        profile.insert(NAME_KEY.into(), Value::String(DEFAULT_NAME.into()));
+        match write_durable(&dir.join(PROFILE_FILE), &pretty(&profile)) {
+            Ok(()) => {
+                report
+                    .messages
+                    .push(format!("migration: {PROFILE_FILE} manquait pour l'utilisateur {id}, il est refait (données gardées)"));
+                complete.push((id, dir));
+            }
+            Err(e) => {
+                report.messages.push(format!("migration: {PROFILE_FILE} manque pour l'utilisateur {id} et n'a pas pu être refait ({e})"))
+            }
+        }
+    }
+    complete.sort();
+    complete
 }
 
 /// La dernière écriture dans le dossier d'un utilisateur (l'historique s'écrit à chaque dictée : c'est « le dernier utilisé »).
@@ -283,13 +366,33 @@ fn last_used(dir: &Path) -> Option<SystemTime> {
     std::iter::once(PROFILE_FILE).chain(USER_FILES).filter_map(|n| std::fs::metadata(dir.join(n)).and_then(|m| m.modified()).ok()).max()
 }
 
-/// L'utilisateur à rendre actif : `wanted` s'il existe, sinon le dernier utilisé (à égalité, le plus petit identifiant), sinon aucun.
-fn pick_user(folder: &Path, wanted: Option<&str>) -> Option<(String, PathBuf)> {
-    let list = users(folder);
-    if let Some(user) = wanted.and_then(|w| list.iter().find(|(id, _)| id == w)) {
+/// L'utilisateur à rendre actif : `wanted` s'il existe (sans tenir compte des majuscules : macOS et Windows ne les distinguent pas),
+/// sinon le dernier utilisé (à égalité, le plus petit identifiant), sinon aucun.
+fn pick_from(list: &[(String, PathBuf)], wanted: Option<&str>) -> Option<(String, PathBuf)> {
+    if let Some(user) = wanted.and_then(|w| list.iter().find(|(id, _)| id.eq_ignore_ascii_case(w))) {
         return Some(user.clone());
     }
-    list.into_iter().max_by(|a, b| last_used(&a.1).cmp(&last_used(&b.1)).then_with(|| b.0.cmp(&a.0)))
+    list.iter().max_by(|a, b| last_used(&a.1).cmp(&last_used(&b.1)).then_with(|| b.0.cmp(&a.0))).cloned()
+}
+
+fn pick_user(folder: &Path, wanted: Option<&str>) -> Option<(String, PathBuf)> {
+    pick_from(&users(folder), wanted)
+}
+
+/// Réessaie une opération sur le disque (5 fois, 200 ms entre deux) : sous Windows, un antivirus ou l'indexeur tient souvent un
+/// fichier qu'on vient d'écrire, et un renommage de dossier échoue alors un court instant. `NotFound` n'est pas réessayé.
+fn retry<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    let mut attempt = 0;
+    loop {
+        match op() {
+            Err(e) if attempt < 4 && e.kind() != std::io::ErrorKind::NotFound => {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                let _ = e;
+            }
+            other => return other,
+        }
+    }
 }
 
 /// Efface ce qu'un arrêt brutal a laissé d'une étape 1 ou 2 inachevée. Leur source est intacte (aucun déplacement n'a eu lieu) :
@@ -310,6 +413,15 @@ fn remove_unfinished_work(folder: &Path, report: &mut Report) {
                 .map(|e| e.path()),
         );
     }
+    // Le fichier temporaire d'une réécriture de settings.json interrompue (étape 4) : l'ancien fichier est intact.
+    if let Ok(entries) = std::fs::read_dir(folder) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with(&format!(".{SETTINGS}.")) && name.ends_with(".tmp") && entry.file_type().is_ok_and(|t| t.is_file()) {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
     for path in doomed {
         match std::fs::remove_dir_all(&path) {
             Ok(()) => report.messages.push(format!("migration: travail inachevé effacé ({})", file_name(&path))),
@@ -328,11 +440,20 @@ fn free_folder(folder: &Path, base: &str) -> PathBuf {
 }
 
 /// Étape 1 : copie des fichiers présents dans un nouveau dossier de sauvegarde. Les copies sont faites dans un dossier temporaire,
-/// écrites jusqu'au disque, puis le dossier est renommé : une sauvegarde visible est toujours complète. `Ok(None)` : rien à copier.
-fn backup(folder: &Path, today: &str) -> std::io::Result<Option<PathBuf>> {
+/// écrites jusqu'au disque, puis le dossier est renommé : une sauvegarde visible est toujours complète. Si une sauvegarde existante a
+/// déjà tous ces fichiers à l'identique (nouvel essai après un échec), elle sert telle quelle : `(dossier, true)`. `Ok(None)` : rien à copier.
+fn backup(folder: &Path, today: &str) -> std::io::Result<Option<(PathBuf, bool)>> {
     let present: Vec<&str> = std::iter::once(SETTINGS).chain(USER_FILES).filter(|n| folder.join(n).is_file()).collect();
     if present.is_empty() {
         return Ok(None);
+    }
+    let originals: Vec<(&str, Vec<u8>)> =
+        present.iter().map(|n| std::fs::read(folder.join(n)).map(|b| (*n, b))).collect::<Result<_, _>>()?;
+    if let Some(same) = backup_folders(folder)
+        .into_iter()
+        .find(|b| originals.iter().all(|(name, bytes)| std::fs::read(b.join(name)).is_ok_and(|copy| &copy == bytes)))
+    {
+        return Ok(Some((same, true)));
     }
     let target = free_folder(folder, &format!("{BACKUP_PREFIX}{today}"));
     let work = folder.join(format!(".{}{BACKUP_WORK_MARK}{}", file_name(&target), scriibe_core::modes::new_id()));
@@ -342,14 +463,29 @@ fn backup(folder: &Path, today: &str) -> std::io::Result<Option<PathBuf>> {
             copy_durable(&folder.join(name), &work.join(name))?;
         }
         sync_dir(&work);
-        std::fs::rename(&work, &target)?;
+        retry(|| std::fs::rename(&work, &target))?;
         sync_dir(folder);
         Ok(())
     })();
     if result.is_err() {
         let _ = std::fs::remove_dir_all(&work);
     }
-    result.map(|()| Some(target))
+    result.map(|()| Some((target, false)))
+}
+
+/// Les dossiers de sauvegarde de la migration (visibles), à la racine.
+fn backup_folders(folder: &Path) -> Vec<PathBuf> {
+    let mut found: Vec<PathBuf> = std::fs::read_dir(folder)
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|e| e.file_name().to_string_lossy().starts_with(BACKUP_PREFIX) && e.file_type().is_ok_and(|t| t.is_dir()))
+                .map(|e| e.path())
+                .collect()
+        })
+        .unwrap_or_default();
+    found.sort();
+    found
 }
 
 /// Le nom affiché d'un utilisateur migré : son prénom, sinon « Principal ».
@@ -382,7 +518,7 @@ fn build(folder: &Path, source: &Map<String, Value>, stop: Stop) -> std::io::Res
         }
         let id = scriibe_core::modes::new_id();
         let target = users.join(&id);
-        std::fs::rename(&work, &target)?;
+        retry(|| std::fs::rename(&work, &target))?;
         sync_dir(&users);
         Ok(Some((id, target)))
     })();
@@ -399,15 +535,7 @@ fn clean_leftovers(folder: &Path, today: &str, report: &mut Report) {
     if left.is_empty() {
         return;
     }
-    let backups: Vec<PathBuf> = std::fs::read_dir(folder)
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|e| e.file_name().to_string_lossy().starts_with(BACKUP_PREFIX) && e.file_type().is_ok_and(|t| t.is_dir()))
-                .map(|e| e.path())
-                .collect()
-        })
-        .unwrap_or_default();
+    let backups = backup_folders(folder);
     let mut aside: Option<PathBuf> = None;
     for name in left {
         let path = folder.join(name);
