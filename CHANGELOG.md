@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C4 tâche 10 — 2026-11-14 · Profils, étape 5 : exporter et importer un utilisateur entier (non publié : part avec la 0.5.0)
+
+- **Ce que l'on voit** : dans Réglages → Dictée, carte « Utilisateurs », **« Exporter… »** sur chaque ligne (l'actif ou un autre) et **« Importer un utilisateur… »**. L'export montre ce qui part, par catégorie, avec une case chacune ; le **prénom et le nom affiché sont décochés par défaut**. Un fichier `.scriibe.json` (non chiffré) ne contient **jamais** de clé d'API, d'historique, de statistiques ni de réglage de l'ordinateur. L'import montre un aperçu (nom à donner, case par catégorie) puis **crée un nouvel utilisateur**, jamais actif d'office, sans toucher à ceux en place ; nom déjà pris numéroté, identifiants neufs, mêmes limites et mêmes règles que les imports du dictionnaire et des commandes. Aide FR et EN complétée.
+- **Technique** : `profile_file.rs` (liste blanche, `build` passe par la lecture tolérante des réglages), `profiles::create_with`, `FileConfig::import_profile` et `profile_snapshot`, routes `api/profile/export` et `api/profile/import/*` ; les lecteurs des étapes 2 et 3 sont réutilisés.
+- **Mesuré** sur le Mac : 711 tests Rust (27 de plus) et 109 tests de l'interface sans erreur ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `svelte-check` sans erreur. **Non fait** : essai dans l'application (tâche 11). Détail et choix : `docs/PROFILS.md` § Étape 5.
+
 ## C4 tâche 9 — 2026-11-14 · Profils, étape 4c : les utilisateurs deviennent visibles (non publié : part avec la 0.5.0)
 
 - **Ce que l'on voit** :

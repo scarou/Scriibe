@@ -154,6 +154,14 @@
       <p>The full backup (Settings → System) contains the active user and the computer’s settings: to back up everyone, make one for each user, switching from one to the other.</p>
       <div class="links">{@render go('Manage users', 'settings', 'utilisateurs')}</div>
 
+      <h3>Exporting and importing a user</h3>
+      <p>To take your setup to another computer, back it up or give it to someone: Settings → Dictation, “Users” card, “Export…” on the user’s row (the active user or another: so you can export before setting a user aside). Scriibe shows what will leave, by category, with a box each and the list one click away, then opens the system’s “Save as” box (on Linux, where it does not exist yet, the file is placed in the Documents folder, and an existing file is never overwritten). The <b>.scriibe.json</b> file is not encrypted: read it before sharing it.</p>
+      <ul>
+        <li><b>What leaves.</b> Personal settings (languages, gender, chosen mode, Simple’s fidelity, modes hidden from the menu, list bullet, voice commands and their phrases), words, corrections, custom modes (with or without their examples), the edited instructions of the built-in modes, custom commands and their phrases. The <b>first name and display name</b> are unticked by default.</li>
+        <li><b>What never leaves.</b> API keys, history, statistics (and the settings that control how long they are kept), the trial bench and the computer’s settings (keys, microphone, sounds, engines, appearance). To save everything, there is the full backup.</li>
+        <li><b>Importing.</b> “Import a user…”, then choose the file (on Linux, type its path). Scriibe refuses anything that is not a user file or is too big, then shows a preview: a name to give and a box per category. <b>An import always creates a new user</b>, which does not become active by itself, and touches none of the existing ones; a name already taken gets a number. Same limits and rules as the dictionary and command imports: new identifiers, numbered titles, unreadable shortcuts set aside. Read a file that comes from someone else: a correction replaces a word in all your dictations, an instruction is given to the model, a command presses a shortcut in the app.</li>
+      </ul>
+
       <h3>Users and earlier versions of Scriibe</h3>
       <p>On the first launch that stores the data per user, Scriibe first makes a <b>backup</b> of your files in “sauvegarde-avant-utilisateurs-<i>date</i>” (in the data folder), then creates the user “Principal” with your first name, dictionary, history and statistics. Scriibe never erases this folder: delete it yourself once you are sure you will not go back. It keeps your history as it was, dictated texts included, even if you later set “Keep the text” to off; uninstalling sends it to the Trash with the rest.</p>
       <ul>

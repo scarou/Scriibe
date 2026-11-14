@@ -21,6 +21,7 @@ pub mod lang;
 pub mod media_pause;
 pub mod microphone;
 pub mod modes;
+pub mod profile_file;
 mod prompt_text;
 pub mod retention;
 pub mod settings;

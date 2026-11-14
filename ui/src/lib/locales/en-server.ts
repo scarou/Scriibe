@@ -341,4 +341,61 @@ export const enServer: Record<string, string> = {
     'confirmation missing',
   'Une dictée est en cours : attends qu\'elle soit finie pour changer d\'utilisateur.':
     'A dictation is in progress: wait until it is finished before switching user.',
+  // Export et import d'un utilisateur (étape 5)
+  'langue dictée':
+    'dictation language',
+  'langue de traduction':
+    'translation language',
+  'genre':
+    'gender',
+  'mode choisi':
+    'chosen mode',
+  'fidélité du mode Simple':
+    'fidelity of the Simple mode',
+  'puce des listes':
+    'list bullet',
+  'commandes vocales (interrupteur)':
+    'voice commands (switch)',
+  'phrases des commandes vocales':
+    'voice command phrases',
+  'modes masqués du menu':
+    'modes hidden from the menu',
+  'réglage':
+    'setting',
+  'ce fichier ne contient pas d\'utilisateur (autre type d\'export)':
+    'this file contains no user (another type of export)',
+  'ce fichier ne contient pas d\'utilisateur':
+    'this file contains no user',
+  'aucun contenu dans ce fichier':
+    'no content in this file',
+  'un nom du fichier est trop long':
+    'a name in the file is too long',
+  'un nom du fichier est trop long : 40 caractères au maximum':
+    'a name in the file is too long: 40 characters at most',
+  'le fichier est mal formé (un nom n\'est pas un texte)':
+    'the file is malformed (a name is not text)',
+  'les phrases des commandes vocales du fichier sont mal formées':
+    'the voice command phrases in the file are malformed',
+  'trop de commandes vocales dans ce fichier : 100 au maximum par langue':
+    'too many voice commands in this file: 100 at most per language',
+  'une commande vocale a trop de phrases : 20 au maximum':
+    'a voice command has too many phrases: 20 at most',
+  'une phrase de commande vocale est trop longue : {max} caractères au maximum':
+    'a voice command phrase is too long: {max} characters at most',
+  'la liste des modes masqués du fichier est mal formée':
+    'the list of hidden modes in the file is malformed',
+  'trop d\'éléments dans la liste des modes masqués du fichier : 100 au maximum':
+    'too many items in the list of hidden modes in the file: 100 at most',
+  'la liste des modes du fichier est mal formée':
+    'the list of modes in the file is malformed',
+  'les consignes modifiées du fichier sont mal formées':
+    'the edited instructions in the file are malformed',
+  'trop de consignes modifiées dans ce fichier : 100 au maximum':
+    'too many edited instructions in this file: 100 at most',
+  'une consigne modifiée est trop longue : 20 000 caractères au maximum':
+    'an edited instruction is too long: 20,000 characters at most',
+  'la liste des commandes du fichier est mal formée':
+    'the list of commands in the file is malformed',
+  'rien à importer : coche au moins une catégorie':
+    'nothing to import: tick at least one category',
 };

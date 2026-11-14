@@ -176,3 +176,52 @@ fn edits_under_the_lock_never_land_on_the_other_user_while_switching() {
     assert_eq!(at_alice["words"].as_array().unwrap().len(), written, "tout ce qui a passé le contrôle est chez Alice, rien n'est perdu");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[test]
+fn an_imported_user_is_created_whole_numbered_when_the_name_is_taken_and_never_active() {
+    let (dir, config, principal) = migrated("import");
+    let mut profile = serde_json::Map::new();
+    profile.insert("firstName".into(), serde_json::json!("Léa"));
+    let made = config.import_profile("Principal", profile.clone(), &words(&["alice"])).unwrap();
+    assert_eq!(made.name, "Principal 2", "le nom pris reçoit un numéro au lieu d'être refusé");
+    assert_eq!(read_json(&made.folder.join(PROFILE_FILE))["firstName"], "Léa");
+    assert_eq!(read_json(&made.folder.join(PROFILE_FILE))["name"], "Principal 2");
+    assert_eq!(read_json(&made.folder.join("dictionary.json"))["words"], serde_json::json!(["alice"]));
+    assert!(!made.folder.join("history.json").exists());
+    assert_eq!(config.active_profile_id().as_deref(), Some(principal.id.as_str()));
+    // Sans dictionnaire, pas de fichier de dictionnaire inventé.
+    let bare = config.import_profile("Bruno", serde_json::Map::new(), &UserDictionary::default()).unwrap();
+    assert!(!bare.folder.join("dictionary.json").exists());
+    assert_eq!(config.cached_profiles().len(), 3, "la liste du menu est refaite");
+    assert!(matches!(config.import_profile("   ", profile, &UserDictionary::default()), Err(ProfileError::BadName(_))));
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_snapshot_of_any_user_gives_the_same_view_as_switching_to_it_and_refuses_unreadable_files() {
+    let (dir, config, principal) = migrated("snapshot");
+    let mut settings = config.settings();
+    settings.first_name = "Alice".into();
+    config.save_settings(&settings).unwrap();
+    config.save_dictionary(&words(&["alice"])).unwrap();
+    let bruno = config.create_profile("Bruno").unwrap();
+    // L'utilisateur actif, puis l'autre sans changer d'utilisateur.
+    let (name, active_view, dictionary) = config.profile_snapshot(&principal.id).unwrap();
+    assert_eq!(
+        (name.as_str(), active_view.first_name.as_str(), dictionary.words.clone()),
+        (DEFAULT_NAME, "Alice", vec!["alice".to_string()])
+    );
+    let (name, other, other_dictionary) = config.profile_snapshot(&bruno.id).unwrap();
+    assert_eq!((name.as_str(), other.first_name.as_str(), other_dictionary.words.is_empty()), ("Bruno", "", true));
+    assert_eq!(config.active_profile_id().as_deref(), Some(principal.id.as_str()), "regarder n'est pas changer");
+    config.switch_to_profile(&bruno.id, |_| ()).unwrap();
+    // Seul l'utilisateur noté actif dans `settings.json` diffère (il change avec le passage chez Bruno).
+    let other = scriibe_core::settings::AppSettings { active_profile: Some(bruno.id.clone()), ..other };
+    assert_eq!(config.settings(), other, "l'instantané d'un utilisateur est la vue qu'on aurait en passant chez lui");
+    assert!(matches!(config.profile_snapshot("INCONNU"), Err(ProfileError::Unknown)));
+    std::fs::write(principal.folder.join(PROFILE_FILE), "pas du json").unwrap();
+    assert!(matches!(config.profile_snapshot(&principal.id), Err(ProfileError::Unreadable)));
+    std::fs::write(bruno.folder.join("dictionary.json"), "pas du json").unwrap();
+    assert!(matches!(config.profile_snapshot(&bruno.id), Err(ProfileError::Unreadable)), "même pour l'utilisateur actif");
+    let _ = std::fs::remove_dir_all(dir);
+}

@@ -503,7 +503,7 @@ Code de l'étape 4c de `docs/CADRAGE_PROFILS.md` (décision 3) : la fonction ell
 11. **Copie** : `profile.json` en entier (donc modes, commandes, mode choisi, prénom, langues…) et `dictionary.json` ; **jamais** `history.json` ni `history-totals.json`. Un `profile.json` illisible empêche la copie (une copie serait un utilisateur vide sans le dire).
 12. **Page rechargée** après « Utiliser » (`location.reload()`), plutôt que de rafraîchir chaque onglet un à un : dictionnaire, modes, historique, statistiques, commandes et réglages viennent tous de l'utilisateur actif. Coût : un rechargement, rare.
 13. **Menu** : l'identifiant montré est gardé à chaque relevé de la vue (toutes les 500 ms) et renvoyé avec un clic sur un mode ; après un clic sur un utilisateur ou un mode, le menu se remet d'accord tout de suite (le menu natif a déjà coché la case).
-14. **Pas d'export proposé avant la suppression** (le cadrage le prévoyait) : l'export d'un utilisateur entier est l'étape 5 (tâche 10) ; la confirmation dit où le dossier est mis de côté et comment le reprendre. À ajouter à l'étape 5.
+14. **Pas d'export proposé avant la suppression à l'étape 4c** (le cadrage le prévoyait) : l'export d'un utilisateur entier n'existait pas encore. Fait à l'étape 5 : « Exporter… » sur chaque ligne, et la confirmation de suppression y renvoie.
 
 ### Tests (35 nouveaux côté Rust, 5 côté interface)
 
@@ -527,7 +527,7 @@ Mesuré sur le Mac : `cargo fmt --all --check` sans écart, `cargo clippy --work
 
 ### Limites et à reprendre
 
-- **Tâche 10 (étape 5)** : ajouter l'export proposé avant la suppression (choix 14), et revoir `kind: "profile"` : l'export ne doit jamais porter l'historique, qui suit le dossier de l'utilisateur.
+- **Étape 5** : faite (voir § Étape 5) : l'export proposé avant la suppression passe par « Exporter… » sur la ligne.
 - **Fenêtre restante au changement** : entre la vérification « pas de dictée en cours » et le changement, une dictée peut démarrer ; elle serait enregistrée chez le nouvel utilisateur (le verrou protège les réglages, pas l'enregistrement du chef d'orchestre). Très étroite ; non fermée.
 - **Menu : un clic refusé est muet** (dictée en cours, `settings.json` refusé) ; il est noté au journal et le menu se remet d'accord.
 - **M2 et M4 de la relecture de la migration restent ouverts** : si `settings.json` est illisible au lancement, c'est « le dernier utilisé » (date de modification) qui s'ouvre, pas forcément l'actif ; sur une copie de dossier ou un système de fichiers FAT, cette date est peu fiable. Rare (il faut perdre `activeProfile`), mais plus probable maintenant qu'il y a plusieurs utilisateurs : à reprendre si l'essai le montre.
@@ -535,3 +535,68 @@ Mesuré sur le Mac : `cargo fmt --all --check` sans écart, `cargo clippy --work
 - **Pas de bandeau global** si le rangement par utilisateur échoue au lancement : seule la carte « Utilisateurs » et le journal le disent.
 - **Le nom « Principal »** n'est pas traduit (c'est un nom stocké, pas un texte de la page) ; l'utilisateur peut le renommer.
 - **CHANGELOG** : section « C4 tâche 9 » ajoutée ; ROADMAP et REPRISE sont à la clôture de session.
+
+## Étape 5 · Export et import d'un utilisateur entier (tâche 10, 14/11/2026)
+
+Code de l'étape 5 de `docs/CADRAGE_PROFILS.md` (`kind: "profile"`, décisions 1, 4 et 5). **Essayée dans l'application : non** (tâche 11) ; vérifiée par les tests ci-dessous, `svelte-check`, la construction de l'interface.
+
+### Ce que l'on voit
+
+- **Réglages → Dictée, carte « Utilisateurs »** : un bouton **« Exporter… »** sur la ligne de chaque utilisateur (l'actif ou un autre : on peut donc exporter avant de mettre un utilisateur de côté) et **« Importer un utilisateur… »** sous la liste.
+- **Export** : un panneau montre ce qui partirait, une case par catégorie et la liste en un clic (mots, corrections, modes, consignes…), puis la boîte « Enregistrer sous » du système. **Prénom et nom affiché : décochés par défaut.** Avertissement : fichier non chiffré, noms propres et textes libres possibles, jamais de clé, d'historique, de statistiques ni de réglage de l'ordinateur.
+- **Import** : le serveur lit et contrôle le fichier, la page montre un aperçu (un nom à donner, une case par catégorie, les modes et les commandes en liste avec leurs problèmes), puis crée **un nouvel utilisateur**. Il ne devient pas actif d'office ; un bouton « Passer à cet utilisateur » suit la création.
+- **Aide FR et EN** : « Exporter et importer un utilisateur » (Premiers pas).
+
+### Le fichier
+
+`{format: "scriibe-export", version: 1, kind: "profile", app, exportedAt (le jour seul), content}`. Nom proposé : `scriibe-utilisateur-<jour>.scriibe.json` (jamais le nom de l'utilisateur). `content`, chaque catégorie absente quand elle est décochée ou vide :
+
+| Case | Clés de `content` |
+|---|---|
+| Prénom et nom affiché (décochée) | `name`, `firstName` |
+| Réglages de personne | `language`, `translationLanguage`, `speakerGender`, `rewriteMode`, `simpleFidelity`, `listBullet`, `voiceCommandsEnabled`, `voiceCommands` ; `hiddenModes` (sans les identifiants de modes personnels quand les modes ne partent pas) |
+| Mots, Corrections | `dictionary: {words, corrections}` |
+| Modes personnels (+ « exemples ») | `customModes` (comme l'export de modes, avec `fidelity`), `customModeID` |
+| Consignes modifiées | `styleOverrides` |
+| Commandes et leurs phrases | `customCommands` (sans `id` : il contient l'heure de création) |
+
+**Ne part jamais** : `keepDictationText`, `historyKeepDays`, `typingWPM` (les réglages de l'historique et des statistiques, décision 1), l'historique, les statistiques, les clés d'API, le banc d'essai, ni aucun champ de l'ordinateur. `PREFERENCE_KEYS` et les clés écrites une à une dans `profile_file::export_profile` sont la liste blanche ; l'export ne sérialise jamais `AppSettings` tel quel.
+
+### Ce que fait le code
+
+- **`crates/core/src/profile_file.rs`** (nouveau) : `export_profile`, `contents` (inventaire pour l'aperçu), `parse_profile`, `preview`, `build`, `Categories`. Les lecteurs des étapes 2 et 3 sont **réutilisés** : `import_dictionary::read_content`, `import::read_modes` et `import_commands::read_commands` ont été séparés de leur enveloppe (mêmes limites, mêmes messages, aucun changement de comportement pour les imports existants).
+- **`build`** : ce que l'import écrit passe par la lecture tolérante des réglages (`AppSettings::from_value`), donc c'est ce que l'application relirait. Identifiants de modes, d'exemples et de commandes **toujours neufs** ; `customModeID` et `hiddenModes` suivent la table ancien → nouvel identifiant ; titres de modes et de commandes numérotés entre eux (`import::apply`, `import_commands::apply` sur un utilisateur vide) ; raccourcis contrôlés ; mots et corrections dédoublonnés (`import_dictionary::apply`, plafond de 1 000 mots). `profile.json` du nouvel utilisateur ne reçoit que les clés renseignées (les autres prennent leur valeur par défaut à la lecture) et seulement des clés de l'utilisateur.
+- **`profiles::create_with`** (la copie d'un utilisateur et l'import passent par lui : dossier de travail caché, puis renommage) ; **`FileConfig::import_profile`** (nom numéroté s'il est pris : `Principal 2`, jamais refusé ; pas de dictionnaire inventé s'il est vide) ; **`FileConfig::profile_snapshot(id)`** (réglages vus avec ceux de l'ordinateur, dictionnaire et nom d'un utilisateur, actif ou non, sans changer d'utilisateur ; un `profile.json` ou un `dictionary.json` illisible est refusé).
+- **Routes** (`web/user_file_io.rs`) : `POST api/profile/export/preview` `{id}`, `api/profile/export` `{id, cases…}`, `api/profile/import/read` `{path?}`, `api/profile/import/apply` `{token, name?, include?}`, `api/profile/import/cancel`. Un fichier refusé oublie l'attente d'avant ; un jeton qui n'est pas celui de l'aperçu est refusé sans perdre l'attente.
+
+### Choix techniques et pourquoi
+
+1. **L'export vise un utilisateur par son identifiant**, pas « l'utilisateur actif ». Il ne dépend donc pas de ce que la page croit actif (pas de 409 possible), et il permet d'exporter un utilisateur avant de le mettre de côté (le cadrage prévoyait « la proposition d'exporter d'abord »). La confirmation de suppression dit d'annuler et d'utiliser « Exporter… » : pas de troisième bouton dans les boîtes de dialogue, que je n'ai pas voulu toucher pour ça.
+2. **La case « prénom et nom affiché » couvre `name` et `firstName`** (décision 5) ; le genre fait partie des réglages de personne (il sert à accorder les modes), avec ses langues. Je le dis dans l'aperçu (« genre »).
+3. **Huit cases, à l'export comme à l'import** : identité, réglages de personne, mots, corrections, modes (+ exemples), consignes modifiées, commandes. Le cadrage listait mots, corrections, modes, exemples, phrases de style, commandes et leurs phrases ; j'y ai ajouté les réglages de personne, qui sont dans l'utilisateur (décision 1) et qu'on peut vouloir ne pas donner. À l'import, le prénom est coché quand le fichier en contient un (l'auteur du fichier l'a voulu), tout le reste aussi.
+4. **Un import ne choisit pas pour la personne** : le nouvel utilisateur n'est pas actif d'office (comme une création) ; le nom se donne dans l'aperçu (par défaut celui du fichier, sinon « Utilisateur importé »).
+5. **Identifiants toujours neufs**, même quand rien ne les ferait entrer en collision (utilisateur vide) : c'est ce que dit le cadrage (« table des nouveaux identifiants »), et cela évite que deux utilisateurs partagent des identifiants de modes.
+6. **Les clés que le fichier ajouterait en douce** (réglages de l'ordinateur, `activeProfile`, `schemaVersion`, `keepDictationText`, clé d'API…) sont ignorées, jamais lues ni copiées ; un fichier qui ne contient que cela est refusé (« aucun contenu »).
+7. **Un `dictionary.json` ou `profile.json` illisible bloque l'export** de cet utilisateur (on n'exporte pas un fichier à moitié lu), comme la copie.
+
+### Tests (27 nouveaux côté Rust)
+
+| Où | Ce qu'il prouve |
+|---|---|
+| `crates/core/src/profile_file_tests.rs` (17) | enveloppe et nom de fichier sans nom d'utilisateur ; **aucun secret, aucun historique, aucun champ de l'ordinateur** dans le fichier (valeurs-pièges cherchées dans le texte exporté, clés du contenu comparées à la liste blanche) ; prénom et nom décochés par défaut, présents seulement si cochés, et nulle part ailleurs dans le fichier ; une catégorie décochée n'a pas de clé, les exemples suivent leur case ; modes masqués et mode choisi retirés quand les modes ne partent pas ; pas d'`id` de commande ; **aller-retour identique** (exporter → lire → construire donne le même utilisateur, identifiants neufs, mode choisi et mode masqué qui suivent, réexport identique) ; l'import n'écrit que des clés de l'utilisateur, même quand le fichier en glisse d'autres ; cases d'import ; titres de modes numérotés, commandes écartées (raccourci illisible, phrase prise) ; consignes d'un mode inconnu écartées ; « jamais tous les modes masqués » ; limites du dictionnaire ; refus (autre type, version plus récente, trop gros, vide, noms trop longs, phrases vocales, listes, consignes…) ; aperçu et inventaire |
+| `profiles_config_tests.rs` (2) | import : utilisateur complet, nom numéroté, jamais actif, pas d'historique, pas de dictionnaire inventé, liste du menu refaite ; instantané d'un utilisateur (actif ou non) = la vue qu'on aurait en passant chez lui, fichiers illisibles refusés |
+| `web/user_file_io.rs` (8) | aperçu de l'export pour un utilisateur actif ou non ; texte exporté sans secret, sans historique, sans prénom sauf case cochée ; rien à exporter et fichier illisible refusés ; **import qui crée un nouvel utilisateur sans toucher à l'actif** (`profile.json` de l'actif identique à l'octet, ni `history.json` ni statistiques chez le nouveau) ; nom numéroté (`Principal 2`, `Principal 3`), nom du fichier ou « Utilisateur importé » ; cases de l'aperçu, tout décoché refusé ; fichier refusé qui oublie l'aperçu d'avant et ne crée rien ; aller-retour par fichier entre deux utilisateurs |
+
+### Résultat des tests
+
+Mesuré sur le Mac : `cargo fmt --all --check` sans écart, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur, `cargo test --workspace` : **711 réussis, 0 échoué, 1 ignoré** (684 avant : 27 de plus) ; `npm test` : **109 réussis** (aucun test d'interface ajouté : le travail est côté serveur ; les contrôles de traduction et de structure de l'Aide couvrent les nouveaux textes) ; `svelte-check` : 0 erreur, 0 avertissement ; `npm run build` réussi.
+
+**Non fait** : (a) aucun essai dans l'application (boîtes de fichier, aperçu, export d'un autre utilisateur) : tâche 11 ; (b) le code Windows n'a toujours pas été compilé ici (voir 4c) : cette étape n'y touche pas.
+
+### Limites et à reprendre
+
+- **Pas de test d'interface** des panneaux d'export et d'import (comme pour les autres cartes d'import) : vérifiés à la lecture, par `svelte-check` et à l'essai de la tâche 11.
+- **Le choix du fichier à l'import et de l'emplacement à l'export** passent par les boîtes du système (Mac, Windows) ; sous Linux, chemin tapé et dossier Documents, comme les autres imports (limite déjà connue).
+- **Un aperçu d'import reste en mémoire** jusqu'à son abandon, son application ou le fichier suivant ; il est aussi abandonné quand on ferme le panneau, pas quand on change d'utilisateur (il ne dépend d'aucun utilisateur).
+- **Pas d'export de l'historique ni des statistiques** : voulu (décision 4), la sauvegarde complète garde ce rôle pour l'utilisateur actif.
+- **Prénom exporté en clair** quand la case est cochée ; le fichier n'est pas chiffré (décision 5).

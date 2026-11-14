@@ -1,5 +1,7 @@
 <script lang="ts">
   import Card from './Card.svelte';
+  import UserExport from './UserExport.svelte';
+  import UserImport from './UserImport.svelte';
   import { confirmBox, notice } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
@@ -20,6 +22,9 @@
   let copy = $state(false);
   /** La ligne dont le nom est en cours de modification. */
   let renaming = $state<{ id: string; name: string } | null>(null);
+  /** L'utilisateur dont on prépare l'export, et le panneau d'import (un seul des deux à la fois). */
+  let exportId = $state<string | null>(null);
+  let importOpen = $state(false);
 
   async function load() {
     list = await api<Listed>('profiles');
@@ -61,12 +66,22 @@
 
   async function remove(id: string, name: string) {
     const sure = await confirmBox(
-      t('Mettre l’utilisateur « {name} » de côté ? Son dictionnaire, ses modes, son historique et ses statistiques ne seront plus utilisés. Scriibe ne les efface pas : le dossier est déplacé dans « utilisateurs-supprimes », dans le dossier de données, d’où tu peux le reprendre à la main.', { name }),
+      t('Mettre l’utilisateur « {name} » de côté ? Son dictionnaire, ses modes, son historique et ses statistiques ne seront plus utilisés. Scriibe ne les efface pas : le dossier est déplacé dans « utilisateurs-supprimes », dans le dossier de données, d’où tu peux le reprendre à la main. Pour en garder une copie portable (sans l’historique), annule et clique d’abord sur « Exporter… » sur sa ligne.', { name }),
       { confirm: t('Mettre de côté'), danger: true },
     );
     if (!sure) return;
     const out = await ask<{ ok: boolean; kept_in: string }>('profiles/delete', { id, confirmed: true });
     if (out) void notice(t('« {name} » est mis de côté dans {folder}.', { name, folder: out.kept_in }));
+  }
+
+  function openExport(id: string) {
+    importOpen = false;
+    exportId = id;
+  }
+
+  function openImport() {
+    exportId = null;
+    importOpen = true;
   }
 
   onMount(() => {
@@ -94,6 +109,7 @@
           {:else}
             <span class="name"><b>{p.name}</b>{#if active} <span class="tag">{t('actif')}</span>{/if}</span>
             {#if !active}<button onclick={() => use(p.id)} disabled={busy}>{t('Utiliser')}</button>{/if}
+            <button onclick={() => openExport(p.id)} disabled={busy}>{t('Exporter…')}</button>
             <button onclick={() => (renaming = { id: p.id, name: p.name })} disabled={busy}>{t('Renommer')}</button>
             <button onclick={() => remove(p.id, p.name)} disabled={busy || active} title={active ? t('Passe d’abord à un autre utilisateur.') : ''}>{t('Supprimer')}</button>
           {/if}
@@ -105,9 +121,17 @@
         onkeydown={(e) => { if (e.key === 'Enter' && newName.trim()) void create(); }} />
       <button class="primary" onclick={create} disabled={busy || !newName.trim()}>{t('Créer un utilisateur')}</button>
     </div>
+    <div class="row"><button onclick={openImport} disabled={busy || importOpen}>{t('Importer un utilisateur…')}</button></div>
     <label class="muted"><input type="checkbox" bind:checked={copy} disabled={busy} /> {t('Copier l’utilisateur actif (ses réglages de personne et son dictionnaire, sans son historique ni ses statistiques)')}</label>
   {/if}
 </Card>
+
+{#if exportId}
+  {#key exportId}<UserExport id={exportId} onclose={() => (exportId = null)} />{/key}
+{/if}
+{#if importOpen}
+  <UserImport onclose={() => (importOpen = false)} onchanged={load} onuse={(id) => { importOpen = false; void use(id); }} />
+{/if}
 
 <style>
   .users { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }

@@ -149,15 +149,28 @@ fn remove_unfinished(data: &Path) {
 /// Un utilisateur de plus. `name` : le nom affiché (déjà propre ou non : il est contrôlé ici). `copy_from` : le dossier d'un utilisateur
 /// dont on reprend les réglages et le dictionnaire (jamais l'historique ni les statistiques) ; `None` : un utilisateur vide.
 pub fn create(data: &Path, name: &str, copy_from: Option<&Path>) -> Result<ProfileInfo, ProfileError> {
+    // Le profil d'origine se lit avant tout : s'il est illisible, rien n'est créé (la copie serait un utilisateur vide).
+    let profile = match copy_from {
+        Some(source) => read_profile(source).ok_or(ProfileError::Unreadable)?,
+        None => Map::new(),
+    };
+    let dictionary = copy_from.and_then(|source| std::fs::read_to_string(source.join("dictionary.json")).ok());
+    create_with(data, name, profile, dictionary)
+}
+
+/// Un utilisateur de plus, avec ce contenu : les clés de son `profile.json` (le nom affiché y est mis ici) et, s'il y en a un, le texte de
+/// son `dictionary.json`. Sert à la copie ([`create`]) et à l'import d'un utilisateur (étape 5). Il est construit dans un dossier de travail
+/// puis renommé : un arrêt brutal ne laisse jamais un utilisateur à moitié rempli.
+pub fn create_with(
+    data: &Path,
+    name: &str,
+    mut profile: Map<String, Value>,
+    dictionary: Option<String>,
+) -> Result<ProfileInfo, ProfileError> {
     let name = clean_name(name)?;
     if list(data)?.iter().any(|p| same_name(&p.name, &name)) {
         return Err(ProfileError::NameTaken);
     }
-    // Le profil d'origine se lit avant tout : s'il est illisible, rien n'est créé (la copie serait un utilisateur vide).
-    let mut profile = match copy_from {
-        Some(source) => read_profile(source).ok_or(ProfileError::Unreadable)?,
-        None => Map::new(),
-    };
     profile.insert(NAME_KEY.into(), Value::String(name.clone()));
     let users = data.join(USERS_DIR);
     std::fs::create_dir_all(&users)?;
@@ -168,11 +181,8 @@ pub fn create(data: &Path, name: &str, copy_from: Option<&Path>) -> Result<Profi
         std::fs::create_dir(&work)?;
         let text = serde_json::to_string_pretty(&Value::Object(profile)).map_err(std::io::Error::other)?;
         crate::storage::write_atomic(&work.join(PROFILE_FILE), &text)?;
-        if let Some(source) = copy_from {
-            let dictionary = source.join("dictionary.json");
-            if dictionary.is_file() {
-                std::fs::copy(&dictionary, work.join("dictionary.json"))?;
-            }
+        if let Some(text) = &dictionary {
+            crate::storage::write_atomic(&work.join("dictionary.json"), text)?;
         }
         Ok(())
     })();

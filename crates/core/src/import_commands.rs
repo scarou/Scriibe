@@ -38,6 +38,11 @@ pub fn parse_commands(text: &str) -> Result<Vec<CustomCommand>, String> {
     if list.is_empty() {
         return Err("aucune commande dans ce fichier".into());
     }
+    read_commands(list)
+}
+
+/// Lit une liste de commandes d'un fichier (commandes seules, ou clé `customCommands` d'un fichier d'utilisateur) : mêmes limites, mêmes contrôles.
+pub(crate) fn read_commands(list: &[Value]) -> Result<Vec<CustomCommand>, String> {
     if list.len() > MAX_COMMANDS {
         return Err("trop de commandes dans ce fichier : 100 au maximum".into());
     }

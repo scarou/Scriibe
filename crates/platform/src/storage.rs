@@ -391,6 +391,58 @@ impl FileConfig {
         made
     }
 
+    /// Crée un utilisateur avec le contenu d'un fichier importé (étape 5) : les clés de son `profile.json` et son dictionnaire. Un nom déjà
+    /// pris reçoit un numéro (« Anne 2 »), il n'est jamais refusé ni écrasé. Il ne devient pas actif.
+    pub fn import_profile(
+        &self,
+        name: &str,
+        profile: serde_json::Map<String, Value>,
+        dictionary: &UserDictionary,
+    ) -> Result<ProfileInfo, ProfileError> {
+        let _guard = self.lock_edit();
+        let name = profiles::clean_name(name)?;
+        let taken: Vec<String> = profiles::list(&self.folder)?.into_iter().map(|p| p.name).collect();
+        let name = scriibe_core::import::free_name(&taken, &name);
+        let text = if dictionary.words.is_empty() && dictionary.corrections.is_empty() {
+            None
+        } else {
+            Some(serde_json::to_string_pretty(dictionary).map_err(std::io::Error::other)?)
+        };
+        let made = profiles::create_with(&self.folder, &name, profile, text);
+        self.forget_profiles();
+        made
+    }
+
+    /// Ce qu'un utilisateur contient (réglages vus avec ceux de l'ordinateur, dictionnaire, nom affiché), pour l'exporter : l'utilisateur actif
+    /// comme un autre. Un `profile.json` ou un `dictionary.json` illisible est refusé (`Unreadable`) : on n'exporte pas un fichier à moitié lu.
+    pub fn profile_snapshot(&self, id: &str) -> Result<(String, AppSettings, UserDictionary), ProfileError> {
+        let _guard = self.lock_edit();
+        let target = profiles::find(&self.folder, id)?.ok_or(ProfileError::Unknown)?;
+        if self.active_profile_id().is_some_and(|a| a.eq_ignore_ascii_case(&target.id)) {
+            let (_, problems) = self.view();
+            if !problems.is_empty() || self.dictionary_state().1.is_some() {
+                return Err(ProfileError::Unreadable);
+            }
+            return Ok((target.name, self.settings(), self.dictionary()));
+        }
+        let read = |name: &str| std::fs::read_to_string(target.folder.join(name));
+        let user: Value = serde_json::from_str(&read(migration::PROFILE_FILE).map_err(|_| ProfileError::Unreadable)?)
+            .map_err(|_| ProfileError::Unreadable)?;
+        let (computer, problem) = self.settings.read_state(read_settings_object, || {
+            serde_json::to_value(first_run_settings()).unwrap_or_else(|_| Value::Object(Default::default()))
+        });
+        if problem.is_some() {
+            return Err(ProfileError::Unreadable);
+        }
+        let settings = AppSettings::from_parts(&computer, Some(&user)).ok_or(ProfileError::Unreadable)?;
+        let dictionary = match read("dictionary.json") {
+            Ok(text) => UserDictionary::from_json(&text).map_err(|_| ProfileError::Unreadable)?,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => UserDictionary::default(),
+            Err(_) => return Err(ProfileError::Unreadable),
+        };
+        Ok((target.name, settings, dictionary))
+    }
+
     pub fn rename_profile(&self, id: &str, name: &str) -> Result<ProfileInfo, ProfileError> {
         let _guard = self.lock_edit();
         let renamed = profiles::rename(&self.folder, id, name);

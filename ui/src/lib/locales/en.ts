@@ -851,8 +851,6 @@ export const en: Record<string, string> = {
     'Each user has their own dictionary, custom modes, commands, history and statistics, and their personal settings (first name, language, chosen mode). The keys, microphone, engines and API keys stay those of the computer. With two or more users, the icon menu also lets you switch between them.',
   'Impossible de faire cela.':
     'That could not be done.',
-  'Mettre l’utilisateur « {name} » de côté ? Son dictionnaire, ses modes, son historique et ses statistiques ne seront plus utilisés. Scriibe ne les efface pas : le dossier est déplacé dans « utilisateurs-supprimes », dans le dossier de données, d’où tu peux le reprendre à la main.':
-    'Set the user “{name}” aside? Their dictionary, modes, history and statistics will no longer be used. Scriibe does not erase them: the folder is moved to “utilisateurs-supprimes”, inside the data folder, where you can take it back by hand.',
   'Mettre de côté':
     'Set aside',
   '« {name} » est mis de côté dans {folder}.':
@@ -881,4 +879,69 @@ export const en: Record<string, string> = {
     'User: {name}',
   'changer':
     'change',
+  // Export et import d'un utilisateur (étape 5)
+  'Impossible de lire cet utilisateur.':
+    'This user could not be read.',
+  'Exporter l’utilisateur « {name} »':
+    'Export the user “{name}”',
+  'Exporter un utilisateur':
+    'Export a user',
+  'Voici ce qui partirait dans le fichier. Décoche ce que tu ne veux pas donner. Le fichier n’est pas chiffré et peut contenir des noms propres et des textes libres (corrections, consignes et exemples de modes, phrases de commandes) : relis-le avant de le partager. Il ne contient jamais de clé d’API, d’historique, de statistiques ni de réglage de l’ordinateur (touches, micro, moteurs).':
+    'Here is what would go in the file. Untick what you do not want to give. The file is not encrypted and may contain proper names and free text (corrections, mode instructions and examples, command phrases): read it before sharing it. It never contains an API key, history, statistics or computer settings (keys, microphone, engines).',
+  'Prénom et nom affiché':
+    'First name and display name',
+  'prénom « {first} », nom affiché « {name} »':
+    'first name “{first}”, display name “{name}”',
+  'nom affiché « {name} » (pas de prénom)':
+    'display name “{name}” (no first name)',
+  'décoché par défaut':
+    'unticked by default',
+  'Réglages de personne':
+    'Personal settings',
+  'rien':
+    'nothing',
+  'Voir la liste':
+    'Show the list',
+  'Modes personnels':
+    'Custom modes',
+  '{n} mode(s)':
+    '{n} mode(s)',
+  'Inclure leurs exemples ({n})':
+    'Include their examples ({n})',
+  'Consignes modifiées des modes livrés':
+    'Edited instructions of the built-in modes',
+  'Commandes et leurs phrases':
+    'Commands and their phrases',
+  '{n} commande(s)':
+    '{n} command(s)',
+  'Enregistrer…':
+    'Save…',
+  'Rien à exporter avec ces cases : coche une catégorie qui n’est pas vide.':
+    'Nothing to export with these boxes: tick a category that is not empty.',
+  'Utilisateur « {name} » créé : {words} mot(s), {corrections} correction(s), {modes} mode(s), {commands} commande(s).':
+    'User “{name}” created: {words} word(s), {corrections} correction(s), {modes} mode(s), {commands} command(s).',
+  '{n} commande(s) écartée(s) (raccourci illisible ou phrases déjà prises).':
+    '{n} command(s) set aside (unreadable shortcut or phrases already taken).',
+  'Importer un utilisateur':
+    'Import a user',
+  'Ce fichier crée un nouvel utilisateur. Rien n’est modifié tant que tu n’as pas cliqué sur « Importer », et l’utilisateur actuel n’est jamais touché. Décoche ce que tu ne veux pas reprendre, et relis ce qui vient de quelqu’un d’autre : une correction remplace un mot par un autre dans toutes les dictées, une consigne est donnée au modèle, une commande appuie un raccourci de l’appli.':
+    'This file creates a new user. Nothing is changed until you click “Import”, and the current user is never touched. Untick what you do not want to take, and read what comes from someone else: a correction replaces one word with another in every dictation, an instruction is given to the model, a command presses a shortcut in the app.',
+  'Nom du nouvel utilisateur :':
+    'New user’s name:',
+  'Si ce nom est déjà pris, Scriibe ajoute un numéro.':
+    'If this name is already taken, Scriibe adds a number.',
+  'Prénom':
+    'First name',
+  'modes masqués du menu':
+    'modes hidden from the menu',
+  'Reprendre leurs exemples':
+    'Take their examples',
+  'Commande sans titre':
+    'Untitled command',
+  'Passer à cet utilisateur':
+    'Switch to this user',
+  'Mettre l’utilisateur « {name} » de côté ? Son dictionnaire, ses modes, son historique et ses statistiques ne seront plus utilisés. Scriibe ne les efface pas : le dossier est déplacé dans « utilisateurs-supprimes », dans le dossier de données, d’où tu peux le reprendre à la main. Pour en garder une copie portable (sans l’historique), annule et clique d’abord sur « Exporter… » sur sa ligne.':
+    'Set the user “{name}” aside? Their dictionary, modes, history and statistics will no longer be used. Scriibe does not erase them: the folder is moved to “utilisateurs-supprimes”, inside the data folder, where you can take it back by hand. To keep a portable copy (without the history), cancel and first click “Export…” on their row.',
+  'Importer un utilisateur…':
+    'Import a user…',
 };

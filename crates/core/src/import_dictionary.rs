@@ -43,7 +43,17 @@ pub fn parse_dictionary(text: &str) -> Result<Incoming, String> {
         "fichier trop gros : 1 Mo au maximum",
         "ce fichier ne contient pas de dictionnaire (autre type d'export)",
     )?;
-    let content = root["content"].as_object().ok_or("ce fichier ne contient pas de dictionnaire")?;
+    let incoming = read_content(&root["content"])?;
+    if incoming.words.is_empty() && incoming.corrections.is_empty() {
+        return Err("aucun mot ni correction dans ce fichier".into());
+    }
+    Ok(incoming)
+}
+
+/// Lit le contenu d'un dictionnaire (`{words, corrections}`), tel qu'il est dans un fichier de dictionnaire ou dans la clé `dictionary` d'un
+/// fichier d'utilisateur : mêmes limites, mêmes nettoyages. Un contenu vide est permis ici (c'est à l'appelant de le refuser).
+pub(crate) fn read_content(content: &Value) -> Result<Incoming, String> {
+    let content = content.as_object().ok_or("ce fichier ne contient pas de dictionnaire")?;
     let words = list_of(content.get("words"), MAX_WORDS, "trop de mots dans ce fichier : 500 au maximum")?
         .iter()
         .map(|w| {
@@ -76,9 +86,6 @@ pub fn parse_dictionary(text: &str) -> Result<Incoming, String> {
     let mut seen = HashSet::new();
     let words: Vec<String> = words.into_iter().filter(|w| !w.is_empty() && seen.insert(word_key(w))).collect();
     let corrections = dedup_corrections(corrections.into_iter().filter(|c| !c.heard.is_empty() && !c.written.is_empty()).collect());
-    if words.is_empty() && corrections.is_empty() {
-        return Err("aucun mot ni correction dans ce fichier".into());
-    }
     Ok(Incoming { words, corrections })
 }
 

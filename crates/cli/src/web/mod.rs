@@ -17,6 +17,7 @@ mod sinks;
 mod trial;
 mod uninstall;
 pub(crate) mod update;
+mod user_file_io;
 
 pub(crate) use profiles_io::switch as switch_profile;
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
@@ -408,6 +409,13 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Post, "api/profiles/create") => guarded(request, profiles_io::create(&ctx.app.config, &input)),
         (Method::Post, "api/profiles/rename") => guarded(request, profiles_io::rename(&ctx.app.config, &input)),
         (Method::Post, "api/profiles/delete") => guarded(request, profiles_io::delete(&ctx.app.config, &input)),
+        // Exporter un utilisateur entier (par son identifiant) et en importer un : aperçu d'abord, rien d'écrit avant l'accord, un import crée
+        // toujours un nouvel utilisateur.
+        (Method::Post, "api/profile/export/preview") => ok(request, user_file_io::export_preview(&ctx.app.config, &input)),
+        (Method::Post, "api/profile/export") => ok(request, user_file_io::export(&ctx.app.config, &input)),
+        (Method::Post, "api/profile/import/read") => ok(request, user_file_io::read(&input)),
+        (Method::Post, "api/profile/import/apply") => guarded(request, user_file_io::apply_pending(&ctx.app.config, &input)),
+        (Method::Post, "api/profile/import/cancel") => ok(request, user_file_io::cancel()),
         (Method::Post, "api/profiles/switch") => {
             let busy = ctx.app.controller.is_recording() || ctx.app.controller.is_busy();
             let switched = profiles_io::switch(&ctx.app.config, &ctx.history, busy, input["id"].as_str().unwrap_or(""));

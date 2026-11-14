@@ -47,7 +47,7 @@ pub(crate) fn export(settings: &AppSettings) -> Value {
     }
 }
 
-fn items_json(items: &[Candidate]) -> Value {
+pub(super) fn items_json(items: &[Candidate]) -> Value {
     items
         .iter()
         .map(|c| {

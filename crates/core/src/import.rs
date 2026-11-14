@@ -37,6 +37,11 @@ pub fn parse_modes(text: &str) -> Result<Vec<CustomMode>, String> {
     if list.is_empty() {
         return Err("aucun mode dans ce fichier".into());
     }
+    read_modes(list)
+}
+
+/// Lit une liste de modes d'un fichier (modes seuls, ou clé `customModes` d'un fichier d'utilisateur) : mêmes limites, mêmes contrôles.
+pub(crate) fn read_modes(list: &[Value]) -> Result<Vec<CustomMode>, String> {
     if list.len() > MAX_MODES {
         return Err("trop de modes dans ce fichier : 50 au maximum".into());
     }
