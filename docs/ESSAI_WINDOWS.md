@@ -60,7 +60,7 @@ Cocher **« Mettre en pause la musique ou la vidéo pendant la dictée »** dans
 
 ## En ligne de commande (diagnostic, sans la fenêtre)
 
-`scriibe verifier`, `scriibe micro [secondes]`, `scriibe essai [fichier.wav] [--traduire]`, `scriibe cle deepgram|openrouter`, `scriibe aide`. `scriibe lancer --sans-navigateur` n'ouvre rien au démarrage (le menu de l'icône ouvre alors l'interface dans le navigateur) ; `--navigateur` ouvre l'interface dans le navigateur au lieu de la fenêtre.
+`scriibe verifier` (après un premier lancement de Scriibe : les sous-commandes ne rangent jamais les données par utilisateur), `scriibe micro [secondes]`, `scriibe essai [fichier.wav] [--traduire]`, `scriibe cle deepgram|openrouter`, `scriibe aide`. `scriibe lancer --sans-navigateur` n'ouvre rien au démarrage (le menu de l'icône ouvre alors l'interface dans le navigateur) ; `--navigateur` ouvre l'interface dans le navigateur au lieu de la fenêtre.
 
 ## Notes
 

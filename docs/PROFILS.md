@@ -370,3 +370,69 @@ Mesuré sur le Mac : `cargo fmt --check` sans écart, `cargo clippy --workspace 
 - **4b et 4c : sauvegarde complète et désinstallation** (`restore::FILES`, `backup::read_data_files`, `files_to_restore`, `uninstall`) ne connaissent ni `utilisateurs/` ni `profile.json`. Elles marchent aujourd'hui parce que le rangement d'origine est conservé ; elles devront être étendues dans la même étape que la migration, sinon une sauvegarde faite après migration manquerait les clés de l'utilisateur.
 - **4c** : le verrou en mémoire qui protège « lire, fusionner, écrire » n'est pas encore là (cadrage, décision 3). `save_settings` écrit maintenant deux fichiers quand un utilisateur est actif (l'ordinateur d'abord, puis l'utilisateur) : un arrêt entre les deux laisse un fichier à jour et l'autre non, sans fichier cassé. Le garde-fou 409 et le rechargement de la page après `switch_profile` sont aussi à faire.
 - Notés à la relecture du lot 1 et toujours non corrigés : voir § Relecture du lot 1.
+
+## Étape 4b · Migration vers le rangement par utilisateur (tâche 7, 14/11/2026)
+
+Code de l'étape 4b de `docs/CADRAGE_PROFILS.md` (décision 6). **Jamais lancée sur le vrai dossier de données** : tous les essais se font sur des dossiers temporaires ; la vraie migration se fera à l'essai du lot 2 (tâche 11), après une sauvegarde datée.
+
+### Ce qui est fait
+
+- **`crates/platform/src/migration.rs`** (nouveau) : `run(dossier)` fait la migration et rend `Report { profile, messages }` ; `state(dossier)` dit où l'on en est sans rien écrire (pour les sous-commandes).
+  - Étape 1 : copie de `settings.json`, `dictionary.json`, `history.json`, `history-totals.json` dans `sauvegarde-avant-utilisateurs-<date>/` (puis `-2`, `-3`… : une sauvegarde n'est jamais écrasée ni effacée). Les copies sont faites dans un dossier caché, écrites jusqu'au disque (`sync_all`), puis le dossier est renommé : une sauvegarde visible est toujours complète. Si elle échoue (disque plein, droits), on s'arrête : rien n'a changé.
+  - Étape 2 : `utilisateurs/.migration-<id>/` reçoit `profile.json` (les clés de l'utilisateur **telles qu'elles sont dans le fichier**, plus `name` = `firstName`, ou « Principal ») et des **copies** des trois fichiers de l'utilisateur.
+  - Étape 3 : renommage en `utilisateurs/<id>/` (identifiant opaque, `modes::new_id`).
+  - Étape 4 : `settings.json` réécrit sans les clés de l'utilisateur, avec `schemaVersion: 2` et `activeProfile`, par une écriture jusqu'au disque (temporaire, `sync_all`, renommage, dossier).
+  - Étape 5 : seulement après, les trois fichiers de l'utilisateur quittent la racine.
+- **Marque « migré »** : `SETTINGS_SCHEMA` passe à 2. Un fichier sans numéro **et les réglages par défaut** sont en version 1 (`LEGACY_SCHEMA`) : seule la migration écrit 2, aucune sauvegarde ordinaire ne peut faire croire à une migration.
+- **`activeProfile`** devient un champ d'`AppSettings` (ordinateur, classé ; facultatif, absent tant qu'il n'y a pas d'utilisateur) ; lu seulement s'il a la forme d'un identifiant sûr (`is_profile_id` : lettres, chiffres, « - », 64 caractères au plus ; ni `..`, ni `/`, ni dossier caché). La page ne peut le changer (`merge_settings` l'ignore, comme `schemaVersion`).
+- **Lancement** (`commands::run`) : le dossier de données est créé, **puis le verrou d'instance est pris**, puis la restauration en attente est appliquée, puis la migration tourne ; ensuite seulement `config.switch_profile(…)`, la création des réglages d'un premier lancement (devenue inutile après une migration réussie), `migrate_engine_options`, le journal (messages de la restauration et de la migration) et `FileHistory` (ouvert dans le dossier de l'utilisateur).
+- **Sous-commandes** (`essai`, `verifier`) : plus de restauration, de création ni de migration (pas de verrou). Dossier migré : elles lisent l'utilisateur actif ; sinon elles s'arrêtent sur « lance Scriibe une fois (sans sous-commande), puis recommence ». Noté dans `docs/ESSAI_MACOS.md` et `docs/ESSAI_WINDOWS.md`.
+- **`profile.json` garde son nom affiché** : `FileConfig::save_settings` ne remplace que les clés de l'utilisateur et garde les autres (`name`).
+- **Sauvegarde complète** (la limite notée à l'étape 4a) : elle garde **le même format** avant et après la migration. À l'export, `settings` est la vue jointe (`migration::joined_settings` : clés de l'ordinateur de `settings.json`, clés de l'utilisateur de `profile.json`) et le dictionnaire et l'historique viennent du dossier de l'utilisateur actif ; un `profile.json` illisible fait refuser la sauvegarde. À la restauration dans un dossier migré, les réglages sont partagés (`migration::split_for_profile` : `settings.json` garde `schemaVersion: 2` et `activeProfile`, `profile.json` garde le nom affiché) et `restore::stage` note l'utilisateur dans la marque (`utilisateur=<id>`, contrôlé) : `apply_pending` remplace ses fichiers dans `utilisateurs/<id>/` après en avoir copié l'état actuel. Une marque qui vise un utilisateur disparu ou un identifiant forgé ne remplace rien.
+- La **désinstallation** n'a pas besoin de changer : elle reconnaît le dossier de données à `settings.json` (resté à la racine) et l'envoie entier à la Corbeille.
+
+### Reprises (tableau de la décision 6) et cas voisins
+
+| Ce que trouve le lancement | Ce que fait Scriibe | Test |
+|---|---|---|
+| Un dossier `.migration-*` (arrêt après l'étape 1, pendant ou après l'étape 2) | L'efface et recommence ; une deuxième sauvegarde est faite, la première est gardée | `row_1_a_stop_before_step_3_…` (3 arrêts) |
+| Un dossier caché de sauvegarde inachevée | L'efface ; les sauvegardes complètes restent | `row_1_an_interrupted_backup_…` |
+| Un utilisateur complet, `settings.json` sans `schemaVersion >= 2` (arrêt entre 3 et 4) | Sauvegarde, puis reprend cet utilisateur au lieu d'en créer un deuxième | `row_2_a_stop_between_steps_3_and_4_…` |
+| Idem avec plusieurs utilisateurs, sans `activeProfile` | Le dernier utilisé (dernière écriture dans son dossier ; à égalité, le plus petit identifiant) | `row_2_with_several_users_…` |
+| Idem, `activeProfile` encore là | Celui-là, même s'il n'est pas le dernier utilisé | `row_2_the_noted_active_user_wins_…` |
+| `schemaVersion: 2` (arrêt après l'étape 4, ou pendant l'étape 5) | Rien ; les fichiers restés à la racine sont effacés (ils ont une copie identique dans la sauvegarde) | `row_3_after_step_4_…` (2 arrêts) |
+| `schemaVersion: 2` et un fichier à la racine **sans** copie identique | Mis de côté dans une nouvelle sauvegarde, pas effacé | `row_3_a_root_file_without_an_identical_copy_…` |
+| Retour d'une version antérieure (marque et `activeProfile` perdus, champs de l'utilisateur vides, dictionnaire et historique créés à la racine) | Reprend l'utilisateur existant, garde les champs de l'ordinateur changés entre-temps ; ce qui a été créé à la racine part dans une nouvelle sauvegarde | `back_from_an_older_version_…` |
+| Dossier de Scribe copié **après** la migration | Pas de fusion ; l'utilisateur est intact, les fichiers de Scribe sont dans la sauvegarde | `a_scribe_folder_copied_after_…` |
+| Dossier de Scribe copié **avant** la migration | Migré comme l'ancien rangement (« Principal » si le prénom est vide) | `a_scribe_folder_copied_before_…` |
+| Premier lancement (dossier vide) | Un utilisateur « Principal », réglages d'un premier lancement, pas de sauvegarde (rien à copier) ; les enregistrements suivants vont au bon endroit | `a_first_launch_…` |
+| Sauvegarde impossible (dossier en lecture seule) | Arrêt, rien n'a changé, l'ancien rangement sert pour ce lancement | `a_backup_that_cannot_be_written_…` |
+| Utilisateur impossible à construire | Rien n'a changé sauf la sauvegarde ; réussi au lancement suivant | `a_user_that_cannot_be_built_…` |
+| `settings.json` illisible ou d'une version plus récente (3) | Rien n'est écrit ni déplacé | `an_unreadable_or_newer_settings_file_…` |
+| Migré, utilisateur actif disparu ; puis plus aucun utilisateur | Un autre le remplace (noté) ; sans utilisateur, un utilisateur est refait avec ce qui reste à la racine | `a_missing_active_user_…` |
+
+Chaque test compare, après la reprise, l'état complet à celui d'avant la migration (`assert_migrated`) : un seul utilisateur ; `settings.json` avec la marque, l'utilisateur actif et tous les champs de l'ordinateur (inconnus compris) ; `profile.json` avec les champs de l'utilisateur identiques ; dictionnaire et historique identiques à l'octet près ; plus rien à la racine ; une sauvegarde fidèle ; **la vue des réglages, le dictionnaire et l'historique lus par l'application identiques à avant**. Un arrêt brutal est simulé en arrêtant `run_until` après l'étape voulue (paramètre `Stop`, privé : l'application va toujours au bout).
+
+Autres tests : la migration faite, un deuxième lancement ne réécrit rien (arbre du dossier identique) ; `state` n'écrit rien ; `joined_settings` et `split_for_profile` ; `restore` dans un dossier migré et marque forgée ; sauvegarde puis restauration dans un dossier migré (`backup.rs`) ; `activeProfile` lu seulement s'il est sûr ; la page ne change pas l'utilisateur actif ; découpage brut d'un objet de réglages.
+
+### Choix techniques et pourquoi
+
+1. **Migration ratée = l'ancien rangement pour ce lancement**, plutôt que refuser de démarrer. Le cadrage dit « Scriibe s'arrête ici » à l'étape 1 : je le lis comme « la migration s'arrête », parce que rien n'a changé et qu'une appli de dictée qui ne démarre plus est pire ; elle réessaie au lancement suivant, le journal le dit. Une fois l'utilisateur renommé (étape 3), il sert dès ce lancement même si l'étape 4 échoue : le lancement suivant tombe sur la ligne 2 du tableau.
+2. **Les fichiers restés à la racine après l'étape 4 ne sont effacés que s'ils ont une copie identique dans une sauvegarde** (le cadrage dit « simplement effacés ») : après un arrêt pendant l'étape 5, c'est toujours le cas ; mais un fichier écrit là après coup (réglages illisibles pendant un lancement, copie à la main) serait perdu. Il est mis de côté dans une nouvelle sauvegarde.
+3. **Ligne 2 : une nouvelle sauvegarde avant de réécrire `settings.json`.** Au retour d'une version antérieure ou après une copie de Scribe, `settings.json` et les fichiers de la racine contiennent des choses nouvelles qui ne sont pas fusionnées (cadrage) : elles doivent rester quelque part.
+4. **« Le dernier utilisé » = la dernière écriture dans le dossier de l'utilisateur** (`profile.json`, dictionnaire, historique), quand `activeProfile` a été perdu. L'historique s'écrit à chaque dictée ; aucun fichier de plus n'est nécessaire.
+5. **Copie brute** des clés de l'utilisateur (`split_object`), sans passer par `AppSettings` : rien n'est relu ni normalisé, une valeur que Scriibe lit mal n'est pas perdue en route.
+6. **Écritures jusqu'au disque** (`sync_all` sur les fichiers et les dossiers, sous Unix) pour la migration seulement : elle efface ensuite des fichiers, elle ne peut pas laisser un fichier vide après une coupure de courant (point noté à la relecture du lot 1). Les sauvegardes ordinaires ne changent pas.
+7. **`profile.json` sans numéro de version** : le numéro de `settings.json` vaut pour tout le dossier.
+8. **Version 2 refusée par une Scriibe du lot 1** : les versions publiées (0.4.0 et avant) ne connaissent pas `schemaVersion` et lisent le fichier v2 sans erreur, comme le cadrage le prévoit ; le lot 1, non publié, part dans la même version (0.5.0) que la migration.
+
+### Résultat des tests
+
+Mesuré sur le Mac : `cargo fmt --check` sans écart, `cargo clippy --workspace --all-targets -- -D warnings` sans erreur, `cargo test --workspace` : **640 réussis, 0 échoué, 1 ignoré** (24 nouveaux : 18 pour la migration, 2 pour la restauration, 1 pour la sauvegarde, 1 pour la page, 2 pour le cœur) ; `npm test` (interface, non modifiée) : **104 réussis**. Non fait : la compilation croisée pour Windows (`x86_64-w64-mingw32-gcc` absent du Mac : rien installé sans accord ; la CI Windows le fera au push) ; aucun essai de l'application elle-même (prévu à la tâche 11).
+
+### Limites et à reprendre
+
+- **Aide (FR et EN) et CHANGELOG** : le dossier `sauvegarde-avant-utilisateurs-<date>/`, comment revenir à une version antérieure (remettre la sauvegarde à la main), la limite « dossier de Scribe copié après la migration : pas de fusion ». À écrire en 4c, avec les utilisateurs visibles (tout part ensemble dans la 0.5.0).
+- **Le journal seul signale une migration ratée** : pas encore de bandeau dans la page.
+- **4c** : verrou en mémoire, garde-fou 409, route de changement d'utilisateur (qui écrira `activeProfile`), `name` montré et modifiable.
+- La restauration d'une sauvegarde préparée par une version **non migrée** puis appliquée par une version migrée remet les fichiers à la racine ; la migration les traite alors comme un retour d'une version antérieure (pas de fusion, tout dans la sauvegarde). Cas improbable (la restauration relance la même version).

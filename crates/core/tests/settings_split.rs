@@ -3,9 +3,14 @@
 use scriibe_core::settings::{owner_of, AppSettings, Owner, COMPUTER_KEYS, USER_KEYS};
 use serde_json::{json, Map, Value};
 
-/// Tous les réglages écrits, y compris les facultatifs (`customModeID`, `historyKeepDays` ne sont écrits que s'ils ont une valeur).
+/// Tous les réglages écrits, y compris les facultatifs (`customModeID`, `historyKeepDays`, `activeProfile` ne sont écrits que s'ils ont une valeur).
 fn every_key_written() -> Map<String, Value> {
-    let settings = AppSettings { custom_mode_id: Some("X".into()), history_keep_days: Some(30), ..AppSettings::default() };
+    let settings = AppSettings {
+        custom_mode_id: Some("X".into()),
+        history_keep_days: Some(30),
+        active_profile: Some("P".into()),
+        ..AppSettings::default()
+    };
     match serde_json::to_value(settings).unwrap() {
         Value::Object(o) => o,
         other => panic!("des réglages ne sont pas un objet : {other}"),
@@ -56,7 +61,7 @@ fn the_decision_one_table_is_followed() {
     {
         assert_eq!(owner_of(key), Some(Owner::Computer), "{key}");
     }
-    for key in ["trialCandidates", "trialText", "checkUpdates", "setupDone", "schemaVersion"] {
+    for key in ["trialCandidates", "trialText", "checkUpdates", "setupDone", "schemaVersion", "activeProfile"] {
         assert_eq!(owner_of(key), Some(Owner::Computer), "{key}");
     }
     assert_eq!(owner_of("unknownSetting"), None);
@@ -77,7 +82,11 @@ fn split_then_from_parts_gives_back_the_same_settings() {
     assert!(user.keys().all(|k| owner_of(k) == Some(Owner::User)) && computer.keys().all(|k| owner_of(k) == Some(Owner::Computer)));
     assert!(user.contains_key("firstName") && !computer.contains_key("firstName"));
     assert!(computer.contains_key("pauseMedia") && !user.contains_key("pauseMedia"));
-    assert_eq!(user.len() + computer.len(), every_key_written().len() - 1, "customModeID est absent tant qu'il n'a pas de valeur");
+    assert_eq!(
+        user.len() + computer.len(),
+        every_key_written().len() - 2,
+        "customModeID et activeProfile sont absents tant qu'ils n'ont pas de valeur"
+    );
     let back = AppSettings::from_parts(&Value::Object(computer), Some(&Value::Object(user))).unwrap();
     assert_eq!(back, original);
 }
@@ -107,4 +116,13 @@ fn a_user_file_decides_every_user_key_and_stray_ones_in_the_computer_file_are_ig
 #[test]
 fn a_user_file_that_is_not_an_object_gives_no_view() {
     assert!(AppSettings::from_parts(&json!({}), Some(&json!([1]))).is_none());
+}
+
+#[test]
+fn a_raw_settings_object_is_split_without_being_read_again() {
+    // Migration et sauvegarde : rien n'est normalisé, une clé inconnue (Scribe) reste du côté de l'ordinateur.
+    let raw = json!({"firstName": "  Léa ", "customCommands": [{"pas": "lisible"}], "hotkey": "right_option", "scribeOnly": 3});
+    let (computer, user) = scriibe_core::settings::split_object(raw.as_object().unwrap());
+    assert_eq!(Value::Object(user), json!({"firstName": "  Léa ", "customCommands": [{"pas": "lisible"}]}));
+    assert_eq!(Value::Object(computer), json!({"hotkey": "right_option", "scribeOnly": 3}));
 }

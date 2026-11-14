@@ -238,7 +238,20 @@ impl TrialCandidate {
 
 /// La version du fichier de réglages que cette version de Scriibe sait lire et écrire. Un fichier plus récent est refusé (jamais
 /// réécrit : la sauvegarde suivante lui ferait perdre ce que Scriibe ne comprend pas) ; un fichier sans numéro est de la version 1.
-pub const SETTINGS_SCHEMA: u64 = 1;
+///
+/// **Version 2 (étape 4b, décision 6 de `docs/CADRAGE_PROFILS.md`)** : les données sont rangées par utilisateur
+/// (`utilisateurs/<id>/`). `schemaVersion >= 2` est **la** marque « migré » ; seule la migration (`scriibe_platform::migration`)
+/// l'écrit. Un fichier sans numéro, ou les réglages par défaut, restent en version 1 : rien d'autre ne peut faire croire à une migration.
+pub const SETTINGS_SCHEMA: u64 = 2;
+
+/// La version d'un fichier de réglages sans numéro (ancien rangement, tout à la racine du dossier de données).
+pub const LEGACY_SCHEMA: u64 = 1;
+
+/// Un identifiant d'utilisateur (nom de son dossier `utilisateurs/<id>/`) : 1 à 64 caractères ASCII, lettres, chiffres et « - ».
+/// Rien d'autre : un identifiant lu dans un fichier ne peut ni remonter d'un dossier, ni désigner un dossier caché (`.migration-…`).
+pub fn is_profile_id(id: &str) -> bool {
+    !id.is_empty() && id.len() <= 64 && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') && !id.starts_with('-')
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct AppSettings {
@@ -387,12 +400,16 @@ pub struct AppSettings {
     /// Logo de la barre latérale : le curseur clignote lentement (vrai, par défaut) ou reste fixe (chantier 8). Propre à Scriibe.
     #[serde(rename = "animatedLogo")]
     pub animated_logo: bool,
+    /// Identifiant de l'utilisateur actif (dossier `utilisateurs/<id>/`), écrit par la migration et, plus tard, par la route de
+    /// changement d'utilisateur ; jamais par la page (`merge_settings`). Propre à l'ordinateur. `None` : ancien rangement.
+    #[serde(rename = "activeProfile", skip_serializing_if = "Option::is_none")]
+    pub active_profile: Option<String>,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            schema_version: SETTINGS_SCHEMA,
+            schema_version: LEGACY_SCHEMA,
             hotkey: Hotkey::default(),
             language: DictationLanguage::default(),
             transcription_engine: TranscriptionEngine::default(),
@@ -451,6 +468,7 @@ impl Default for AppSettings {
             theme: Theme::default(),
             check_updates: false,
             animated_logo: true,
+            active_profile: None,
         }
     }
 }
@@ -527,6 +545,7 @@ pub const COMPUTER_KEYS: &[&str] = &[
     "trialText",
     "checkUpdates",
     "setupDone",
+    "activeProfile",
 ];
 
 /// Le propriétaire d'une clé de réglage ; `None` pour une clé inconnue (refusée par la page, voir `merge_settings`).
@@ -538,6 +557,21 @@ pub fn owner_of(key: &str) -> Option<Owner> {
     } else {
         None
     }
+}
+
+/// Range un objet de réglages **brut** (tel qu'il est dans le fichier) selon la décision 1 : `(ordinateur, utilisateur)`. Contrairement à
+/// [`AppSettings::split`], rien n'est relu ni normalisé : une valeur que Scriibe lirait mal, ou une clé inconnue (venue de Scribe),
+/// est gardée telle quelle (du côté de l'ordinateur pour une clé inconnue). Sert à la migration et à la sauvegarde complète.
+pub fn split_object(object: &Map<String, Value>) -> (Map<String, Value>, Map<String, Value>) {
+    let (mut computer, mut user) = (Map::new(), Map::new());
+    for (key, value) in object {
+        if owner_of(key) == Some(Owner::User) {
+            user.insert(key.clone(), value.clone());
+        } else {
+            computer.insert(key.clone(), value.clone());
+        }
+    }
+    (computer, user)
 }
 
 /// 30 minutes, comme Scribe.
@@ -650,6 +684,7 @@ impl AppSettings {
             theme: get(o, "theme").unwrap_or(d.theme),
             check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
             animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
+            active_profile: get::<String>(o, "activeProfile").filter(|id| is_profile_id(id)),
         })
     }
 

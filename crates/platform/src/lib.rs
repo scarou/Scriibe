@@ -15,6 +15,7 @@ pub mod keys;
 pub mod locale;
 pub mod machine;
 pub mod media;
+pub mod migration;
 pub mod motion;
 pub mod open;
 pub mod paste;

@@ -29,7 +29,7 @@
 ## Essayer (une étape à la fois)
 
 1. Construire : `git pull`, `cd ui && npm ci && npm run build && cd ..`, `cargo build --release` ; exécutable `target/release/scriibe`. **Premier point à rapporter : les erreurs de compilation, s'il y en a** (le code n'a jamais été compilé pour de bon sur un Mac).
-2. `target/release/scriibe verifier` : ce que Scriibe trouve (moteurs, micro).
+2. `target/release/scriibe verifier` : ce que Scriibe trouve (moteurs, micro). Depuis l'étape 4b (rangement par utilisateur), il demande d'abord un premier lancement de Scriibe (étape 4) si le dossier de données n'est pas encore rangé : les sous-commandes ne migrent jamais.
 3. Clés des moteurs en ligne, pour un premier essai **sans rien installer** : `scriibe cle deepgram` puis `scriibe cle openrouter` (la clé est lue sur l'entrée et rangée dans le trousseau ; macOS peut demander le mot de passe de la session).
 4. `target/release/scriibe lancer` : macOS demande les autorisations, à accorder **au terminal** (Réglages Système → Confidentialité et sécurité), puis **relancer Scriibe** :
    - **Surveillance de l'entrée** (la touche globale) ; si elle manque, Scriibe le dit au démarrage ;

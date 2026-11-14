@@ -104,8 +104,9 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
     });
 
     let settings_source = config.clone();
-    let history: Arc<dyn HistorySink> =
-        choices.history.unwrap_or_else(|| Arc::new(FileHistory::open(folder, move || settings_source.settings())));
+    let history: Arc<dyn HistorySink> = choices
+        .history
+        .unwrap_or_else(|| Arc::new(FileHistory::open(config.profile_folder().unwrap_or(folder), move || settings_source.settings())));
     let config_dyn: Arc<dyn ConfigSource> = config.clone();
     let prefill = Arc::new(crate::prefill::PrefillSink::default());
     let controller = Controller::new(Deps {

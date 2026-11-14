@@ -15,18 +15,44 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-fn setup(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
+/// Le lancement de l'application, **sous le verrou d'instance** : restauration en attente, migration vers le rangement par utilisateur
+/// (étape 4b), puis réglages. Rien n'a lu le dossier avant (décision 6 de `docs/CADRAGE_PROFILS.md`).
+fn setup_locked() -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
     let config = app::open_config();
     // Une sauvegarde à restaurer (préparée avant la relance) est appliquée avant toute lecture du dossier.
     let restored = scriibe_platform::restore::apply_pending(config.folder());
+    let migration = scriibe_platform::migration::run(config.folder());
+    if let Some(profile) = &migration.profile {
+        config.switch_profile(Some(profile.clone()));
+    }
     if config.create_settings_if_missing().map_err(|e| format!("impossible d'écrire {} ({e})", config.settings_path().display()))? {
         eprintln!("Premier lancement : réglages créés dans {}", config.settings_path().display());
     }
     app::migrate_engine_options(&config);
-    let log = Arc::new(FileLog::new(config.folder(), echo_log));
-    if let Some(message) = restored {
-        log.write(&message);
+    let log = Arc::new(FileLog::new(config.folder(), true));
+    for message in restored.iter().chain(&migration.messages) {
+        eprintln!("{message}");
+        log.write(message);
     }
+    Ok((config, log))
+}
+
+/// Les sous-commandes de diagnostic (`essai`, `verifier`) : pas de verrou d'instance, donc **jamais** de migration ni d'écriture au
+/// lancement. Elles lisent l'utilisateur actif d'un dossier déjà migré, et s'arrêtent sur un message sinon.
+fn setup_readonly(echo_log: bool) -> Result<(Arc<scriibe_platform::storage::FileConfig>, Arc<FileLog>), String> {
+    use scriibe_platform::migration::State;
+    let config = app::open_config();
+    match scriibe_platform::migration::state(config.folder()) {
+        State::Ready(profile) | State::Refused(Some(profile)) => config.switch_profile(Some(profile)),
+        State::Refused(None) => {}
+        State::NotMigrated => {
+            return Err(format!(
+            "les données de {} ne sont pas encore rangées par utilisateur : lance Scriibe une fois (sans sous-commande), puis recommence",
+            config.folder().display()
+        ))
+        }
+    }
+    let log = Arc::new(FileLog::new(config.folder(), echo_log));
     Ok((config, log))
 }
 
@@ -80,8 +106,11 @@ pub fn run() -> Result<(), String> {
         scriibe_platform::autostart::detach_console();
     }
     crate::web::remove_update_leftovers();
-    let (config, log) = setup(true)?;
-    let Some(instance_lock) = single_instance(config.folder()) else { return Ok(()) };
+    // Le verrou d'instance d'abord : la restauration et la migration déplacent des fichiers, une deuxième Scriibe ne doit rien lire avant.
+    let folder = scriibe_platform::storage::data_folder();
+    std::fs::create_dir_all(&folder).map_err(|e| format!("impossible de créer {} ({e})", folder.display()))?;
+    let Some(instance_lock) = single_instance(&folder) else { return Ok(()) };
+    let (config, log) = setup_locked()?;
     // Scriibe déplacée : l'entrée de démarrage, si elle existe, est réécrite pour viser le nouvel emplacement.
     if scriibe_platform::autostart::refresh() {
         log.write("démarrage: entrée réécrite (Scriibe a changé d'emplacement)");
@@ -141,7 +170,8 @@ pub fn run() -> Result<(), String> {
     let real_indicator: Arc<dyn Indicator> = Arc::new(OverlayIndicator { inner: real_indicator, model: overlay.clone() });
 
     let settings_source = config.clone();
-    let history = Arc::new(FileHistory::open(config.folder().to_path_buf(), move || settings_source.settings()));
+    let history_folder = config.profile_folder().unwrap_or_else(|| config.folder().to_path_buf());
+    let history = Arc::new(FileHistory::open(history_folder, move || settings_source.settings()));
     let sinks = TestSinks::new(platform.paster.clone(), history.clone(), real_indicator);
     let choices = Choices {
         paster: Some(Arc::new(SwitchPaster(sinks.clone()))),
@@ -359,7 +389,7 @@ pub fn trial(args: &[String]) -> Result<(), String> {
     let bytes = std::fs::read(&file).map_err(|e| format!("impossible de lire {} ({e})", file.display()))?;
     let recording = scriibe_platform::audio::read_wav(&bytes)?;
     println!("Fichier {} — {:.1} s, niveau {:.3}", file.display(), recording.duration, recording.level);
-    let (config, log) = setup(true)?;
+    let (config, log) = setup_readonly(true)?;
     let app = build(
         config,
         log,
@@ -492,7 +522,7 @@ pub fn key(kind: Option<&str>) -> Result<(), String> {
 }
 
 pub fn check() -> Result<(), String> {
-    let (config, log) = setup(false)?;
+    let (config, log) = setup_readonly(false)?;
     let platform = scriibe_platform::system();
     let settings = config.settings();
     let fs = RealFs;

@@ -10,7 +10,7 @@
 use super::export::{self, Target};
 use super::import::{self, Picked};
 use scriibe_core::backup::{self, Backup, BackupFiles};
-use scriibe_platform::restore;
+use scriibe_platform::{migration, restore};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -40,19 +40,31 @@ fn read_json(path: &Path) -> Option<Value> {
     serde_json::from_str(&text).ok()
 }
 
-/// Les fichiers du dossier de données, lus tels quels (un fichier absent ou illisible reste `None`).
-pub(crate) fn read_data_files(folder: &Path) -> BackupFiles {
+/// Les fichiers du dossier de données, lus tels quels (un fichier absent ou illisible reste `None`). `profile` : le dossier de
+/// l'utilisateur actif après la migration (étape 4b). La sauvegarde garde alors **le même format** qu'avant : un seul objet de réglages
+/// (ceux de l'ordinateur et ceux de l'utilisateur joints), son dictionnaire et son historique.
+pub(crate) fn read_data_files(folder: &Path, profile: Option<&Path>) -> BackupFiles {
+    let user = profile.unwrap_or(folder);
+    let settings = read_json(&folder.join("settings.json"));
+    let settings = match profile {
+        None => settings,
+        Some(dir) => settings.zip(read_json(&dir.join(migration::PROFILE_FILE))).and_then(|(s, p)| migration::joined_settings(&s, &p)),
+    };
     BackupFiles {
-        settings: read_json(&folder.join("settings.json")),
-        dictionary: read_json(&folder.join("dictionary.json")),
-        history: read_json(&folder.join("history.json")),
-        history_totals: read_json(&folder.join("history-totals.json")),
+        settings,
+        dictionary: read_json(&user.join("dictionary.json")),
+        history: read_json(&user.join("history.json")),
+        history_totals: read_json(&user.join("history-totals.json")),
     }
 }
 
 /// Le nom proposé et le texte de la sauvegarde. `Err` : un message pour la page.
-pub(crate) fn prepare(folder: &Path, os: &str, now_secs: i64) -> Result<(String, String), String> {
-    let files = read_data_files(folder);
+pub(crate) fn prepare(folder: &Path, profile: Option<&Path>, os: &str, now_secs: i64) -> Result<(String, String), String> {
+    let files = read_data_files(folder, profile);
+    let user = profile.unwrap_or(folder);
+    if files.settings.is_none() && profile.is_some_and(|dir| dir.join(migration::PROFILE_FILE).exists()) {
+        return Err("profile.json n'a pas pu être lu : la sauvegarde est refusée, rien n'est supprimé".into());
+    }
     if files.settings.is_none() {
         return Err("aucun réglage à sauvegarder dans le dossier de données".into());
     }
@@ -60,7 +72,7 @@ pub(crate) fn prepare(folder: &Path, os: &str, now_secs: i64) -> Result<(String,
     for (name, value) in
         [("dictionary.json", &files.dictionary), ("history.json", &files.history), ("history-totals.json", &files.history_totals)]
     {
-        if value.is_none() && folder.join(name).exists() {
+        if value.is_none() && user.join(name).exists() {
             return Err(format!("{name} n'a pas pu être lu : la sauvegarde est refusée, rien n'est supprimé"));
         }
     }
@@ -101,9 +113,9 @@ fn write_and_verify(target: Target, name: &str, text: &str) -> Result<PathBuf, S
 
 /// `POST api/backup/export` : `{"ok": true, "saved": true, "path": …}`, `{"ok": true, "saved": false}` si l'utilisateur annule, ou
 /// `{"ok": false, "error": …}`. `protected` : les racines que la désinstallation supprimera (une sauvegarde rangée dedans partirait avec).
-pub(crate) fn export(folder: &Path, protected: &[PathBuf]) -> Value {
+pub(crate) fn export(folder: &Path, profile: Option<&Path>, protected: &[PathBuf]) -> Value {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
-    let (name, text) = match prepare(folder, std::env::consts::OS, now) {
+    let (name, text) = match prepare(folder, profile, std::env::consts::OS, now) {
         Ok(v) => v,
         Err(e) => return json!({"ok": false, "error": e}),
     };
@@ -199,16 +211,47 @@ pub(crate) fn files_to_restore(backup: &Backup, current: Option<&Value>, os: &st
 
 /// `POST api/backup/import/apply` : vérifie le jeton, prépare la restauration. `Ok(())` : l'appelant relance Scriibe, qui échange les
 /// fichiers au lancement suivant. La sauvegarde en attente est gardée tant que la préparation n'a pas réussi.
-pub(crate) fn apply(folder: &Path, input: &Value) -> Result<(), String> {
+/// `profile` : le dossier de l'utilisateur actif (dossier migré) ; ses fichiers sont alors remplacés dans ce dossier.
+pub(crate) fn apply(folder: &Path, profile: Option<&Path>, input: &Value) -> Result<(), String> {
     let guard = pending();
     let (token, backup) = guard.as_ref().ok_or("aucune sauvegarde en attente : recommence la restauration")?;
     if input["token"].as_str() != Some(token.as_str()) {
         return Err("l'aperçu n'est plus à jour : recommence la restauration".into());
     }
     let current = read_json(&folder.join("settings.json"));
-    let files = files_to_restore(backup, current.as_ref(), std::env::consts::OS)?;
+    let mut files = files_to_restore(backup, current.as_ref(), std::env::consts::OS)?;
+    let id = match profile {
+        None => None,
+        Some(dir) => {
+            let id = dir.file_name().and_then(|n| n.to_str()).ok_or("dossier d'utilisateur invalide")?;
+            files = files_for_profile(files, id, read_json(&dir.join(migration::PROFILE_FILE)).as_ref())?;
+            Some(id)
+        }
+    };
     let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S").to_string();
-    restore::stage(folder, &files, &stamp)
+    restore::stage(folder, &files, &stamp, id)
+}
+
+/// Dans un dossier migré, les réglages restaurés sont partagés comme à l'enregistrement : ceux de l'ordinateur dans `settings.json`
+/// (avec la marque de la migration et l'utilisateur actif), ceux de l'utilisateur dans son `profile.json` (qui garde son nom affiché).
+pub(crate) fn files_for_profile(
+    files: Vec<(&'static str, String)>,
+    id: &str,
+    current_profile: Option<&Value>,
+) -> Result<Vec<(&'static str, String)>, String> {
+    let pretty = |v: &Value| serde_json::to_string_pretty(v).map_err(|e| e.to_string());
+    let mut out = Vec::new();
+    for (name, text) in files {
+        if name != "settings.json" {
+            out.push((name, text));
+            continue;
+        }
+        let settings: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let (computer, user) = migration::split_for_profile(&settings, id, current_profile).ok_or("réglages illisibles")?;
+        out.push(("settings.json", pretty(&computer)?));
+        out.push((migration::PROFILE_FILE, pretty(&user)?));
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -239,7 +282,7 @@ mod tests {
     #[test]
     fn the_backup_holds_the_four_files_and_nothing_else() {
         let dir = sample_folder("contenu");
-        let (name, text) = prepare(&dir, "macos", 1_700_000_000).unwrap();
+        let (name, text) = prepare(&dir, None, "macos", 1_700_000_000).unwrap();
         assert_eq!(name, "scriibe-sauvegarde-2023-11-14.scriibe.json");
         for forbidden in ["journal", "banc", "gros modèle", "models"] {
             assert!(!text.contains(forbidden), "{forbidden}");
@@ -254,25 +297,25 @@ mod tests {
     fn an_unreadable_history_is_refused_instead_of_silently_left_out() {
         let dir = sample_folder("historique-abime");
         std::fs::write(dir.join("history.json"), "{pas du json").unwrap();
-        let err = prepare(&dir, "macos", 0).unwrap_err();
+        let err = prepare(&dir, None, "macos", 0).unwrap_err();
         assert!(err.contains("history.json") && err.contains("rien n'est supprimé"), "{err}");
         // Un fichier simplement absent reste permis (jamais d'historique).
         std::fs::remove_file(dir.join("history.json")).unwrap();
-        assert!(prepare(&dir, "macos", 0).is_ok());
+        assert!(prepare(&dir, None, "macos", 0).is_ok());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn no_settings_means_no_backup() {
         let dir = scratch("vide");
-        assert!(prepare(&dir, "macos", 0).is_err());
+        assert!(prepare(&dir, None, "macos", 0).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn a_written_backup_is_read_back_and_a_bad_one_is_deleted() {
         let dir = sample_folder("relecture");
-        let (name, text) = prepare(&dir, "macos", 0).unwrap();
+        let (name, text) = prepare(&dir, None, "macos", 0).unwrap();
         let out = dir.join("sortie");
         std::fs::create_dir_all(&out).unwrap();
         let path = write_and_verify(Target::Folder(out.clone()), &name, &text).unwrap();
@@ -303,7 +346,7 @@ mod tests {
     #[test]
     fn restoring_replaces_files_after_a_copy_and_keeps_this_computers_fields_from_another_system() {
         let dir = sample_folder("restauration");
-        let (_, text) = prepare(&dir, "windows", 0).unwrap();
+        let (_, text) = prepare(&dir, None, "windows", 0).unwrap();
         let backup = backup::parse_backup(&text).unwrap();
         // Cet ordinateur (Mac) a sa propre touche : la sauvegarde vient de Windows.
         let current: Value = serde_json::from_str(r#"{"hotkey":"right_control","whisperModelPath":"/mac/m.bin"}"#).unwrap();
@@ -313,11 +356,54 @@ mod tests {
         assert_eq!(settings["whisperModelPath"], "/mac/m.bin");
         let same = files_to_restore(&backup, Some(&current), "windows").unwrap();
         assert!(same[0].1.contains("right_option"), "même système : tout est repris");
-        restore::stage(&dir, &files, "20261113-100000").unwrap();
+        restore::stage(&dir, &files, "20261113-100000", None).unwrap();
         assert!(restore::apply_pending(&dir).is_some());
         assert!(std::fs::read_to_string(dir.join("settings.json")).unwrap().contains("right_control"));
         assert!(dir.join("avant-import-20261113-100000").join("settings.json").is_file());
         assert!(dir.join("models").join("ggml-x.bin").is_file(), "les modèles ne sont jamais touchés");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Après la migration (étape 4b) : la sauvegarde garde son format (réglages joints, fichiers de l'utilisateur actif), et la restaurer
+    /// remplace les fichiers de cet utilisateur sans défaire la migration.
+    #[test]
+    fn in_a_migrated_folder_the_backup_joins_the_user_and_restoring_it_keeps_the_migration() {
+        let dir = sample_folder("migre");
+        std::fs::write(dir.join("settings.json"), r#"{"hotkey":"right_option","firstName":"Léa","customModes":[]}"#).unwrap();
+        let profile = migration::run(&dir).profile.expect("migré");
+        let id = profile.file_name().unwrap().to_str().unwrap().to_string();
+        assert!(!dir.join("dictionary.json").exists());
+
+        let (_, text) = prepare(&dir, Some(&profile), "macos", 0).unwrap();
+        let backup = backup::parse_backup(&text).unwrap();
+        let settings = backup.files.settings.clone().unwrap();
+        assert_eq!((settings["firstName"].as_str(), settings["hotkey"].as_str()), (Some("Léa"), Some("right_option")), "réglages joints");
+        assert!(settings.get(migration::NAME_KEY).is_none(), "le nom affiché n'est pas un réglage");
+        assert_eq!(backup.files.dictionary.as_ref().unwrap()["words"][0], "Scriibe", "le dictionnaire de l'utilisateur");
+
+        // Restauration d'une sauvegarde où le prénom a changé.
+        let mut changed = backup.clone();
+        changed.files.settings.as_mut().unwrap()["firstName"] = json!("Paul");
+        changed.files.dictionary = Some(json!({"words": ["Restauré"], "corrections": []}));
+        let current = read_json(&dir.join("settings.json"));
+        let files = files_to_restore(&changed, current.as_ref(), "macos").unwrap();
+        let files = files_for_profile(files, &id, read_json(&profile.join(migration::PROFILE_FILE)).as_ref()).unwrap();
+        restore::stage(&dir, &files, "20261114-100000", Some(&id)).unwrap();
+        assert!(restore::apply_pending(&dir).unwrap().contains("profile.json"));
+        let root: Value = read_json(&dir.join("settings.json")).unwrap();
+        assert_eq!((root["schemaVersion"].as_u64(), root["activeProfile"].as_str()), (Some(2), Some(id.as_str())));
+        assert!(root.get("firstName").is_none());
+        let user: Value = read_json(&profile.join(migration::PROFILE_FILE)).unwrap();
+        assert_eq!((user["firstName"].as_str(), user[migration::NAME_KEY].as_str()), (Some("Paul"), Some("Léa")), "le nom affiché reste");
+        assert!(std::fs::read_to_string(profile.join("dictionary.json")).unwrap().contains("Restauré"));
+        assert!(!dir.join("dictionary.json").exists(), "rien n'est remis à la racine");
+        assert_eq!(migration::run(&dir).profile, Some(profile), "la migration n'a rien à refaire");
+        assert!(!dir.join("dictionary.json").exists());
+
+        // Un profile.json illisible : la sauvegarde est refusée plutôt que d'oublier les réglages de l'utilisateur.
+        std::fs::write(dir.join(migration::USERS_DIR).join(&id).join(migration::PROFILE_FILE), "{cassé").unwrap();
+        let err = prepare(&dir, Some(&dir.join(migration::USERS_DIR).join(&id)), "macos", 0).unwrap_err();
+        assert!(err.contains("profile.json"), "{err}");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

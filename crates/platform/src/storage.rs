@@ -5,7 +5,7 @@ use chrono::{DateTime, Local, Utc};
 use scriibe_core::dictionary::UserDictionary;
 use scriibe_core::history::{lossy_list, Calendar, DayTotal, Dictation, Store};
 use scriibe_core::settings::Hotkey;
-use scriibe_core::settings::{AppSettings, CleanupEngine, TranscriptionEngine, SETTINGS_SCHEMA};
+use scriibe_core::settings::{owner_of, AppSettings, CleanupEngine, Owner, TranscriptionEngine, SETTINGS_SCHEMA};
 use scriibe_engines::runtime::Log;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -248,7 +248,8 @@ fn read_settings_object(text: &str) -> Parsed<Value> {
     }
 }
 
-/// `profile.json` lu comme un objet JSON. Pas encore de numéro de version propre (l'étape 4b décidera).
+/// `profile.json` lu comme un objet JSON. Pas de numéro de version propre (étape 4b) : ses clés sont celles de `settings.json`, dont le
+/// numéro fait foi pour tout le dossier ; un `profile.json` n'est donc jamais « trop récent », seulement lisible ou non.
 fn read_profile_object(text: &str) -> Parsed<Value> {
     match serde_json::from_str::<Value>(text) {
         Ok(value) if value.is_object() => Parsed::Ok(value),
@@ -329,8 +330,15 @@ impl FileConfig {
             return Ok(());
         };
         let (computer, user) = settings.split();
+        // `profile.json` garde ce qui n'est pas un réglage (le nom affiché, étape 4b) : seules les clés de l'utilisateur sont remplacées.
+        let (current, _) = self.profile.read_state(read_profile_object, || Value::Object(Default::default()));
+        let mut profile: serde_json::Map<String, Value> = current
+            .as_object()
+            .map(|o| o.iter().filter(|(k, _)| owner_of(k) != Some(Owner::User)).map(|(k, v)| (k.clone(), v.clone())).collect())
+            .unwrap_or_default();
+        profile.extend(user);
         let computer = serde_json::to_string_pretty(&computer).map_err(std::io::Error::other)?;
-        let user = serde_json::to_string_pretty(&user).map_err(std::io::Error::other)?;
+        let user = serde_json::to_string_pretty(&profile).map_err(std::io::Error::other)?;
         write_atomic(&self.settings_path(), &computer)?;
         self.settings.forget();
         write_atomic(&profile_folder.join("profile.json"), &user)?;
@@ -664,10 +672,11 @@ mod tests {
         let config = FileConfig::new(dir.clone());
         config.save_settings(&AppSettings::default()).unwrap();
         let written: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(config.settings_path()).unwrap()).unwrap();
-        assert_eq!(written["schemaVersion"], SETTINGS_SCHEMA);
+        // Seule la migration écrit la version 2 (étape 4b) : des réglages par défaut, ou sans numéro, restent en version 1.
+        assert_eq!(written["schemaVersion"], scriibe_core::settings::LEGACY_SCHEMA);
         std::fs::write(config.settings_path(), r#"{"language":"en"}"#).unwrap();
         config.settings.forget();
-        assert_eq!(config.settings().schema_version, SETTINGS_SCHEMA);
+        assert_eq!(config.settings().schema_version, scriibe_core::settings::LEGACY_SCHEMA);
         assert!(config.problems().is_empty());
         config.save_settings(&config.settings()).unwrap();
         assert!(
@@ -706,11 +715,11 @@ mod tests {
     #[test]
     fn a_settings_file_from_a_newer_version_is_read_but_never_rewritten() {
         let dir = temp("refused-newer");
-        let original = r#"{"schemaVersion": 2, "language": "en", "champFutur": {"a": 1}}"#;
+        let original = r#"{"schemaVersion": 3, "language": "en", "champFutur": {"a": 1}}"#;
         std::fs::write(dir.join("settings.json"), original).unwrap();
         let config = FileConfig::new(dir.clone());
         assert_eq!(config.settings().language, scriibe_core::settings::DictationLanguage::En, "ce que Scriibe comprend sert encore");
-        assert_eq!(config.problems()[0].reason, Refusal::Newer(2));
+        assert_eq!(config.problems()[0].reason, Refusal::Newer(3));
         assert!(config.save_settings(&config.settings()).is_err());
         assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), original, "les champs inconnus restent intacts");
         assert!(files_in(&dir, ".bak").is_empty(), "un fichier lisible n'a pas besoin de copie");

@@ -1,6 +1,8 @@
 //! Les réglages propres à Scriibe (absents de Scribe) : appareil et durée de conservation de llama.cpp.
 
-use scriibe_core::settings::{is_device_name, AppSettings, Theme, UiLanguage, LLAMA_IDLE_DEFAULT, SETTINGS_SCHEMA};
+use scriibe_core::settings::{
+    is_device_name, is_profile_id, AppSettings, Theme, UiLanguage, LEGACY_SCHEMA, LLAMA_IDLE_DEFAULT, SETTINGS_SCHEMA,
+};
 
 #[test]
 fn llama_options_default_to_scribes_behaviour_and_survive_a_round_trip() {
@@ -101,11 +103,26 @@ fn one_badly_written_custom_command_is_dropped_alone() {
 
 #[test]
 fn the_schema_version_defaults_to_one_is_read_when_present_and_is_written_first() {
-    assert_eq!(SETTINGS_SCHEMA, 1);
-    assert_eq!(AppSettings::default().schema_version, SETTINGS_SCHEMA);
-    assert_eq!(AppSettings::from_json("{}").unwrap().schema_version, SETTINGS_SCHEMA, "un fichier sans numéro est de la version 1");
+    // Version 2 : rangement par utilisateur (étape 4b). Seule la migration écrit 2 : sans numéro, ou par défaut, c'est la version 1.
+    assert_eq!((SETTINGS_SCHEMA, LEGACY_SCHEMA), (2, 1));
+    assert_eq!(AppSettings::default().schema_version, LEGACY_SCHEMA, "des réglages par défaut ne font pas croire à une migration");
+    assert_eq!(AppSettings::from_json("{}").unwrap().schema_version, LEGACY_SCHEMA, "un fichier sans numéro est de la version 1");
     assert_eq!(AppSettings::from_json(r#"{"schemaVersion": 7}"#).unwrap().schema_version, 7);
-    assert_eq!(AppSettings::from_json(r#"{"schemaVersion": "deux"}"#).unwrap().schema_version, SETTINGS_SCHEMA, "illisible : version 1");
+    assert_eq!(AppSettings::from_json(r#"{"schemaVersion": "deux"}"#).unwrap().schema_version, LEGACY_SCHEMA, "illisible : version 1");
     let json = serde_json::to_string_pretty(&AppSettings::default()).unwrap();
     assert!(json.trim_start_matches("{\n").trim_start().starts_with("\"schemaVersion\": 1"), "le numéro ouvre le fichier");
+}
+
+#[test]
+fn the_active_profile_is_read_only_if_it_is_a_safe_folder_name() {
+    let read = |json: &str| AppSettings::from_json(json).unwrap().active_profile;
+    assert_eq!(read(r#"{"activeProfile": "A1B2-C3"}"#).as_deref(), Some("A1B2-C3"));
+    for bad in [r#""../x""#, r#"".migration-1""#, r#""a/b""#, r#""a\b""#, r#""""#, "42", r#""-x""#] {
+        assert_eq!(read(&format!(r#"{{"activeProfile": {bad}}}"#)), None, "{bad}");
+    }
+    assert!(
+        !serde_json::to_string(&AppSettings::default()).unwrap().contains("activeProfile"),
+        "absent tant qu'il n'y a pas d'utilisateur"
+    );
+    assert!(is_profile_id(&"A".repeat(64)) && !is_profile_id(&"A".repeat(65)));
 }

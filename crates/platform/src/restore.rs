@@ -6,49 +6,79 @@
 //! les fichiers actuels dans `sauvegarde-avant-import-<date>/` puis échange chaque fichier par renommage. Une interruption à n'importe
 //! quel moment laisse soit l'ancien état, soit un état à finir au lancement suivant (l'opération se rejoue sans rien perdre).
 
+use crate::migration::{PROFILE_FILE, USERS_DIR};
+use scriibe_core::settings::is_profile_id;
 use std::path::{Path, PathBuf};
 
-/// Les fichiers que la sauvegarde remplace, dans le dossier de données.
-pub const FILES: [&str; 4] = ["settings.json", "dictionary.json", "history.json", "history-totals.json"];
+/// Les fichiers que la sauvegarde remplace. `settings.json` est à la racine du dossier de données ; les autres sont ceux de
+/// l'utilisateur : à la racine dans l'ancien rangement, dans `utilisateurs/<id>/` après la migration (étape 4b). `profile.json`
+/// n'existe qu'après la migration.
+pub const FILES: [&str; 5] = ["settings.json", PROFILE_FILE, "dictionary.json", "history.json", "history-totals.json"];
 /// Le dossier de travail, dans le dossier de données.
 pub const STAGING: &str = ".restauration";
 const MARK: &str = "ok";
+/// Deuxième ligne de la marque : l'utilisateur dont les fichiers sont remplacés (`utilisateur=<id>`).
+const PROFILE_LINE: &str = "utilisateur=";
 
 /// Prépare la restauration : écrit les fichiers (`(nom, texte)`, noms pris dans [`FILES`] seulement) dans le dossier de travail et pose la
-/// marque avec le nom du dossier de copie de l'état actuel (`stamp` : « 20261113-142501 »). Un ancien dossier de travail est écarté.
-pub fn stage(folder: &Path, files: &[(&str, String)], stamp: &str) -> Result<(), String> {
+/// marque avec le nom du dossier de copie de l'état actuel (`stamp` : « 20261113-142501 »). `profile` : l'identifiant de l'utilisateur
+/// actif si le dossier est migré (ses fichiers vont alors dans `utilisateurs/<id>/`). Un ancien dossier de travail est écarté.
+pub fn stage(folder: &Path, files: &[(&str, String)], stamp: &str, profile: Option<&str>) -> Result<(), String> {
+    if profile.is_some_and(|id| !is_profile_id(id)) {
+        return Err("utilisateur invalide".into());
+    }
     let staging = folder.join(STAGING);
     if staging.exists() {
         std::fs::remove_dir_all(&staging).map_err(|e| format!("ancien dossier de travail : {e}"))?;
     }
     std::fs::create_dir_all(&staging).map_err(|e| format!("dossier de travail : {e}"))?;
     for (name, text) in files {
-        if !FILES.contains(name) {
+        if !FILES.contains(name) || (*name == PROFILE_FILE && profile.is_none()) {
             return Err(format!("fichier inattendu : {name}"));
         }
         std::fs::write(staging.join(name), text).map_err(|e| format!("écriture de {name} : {e}"))?;
     }
+    let mut mark = format!("avant-import-{stamp}");
+    if let Some(id) = profile {
+        mark.push_str(&format!("\n{PROFILE_LINE}{id}"));
+    }
     // La marque est posée en dernier : sans elle, le dossier de travail est ignoré (écriture interrompue).
-    std::fs::write(staging.join(MARK), format!("avant-import-{stamp}")).map_err(|e| format!("marque : {e}"))
+    std::fs::write(staging.join(MARK), mark).map_err(|e| format!("marque : {e}"))
 }
 
-/// Applique une restauration préparée, s'il y en a une. Rend un message pour le journal. À appeler avant toute lecture du dossier.
+/// Applique une restauration préparée, s'il y en a une. Rend un message pour le journal. À appeler avant toute lecture du dossier
+/// (et avant la migration : une restauration préparée dans un dossier migré vise l'utilisateur noté dans la marque).
 pub fn apply_pending(folder: &Path) -> Option<String> {
     let staging = folder.join(STAGING);
     let mark = std::fs::read_to_string(staging.join(MARK)).ok()?;
-    let mark = mark.trim();
-    // Le nom du dossier de copie vient d'un fichier : il doit avoir exactement la forme écrite par `stage`.
-    if !mark.starts_with("avant-import-") || !mark.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+    let mut lines = mark.lines().map(str::trim);
+    let copy_name = lines.next().unwrap_or_default();
+    let profile = lines.next().map(|l| l.strip_prefix(PROFILE_LINE).filter(|id| is_profile_id(id)));
+    // Le nom du dossier de copie et l'utilisateur viennent d'un fichier : ils doivent avoir exactement la forme écrite par `stage`.
+    if !copy_name.starts_with("avant-import-") || !copy_name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') || profile == Some(None)
+    {
         let _ = std::fs::remove_dir_all(&staging);
         return Some("restauration: marque invalide, ignorée".to_string());
     }
-    let before = folder.join(mark);
+    let user_folder = match profile.flatten() {
+        Some(id) => {
+            let dir = folder.join(USERS_DIR).join(id);
+            if !dir.join(PROFILE_FILE).is_file() {
+                let _ = std::fs::remove_dir_all(&staging);
+                return Some(format!("restauration: l'utilisateur {id} n'existe plus, rien n'a changé ; recommence la restauration"));
+            }
+            dir
+        }
+        None => folder.to_path_buf(),
+    };
+    let target = |name: &str| if name == "settings.json" { folder.join(name) } else { user_folder.join(name) };
+    let before = folder.join(copy_name);
     if let Err(e) = std::fs::create_dir_all(&before) {
         return Some(format!("restauration: dossier de copie impossible ({e}), rien n'a changé"));
     }
     // Copie de l'état actuel, une seule fois : si une reprise passe ici, le dossier existe déjà avec l'état d'origine.
     for name in FILES {
-        let (current, copy) = (folder.join(name), before.join(name));
+        let (current, copy) = (target(name), before.join(name));
         if current.is_file() && !copy.exists() {
             if let Err(e) = std::fs::copy(&current, &copy) {
                 // Sans copie de l'état actuel, rien n'est remplacé (disque plein, antivirus…) : la restauration est abandonnée, à refaire.
@@ -62,7 +92,7 @@ pub fn apply_pending(folder: &Path) -> Option<String> {
     for name in FILES {
         let staged: PathBuf = staging.join(name);
         if staged.is_file() {
-            match std::fs::rename(&staged, folder.join(name)) {
+            match std::fs::rename(&staged, target(name)) {
                 Ok(()) => replaced.push(name),
                 Err(e) => {
                     return Some(format!("restauration: {name} n'a pas pu être remplacé ({e}) ; elle sera reprise au prochain lancement"))
@@ -106,7 +136,7 @@ mod tests {
         std::fs::write(dir.join("settings.json"), "actuel").unwrap();
         std::fs::write(dir.join("history.json"), "[1]").unwrap();
         std::fs::write(dir.join("scriibe.log"), "journal").unwrap();
-        stage(&dir, &[("settings.json", "neuf".into()), ("dictionary.json", "{}".into())], "20261113-142501").unwrap();
+        stage(&dir, &[("settings.json", "neuf".into()), ("dictionary.json", "{}".into())], "20261113-142501", None).unwrap();
         let message = apply_pending(&dir).unwrap();
         assert!(message.contains("avant-import-20261113-142501"), "{message}");
         assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "neuf");
@@ -125,11 +155,11 @@ mod tests {
     fn an_interrupted_swap_is_resumed_without_losing_the_original_copy() {
         let dir = scratch("reprise");
         std::fs::write(dir.join("settings.json"), "origine").unwrap();
-        stage(&dir, &[("settings.json", "neuf".into())], "20261113-000000").unwrap();
+        stage(&dir, &[("settings.json", "neuf".into())], "20261113-000000", None).unwrap();
         apply_pending(&dir).unwrap();
         // Une reprise après interruption : l'état d'origine est déjà copié, un nouveau passage ne l'écrase pas.
         std::fs::write(dir.join("settings.json"), "milieu").unwrap();
-        stage(&dir, &[("settings.json", "neuf2".into())], "20261113-000000").unwrap();
+        stage(&dir, &[("settings.json", "neuf2".into())], "20261113-000000", None).unwrap();
         apply_pending(&dir).unwrap();
         assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "neuf2");
         assert_eq!(std::fs::read_to_string(dir.join("avant-import-20261113-000000").join("settings.json")).unwrap(), "origine");
@@ -148,7 +178,7 @@ mod tests {
         }
         let dir = scratch("copie-impossible");
         std::fs::write(dir.join("settings.json"), "actuel").unwrap();
-        stage(&dir, &[("settings.json", "neuf".into())], "20261113-120000").unwrap();
+        stage(&dir, &[("settings.json", "neuf".into())], "20261113-120000", None).unwrap();
         // Le dossier de copie existe mais n'est pas modifiable : la copie échoue.
         let before = dir.join("avant-import-20261113-120000");
         std::fs::create_dir_all(&before).unwrap();
@@ -162,10 +192,52 @@ mod tests {
     }
 
     #[test]
-    fn only_the_four_known_files_can_be_staged() {
+    fn only_the_known_files_can_be_staged() {
         let dir = scratch("noms");
-        assert!(stage(&dir, &[("../evil.json", "x".into())], "s").is_err());
-        assert!(stage(&dir, &[("models", "x".into())], "s").is_err());
+        assert!(stage(&dir, &[("../evil.json", "x".into())], "s", None).is_err());
+        assert!(stage(&dir, &[("models", "x".into())], "s", None).is_err());
+        assert!(stage(&dir, &[("profile.json", "{}".into())], "s", None).is_err(), "pas de profile.json dans l'ancien rangement");
+        assert!(stage(&dir, &[("settings.json", "{}".into())], "s", Some("../x")).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Après la migration (étape 4b), les fichiers de l'utilisateur sont remplacés dans son dossier, et leur état actuel est copié avant.
+    #[test]
+    fn in_a_migrated_folder_the_user_files_are_replaced_in_the_user_folder() {
+        let dir = scratch("utilisateur");
+        let user = dir.join(USERS_DIR).join("AAAA");
+        std::fs::create_dir_all(&user).unwrap();
+        std::fs::write(dir.join("settings.json"), "racine").unwrap();
+        std::fs::write(user.join(PROFILE_FILE), "profil").unwrap();
+        std::fs::write(user.join("history.json"), "[1]").unwrap();
+        let files = [("settings.json", "neuf".into()), (PROFILE_FILE, "profil neuf".into()), ("dictionary.json", "{}".into())];
+        stage(&dir, &files, "20261114-100000", Some("AAAA")).unwrap();
+        let message = apply_pending(&dir).unwrap();
+        assert!(message.contains("profile.json"), "{message}");
+        assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "neuf");
+        assert_eq!(std::fs::read_to_string(user.join(PROFILE_FILE)).unwrap(), "profil neuf");
+        assert_eq!(std::fs::read_to_string(user.join("dictionary.json")).unwrap(), "{}");
+        assert_eq!(std::fs::read_to_string(user.join("history.json")).unwrap(), "[1]", "un fichier absent de la sauvegarde reste");
+        assert!(!dir.join("dictionary.json").exists(), "rien à la racine");
+        let before = dir.join("avant-import-20261114-100000");
+        assert_eq!(std::fs::read_to_string(before.join("settings.json")).unwrap(), "racine");
+        assert_eq!(std::fs::read_to_string(before.join(PROFILE_FILE)).unwrap(), "profil");
+        assert_eq!(std::fs::read_to_string(before.join("history.json")).unwrap(), "[1]");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// Une marque qui vise un utilisateur disparu, ou un identifiant forgé, ne remplace rien.
+    #[test]
+    fn a_mark_for_a_missing_or_forged_user_changes_nothing() {
+        let dir = scratch("utilisateur-absent");
+        std::fs::write(dir.join("settings.json"), "racine").unwrap();
+        stage(&dir, &[("settings.json", "neuf".into())], "20261114-100000", Some("BBBB")).unwrap();
+        assert!(apply_pending(&dir).unwrap().contains("n'existe plus"));
+        assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "racine");
+        stage(&dir, &[("settings.json", "neuf".into())], "20261114-100000", None).unwrap();
+        std::fs::write(dir.join(STAGING).join(MARK), "avant-import-20261114-100000\nutilisateur=../..").unwrap();
+        assert!(apply_pending(&dir).unwrap().contains("marque invalide"));
+        assert_eq!(std::fs::read_to_string(dir.join("settings.json")).unwrap(), "racine");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

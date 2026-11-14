@@ -434,24 +434,31 @@ fn handle(ctx: &Context, mut request: Request) {
         }
         // Sauvegarde complète : l'enregistrer (relue avant de dire « fait »), puis la restaurer (aperçu, accord, relance : les fichiers sont
         // échangés au lancement suivant, avant toute lecture).
-        (Method::Post, "api/backup/export") => {
-            ok(request, backup::export(ctx.app.config.folder(), &uninstall::protected_roots(&ctx.app.config.settings())))
-        }
+        (Method::Post, "api/backup/export") => ok(
+            request,
+            backup::export(
+                ctx.app.config.folder(),
+                ctx.app.config.profile_folder().as_deref(),
+                &uninstall::protected_roots(&ctx.app.config.settings()),
+            ),
+        ),
         (Method::Post, "api/backup/import/read") => ok(request, backup::read(&input)),
         (Method::Post, "api/backup/import/cancel") => ok(request, backup::cancel()),
-        (Method::Post, "api/backup/import/apply") => match backup::apply(ctx.app.config.folder(), &input) {
-            Ok(()) => {
-                ok(request, json!({"ok": true}));
-                backup::cancel();
-                let app = ctx.app.clone();
-                ctx.app.log.write("restauration: sauvegarde préparée, relance de Scriibe");
-                std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(800));
-                    restart(&app);
-                });
+        (Method::Post, "api/backup/import/apply") => {
+            match backup::apply(ctx.app.config.folder(), ctx.app.config.profile_folder().as_deref(), &input) {
+                Ok(()) => {
+                    ok(request, json!({"ok": true}));
+                    backup::cancel();
+                    let app = ctx.app.clone();
+                    ctx.app.log.write("restauration: sauvegarde préparée, relance de Scriibe");
+                    std::thread::spawn(move || {
+                        std::thread::sleep(Duration::from_millis(800));
+                        restart(&app);
+                    });
+                }
+                Err(e) => fail(request, 409, &e),
             }
-            Err(e) => fail(request, 409, &e),
-        },
+        }
         // Désinstaller : la liste exacte, puis, sur accord, l'assistant (tout se fait après la sortie de Scriibe).
         (Method::Post, "api/uninstall/plan") => ok(request, uninstall::plan_view(&ctx.app.config.settings(), &input)),
         (Method::Post, "api/uninstall/run") => match uninstall::run(&ctx.app, &input) {
@@ -753,8 +760,9 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
     let mut merged = serde_json::to_value(before).map_err(|e| e.to_string())?;
     let object = merged.as_object_mut().ok_or("réglages illisibles")?;
     for (key, value) in changes {
-        // Le numéro de version du fichier n'est pas un réglage : la page ne le change jamais (Scriibe l'écrit seul).
-        if key == "schemaVersion" {
+        // Le numéro de version du fichier et l'utilisateur actif ne sont pas des réglages : la page ne les change jamais (la migration
+        // et, plus tard, la route de changement d'utilisateur les écrivent seules). Ignorés sans erreur : la page peut renvoyer le bloc entier.
+        if key == "schemaVersion" || key == "activeProfile" {
             continue;
         }
         // Toute clé est classée « utilisateur » ou « ordinateur » (décision 1, test de classement) ; le rangement dans le bon fichier
@@ -1329,6 +1337,14 @@ mod tests {
         let before = AppSettings::default();
         let after = merge_settings(&before, &json!({"schemaVersion": 99, "language": "en"})).unwrap();
         assert_eq!(after.schema_version, before.schema_version, "ignoré sans erreur : la page peut renvoyer le bloc entier");
+        assert_eq!(after.language, scriibe_core::settings::DictationLanguage::En);
+    }
+
+    #[test]
+    fn the_page_cannot_change_the_active_user() {
+        let before = AppSettings { active_profile: Some("AAAA".into()), ..AppSettings::default() };
+        let after = merge_settings(&before, &json!({"activeProfile": "BBBB", "language": "en"})).unwrap();
+        assert_eq!(after.active_profile.as_deref(), Some("AAAA"), "ignoré sans erreur");
         assert_eq!(after.language, scriibe_core::settings::DictationLanguage::En);
     }
 
