@@ -206,6 +206,8 @@ struct Items {
     /// Le sous-menu « Utilisateur » : dans le menu seulement quand il y a au moins deux utilisateurs.
     profile_menu: Submenu<Wry>,
     profile_shown: bool,
+    /// Le titre du sous-menu des utilisateurs tel qu'il est affiché (pour savoir quand le refaire).
+    profile_title: String,
     version: MenuItem<Wry>,
     open_data: MenuItem<Wry>,
     open_log: MenuItem<Wry>,
@@ -218,6 +220,10 @@ struct Items {
 
 impl Items {
     /// Le sous-menu des utilisateurs : retiré du menu tant qu'il n'y a pas deux utilisateurs, sinon placé juste avant « Mode ».
+    ///
+    /// Un changement de titre (« Utilisateur : Anne » → « Utilisateur : Bruno ») ou de liste **refait le sous-menu** au lieu de changer son
+    /// texte : sous Linux (AppIndicator, barre de GNOME), le texte d'un sous-menu déjà affiché n'est pas relu par le bureau (constaté à l'essai
+    /// du lot 2 : le titre restait « Utilisateur : Principal » alors que la coche suivait). Seules les coches se mettent à jour en place.
     fn refresh_profiles(&mut self, app: &AppHandle, view: &MenuView) -> tauri::Result<()> {
         if view.profiles.is_empty() {
             if self.profile_shown {
@@ -226,27 +232,29 @@ impl Items {
             }
             return Ok(());
         }
-        self.profile_menu.set_text(&view.profile_title)?;
-        let same = self.profiles.len() == view.profiles.len()
+        let same_list = self.profiles.len() == view.profiles.len()
             && self.profiles.iter().zip(&view.profiles).all(|((id, label, _), p)| *id == p.id && *label == p.label);
-        if same {
+        if self.profile_shown && same_list && self.profile_title == view.profile_title {
             for ((_, _, item), p) in self.profiles.iter().zip(&view.profiles) {
                 item.set_checked(p.checked)?;
             }
-        } else {
-            while let Ok(Some(_)) = self.profile_menu.remove_at(0) {}
-            self.profiles.clear();
-            for p in &view.profiles {
-                let item = CheckMenuItem::with_id(app, format!("{PROFILE_PREFIX}{}", p.id), &p.label, true, p.checked, None::<&str>)?;
-                self.profile_menu.append(&item)?;
-                self.profiles.push((p.id.clone(), p.label.clone(), item));
-            }
+            return Ok(());
         }
-        if !self.profile_shown {
-            let at = self.menu.items()?.iter().position(|i| i.id() == self.mode_menu.id()).unwrap_or(0);
-            self.menu.insert(&self.profile_menu, at)?;
-            self.profile_shown = true;
+        if self.profile_shown {
+            self.menu.remove(&self.profile_menu)?;
+            self.profile_shown = false;
         }
+        self.profiles.clear();
+        self.profile_menu = Submenu::with_id(app, "tray:users", &view.profile_title, true)?;
+        for p in &view.profiles {
+            let item = CheckMenuItem::with_id(app, format!("{PROFILE_PREFIX}{}", p.id), &p.label, true, p.checked, None::<&str>)?;
+            self.profile_menu.append(&item)?;
+            self.profiles.push((p.id.clone(), p.label.clone(), item));
+        }
+        let at = self.menu.items()?.iter().position(|i| i.id() == self.mode_menu.id()).unwrap_or(0);
+        self.menu.insert(&self.profile_menu, at)?;
+        self.profile_shown = true;
+        self.profile_title.clone_from(&view.profile_title);
         Ok(())
     }
 
@@ -370,6 +378,7 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
         mode_menu,
         profile_menu,
         profile_shown: false,
+        profile_title: String::new(),
         version,
         open_data,
         open_log,

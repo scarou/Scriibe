@@ -600,3 +600,90 @@ Mesuré sur le Mac : `cargo fmt --all --check` sans écart, `cargo clippy --work
 - **Un aperçu d'import reste en mémoire** jusqu'à son abandon, son application ou le fichier suivant ; il est aussi abandonné quand on ferme le panneau, pas quand on change d'utilisateur (il ne dépend d'aucun utilisateur).
 - **Pas d'export de l'historique ni des statistiques** : voulu (décision 4), la sauvegarde complète garde ce rôle pour l'utilisateur actif.
 - **Prénom exporté en clair** quand la case est cochée ; le fichier n'est pas chiffré (décision 5).
+
+## Essai lot 2 (tâche 11, 14/11/2026)
+
+Essai réel des étapes 4a à 5 sur le code du commit `7727505` (non publié), puis, pour le sous-menu de l'icône, sur `d25c2f9` (voir Ajouts). **Mac, PC Linux et PC Windows : faits.** Mac : l'auteur a fait les gestes du trousseau, du menu de l'icône et des boîtes de fichier ; Linux : par `pilote-pc`, l'auteur n'ayant fait que le geste du menu de l'icône ; Windows : par `pilote-pc`, l'auteur ayant fait les gestes des boîtes de fichier et du menu de l'icône.
+
+### Méthode (et pourquoi)
+
+- **Sauvegarde datée avant tout lancement** : `~/Library/Application Support/Scriibe-sauvegardes/essai-lot2-mac-20261114-114923/` (réglages, dictionnaire, historique, statistiques, bancs, journal du vrai dossier ; sans `models/`, 8 Go, que rien ne modifie). Empreintes des copies identiques aux originaux.
+- **Le vrai dossier de données n'a pas été migré** (choix, à confirmer par l'auteur) : l'essai tourne sur une **copie de ses vraies données** (`SCRIIBE_DATA`), avec une copie de l'application hors de `~/Applications` (`SCRIIBE_INSTALL`, lancée par `open -n --env …`). Pourquoi : la migration est la seule étape irréversible du lot, la copie prouve la perte nulle sur de vraies données (1 928 dictées, 2 modes, 1 commande, 28 mots, 48 corrections) sans toucher à l'application de tous les jours ; la vraie migration aura lieu au premier lancement de la 0.5.0, précédée de sa propre sauvegarde (`sauvegarde-avant-utilisateurs-<date>`) et de celle-ci.
+- Le serveur est piloté par ses routes (`curl` sur le Mac et le PC Linux, un script PowerShell sur Windows) et, sur le Mac, par la page dans le volet navigateur ; seuls le trousseau (Mac), le menu de l'icône et les boîtes « Enregistrer sous » et « Ouvrir » de Mac et de Windows demandent l'auteur.
+- **Sauvegardes datées, faites avant tout lancement** (réglages, dictionnaire, historique, statistiques, bancs, journal ; sans `models/`), copies vérifiées par empreinte :
+  - Mac : `~/Library/Application Support/Scriibe-sauvegardes/essai-lot2-mac-20261114-114923/` ;
+  - Linux : `~/scriibe-sauvegardes/essai-lot2-linux-20261114-130625/` (dossier personnel du compte de l'auteur) ;
+  - Windows : `%USERPROFILE%\scriibe-sauvegardes\essai-lot2-windows-20261114-130731\`.
+- **Même choix sur les trois machines** : l'essai tourne sur une **copie** des vraies données (`SCRIIBE_DATA` : Mac `…/essai-lot2/donnees`, Linux `/tmp/essai-lot2/donnees`, Windows `C:\essai-lot2\donnees`) ; les vraies données des PC n'ont pas été migrées non plus. Linux : lancé dans la session graphique ouverte (icône visible dans la barre du haut) ; Windows : lancé dans la session de l'auteur par une tâche planifiée temporaire (`schtasks … /it`, supprimée ensuite).
+- **Code transmis aux PC sans rien publier** : `git bundle` copié par `scp`, `git fetch` puis `git merge --ff-only`, puis `pilote compiler <pc> --mode release` (compilation de tout le code, dont le menu de l'icône de Windows : **première compilation réelle de `windows/tray.rs`**, réussie).
+
+### Résultats du Mac
+
+| Cas | Résultat |
+|---|---|
+| Migration de la copie des vraies données : les 17 réglages de personne, prénom, 2 modes, commande, `hiddenModes`, dictionnaire (byte à byte), statistiques, historique (1 928 dictées, mêmes identifiants) retrouvés chez l'utilisateur ; réglages de l'ordinateur inchangés ; seules `schemaVersion` et `activeProfile` ajoutées à `settings.json` ; rien ne reste à la racine | ✔ |
+| Sauvegarde `sauvegarde-avant-utilisateurs-2026-11-14/` : quatre fichiers identiques à l'original | ✔ |
+| Utilisateur de départ : nom affiché = prénom de l'auteur (« Principal » s'il est vide), jamais le login de l'ordinateur | ✔ |
+| Créer un utilisateur vide et une copie (copie : modes, commande, prénom, dictionnaire ; ni historique ni statistiques) ; nom pris (casse ignorée) refusé ; copie par une page périmée refusée | ✔ (routes) |
+| Renommer, changer d'utilisateur (route) : réglages, dictionnaire, historique, statistiques de chacun (Bruno : 0 ; moi : 1 928 dictées, 24 267 mots), retour sans perte, `activeProfile` écrit | ✔ |
+| Garde-fou 409 : dictionnaire, réglage de l'utilisateur et copie avec un utilisateur périmé refusés (`stale`), rien écrit ; réglage de l'ordinateur accepté | ✔ |
+| Supprimer : sans confirmation refusé, l'utilisateur actif refusé, un autre mis dans `utilisateurs-supprimes/<id>-<date>/` avec ses fichiers | ✔ |
+| **Menu de l'icône** : sous-menu « Utilisateur : … » placé au-dessus de « Mode », trois noms, coche sur l'actif ; clic sur « Bruno » : titre et coche suivent, `activeProfile` et état du serveur suivent, salutation « Bruno » | ✔ (vu par l'auteur, contrôlé côté serveur) |
+| Dictée de l'auteur (11:57) pendant l'essai : enregistrée dans l'historique de Bruno (1 dictée, 5 mots), pas chez l'autre | ✔ (constat) |
+| Page (volet navigateur) : carte « Utilisateurs » (lignes, « actif », Exporter / Renommer / Supprimer, création, case de copie), Tableau de bord « Salut Bruno » avec « Utilisateur : Bruno · changer » et ses propres statistiques | ✔ (vu) |
+| **Export** de le prénom de l'auteur (non actif) : aperçu (prénom décoché, 28 mots, 47 corrections, 2 modes et 8 exemples, 1 commande), boîte « Enregistrer sous » ; fichier : enveloppe `profile`, aucune clé d'API, aucun historique, aucun prénom ni nom, aucun réglage de l'ordinateur | ✔ |
+| **Import** du fichier : boîte « Ouvrir », aperçu (nom à donner, cases, modes et commandes), un clone nommé à l'import créé ; il ne devient pas actif | ✔ |
+| Clone = original : mots identiques ; 47 corrections (l'original en a 48 : un doublon « pilote PC » écarté, voir ci-dessous) ; modes et exemples identiques ; commande identique, identifiants neufs ; réglages de personne identiques ; prénom absent (non exporté, attendu) | ✔ |
+
+### Résultats du PC Linux (HP ProBook, Ubuntu, GNOME Wayland)
+
+Données de départ : prénom vide, 3 mots, 1 correction, 80 dictées, ni mode ni commande.
+
+| Cas | Résultat |
+|---|---|
+| Migration : réglages (aucun écart), dictionnaire, historique, statistiques identiques à l'octet ; sauvegarde `sauvegarde-avant-utilisateurs-2026-11-14/` fidèle ; utilisateur nommé « Principal » (prénom vide : jamais le login) ; rien à la racine | ✔ |
+| Création vide et copie (copie : mode, commande, prénom `Léa`, dictionnaire ; ni historique ni statistiques), nom pris refusé, copie par une page périmée refusée | ✔ |
+| Garde-fou 409 (dictionnaire, réglage de l'utilisateur, copie) ; réglage de l'ordinateur accepté ; dictionnaire inchangé | ✔ |
+| Renommer ; changer d'utilisateur : Bruno 0 dictée, l'original 80 dictées / 1 477 mots, retour sans perte ; salutation « Bruno » ; ancienne page refusée | ✔ |
+| Supprimer : sans confirmation refusé, l'actif refusé, un autre mis dans `utilisateurs-supprimes/` | ✔ |
+| Export de l'utilisateur (route : fichier placé dans `~/Documents`, sans boîte, comme prévu sous Linux) : aucun prénom, aucune clé, aucun historique | ✔ |
+| Import par chemin tapé : aperçu (3 mots, 1 correction, mode SMS, commande Barrer), **jeton faux refusé**, import « Clone » (nouvel utilisateur, pas actif) ; **second import du même fichier : « Clone 2 »** ; modes, commandes et dictionnaire identiques (contenu) à l'original | ✔ |
+| Fichier d'un autre type refusé (« autre type d'export ») ; fichier d'une version plus récente refusé (« mets Scriibe à jour ») | ✔ |
+| **Menu de l'icône (barre du haut de GNOME)** : sous-menu « Utilisateur : … » au-dessus de « Mode », les noms, la coche | ✔ (vu par l'auteur) |
+| Clic sur « Bruno » : la coche suit, `activeProfile` et état du serveur suivent ; **le titre du sous-menu restait « Utilisateur : Principal »** | ✘ puis ✔ après correction (voir Ajouts) |
+
+### Résultats du PC Windows
+
+Données de départ : prénom renseigné, 14 mots, 3 corrections, 282 dictées (2 525 mots), ni mode ni commande.
+
+| Cas | Résultat |
+|---|---|
+| Migration : réglages (comparaison exacte en Python sur les fichiers rapatriés : aucun écart), dictionnaire, historique, statistiques identiques (empreintes) ; sauvegarde fidèle ; nom affiché = prénom ; rien à la racine | ✔ |
+| Création vide, copie (mode, commande, prénom, dictionnaire), nom pris, copie et dictionnaire et réglage de l'utilisateur d'une page périmée (409), réglage de l'ordinateur accepté | ✔ |
+| Renommer ; changer d'utilisateur (Bruno : 0 dictée ; l'original : 282 dictées / 2 525 mots), retour sans perte, salutation « Bruno », ancienne page refusée | ✔ |
+| Supprimer : sans confirmation, l'actif refusés ; un autre mis de côté | ✔ |
+| **Export** (boîte « Enregistrer sous », dossier Téléchargements proposé) : 14 mots, 3 corrections, mode SMS, commande Barrer ; aucun prénom ni clé ni historique | ✔ |
+| **Import** (boîte « Ouvrir ») : aperçu, « Clone Windows » créé, pas actif ; modes, commandes, dictionnaire et réglages de personne identiques, identifiants neufs, prénom absent | ✔ |
+| **Menu de l'icône (zone de notification)** : sous-menu « Utilisateur : … », clic sur « Bruno » ; titre et coche suivent ; `activeProfile` = Bruno ; le journal note « passage à Bruno (demandé par le menu de l'icône) » puis le rechargement des modèles | ✔ (vu par l'auteur ; binaire compilé sur `4ea552e` : la correction du titre ne concerne que `mac_tray.rs`, Mac et Linux, pas le menu de Windows) |
+
+### Constats
+
+- **Rien à corriger dans le code** des étapes 4a à 5, sauf le titre du sous-menu sous Linux (Ajouts). Le reste est passé du premier coup sur les trois machines.
+- **Le menu de l'icône ne se testait pas à distance** : le défaut du titre n'est apparu que devant l'écran de l'auteur. Il a ensuite été vérifié sans geste, en lisant le menu côté D-Bus (`com.canonical.dbusmenu`, méthode `GetLayout`) : les libellés reçus par GNOME se contrôlent ainsi.
+- **Trousseau** : comme au lot 1, la copie d'essai a demandé l'accès aux clés ; `api/status` est resté bloqué tant que la fenêtre était ouverte. Réglé par un clic « Toujours autoriser » (comportement connu, mémoire « trousseau »).
+- **Deux Scriibe écoutent la même touche** pendant l'essai : une dictée faite pendant ce temps aurait été collée deux fois (ce n'est pas arrivé : l'instance habituelle ne tournait plus au moment de la dictée).
+- **L'instance habituelle de l'auteur ne tournait plus** quand j'ai vérifié, après l'essai (son journal s'arrête à 11:47, avant mon lancement à 11:50). Je ne sais pas si elle a été fermée par l'auteur ; je ne l'ai pas relancée.
+- **L'historique est réécrit à l'ouverture** par la nouvelle version : 3 durées passent de `1.3119346250000001` à `1.311934625` (représentation décimale), sans perte. La sauvegarde, elle, est identique à l'original.
+- **Un doublon de corrections est écarté** : la copie de l'utilisateur garde le fichier tel quel (48 corrections) mais la page et l'export n'en voient que 47 (« entendu » identique : `pilote PC` → `pilote-pc` en double, étape 1 du lot 1). Pas une perte : le doublon n'avait aucun effet. Il disparaît du fichier à la prochaine sauvegarde du dictionnaire par la page.
+- **Un espace final est retiré** à l'import du nom d'un mode (un nom de mode qui finissait par une espace), nettoyage voulu des noms de modes.
+- **Corrections avant** : aucune.
+
+- **Windows : lecture des réglages en PowerShell** : deux « écarts » signalés par mon script (`trialCandidates`, `voiceCommands`) étaient des artefacts de `ConvertTo-Json` (objets vides) ; la comparaison exacte en Python sur les fichiers rapatriés n'en montre aucun. Les contrôles de migration sur Windows se font donc sur des fichiers rapatriés et comparés en Python, plus fiables.
+- **Compilation Windows lancée trop tôt** : la fusion git a d'abord échoué (`cd` sans `/d` sous cmd) et deux compilations ont tourné sur l'ancien code avant la bonne ; sans conséquence, mais `pilote compiler` ne vérifie pas que la fusion a eu lieu : toujours relire `git log` avant de compiler.
+- **Une seule instance habituelle** : sur Linux et Windows, aucune Scriibe ne tournait pendant l'essai ; l'instance de l'auteur sur le Mac ne tournait plus quand j'ai vérifié.
+
+### Ajouts
+
+- **Demande de l'auteur (PC Linux)** : « après avoir sélectionné "Bruno", le menu affiche toujours "Utilisateur : Principal", en revanche dans le sous-menu c'est bien Bruno qui est coché. » **Traitée tout de suite** (commit `d25c2f9`). Cause : sous Linux (AppIndicator, barre de GNOME), le texte d'un sous-menu déjà affiché n'est pas relu par le bureau (le libellé D-Bus restait « Utilisateur : Principal ») ; seules les coches suivent. Correction : `mac_tray::refresh_profiles` **refait le sous-menu** (retrait, nouveau sous-menu, remise en place avant « Mode ») quand son titre ou sa liste change ; les coches seules se mettent à jour en place. Vérifié sur le PC Linux : titre lu côté D-Bus après chaque changement (Bruno, Principal, Clone), puis confirmé par l'auteur à l'écran. Pas de test unitaire (le menu dépend de Tauri) ; Mac et Windows n'étaient pas touchés (le titre y suivait déjà).
+- **Proposition de ligne du carnet** (non traitée : hors du lot, défaut d'avant le chantier 4) : sous Linux, le titre du sous-menu « Mode » reste « Mode » au lieu de « Mode : Simple » (même cause : `set_text` sur un sous-menu affiché ; le libellé D-Bus lu pendant l'essai vaut « Mode »). Même correction possible (refaire le sous-menu « Mode » quand son titre change).
+- **Pour la tâche 12** : rien d'autre ne bloque la livraison ; relancer `cargo fmt`, `clippy` et `cargo test` avant le push ; le CI Windows compilera le code Windows (déjà compilé ici en release, pas en `clippy`).
