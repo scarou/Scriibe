@@ -844,4 +844,41 @@ export const en: Record<string, string> = {
     'No translation shortcut yet: restart Scriibe, and GNOME will ask you to choose one.',
   'Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.':
     'On GNOME (Wayland), you dictate with a GNOME shortcut: {shortcut}. GNOME does not accept a single key such as Right Ctrl: it needs a combination with an ordinary key (a letter, an arrow, Space). To change it: GNOME Settings → Apps → Scriibe → Global Shortcuts, then restart Scriibe.',
+  // Utilisateurs (étape 4c)
+  'Utilisateurs':
+    'Users',
+  'Chaque utilisateur a son dictionnaire, ses modes personnels, ses commandes, son historique et ses statistiques, et ses réglages de personne (prénom, langue, mode choisi). Les touches, le micro, les moteurs et les clés restent ceux de l’ordinateur. Avec deux utilisateurs ou plus, le menu de l’icône propose aussi de passer de l’un à l’autre.':
+    'Each user has their own dictionary, custom modes, commands, history and statistics, and their personal settings (first name, language, chosen mode). The keys, microphone, engines and API keys stay those of the computer. With two or more users, the icon menu also lets you switch between them.',
+  'Impossible de faire cela.':
+    'That could not be done.',
+  'Mettre l’utilisateur « {name} » de côté ? Son dictionnaire, ses modes, son historique et ses statistiques ne seront plus utilisés. Scriibe ne les efface pas : le dossier est déplacé dans « utilisateurs-supprimes », dans le dossier de données, d’où tu peux le reprendre à la main.':
+    'Set the user “{name}” aside? Their dictionary, modes, history and statistics will no longer be used. Scriibe does not erase them: the folder is moved to “utilisateurs-supprimes”, inside the data folder, where you can take it back by hand.',
+  'Mettre de côté':
+    'Set aside',
+  '« {name} » est mis de côté dans {folder}.':
+    '“{name}” has been set aside in {folder}.',
+  'Nom de l’utilisateur':
+    'User name',
+  'actif':
+    'active',
+  'Utiliser':
+    'Use',
+  'Renommer':
+    'Rename',
+  'Passe d’abord à un autre utilisateur.':
+    'Switch to another user first.',
+  'Nom du nouvel utilisateur':
+    'New user’s name',
+  'Créer un utilisateur':
+    'Create a user',
+  'Copier l’utilisateur actif (ses réglages de personne et son dictionnaire, sans son historique ni ses statistiques)':
+    'Copy the active user (their personal settings and dictionary, without their history or statistics)',
+  'Les utilisateurs ne sont pas disponibles : le rangement par utilisateur n’a pas pu se faire au lancement (le journal en dit la raison). Relance Scriibe.':
+    'Users are not available: the per-user storage could not be set up at launch (the log gives the reason). Restart Scriibe.',
+  'L’utilisateur actif a changé : la page s’est rechargée et ce que tu venais de faire n’a pas été enregistré. Recommence si besoin.':
+    'The active user has changed: the page reloaded and what you had just done was not saved. Do it again if needed.',
+  'Utilisateur : {name}':
+    'User: {name}',
+  'changer':
+    'change',
 };

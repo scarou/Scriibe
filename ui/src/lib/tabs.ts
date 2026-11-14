@@ -42,6 +42,7 @@ export function resolveTab(id: TabId): { tab: MainTab; settingsTab?: SettingsTab
 /** L'onglet des Réglages où se trouve une carte (les liens de l'Aide visent une carte par son ancre). */
 const settingsAnchors: Record<string, SettingsTabId> = {
   dictee: 'dictation',
+  utilisateurs: 'dictation',
   texte: 'dictation',
   moteurs: 'engines',
   cles: 'engines',

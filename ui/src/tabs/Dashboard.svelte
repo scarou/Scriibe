@@ -52,6 +52,9 @@
   <div class="welcome">
     <h1>{status.value?.first_name ? t('Salut {name}', { name: status.value.first_name }) : t('Salut')}</h1>
     <p>{t('Maintiens la touche, parle, relâche : ton texte s’écrit tout seul là où tu es.')}</p>
+    {#if status.value?.profile && status.value.profile_count >= 2}
+      <p class="user">{t('Utilisateur : {name}', { name: status.value.profile.name })} · <button class="link" onclick={() => goto('settings', 'utilisateurs')}>{t('changer')}</button></p>
+    {/if}
     <div class="hint">
       <span class="key">{keyName(status.value?.dictation_label ?? 'Ctrl droit')}</span>
       <span>{t('maintenir pour dicter')}</span>
@@ -124,6 +127,9 @@
   .banner { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 28px; margin: 0 0 14px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, var(--brand-deep), var(--brand) 55%, var(--brand-bright)); }
   .banner h1 { margin: 0 0 6px; font-size: 1.9rem; }
   .banner p { margin: 0 0 12px; opacity: .92; }
+  .user { margin: 4px 0 8px; font-size: .9rem; }
+  .link { all: unset; cursor: pointer; text-decoration: underline; }
+  .link:focus-visible { outline: 2px solid var(--accent-ink); border-radius: 4px; }
   .hint { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: .9rem; }
   .key { background: #fff; color: var(--brand-deep); font-weight: 700; padding: 3px 10px; border-radius: 7px; }
   .wave { display: flex; align-items: center; gap: 6px; height: 90px; flex: none; }

@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { confirmBox } from './lib/dialog.svelte';
+  import { confirmBox, notice } from './lib/dialog.svelte';
   import { onMount } from 'svelte';
-  import { api } from './lib/api';
+  import { api, STALE_FLAG } from './lib/api';
   import { status } from './lib/status.svelte';
   import { createKeyRelay } from './lib/keyrelay';
   import { nav } from './lib/nav.svelte';
@@ -52,6 +52,15 @@
     scheme.addEventListener('change', followSystem);
     status.start();
     void settings.load();
+    // La page vient d'être rechargée parce que l'utilisateur actif avait changé (menu de l'icône, autre onglet) : ce qu'elle envoyait n'a pas été écrit.
+    try {
+      if (sessionStorage.getItem(STALE_FLAG)) {
+        sessionStorage.removeItem(STALE_FLAG);
+        void notice(t('L’utilisateur actif a changé : la page s’est rechargée et ce que tu venais de faire n’a pas été enregistré. Recommence si besoin.'));
+      }
+    } catch {
+      /* pas de mémoire de session : pas de message */
+    }
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);

@@ -1,4 +1,4 @@
-import { api, type Status } from './api';
+import { api, getKnownProfile, setKnownProfile, type Status } from './api';
 import { guessOs } from './theme';
 import { nav } from './nav.svelte';
 
@@ -43,7 +43,16 @@ class StatusStore {
 
   async refresh(): Promise<void> {
     try {
-      this.value = await api<Status>('status');
+      const latest = await api<Status>('status');
+      // Un autre utilisateur est devenu actif ailleurs (menu de l'icône, autre onglet) : tout ce que cette page montre est celui de l'ancien.
+      const id = latest.profile?.id ?? null;
+      const known = getKnownProfile();
+      if (known !== undefined && known !== id) {
+        location.reload();
+        return;
+      }
+      setKnownProfile(id);
+      this.value = latest;
       if (this.value.os) document.documentElement.dataset.os = this.value.os;
       this.failed = false;
     } catch {

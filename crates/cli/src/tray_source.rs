@@ -7,8 +7,9 @@
 use scriibe_core::modes::RewriteMode;
 use scriibe_core::settings::{AppSettings, UiLang};
 use scriibe_platform::paste::Paster;
+use scriibe_platform::profiles::ProfileInfo;
 use scriibe_platform::storage::{FileConfig, FileHistory};
-use scriibe_platform::tray_menu::{MenuLabels, MenuView, ModeEntry, TrayMenuSource};
+use scriibe_platform::tray_menu::{MenuLabels, MenuView, ModeEntry, ProfileEntry, TrayMenuSource};
 use std::sync::Arc;
 
 /// Le menu pour ces réglages, dans la langue de l'interface (le choix, ou celle du système).
@@ -105,6 +106,7 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
                 open_page: "Open Scriibe".into(),
                 copy_last: "Copy the last dictation".into(),
                 mode: "Mode".into(),
+                user: "User".into(),
                 open_data: "Open the data folder".into(),
                 open_log: "Open the log".into(),
                 quit: "Quit Scriibe".into(),
@@ -129,6 +131,7 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
                 open_page: "Ouvrir Scriibe".into(),
                 copy_last: "Copier la dernière dictée".into(),
                 mode: "Mode".into(),
+                user: "Utilisateur".into(),
                 open_data: "Ouvrir le dossier des données".into(),
                 open_log: "Ouvrir le journal".into(),
                 quit: "Quitter Scriibe".into(),
@@ -144,8 +147,25 @@ pub fn menu_view_in(settings: &AppSettings, version: &str, lang: UiLang) -> Menu
         modes_enabled: has_engine,
         groups,
         version: format!("Scriibe {version}"),
+        profile_id: String::new(),
+        profile_title: String::new(),
+        profiles: Vec::new(),
         update: None,
     }
+}
+
+/// Ajoute à la vue le sous-menu des utilisateurs (étape 4c, décision 3) : l'utilisateur actif coché, **seulement s'il y en a au moins deux**
+/// (une personne seule ne voit aucun changement). `active` : l'identifiant de l'utilisateur actif ; `None` : rien n'est rangé par utilisateur.
+pub fn with_profiles(view: &mut MenuView, active: Option<&str>, users: &[ProfileInfo]) {
+    view.profile_id = active.unwrap_or_default().to_string();
+    if users.len() < 2 {
+        return;
+    }
+    let is_active = |p: &ProfileInfo| active.is_some_and(|a| a.eq_ignore_ascii_case(&p.id));
+    view.profiles = users.iter().map(|p| ProfileEntry { id: p.id.clone(), label: p.name.clone(), checked: is_active(p) }).collect();
+    let name = users.iter().find(|p| is_active(p)).map_or("?", |p| p.name.as_str());
+    let separator = if view.english { ": " } else { " : " };
+    view.profile_title = format!("{}{separator}{name}", view.labels.user);
 }
 
 pub struct TraySource {
@@ -153,14 +173,22 @@ pub struct TraySource {
     pub history: Arc<FileHistory>,
     pub paster: Arc<dyn Paster>,
     pub version: String,
+    /// Une dictée est en cours ou en traitement : on ne change pas d'utilisateur à ce moment (elle serait enregistrée chez l'autre).
+    pub busy: Arc<dyn Fn() -> bool + Send + Sync>,
+    /// Le journal (le passage à un autre utilisateur y est noté, comme celui demandé par la page).
+    pub log: Option<Arc<dyn scriibe_engines::runtime::Log>>,
 }
 
 impl TrayMenuSource for TraySource {
     fn view(&self) -> MenuView {
-        menu_view(&self.config.settings(), &self.version)
+        let mut view = menu_view(&self.config.settings(), &self.version);
+        with_profiles(&mut view, self.config.active_profile_id().as_deref(), &self.config.cached_profiles());
+        view
     }
 
-    fn choose_mode(&self, id: &str) {
+    fn choose_mode(&self, profile: &str, id: &str) {
+        // Le menu montrait cet utilisateur : si ce n'est plus lui, le mode ne s'applique pas à l'autre (verrou et contrôle ensemble).
+        let Ok(_guard) = self.config.lock_for(Some(profile).filter(|p| !p.is_empty())) else { return };
         let mut settings = self.config.settings();
         // Un mode personnel supprimé entre l'ouverture du menu et le clic : rien ne change.
         if !settings.has_cleanup_engine() {
@@ -168,6 +196,21 @@ impl TrayMenuSource for TraySource {
         }
         if settings.pick_mode(id) {
             let _ = self.config.save_settings(&settings);
+        }
+    }
+
+    fn choose_profile(&self, id: &str) {
+        match crate::web::switch_profile(&self.config, &self.history, (self.busy)(), id) {
+            Ok(user) => {
+                if let Some(log) = &self.log {
+                    log.write(&format!("utilisateur: passage à « {} » (demandé par le menu de l'icône)", user.name));
+                }
+            }
+            Err(e) => {
+                if let Some(log) = &self.log {
+                    log.write(&format!("utilisateur: changement refusé ({e:?})"));
+                }
+            }
         }
     }
 
@@ -226,6 +269,38 @@ mod tests {
         assert_eq!(menu_view_in(&s, "0.1.0", UiLang::Fr).groups.len(), 3);
         s.hidden_modes = vec!["4F6D1B7E-0C1A-4E55-9C0B-2A7F3C9D8E11".into()];
         assert_eq!(menu_view_in(&s, "0.1.0", UiLang::Fr).groups.len(), 2);
+    }
+
+    fn user(id: &str, name: &str) -> ProfileInfo {
+        ProfileInfo { id: id.into(), name: name.into(), folder: std::path::PathBuf::from(id) }
+    }
+
+    #[test]
+    fn a_single_user_sees_no_user_submenu_but_the_menu_still_knows_who_is_active() {
+        let mut view = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr);
+        with_profiles(&mut view, Some("AAAA"), &[user("AAAA", "Anne")]);
+        assert!(view.profiles.is_empty() && view.profile_title.is_empty(), "une personne seule ne voit aucun changement");
+        assert_eq!(view.profile_id, "AAAA", "l'identifiant part quand même avec un clic sur un mode");
+        let mut bare = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr);
+        with_profiles(&mut bare, None, &[]);
+        assert_eq!((bare.profile_id.as_str(), bare.profiles.len()), ("", 0), "aucun utilisateur rangé : rien");
+    }
+
+    #[test]
+    fn from_two_users_the_submenu_checks_the_active_one_and_is_titled_in_the_interface_language() {
+        let users = [user("AAAA", "Anne"), user("BBBB", "Bruno")];
+        let mut view = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::Fr);
+        with_profiles(&mut view, Some("bbbb"), &users);
+        assert_eq!(view.profile_title, "Utilisateur : Bruno");
+        let checked: Vec<(&str, bool)> = view.profiles.iter().map(|p| (p.id.as_str(), p.checked)).collect();
+        assert_eq!(checked, vec![("AAAA", false), ("BBBB", true)], "les majuscules de l'identifiant ne comptent pas");
+        let mut english = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::En);
+        with_profiles(&mut english, Some("AAAA"), &users);
+        assert_eq!(english.profile_title, "User: Anne");
+        // Deux vues qui ne diffèrent que par l'utilisateur coché sont différentes : le menu se met à jour.
+        let mut other = menu_view_in(&settings(CleanupEngine::LlamaCpp), "0.1.0", UiLang::En);
+        with_profiles(&mut other, Some("BBBB"), &users);
+        assert_ne!(english, other);
     }
 
     #[test]

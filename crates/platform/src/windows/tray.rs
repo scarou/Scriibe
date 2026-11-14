@@ -69,10 +69,16 @@ pub struct TrayHost {
     translate_hint: MenuItem,
     copy_last: MenuItem,
     mode_menu: Submenu,
+    /// Le sous-menu « Utilisateur » : dans le menu seulement quand il y a au moins deux utilisateurs.
+    profile_menu: Submenu,
+    profile_shown: bool,
     version_item: MenuItem,
     /// Les modes du sous-menu (identifiant du mode, case) ; refait quand la liste change.
     mode_items: Vec<(String, CheckMenuItem)>,
     mode_ids: HashMap<MenuId, String>,
+    /// Les utilisateurs du sous-menu (identifiant, nom, case) ; refait quand la liste ou un nom change.
+    profile_items: Vec<(String, String, CheckMenuItem)>,
+    profile_ids: HashMap<MenuId, String>,
     shown: Option<MenuView>,
     source: Arc<Mutex<Option<Arc<dyn TrayMenuSource>>>>,
     /// Adresse de la page d'essais, connue une fois son serveur démarré.
@@ -106,6 +112,7 @@ impl TrayHost {
         let translate_hint = MenuItem::new("", false, None);
         let copy_last = MenuItem::new("Copier la dernière dictée", true, None);
         let mode_menu = Submenu::new("Mode", true);
+        let profile_menu = Submenu::new("Utilisateur", true);
         let version_item = MenuItem::new("", false, None);
         let open_data = MenuItem::new("Ouvrir le dossier des données", true, None);
         let open_log = MenuItem::new("Ouvrir le journal", true, None);
@@ -147,9 +154,13 @@ impl TrayHost {
             translate_hint,
             copy_last,
             mode_menu,
+            profile_menu,
+            profile_shown: false,
             version_item,
             mode_items: Vec::new(),
             mode_ids: HashMap::new(),
+            profile_items: Vec::new(),
+            profile_ids: HashMap::new(),
             shown: None,
             source,
             page_url,
@@ -172,6 +183,40 @@ impl TrayHost {
                 }
                 let _ = self.tray.set_icon(Some(circle(&state)));
                 let _ = self.tray.set_tooltip(Some(tip));
+            }
+        }
+    }
+
+    /// Le sous-menu des utilisateurs : retiré du menu tant qu'il n'y a pas deux utilisateurs, sinon placé juste avant « Mode ».
+    fn refresh_profiles(&mut self, view: &MenuView) {
+        if view.profiles.is_empty() {
+            if self.profile_shown && self.menu.remove(&self.profile_menu).is_ok() {
+                self.profile_shown = false;
+            }
+            return;
+        }
+        self.profile_menu.set_text(&view.profile_title);
+        let same = self.profile_items.len() == view.profiles.len()
+            && self.profile_items.iter().zip(&view.profiles).all(|((id, label, _), p)| *id == p.id && *label == p.label);
+        if same {
+            for ((_, _, item), p) in self.profile_items.iter().zip(&view.profiles) {
+                item.set_checked(p.checked);
+            }
+        } else {
+            while self.profile_menu.remove_at(0).is_some() {}
+            self.profile_items.clear();
+            self.profile_ids.clear();
+            for p in &view.profiles {
+                let item = CheckMenuItem::new(&p.label, true, p.checked, None);
+                let _ = self.profile_menu.append(&item);
+                self.profile_ids.insert(item.id().clone(), p.id.clone());
+                self.profile_items.push((p.id.clone(), p.label.clone(), item));
+            }
+        }
+        if !self.profile_shown {
+            let at = self.menu.items().iter().position(|i| i.id() == self.mode_menu.id()).unwrap_or(0);
+            if self.menu.insert(&self.profile_menu, at).is_ok() {
+                self.profile_shown = true;
             }
         }
     }
@@ -210,6 +255,7 @@ impl TrayHost {
             }
             (None, false) => {}
         }
+        self.refresh_profiles(&view);
         self.mode_menu.set_text(&view.mode_title);
         self.mode_menu.set_enabled(view.modes_enabled);
         if !same_modes {
@@ -268,9 +314,18 @@ impl TrayHost {
                     if let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) {
                         source.copy_last_dictation();
                     }
+                } else if let Some(user) = self.profile_ids.get(&event.id).cloned() {
+                    if let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) {
+                        source.choose_profile(&user);
+                    }
+                    // Le clic a coché la case : le menu se remet tout de suite d'accord avec l'utilisateur actif.
+                    self.shown = None;
+                    last_refresh = std::time::Instant::now() - Duration::from_secs(10);
                 } else if let Some(mode) = self.mode_ids.get(&event.id).cloned() {
                     if let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) {
-                        source.choose_mode(&mode);
+                        // L'utilisateur que le menu montrait : le mode ne s'applique pas à un autre si l'utilisateur a changé depuis.
+                        let profile = self.shown.as_ref().map(|v| v.profile_id.clone()).unwrap_or_default();
+                        source.choose_mode(&profile, &mode);
                     }
                     // Le clic a coché la case : le menu se remet tout de suite d'accord avec les réglages.
                     self.shown = None;

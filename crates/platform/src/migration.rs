@@ -381,7 +381,7 @@ fn pick_user(folder: &Path, wanted: Option<&str>) -> Option<(String, PathBuf)> {
 
 /// Réessaie une opération sur le disque (5 fois, 200 ms entre deux) : sous Windows, un antivirus ou l'indexeur tient souvent un
 /// fichier qu'on vient d'écrire, et un renommage de dossier échoue alors un court instant. `NotFound` n'est pas réessayé.
-fn retry<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+pub(crate) fn retry<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
     let mut attempt = 0;
     loop {
         match op() {

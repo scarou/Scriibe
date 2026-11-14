@@ -8,6 +8,7 @@
   import Journal from './Journal.svelte';
   import Modes from './Modes.svelte';
   import Settings from './Settings.svelte';
+  import Users from '../components/Users.svelte';
   import System from './System.svelte';
   import Update from './Update.svelte';
 
@@ -26,7 +27,7 @@
 </div>
 <p class="muted lead">{t(current.description)}</p>
 
-{#if nav.settingsTab === 'dictation'}<Settings section="dictation" />
+{#if nav.settingsTab === 'dictation'}<Users /><Settings section="dictation" />
 {:else if nav.settingsTab === 'engines'}<Settings section="engines" /><Install />
 {:else if nav.settingsTab === 'appearance'}<Settings section="appearance" />
 {:else if nav.settingsTab === 'modes'}<Modes />

@@ -1,6 +1,8 @@
 //! Dossier de données de l'appli et fichiers qu'il contient : réglages, dictionnaire, historique, journal. Mêmes noms et mêmes
 //! formats que Scribe (`settings.json`, `dictionary.json`, `history.json`, `history-totals.json`, `scribe.log` → `scriibe.log`).
 
+use crate::migration;
+use crate::profiles::{self, ProfileError, ProfileInfo};
 use chrono::{DateTime, Local, Utc};
 use scriibe_core::dictionary::UserDictionary;
 use scriibe_core::history::{lossy_list, Calendar, DayTotal, Dictation, Store};
@@ -9,7 +11,7 @@ use scriibe_core::settings::{owner_of, AppSettings, CleanupEngine, Owner, Transc
 use scriibe_engines::runtime::Log;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 use std::time::SystemTime;
 
 /// Désinstallation en cours : plus aucune écriture dans le dossier de données (le processus vivant réécrirait l'historique ou le journal
@@ -68,7 +70,7 @@ static TEMP_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64
 
 /// Écrit dans un fichier temporaire à nom unique (`.<nom>.<pid>-<n>.tmp`, dans le même dossier) puis le renomme : deux écritures
 /// à la fois (ou deux Scriibe) ne se marchent plus dessus, et un arrêt en pleine écriture laisse l'ancien fichier intact.
-fn write_atomic(path: &Path, content: &str) -> std::io::Result<()> {
+pub(crate) fn write_atomic(path: &Path, content: &str) -> std::io::Result<()> {
     if is_frozen() {
         return Ok(());
     }
@@ -270,7 +272,15 @@ pub struct FileConfig {
     settings: Watched<Value>,
     profile: Watched<Value>,
     dictionary: Watched<UserDictionary>,
+    /// Verrou des suites « lire, modifier, écrire » (étape 4c) : deux requêtes de la page, un clic du menu de l'icône et un changement
+    /// d'utilisateur ne s'entremêlent pas. Voir `lock_for`.
+    edit: Mutex<()>,
+    /// Les utilisateurs lus il y a peu (le menu de l'icône relit sa vue deux fois par seconde : pas de lecture du disque à chaque fois).
+    profiles_seen: Mutex<Option<(std::time::Instant, Vec<ProfileInfo>)>>,
 }
+
+/// Combien de temps la liste des utilisateurs lue pour le menu de l'icône reste valable.
+const PROFILES_FRESH: std::time::Duration = std::time::Duration::from_secs(2);
 
 impl FileConfig {
     pub fn new(folder: PathBuf) -> Self {
@@ -279,6 +289,8 @@ impl FileConfig {
             profile: Watched::new(folder.join("profile.json")),
             dictionary: Watched::new(folder.join("dictionary.json")),
             profile_folder: Mutex::new(None),
+            edit: Mutex::new(()),
+            profiles_seen: Mutex::new(None),
             folder,
         }
     }
@@ -306,6 +318,120 @@ impl FileConfig {
         *current = folder;
     }
 
+    /// L'identifiant de l'utilisateur actif (le nom de son dossier) ; `None` tant que rien n'est rangé par utilisateur.
+    pub fn active_profile_id(&self) -> Option<String> {
+        self.profile_folder().and_then(|f| f.file_name().map(|n| n.to_string_lossy().into_owned()))
+    }
+
+    /// Le nom affiché de l'utilisateur actif (« Principal » s'il n'en a pas) ; `None` sans utilisateur.
+    pub fn active_profile_name(&self) -> Option<String> {
+        self.profile_folder()?;
+        let (profile, _) = self.profile.read_state(read_profile_object, || Value::Object(Default::default()));
+        let name = profile.get(migration::NAME_KEY).and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty());
+        Some(name.unwrap_or(migration::DEFAULT_NAME).to_string())
+    }
+
+    /// Prend le verrou des modifications (réglages, `profile.json`, dictionnaire, changement d'utilisateur). Celui qui le tient lit,
+    /// modifie et écrit sans qu'un autre s'intercale ; `save_settings` et `save_dictionary` ne le prennent pas eux-mêmes (le verrou
+    /// n'est pas réentrant) : c'est à l'appelant de le tenir autour de sa suite « lire, modifier, écrire ».
+    pub fn lock_edit(&self) -> MutexGuard<'_, ()> {
+        self.edit.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// Comme `lock_edit`, mais refuse (`ProfileError::Stale`) si l'utilisateur actif n'est plus celui que l'appelant avait en tête :
+    /// la page et le menu de l'icône envoient l'identifiant de l'utilisateur avec ce qu'ils écrivent, pour ne jamais écraser les
+    /// données d'un autre (garde-fou 409 de la décision 3). `given` : l'identifiant reçu (`None` : l'appelant n'en avait pas, ce qui
+    /// ne convient que s'il n'y a pas d'utilisateur actif). Les majuscules ne comptent pas.
+    pub fn lock_for(&self, given: Option<&str>) -> Result<MutexGuard<'_, ()>, ProfileError> {
+        let guard = self.lock_edit();
+        let active = self.active_profile_id();
+        if active.as_deref().map(str::to_ascii_lowercase) == given.map(str::to_ascii_lowercase) {
+            Ok(guard)
+        } else {
+            Err(ProfileError::Stale)
+        }
+    }
+
+    fn forget_profiles(&self) {
+        *self.profiles_seen.lock().unwrap_or_else(|p| p.into_inner()) = None;
+    }
+
+    /// Les utilisateurs, lus sur le disque à l'instant (la page des Réglages). Erreur de lecture : rendue, jamais une liste vide.
+    pub fn list_profiles(&self) -> std::io::Result<Vec<ProfileInfo>> {
+        let found = profiles::list(&self.folder)?;
+        *self.profiles_seen.lock().unwrap_or_else(|p| p.into_inner()) = Some((std::time::Instant::now(), found.clone()));
+        Ok(found)
+    }
+
+    /// Les utilisateurs lus il y a moins de deux secondes (menu de l'icône, état de la page). Illisible : la liste vide, sans la garder.
+    pub fn cached_profiles(&self) -> Vec<ProfileInfo> {
+        if let Some((at, found)) = self.profiles_seen.lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
+            if at.elapsed() < PROFILES_FRESH {
+                return found.clone();
+            }
+        }
+        self.list_profiles().unwrap_or_default()
+    }
+
+    /// Crée un utilisateur vide. Il ne devient pas actif.
+    pub fn create_profile(&self, name: &str) -> Result<ProfileInfo, ProfileError> {
+        let _guard = self.lock_edit();
+        let made = profiles::create(&self.folder, name, None);
+        self.forget_profiles();
+        made
+    }
+
+    /// Crée un utilisateur copié de l'utilisateur actif (réglages et dictionnaire, jamais l'historique ni les statistiques). `given` :
+    /// l'utilisateur que la page croit actif (voir `lock_for`). Il ne devient pas actif.
+    pub fn copy_profile(&self, given: Option<&str>, name: &str) -> Result<ProfileInfo, ProfileError> {
+        let _guard = self.lock_for(given)?;
+        let source = self.profile_folder().ok_or(ProfileError::Unknown)?;
+        let made = profiles::create(&self.folder, name, Some(&source));
+        self.forget_profiles();
+        made
+    }
+
+    pub fn rename_profile(&self, id: &str, name: &str) -> Result<ProfileInfo, ProfileError> {
+        let _guard = self.lock_edit();
+        let renamed = profiles::rename(&self.folder, id, name);
+        if renamed.is_ok() {
+            self.profile.forget();
+        }
+        self.forget_profiles();
+        renamed
+    }
+
+    /// Met un utilisateur de côté (`utilisateurs-supprimes/`, jamais effacé). Pas l'utilisateur actif. Rend où il se trouve maintenant.
+    pub fn delete_profile(&self, id: &str) -> Result<PathBuf, ProfileError> {
+        let _guard = self.lock_edit();
+        let today = Local::now().format("%Y-%m-%d").to_string();
+        let moved = profiles::delete(&self.folder, id, self.active_profile_id().as_deref(), &today);
+        self.forget_profiles();
+        moved
+    }
+
+    /// Passe à un autre utilisateur : `activeProfile` est écrit dans `settings.json`, puis les fichiers de l'utilisateur sont relus dans son
+    /// dossier. `also` tourne dans la foulée, sous le même verrou, avec ce dossier (l'historique change de dossier là : aucune dictée
+    /// enregistrée entre les deux ne va chez le mauvais utilisateur). Rien ne change si `settings.json` est refusé (illisible, plus récent).
+    pub fn switch_to_profile<R>(&self, id: &str, also: impl FnOnce(&Path) -> R) -> Result<(ProfileInfo, R), ProfileError> {
+        let _guard = self.lock_edit();
+        let target = profiles::find(&self.folder, id)?.ok_or(ProfileError::Unknown)?;
+        let (mut settings, problem) = self.settings.read_state(read_settings_object, || {
+            serde_json::to_value(first_run_settings()).unwrap_or_else(|_| Value::Object(Default::default()))
+        });
+        if let Some(problem) = problem {
+            return Err(ProfileError::Io(problem.message()));
+        }
+        let object = settings.as_object_mut().ok_or(ProfileError::Unreadable)?;
+        object.insert("activeProfile".into(), Value::String(target.id.clone()));
+        let text = serde_json::to_string_pretty(&settings).map_err(std::io::Error::other)?;
+        write_atomic(&self.settings_path(), &text)?;
+        self.settings.forget();
+        self.switch_profile(Some(target.folder.clone()));
+        let after = also(&target.folder);
+        Ok((target, after))
+    }
+
     /// Écrit les réglages d'un premier lancement s'il n'y en a pas encore. Rend vrai si le fichier vient d'être créé.
     pub fn create_settings_if_missing(&self) -> std::io::Result<bool> {
         if self.settings_path().exists() {
@@ -329,7 +455,12 @@ impl FileConfig {
             self.settings.forget();
             return Ok(());
         };
-        let (computer, user) = settings.split();
+        let (mut computer, user) = settings.split();
+        // L'utilisateur actif est celui dont le dossier est suivi : une copie des réglages lue avant un changement d'utilisateur ne peut
+        // pas remettre l'ancien dans `settings.json` (le changement passe par `switch_to_profile`, pas par une sauvegarde).
+        if let Some(id) = self.active_profile_id() {
+            computer.insert("activeProfile".into(), Value::String(id));
+        }
         // `profile.json` garde ce qui n'est pas un réglage (le nom affiché, étape 4b) : seules les clés de l'utilisateur sont remplacées.
         let (current, _) = self.profile.read_state(read_profile_object, || Value::Object(Default::default()));
         let mut profile: serde_json::Map<String, Value> = current
@@ -876,7 +1007,11 @@ mod tests {
         assert!(computer.get("pauseMedia").is_none() && computer.get("theme").is_none(), "rien de l'ordinateur dans le profil");
         assert_eq!(profile["pauseMedia"], true);
         assert!(profile.get("firstName").is_none() && profile.get("typingWPM").is_none(), "rien de l'utilisateur dans settings.json");
-        assert_eq!(config.settings(), AppSettings { trial_candidates: config.settings().trial_candidates, ..after });
+        // Depuis 4c, une sauvegarde faite dans le dossier d'un utilisateur note aussi qui est actif (`activeProfile`, le nom de son dossier).
+        assert_eq!(
+            config.settings(),
+            AppSettings { trial_candidates: config.settings().trial_candidates, active_profile: Some("A".into()), ..after }
+        );
         assert!(!dir.join("profile.json").exists(), "le profil est dans le dossier de l'utilisateur, pas à la racine");
         let _ = std::fs::remove_dir_all(dir);
     }

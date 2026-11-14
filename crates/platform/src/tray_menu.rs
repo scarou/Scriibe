@@ -65,12 +65,24 @@ pub struct ModeEntry {
     pub checked: bool,
 }
 
+/// Un utilisateur du sous-menu « Utilisateur » (étape 4c).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileEntry {
+    /// L'identifiant de l'utilisateur (ce que `choose_profile` reçoit).
+    pub id: String,
+    /// Son nom affiché.
+    pub label: String,
+    pub checked: bool,
+}
+
 /// Les textes fixes du menu, dans la langue de l'interface.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MenuLabels {
     pub open_page: String,
     pub copy_last: String,
     pub mode: String,
+    /// « Utilisateur » : le titre du sous-menu des utilisateurs, avant le nom de l'utilisateur actif.
+    pub user: String,
     pub open_data: String,
     pub open_log: String,
     pub quit: String,
@@ -91,12 +103,23 @@ pub struct MenuView {
     /// Les modes livrés par groupes (séparés par un trait), puis les modes personnels.
     pub groups: Vec<Vec<ModeEntry>>,
     pub version: String,
+    /// L'identifiant de l'utilisateur actif ; vide : rien n'est rangé par utilisateur. Le menu le renvoie quand on choisit un mode (`choose_mode`) :
+    /// un changement d'utilisateur fait entre l'ouverture du menu et le clic ne doit pas appliquer le mode à l'autre utilisateur.
+    pub profile_id: String,
+    /// « Utilisateur : Anne » : le titre du sous-menu des utilisateurs.
+    pub profile_title: String,
+    /// Les utilisateurs. **Vide tant qu'il n'y en a pas au moins deux** : une personne seule ne voit aucun changement (décision 3).
+    pub profiles: Vec<ProfileEntry>,
     /// « Nouvelle version disponible (abc1234) » quand la vérification en a trouvé une : entrée en tête du menu, qui ouvre la fenêtre.
     pub update: Option<String>,
 }
 
 pub trait TrayMenuSource: Send + Sync {
     fn view(&self) -> MenuView;
-    fn choose_mode(&self, id: &str);
+    /// Choisit un mode. `profile` : l'utilisateur actif que le menu montrait (`MenuView::profile_id`, vide s'il n'y en avait pas) ; si ce
+    /// n'est plus lui, rien ne change.
+    fn choose_mode(&self, profile: &str, id: &str);
+    /// Passe à un autre utilisateur (l'identifiant d'un `ProfileEntry`).
+    fn choose_profile(&self, id: &str);
     fn copy_last_dictation(&self);
 }

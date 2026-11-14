@@ -12,11 +12,13 @@ pub(crate) mod downloads;
 mod export;
 mod hub;
 mod import;
+mod profiles_io;
 mod sinks;
 mod trial;
 mod uninstall;
 pub(crate) mod update;
 
+pub(crate) use profiles_io::switch as switch_profile;
 pub use sinks::{SwitchHistory, SwitchPaster, TeeIndicator, TestSinks};
 pub use update::remove_leftovers as remove_update_leftovers;
 
@@ -30,12 +32,13 @@ use crate::app::{detect_whisper_models, models_folder, App};
 use crate::assistant;
 use crate::overlay::OverlayModel;
 use downloads::{Downloads, Progress};
+use profiles_io::{given, guard, Failure};
 use scriibe_core::bench;
 use scriibe_core::bench_archive::{self, BenchRun, BenchSetup};
 use scriibe_core::dictionary::{dedup_corrections, word_key, Correction, UserDictionary};
 use scriibe_core::history::Cleanup;
 use scriibe_core::microphone::MicLevel;
-use scriibe_core::settings::{is_device_name, owner_of, AppSettings, CleanupEngine, TranscriptionEngine};
+use scriibe_core::settings::{is_device_name, owner_of, AppSettings, CleanupEngine, Owner, TranscriptionEngine};
 use scriibe_engines::fs::RealFs;
 use scriibe_engines::llama::{self, LlamaLauncher};
 use scriibe_engines::runtime::{KeyKind, Log};
@@ -178,6 +181,20 @@ fn fail(request: Request, status: u16, message: &str) {
     reply_json(request, status, &json!({"ok": false, "error": message}));
 }
 
+/// La réponse d'une requête qui écrit chez l'utilisateur actif : refusée en 409 avec `stale` si ce n'est plus lui (la page se recharge).
+fn guarded(request: Request, result: Result<Value, Failure>) {
+    match result {
+        Ok(body) => ok(request, body),
+        Err(Failure::Stale) => reply_json(
+            request,
+            409,
+            &json!({"ok": false, "stale": true, "error": scriibe_platform::profiles::ProfileError::Stale.message()}),
+        ),
+        Err(Failure::Refused(message)) => fail(request, 400, &message),
+        Err(Failure::Failed(message)) => fail(request, 500, &message),
+    }
+}
+
 fn handle(ctx: &Context, mut request: Request) {
     // Seule la page ouverte depuis cette machine, avec l'adresse secrète, peut parler au serveur.
     let host_ok = request.headers().iter().any(|h| h.field.equiv("Host") && h.value.as_str() == format!("127.0.0.1:{}", ctx.port));
@@ -223,19 +240,17 @@ fn handle(ctx: &Context, mut request: Request) {
         // Exporter et importer les commandes perso : aperçu d'abord, rien d'écrit avant l'accord, la fusion ajoute sans remplacer.
         (Method::Post, "api/commands/export") => ok(request, commands_io::export(&ctx.app.config.settings())),
         (Method::Post, "api/commands/import/read") => ok(request, commands_io::read(&ctx.app.config.settings(), &input)),
-        (Method::Post, "api/commands/import/apply") => {
-            let mut settings = ctx.app.config.settings();
-            match commands_io::apply_pending(&mut settings, &input) {
-                Ok(outcome) => match ctx.app.config.save_settings(&settings) {
-                    Ok(()) => {
-                        commands_io::consume();
-                        ok(request, commands_io::outcome_json(&outcome))
-                    }
-                    Err(e) => fail(request, 500, &e.to_string()),
-                },
-                Err(e) => fail(request, 400, &e),
-            }
-        }
+        (Method::Post, "api/commands/import/apply") => guarded(
+            request,
+            (|| {
+                let _guard = guard(&ctx.app.config, given(&input))?;
+                let mut settings = ctx.app.config.settings();
+                let outcome = commands_io::apply_pending(&mut settings, &input).map_err(Failure::Refused)?;
+                ctx.app.config.save_settings(&settings).map_err(|e| Failure::Failed(e.to_string()))?;
+                commands_io::consume();
+                Ok(commands_io::outcome_json(&outcome))
+            })(),
+        ),
         (Method::Post, "api/commands/import/cancel") => ok(request, commands_io::cancel()),
         (Method::Post, "api/commands/validate-phrase") => ok(request, validate_command_phrase(&ctx.app.config.settings(), &input)),
         (Method::Post, "api/commands/validate-shortcut") => ok(
@@ -351,51 +366,56 @@ fn handle(ctx: &Context, mut request: Request) {
             Err(e) => fail(request, 500, &e),
         },
         (Method::Get, "api/modes") => ok(request, data::modes(&ctx.app.config.settings())),
-        (Method::Post, "api/modes/choose") => match choose_mode(ctx, input["choice"].as_str().unwrap_or("")) {
-            Ok(view) => ok(request, view),
-            Err(e) => fail(request, 400, &e),
-        },
+        (Method::Post, "api/modes/choose") => {
+            guarded(request, pick_mode(&ctx.app.config, given(&input), input["choice"].as_str().unwrap_or("")))
+        }
         // Exporter un mode personnel : l'utilisateur choisit où enregistrer (boîte « Enregistrer sous » du système).
         (Method::Post, "api/modes/export") => ok(request, export::export_mode(&ctx.app.config.settings(), &input)),
         // Importer un mode : lire et contrôler le fichier (aperçu), puis l'appliquer ou l'abandonner. Rien n'est écrit avant l'accord.
         (Method::Post, "api/modes/import/read") => ok(request, import::read(&ctx.app.config.settings(), &input)),
-        (Method::Post, "api/modes/import/apply") => {
-            let mut settings = ctx.app.config.settings();
-            match import::apply_pending(&mut settings, &input) {
-                Ok(outcome) => match ctx.app.config.save_settings(&settings) {
-                    Ok(()) => {
-                        import::consume();
-                        ok(request, import::outcome_json(&outcome))
-                    }
-                    Err(e) => fail(request, 500, &e.to_string()),
-                },
-                Err(e) => fail(request, 400, &e),
-            }
-        }
+        (Method::Post, "api/modes/import/apply") => guarded(
+            request,
+            (|| {
+                let _guard = guard(&ctx.app.config, given(&input))?;
+                let mut settings = ctx.app.config.settings();
+                let outcome = import::apply_pending(&mut settings, &input).map_err(Failure::Refused)?;
+                ctx.app.config.save_settings(&settings).map_err(|e| Failure::Failed(e.to_string()))?;
+                import::consume();
+                Ok(import::outcome_json(&outcome))
+            })(),
+        ),
         (Method::Post, "api/modes/import/cancel") => ok(request, import::cancel()),
         // Exporter le dictionnaire (l'utilisateur choisit où enregistrer) ; l'importer : aperçu d'abord, rien d'écrit avant l'accord, la fusion
         // ajoute sans jamais remplacer.
         (Method::Post, "api/dictionary/export") => ok(request, dictionary_io::export(&ctx.app.config.dictionary(), &input)),
         (Method::Post, "api/dictionary/import/read") => ok(request, dictionary_io::read(&ctx.app.config.dictionary(), &input)),
-        (Method::Post, "api/dictionary/import/apply") => {
-            let mut dictionary = ctx.app.config.dictionary();
-            match dictionary_io::apply_pending(&mut dictionary, &input) {
-                Ok(outcome) => match ctx.app.config.save_dictionary(&dictionary) {
-                    Ok(()) => {
-                        dictionary_io::consume();
-                        ok(request, dictionary_io::outcome_json(&outcome))
-                    }
-                    Err(e) => fail(request, 500, &e.to_string()),
-                },
-                Err(e) => fail(request, 400, &e),
-            }
-        }
+        (Method::Post, "api/dictionary/import/apply") => guarded(
+            request,
+            (|| {
+                let _guard = guard(&ctx.app.config, given(&input))?;
+                let mut dictionary = ctx.app.config.dictionary();
+                let outcome = dictionary_io::apply_pending(&mut dictionary, &input).map_err(Failure::Refused)?;
+                ctx.app.config.save_dictionary(&dictionary).map_err(|e| Failure::Failed(e.to_string()))?;
+                dictionary_io::consume();
+                Ok(dictionary_io::outcome_json(&outcome))
+            })(),
+        ),
         (Method::Post, "api/dictionary/import/cancel") => ok(request, dictionary_io::cancel()),
         (Method::Get, "api/dictionary") => ok(request, dictionary_view(&ctx.app.config.dictionary())),
-        (Method::Post, "api/dictionary") => match save_dictionary(ctx, &input) {
-            Ok(view) => ok(request, view),
-            Err(e) => fail(request, 400, &e),
-        },
+        (Method::Post, "api/dictionary") => guarded(request, save_dictionary(ctx, &input)),
+        // Les utilisateurs : la liste, créer (vide ou copié de l'actif), renommer, supprimer (mis de côté), changer d'utilisateur.
+        (Method::Get, "api/profiles") => ok(request, profiles_io::view(&ctx.app.config)),
+        (Method::Post, "api/profiles/create") => guarded(request, profiles_io::create(&ctx.app.config, &input)),
+        (Method::Post, "api/profiles/rename") => guarded(request, profiles_io::rename(&ctx.app.config, &input)),
+        (Method::Post, "api/profiles/delete") => guarded(request, profiles_io::delete(&ctx.app.config, &input)),
+        (Method::Post, "api/profiles/switch") => {
+            let busy = ctx.app.controller.is_recording() || ctx.app.controller.is_busy();
+            let switched = profiles_io::switch(&ctx.app.config, &ctx.history, busy, input["id"].as_str().unwrap_or(""));
+            if let Ok(user) = &switched {
+                ctx.app.log.write(&format!("utilisateur: passage à « {} » (demandé par la page)", user.name));
+            }
+            guarded(request, switched.map(|_| profiles_io::view(&ctx.app.config)));
+        }
         (Method::Get, "api/history") => ok(request, ctx.history.read(|store, _, _| data::history(store))),
         (Method::Get, "api/stats") => ok(request, ctx.history.read(data::stats)),
         (Method::Post, "api/history/delete") => {
@@ -414,6 +434,11 @@ fn handle(ctx: &Context, mut request: Request) {
             if input["confirmed"].as_bool() != Some(true) {
                 return fail(request, 400, "confirmation manquante");
             }
+            // Effacer l'historique d'un autre utilisateur que celui que la page montre serait irréparable : contrôle sous verrou.
+            let _guard = match guard(&ctx.app.config, given(&input)) {
+                Ok(guard) => guard,
+                Err(f) => return guarded(request, Err(f)),
+            };
             ctx.history.update(|store, _, _| store.clear_history());
             ok(request, json!({"ok": true}))
         }
@@ -427,6 +452,10 @@ fn handle(ctx: &Context, mut request: Request) {
                 return fail(request, 400, "confirmation manquante");
             }
             let (keep_text, keep_days) = history_choice(&input);
+            let _guard = match guard(&ctx.app.config, given(&input)) {
+                Ok(guard) => guard,
+                Err(f) => return guarded(request, Err(f)),
+            };
             match apply_history_change(ctx, keep_text, keep_days) {
                 Ok(()) => ok(request, json!({"ok": true})),
                 Err(e) => fail(request, 500, &e),
@@ -445,6 +474,11 @@ fn handle(ctx: &Context, mut request: Request) {
         (Method::Post, "api/backup/import/read") => ok(request, backup::read(&input)),
         (Method::Post, "api/backup/import/cancel") => ok(request, backup::cancel()),
         (Method::Post, "api/backup/import/apply") => {
+            // La restauration remplace les fichiers de l'utilisateur actif : contrôle sous verrou, comme pour une suppression d'historique.
+            let _guard = match guard(&ctx.app.config, given(&input)) {
+                Ok(guard) => guard,
+                Err(f) => return guarded(request, Err(f)),
+            };
             match backup::apply(ctx.app.config.folder(), ctx.app.config.profile_folder().as_deref(), &input) {
                 Ok(()) => {
                     ok(request, json!({"ok": true}));
@@ -483,10 +517,9 @@ fn handle(ctx: &Context, mut request: Request) {
             Err(e) => fail(request, 409, &e),
         },
         (Method::Get, "api/settings") => ok(request, json!({"settings": ctx.app.config.settings()})),
-        (Method::Post, "api/settings") => match patch_settings(ctx, &input) {
-            Ok(settings) => ok(request, json!({"ok": true, "settings": settings})),
-            Err(e) => fail(request, 400, &e),
-        },
+        (Method::Post, "api/settings") => {
+            guarded(request, patch_settings(ctx, &input).map(|settings| json!({"ok": true, "settings": settings})))
+        }
         (Method::Post, "api/record/start") => match record_start(ctx) {
             Ok(description) => ok(request, json!({"ok": true, "description": description})),
             Err(e) => fail(request, 409, &e),
@@ -697,12 +730,18 @@ fn status(ctx: &Context) -> Value {
     let whisper_models = detect_whisper_models(fs.as_ref(), &models);
     let llama_models = llama::detect_models(fs.as_ref(), std::slice::from_ref(&models), Some(&models));
     let key = |kind| app.platform.secrets.get(kind).is_some();
+    let profiles = app.config.cached_profiles();
+    let profile_name = app.config.active_profile_name().unwrap_or_default();
     json!({
         "version": build_id(),
         "windows": cfg!(windows),
         "os": std::env::consts::OS,
         "reduced_motion": scriibe_platform::motion::reduced(),
-        "first_name": settings.greeting_name(scriibe_platform::machine::first_name()),
+        "first_name": greeting_name(&settings, &profile_name, profiles.len()),
+        // L'utilisateur actif (étape 4c) : `null` tant que rien n'est rangé par utilisateur ; le nombre d'utilisateurs sert à n'afficher
+        // le nom de l'utilisateur que lorsqu'il y a de quoi les confondre.
+        "profile": app.config.active_profile_id().map(|id| json!({"id": id, "name": profile_name})),
+        "profile_count": profiles.len(),
         "recording": app.controller.is_recording(),
         "busy": app.controller.is_busy(),
         "keys_error": lock(&ctx.keys_error).clone(),
@@ -744,6 +783,16 @@ fn status(ctx: &Context) -> Value {
     })
 }
 
+/// Le nom de la salutation du Tableau de bord. Avec un seul utilisateur, rien ne change : le prénom choisi, sinon celui du compte de
+/// l'ordinateur. Avec plusieurs, un prénom laissé vide cède la place au nom de l'utilisateur actif (le prénom du compte serait le même
+/// pour tous : on ne saurait plus qui est actif). L'identifiant de connexion n'est jamais le nom d'un utilisateur (cadrage, décision 6).
+fn greeting_name(settings: &AppSettings, profile_name: &str, users: usize) -> String {
+    if users >= 2 && settings.first_name.trim().is_empty() && !profile_name.is_empty() {
+        return profile_name.to_string();
+    }
+    settings.greeting_name(scriibe_platform::machine::first_name()).to_string()
+}
+
 /// Un fichier de données refusé, pour l'avertissement de la page : `reason` vaut « unreadable » ou « newer » (avec sa `version`).
 fn config_problem_view(problem: &scriibe_platform::storage::ConfigProblem) -> Value {
     use scriibe_platform::storage::Refusal;
@@ -780,11 +829,25 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
     Ok(merged)
 }
 
+/// Le verrou des modifications pour un changement de réglages venu de la page, et les changements sans la clé `profile`. `profile` n'est pas
+/// un réglage : c'est l'utilisateur que la page croit actif. Il est contrôlé (409) quand le changement touche un réglage de l'utilisateur ;
+/// un réglage de l'ordinateur (thème, touches) s'écrit quel que soit l'utilisateur actif.
+fn settings_guard<'a>(config: &'a FileConfig, changes: &Value) -> Result<(std::sync::MutexGuard<'a, ()>, Value), Failure> {
+    let who = given(changes);
+    let mut changes = changes.clone();
+    if let Some(object) = changes.as_object_mut() {
+        object.remove("profile");
+    }
+    let writes_user = changes.as_object().is_some_and(|o| o.keys().any(|k| owner_of(k) == Some(Owner::User)));
+    Ok((guard(config, if writes_user { who } else { None })?, changes))
+}
+
 /// Applique des changements aux réglages, puis fait tout de suite ce qu'il faut pour `llama-server` (appareil, durée de conservation).
 /// Rend les réglages enregistrés.
-fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
+fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, Failure> {
+    let (_guard, changes) = settings_guard(&ctx.app.config, changes)?;
     let before = ctx.app.config.settings();
-    let after = merge_settings(&before, changes)?;
+    let after = merge_settings(&before, &changes)?;
     if after.llama_device != before.llama_device {
         ctx.app.llama.launcher().set_device(&after.llama_device);
         // Le serveur redémarre à la prochaine dictée avec le nouvel appareil.
@@ -796,8 +859,8 @@ fn patch_settings(ctx: &Context, changes: &Value) -> Result<Value, String> {
     if after.llama_idle_minutes != before.llama_idle_minutes {
         ctx.app.llama.set_idle_limit(crate::app::idle_limit(after.llama_idle_minutes));
     }
-    ctx.app.config.save_settings(&after).map_err(|e| e.to_string())?;
-    serde_json::to_value(&after).map_err(|e| e.to_string())
+    ctx.app.config.save_settings(&after).map_err(|e| Failure::Failed(e.to_string()))?;
+    serde_json::to_value(&after).map_err(|e| Failure::Failed(e.to_string()))
 }
 
 /// Ce que la personne tient pendant la capture d'une touche : les touches, leur nom, et si la combinaison peut servir.
@@ -852,6 +915,7 @@ fn assistant_view(ctx: &Context) -> Value {
 
 fn assistant_apply(ctx: &Context, id: &str) -> Result<(), String> {
     let chain = assistant::chain(id).ok_or("chaîne inconnue")?;
+    let _guard = ctx.app.config.lock_edit();
     let mut settings = ctx.app.config.settings();
     assistant::apply(chain, &mut settings);
     ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())?;
@@ -861,23 +925,21 @@ fn assistant_apply(ctx: &Context, id: &str) -> Result<(), String> {
 
 /// « Garder mes réglages » : l'assistant ne se représente plus.
 fn assistant_done(ctx: &Context) -> Result<(), String> {
+    let _guard = ctx.app.config.lock_edit();
     let mut settings = ctx.app.config.settings();
     settings.setup_done = true;
     ctx.app.config.save_settings(&settings).map_err(|e| e.to_string())
 }
 
-/// Le mode choisi : un mode livré (« formal ») ou l'identifiant d'un mode personnel.
-fn choose_mode(ctx: &Context, choice: &str) -> Result<Value, String> {
-    pick_mode(&ctx.app.config, choice)
-}
-
-/// Le mode choisi dans la page : écrit dans le fichier de réglages, que l'icône relit.
-pub(crate) fn pick_mode(config: &FileConfig, choice: &str) -> Result<Value, String> {
+/// Le mode choisi dans la page : un mode livré (« formal ») ou l'identifiant d'un mode personnel, écrit dans le fichier de réglages, que
+/// l'icône relit. `who` : l'utilisateur que la page croit actif (409 si ce n'est plus lui : le mode ne s'applique pas à l'autre).
+pub(crate) fn pick_mode(config: &FileConfig, who: Option<Option<&str>>, choice: &str) -> Result<Value, Failure> {
+    let _guard = guard(config, who)?;
     let mut settings = config.settings();
     if !settings.pick_mode(choice) {
-        return Err("mode inconnu".into());
+        return Err(Failure::Refused("mode inconnu".into()));
     }
-    config.save_settings(&settings).map_err(|e| e.to_string())?;
+    config.save_settings(&settings).map_err(|e| Failure::Failed(e.to_string()))?;
     Ok(data::modes(&settings))
 }
 
@@ -911,14 +973,20 @@ fn clean_dictionary(input: &Value) -> UserDictionary {
     UserDictionary { words, corrections: dedup_corrections(corrections) }
 }
 
-fn save_dictionary(ctx: &Context, input: &Value) -> Result<Value, String> {
+fn save_dictionary(ctx: &Context, input: &Value) -> Result<Value, Failure> {
+    write_dictionary(&ctx.app.config, input)
+}
+
+fn write_dictionary(config: &FileConfig, input: &Value) -> Result<Value, Failure> {
     let dictionary = clean_dictionary(input);
-    ctx.app.config.save_dictionary(&dictionary).map_err(|e| {
+    // Le bloc entier part chez l'utilisateur que la page croit actif : s'il a changé, rien n'est écrit (409).
+    let _guard = guard(config, given(input))?;
+    config.save_dictionary(&dictionary).map_err(|e| {
         // Fichier refusé : le message dit déjà tout (et il est traduit) ; une autre erreur garde son enveloppe.
         if e.kind() == std::io::ErrorKind::PermissionDenied {
-            e.to_string()
+            Failure::Refused(e.to_string())
         } else {
-            format!("impossible d'écrire le dictionnaire ({e})")
+            Failure::Refused(format!("impossible d'écrire le dictionnaire ({e})"))
         }
     })?;
     Ok(dictionary_view(&dictionary))
@@ -1346,6 +1414,74 @@ mod tests {
         let after = merge_settings(&before, &json!({"activeProfile": "BBBB", "language": "en"})).unwrap();
         assert_eq!(after.active_profile.as_deref(), Some("AAAA"), "ignoré sans erreur");
         assert_eq!(after.language, scriibe_core::settings::DictationLanguage::En);
+    }
+
+    #[test]
+    fn a_change_of_the_users_settings_is_checked_against_the_active_user_but_a_computer_setting_is_not() {
+        let (dir, config, _) = profiles_io::tests::world("settings-guard");
+        let active = config.active_profile_id().unwrap();
+        // Un réglage de l'utilisateur (langue) venu d'une page qui croit un autre utilisateur actif : refusé (409), rien n'est écrit.
+        assert_eq!(settings_guard(&config, &json!({"language": "en", "profile": "AUTRE"})).err(), Some(Failure::Stale));
+        assert_eq!(
+            settings_guard(&config, &json!({"customModes": [], "profile": "AUTRE"})).err(),
+            Some(Failure::Stale),
+            "les blocs entiers aussi"
+        );
+        // Un réglage de l'ordinateur (thème) s'écrit quel que soit l'utilisateur ; la clé `profile` n'arrive jamais à `merge_settings`.
+        let (_guard, changes) = settings_guard(&config, &json!({"theme": "dark", "profile": "AUTRE"})).unwrap();
+        assert_eq!(changes, json!({"theme": "dark"}));
+        drop(_guard);
+        let (_guard, changes) = settings_guard(&config, &json!({"language": "en", "profile": active})).unwrap();
+        assert_eq!(changes, json!({"language": "en"}));
+        drop(_guard);
+        assert!(settings_guard(&config, &json!({"language": "en"})).is_ok(), "sans `profile` : pas de contrôle");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_dictionary_of_a_page_that_has_the_wrong_user_in_mind_is_refused_and_nothing_is_written() {
+        let (dir, config, _) = profiles_io::tests::world("dictionary-guard");
+        let active = config.active_profile_id().unwrap();
+        let stale = write_dictionary(&config, &json!({"words": ["intrus"], "corrections": [], "profile": "AUTRE"}));
+        assert_eq!(stale, Err(Failure::Stale));
+        assert!(config.dictionary().words.is_empty(), "rien n'a été écrit chez l'utilisateur actif");
+        let saved = write_dictionary(&config, &json!({"words": ["Scriibe"], "corrections": [], "profile": active})).unwrap();
+        assert_eq!(saved["words"], json!(["Scriibe"]));
+        assert_eq!(config.dictionary().words, vec!["Scriibe"]);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_mode_chosen_by_a_page_that_has_the_wrong_user_in_mind_is_refused() {
+        let (dir, config, _) = profiles_io::tests::world("mode-guard");
+        let active = config.active_profile_id().unwrap();
+        let before = config.settings().mode_choice();
+        assert_eq!(pick_mode(&config, Some(Some("AUTRE")), "formal").err(), Some(Failure::Stale));
+        assert_eq!(config.settings().mode_choice(), before);
+        assert!(pick_mode(&config, Some(Some(&active)), "formal").is_ok());
+        assert_eq!(config.settings().mode_choice(), "formal");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_greeting_names_the_user_only_when_there_are_several_and_the_first_name_is_empty() {
+        let mut settings = AppSettings::default();
+        // Un seul utilisateur : rien ne change (le prénom du compte de l'ordinateur sert de repli).
+        assert_eq!(greeting_name(&settings, "Principal", 1), settings.greeting_name(scriibe_platform::machine::first_name()));
+        assert_eq!(
+            greeting_name(&settings, "Principal", 2),
+            "Principal",
+            "plusieurs utilisateurs, prénom vide : le nom de l'utilisateur actif"
+        );
+        settings.first_name = "Léa".into();
+        assert_eq!(greeting_name(&settings, "Principal", 2), "Léa", "un prénom choisi l'emporte");
+        settings.first_name = "   ".into();
+        assert_eq!(greeting_name(&settings, "Bruno", 3), "Bruno");
+        assert_eq!(
+            greeting_name(&settings, "", 3),
+            settings.greeting_name(scriibe_platform::machine::first_name()),
+            "pas de nom connu : repli"
+        );
     }
 
     #[test]

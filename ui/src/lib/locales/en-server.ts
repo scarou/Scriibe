@@ -316,4 +316,29 @@ export const enServer: Record<string, string> = {
   'cinq minutes gardées': 'five minutes kept',
   '« tu vois » retiré': '“tu vois” removed',
   '« annexes » gardées': '“annexes” kept',
+  // Utilisateurs (étape 4c)
+  'Un autre utilisateur porte déjà ce nom.':
+    'Another user already has this name.',
+  'Utilisateur introuvable.':
+    'User not found.',
+  'L\'utilisateur actif ne se supprime pas : passe d\'abord à un autre.':
+    'The active user cannot be deleted: switch to another one first.',
+  'Le fichier profile.json de cet utilisateur est illisible : Scriibe n\'y écrit rien.':
+    'This user’s profile.json file is unreadable: Scriibe writes nothing to it.',
+  'Impossible d\'écrire sur le disque ({e}).':
+    'Could not write to the disk ({e}).',
+  'L\'utilisateur actif a changé : la page se recharge.':
+    'The active user has changed: the page is reloading.',
+  'Le nom est vide.':
+    'The name is empty.',
+  'Le nom est trop long (40 caractères au plus).':
+    'The name is too long (40 characters at most).',
+  'Le nom contient un caractère interdit.':
+    'The name contains a forbidden character.',
+  'Impossible de lire la liste des utilisateurs ({e}).':
+    'Could not read the list of users ({e}).',
+  'confirmation manquante':
+    'confirmation missing',
+  'Une dictée est en cours : attends qu\'elle soit finie pour changer d\'utilisateur.':
+    'A dictation is in progress: wait until it is finished before switching user.',
 };

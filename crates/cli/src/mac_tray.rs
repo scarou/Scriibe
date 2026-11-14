@@ -18,6 +18,7 @@ use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{AppHandle, Wry};
 
 const MODE_PREFIX: &str = "tray:mode:";
+const PROFILE_PREFIX: &str = "tray:user:";
 const OPEN_PAGE: &str = "tray:open";
 const UPDATE: &str = "tray:update";
 const COPY_LAST: &str = "tray:copy";
@@ -162,8 +163,16 @@ pub fn on_menu_event(id: &str) {
         other => {
             if let (Some(mode), Some(source)) = (other.strip_prefix(MODE_PREFIX), source()) {
                 let mode = mode.to_string();
+                // L'utilisateur que le menu montrait : le mode ne s'applique pas à un autre si l'utilisateur a changé depuis.
+                let profile = SHOWN_PROFILE.lock().map(|p| p.clone()).unwrap_or_default();
                 std::thread::spawn(move || {
-                    source.choose_mode(&mode);
+                    source.choose_mode(&profile, &mode);
+                    MODE_CLICKED.store(true, Ordering::SeqCst);
+                });
+            } else if let (Some(user), Some(source)) = (other.strip_prefix(PROFILE_PREFIX), source()) {
+                let user = user.to_string();
+                std::thread::spawn(move || {
+                    source.choose_profile(&user);
                     MODE_CLICKED.store(true, Ordering::SeqCst);
                 });
             }
@@ -178,8 +187,11 @@ fn needs_refresh(shown: Option<&MenuView>, view: &MenuView, forced: bool) -> boo
     forced || shown != Some(view)
 }
 
-/// Levé après chaque clic sur un mode ; le fil du menu le lit et le baisse.
+/// Levé après chaque clic sur un mode ou un utilisateur ; le fil du menu le lit et le baisse.
 static MODE_CLICKED: AtomicBool = AtomicBool::new(false);
+
+/// L'identifiant de l'utilisateur actif tel que le menu l'a montré la dernière fois (vide : pas d'utilisateur) ; renvoyé avec un clic sur un mode.
+static SHOWN_PROFILE: Mutex<String> = Mutex::new(String::new());
 
 struct Items {
     menu: Menu<Wry>,
@@ -191,15 +203,53 @@ struct Items {
     translate_hint: MenuItem<Wry>,
     copy_last: MenuItem<Wry>,
     mode_menu: Submenu<Wry>,
+    /// Le sous-menu « Utilisateur » : dans le menu seulement quand il y a au moins deux utilisateurs.
+    profile_menu: Submenu<Wry>,
+    profile_shown: bool,
     version: MenuItem<Wry>,
     open_data: MenuItem<Wry>,
     open_log: MenuItem<Wry>,
     quit: MenuItem<Wry>,
     /// Les modes du sous-menu (identifiant, case) ; refait quand la liste change.
     modes: Vec<(String, CheckMenuItem<Wry>)>,
+    /// Les utilisateurs du sous-menu (identifiant, nom, case) ; refait quand la liste ou un nom change.
+    profiles: Vec<(String, String, CheckMenuItem<Wry>)>,
 }
 
 impl Items {
+    /// Le sous-menu des utilisateurs : retiré du menu tant qu'il n'y a pas deux utilisateurs, sinon placé juste avant « Mode ».
+    fn refresh_profiles(&mut self, app: &AppHandle, view: &MenuView) -> tauri::Result<()> {
+        if view.profiles.is_empty() {
+            if self.profile_shown {
+                self.menu.remove(&self.profile_menu)?;
+                self.profile_shown = false;
+            }
+            return Ok(());
+        }
+        self.profile_menu.set_text(&view.profile_title)?;
+        let same = self.profiles.len() == view.profiles.len()
+            && self.profiles.iter().zip(&view.profiles).all(|((id, label, _), p)| *id == p.id && *label == p.label);
+        if same {
+            for ((_, _, item), p) in self.profiles.iter().zip(&view.profiles) {
+                item.set_checked(p.checked)?;
+            }
+        } else {
+            while let Ok(Some(_)) = self.profile_menu.remove_at(0) {}
+            self.profiles.clear();
+            for p in &view.profiles {
+                let item = CheckMenuItem::with_id(app, format!("{PROFILE_PREFIX}{}", p.id), &p.label, true, p.checked, None::<&str>)?;
+                self.profile_menu.append(&item)?;
+                self.profiles.push((p.id.clone(), p.label.clone(), item));
+            }
+        }
+        if !self.profile_shown {
+            let at = self.menu.items()?.iter().position(|i| i.id() == self.mode_menu.id()).unwrap_or(0);
+            self.menu.insert(&self.profile_menu, at)?;
+            self.profile_shown = true;
+        }
+        Ok(())
+    }
+
     /// Remet le menu d'accord avec les réglages : seulement ce qui a changé.
     fn refresh(&mut self, app: &AppHandle, view: &MenuView, before: Option<&MenuView>) -> tauri::Result<()> {
         let same_modes = before.is_some_and(|b| {
@@ -227,6 +277,7 @@ impl Items {
             }
             (None, false) => {}
         }
+        self.refresh_profiles(app, view)?;
         self.mode_menu.set_text(&view.mode_title)?;
         self.mode_menu.set_enabled(view.modes_enabled)?;
         if same_modes {
@@ -269,6 +320,7 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
     let translate_hint = item("tray:hint2", "", false).map_err(error)?;
     let copy_last = item(COPY_LAST, "Copier la dernière dictée", true).map_err(error)?;
     let mode_menu = Submenu::with_id(app, "tray:modes", "Mode", true).map_err(error)?;
+    let profile_menu = Submenu::with_id(app, "tray:users", "Utilisateur", true).map_err(error)?;
     let version = item("tray:version", "", false).map_err(error)?;
     let open_data = item(OPEN_DATA, "Ouvrir le dossier des données", true).map_err(error)?;
     let open_log = item(OPEN_LOG, "Ouvrir le journal", true).map_err(error)?;
@@ -316,11 +368,14 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
         translate_hint,
         copy_last,
         mode_menu,
+        profile_menu,
+        profile_shown: false,
         version,
         open_data,
         open_log,
         quit,
         modes: Vec::new(),
+        profiles: Vec::new(),
     };
     std::thread::Builder::new()
         .name("scriibe-menu".into())
@@ -332,6 +387,9 @@ pub fn install(app: &AppHandle, shell: Shell) -> Result<(), String> {
                     if needs_refresh(shown.as_ref(), &view, forced) {
                         state.english.store(view.english, Ordering::SeqCst);
                         if items.refresh(&app, &view, shown.as_ref()).is_ok() {
+                            if let Ok(mut profile) = SHOWN_PROFILE.lock() {
+                                *profile = view.profile_id.clone();
+                            }
                             shown = Some(view);
                         }
                     }

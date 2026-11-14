@@ -186,6 +186,11 @@ pub fn run() -> Result<(), String> {
             history: history.clone(),
             paster: app.platform.paster.clone(),
             version: crate::web::build_id(),
+            busy: {
+                let app = app.clone();
+                Arc::new(move || app.controller.is_recording() || app.controller.is_busy())
+            },
+            log: Some(app.log.clone()),
         }));
     }
 

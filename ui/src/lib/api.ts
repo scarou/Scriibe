@@ -5,11 +5,45 @@ export interface ApiError {
   error: string;
 }
 
+/** Marque posée avant le rechargement d'une page dont l'utilisateur n'était plus le bon : la page rechargée prévient que rien n'a été enregistré. */
+export const STALE_FLAG = 'scriibe-stale-profile';
+
+/**
+ * L'utilisateur actif tel que la page le connaît : `undefined` tant que le serveur ne l'a pas dit, `null` s'il n'y en a pas. Il part avec chaque
+ * requête qui écrit (clé `profile`) : si ce n'est plus l'utilisateur actif (changé depuis le menu de l'icône ou un autre onglet), le serveur
+ * refuse en 409 sans rien écrire et la page se recharge, au lieu d'écraser les données d'un autre utilisateur.
+ */
+let knownProfile: string | null | undefined;
+
+export function setKnownProfile(id: string | null | undefined): void {
+  knownProfile = id;
+}
+
+export function getKnownProfile(): string | null | undefined {
+  return knownProfile;
+}
+
+/** Le corps d'une requête avec l'utilisateur que la page croit actif (les corps qui ne sont pas des objets, ou qui le disent déjà, restent tels quels). */
+export function withProfile(body: unknown, profile: string | null | undefined): unknown {
+  if (profile === undefined || typeof body !== 'object' || body === null || Array.isArray(body) || 'profile' in body) return body;
+  return { ...body, profile };
+}
+
 export async function api<T = any>(path: string, body?: unknown): Promise<T> {
+  const payload = withProfile(body, knownProfile);
   const init: RequestInit =
-    body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) };
   const response = await fetch('api/' + path, init);
-  return response.json();
+  const out = await response.json();
+  if (response.status === 409 && out?.stale) {
+    try {
+      sessionStorage.setItem(STALE_FLAG, '1');
+    } catch {
+      /* le rechargement suffit, seul le message est perdu */
+    }
+    location.reload();
+  }
+  return out;
 }
 
 export interface Status {
@@ -24,6 +58,9 @@ export interface Status {
   recording: boolean;
   busy: boolean;
   keys_error: string | null;
+  /** L'utilisateur actif (`null` tant que rien n'est rangé par utilisateur) et le nombre d'utilisateurs. */
+  profile: { id: string; name: string } | null;
+  profile_count: number;
   /** Une commande vocale (« ajouter au dictionnaire ») attend que la page prenne son texte. */
   prefill?: boolean;
   /** Sous Wayland (GNOME) : le raccourci de dictée choisi dans la fenêtre de GNOME (« Ctrl + ← ») ; `null` ailleurs. */

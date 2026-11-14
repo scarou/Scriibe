@@ -19,6 +19,7 @@ pub mod migration;
 pub mod motion;
 pub mod open;
 pub mod paste;
+pub mod profiles;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod recorder;
 pub mod restore;

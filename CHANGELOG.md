@@ -2,6 +2,17 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C4 tâche 9 — 2026-11-14 · Profils, étape 4c : les utilisateurs deviennent visibles (non publié : part avec la 0.5.0)
+
+- **Ce que l'on voit** :
+  - Réglages → Dictée, carte **« Utilisateurs »** : créer (vide ou copié de l'utilisateur actif, sans historique ni statistiques), renommer, supprimer (le dossier est mis de côté dans `utilisateurs-supprimes`, jamais effacé), passer de l'un à l'autre. L'utilisateur actif ne se supprime pas.
+  - **Icône** : sous-menu « Utilisateur » qui coche l'actif, **seulement à partir de deux utilisateurs** (une personne seule ne voit rien de nouveau).
+  - Tableau de bord : salue l'utilisateur actif quand il y en a plusieurs et que le prénom est vide ; ses statistiques sont les siennes.
+  - Si l'utilisateur change pendant que la page est ouverte (menu de l'icône, autre onglet), la page se recharge ; une écriture faite juste avant est refusée plutôt que d'aller chez l'autre, et la page le dit.
+  - Aide FR et EN : « Plusieurs utilisateurs » et « Les utilisateurs et les versions précédentes de Scriibe » (dossier `sauvegarde-avant-utilisateurs-<date>`, retour à une version antérieure, dossier de Scribe copié après coup).
+- **Technique** : `profiles.rs` (créer, copier, renommer, mettre de côté) ; verrou en mémoire des modifications et `lock_for` dans `FileConfig` ; route de changement d'utilisateur (`activeProfile` jamais écrit par `POST api/settings`) ; garde-fou 409 sur les requêtes qui écrivent chez l'utilisateur actif (dictionnaire, réglages de l'utilisateur, mode, imports, effacement de l'historique, restauration) ; le menu de l'icône renvoie l'utilisateur qu'il montrait avec un clic sur un mode ; changement refusé pendant une dictée.
+- **Mesuré** sur le Mac : 684 tests Rust (35 de plus) et 109 tests de l'interface sans erreur ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `svelte-check` sans erreur. **Non fait** : compilation du code Windows de l'icône (compilateur absent du Mac : la CI Windows le fera) et essai dans l'application (tâche 11). Détail et choix : `docs/PROFILS.md` § Étape 4c.
+
 ## C4 tâche 6 — 2026-11-13 · Profils, étape 4a : vue des réglages (non publié : part avec la 0.5.0)
 
 - **Ce que l'on voit** : rien. Aucun fichier ne change sur le disque : tant qu'aucun utilisateur n'est rangé à part (la migration vient à l'étape 4b), `settings.json` et `dictionary.json` s'écrivent comme avant, octet pour octet.
