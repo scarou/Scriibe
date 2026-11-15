@@ -1,14 +1,14 @@
-# Reprise — 14/11/2026 (version 0.4.0 publiée ; chantier 4 : lots 1 et 2 livrés sans version, restent la tâche 13 puis la 0.5.0)
+# Reprise — 15/11/2026 (version 0.5.0 publiée : chantier 4 seul ; restent la tâche 13 du chantier 4 et le chantier 6)
 
 Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes projets IA/Scriibe-dev/Scriibe` (groupe « Scriibe · Windows »). L'auteur dit seulement **« tâche 13 »** (ou colle la consigne entière) : lire alors la consigne de la tâche 13 dans le découpage et la suivre telle quelle.
 
 ```text
 Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5). Session sur le MAC de l'auteur, dossier ~/Documents/Mes projets IA/Scriibe-dev/Scriibe. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md (C4 lot 1) et la mémoire (projet-scriibe), puis résume l'état en 5 lignes avant d'agir.
 
-ÉTAT : dépôt public scarou/Scriibe, branche main. Release v0.4.0 publiée le 13/11/2026 (chantiers 1, 2, 3, 5, 7, 8 du tri du 12/11). Cargo.toml en 0.4.0. Depuis : chantier 4 (profils et dictionnaires), lots 1 et 2 livrés sans version (partent dans la 0.5.0 avec le chantier 6).
+ÉTAT : dépôt public scarou/Scriibe, branche main. Release v0.5.0 publiée le 15/11/2026 (chantier 4 seul : profils et dictionnaires, lots 1 et 2 ; commit 907ada5, CI verte), après la v0.4.0 du 13/11/2026 (chantiers 1, 2, 3, 5, 7, 8 du tri du 12/11). Cargo.toml en 0.5.0. Le chantier 6 (commandes vocales étendues) part en trois versions, une par lot : 0.6.0, 0.7.0, 0.8.0.
 
 CHANTIER 4 : découpage ~/Library/Mobile Documents/com~apple~CloudDocs/IA-OS/1 - Projets/scriibe/decoupages/decoupage-2026-11-12-c4-implementation-profils.md (déjà cité dans CLAUDE.md). Tâches 0 à 12 faites : lot 1 (étapes 1 à 3) et lot 2 (4a vue des réglages, 4b migration, relecture de la migration, 4c utilisateurs visibles, étape 5 utilisateur entier, essai sur Mac, Linux et Windows, livraison) ; étape 1 fondations (schemaVersion, fichier illisible ou plus récent refusé avec bandeau, copie .bak, fichiers temporaires uniques, corrections dédoublonnées), étape 2 (import/export du dictionnaire), étape 3 (import/export des commandes perso), essai sur Mac, Linux et Windows, relecture par un agent distinct (importants corrigés). Détail, choix et tests : docs/PROFILS.md ; cadrage : docs/CADRAGE_PROFILS.md.
-PROCHAINE TÂCHE : la tâche 13 (clore l'idée : /carnet, lignes passées en Faite, Bilan du tri, ligne « Publier la version 0.5.0 », log.md ; ⚙ Sonnet · Faible), dans la session E (C4 · E). Ensuite : la Release 0.5.0 (chantiers 4 et 6), sur accord de l'auteur. À lire : `docs/PROFILS.md` § Essai lot 2 (résultats, constats, ajouts).
+PROCHAINE TÂCHE : la tâche 13 (clore l'idée : /carnet, lignes passées en Faite, Bilan du tri, ligne « Publier la version 0.5.0 », log.md ; ⚙ Sonnet · Faible), dans la session E (C4 · E). La Release 0.5.0 est faite (voir ÉTAT). À lire : `docs/PROFILS.md` § Essai lot 2 (résultats, constats, ajouts).
 L'ESSAI DU LOT 2 A MIGRÉ DES COPIES, PAS LE VRAI DOSSIER : la vraie migration aura lieu au premier lancement de la 0.5.0 sur chaque machine (sauvegarde `sauvegarde-avant-utilisateurs-<date>` faite par la migration ; sauvegardes de l'essai : Mac `~/Library/Application Support/Scriibe-sauvegardes/`, Linux `~/scriibe-sauvegardes/`, Windows `%USERPROFILE%\scriibe-sauvegardes\`).
 
 POINTS EN SUSPENS :
