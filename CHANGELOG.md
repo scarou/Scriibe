@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C6 tâche 2 — 2026-11-15 · Commandes vocales étendues, étape 1b : recherches (non publié : part avec la 0.6.0)
+
+- **Ce que l'on voit** : sous la touche de commande seulement, « nouvelle recherche Google / YouTube / Wikipédia / DuckDuckGo » suivi de la requête ouvre la recherche dans le navigateur (Wikipédia en français ou en anglais selon la phrase dite) ; la personne ajoute ses sites (carte « Commandes vocales » : nom, adresse `https://…{q}…`, phrase). Pastille : « Site de recherche inconnu », « Rien à chercher », « Recherche non ouverte », « Recherche impossible ». Sans la touche, la phrase reste du texte. Aide FR et EN.
+- **Technique** : fonction d'ouverture contrôlée `open::open_address` (seulement `https://` à hôte nommé et `mailto:`, jamais d'interpréteur : `ShellExecuteW`, `open`, `xdg-open`) via `Paster::open_address`, neutralisée pendant les essais ; `webSearches` (classé « utilisateur », contrôlé à la lecture, à la page, à l'import et sur l'adresse finale ; requête encodée) ; deux issues de plus à `Route` ; case « Sites de recherche vocale » à l'export d'un utilisateur, décochée à l'import. Détail et choix : `docs/COMMANDES_ETENDUES.md` § Étape 1b, `docs/ECARTS.md`.
+- **Mesuré** sur le Mac : 755 tests Rust et 109 tests de l'interface sans erreur ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `svelte-check` sans erreur. **Non fait** : aucune adresse ouverte pour de vrai, `scriibe-platform` non compilé pour Windows (seule la fonction `ShellExecuteW` a été vérifiée à part) ni pour Linux (CI), page non vue dans un navigateur ; essai réel à la tâche 3.
+
 ## C6 tâche 1 — 2026-11-15 · Commandes vocales étendues, étape 1a : touche de commande et aiguillage sous la touche (non publié : part avec la 0.6.0)
 
 - **Ce que l'on voit** : une **touche de commande** à tenir en plus de la touche de dictée (Réglages → Dictée ; par défaut Maj sur Mac, Windows droite sous Windows, Ctrl gauche sous Linux ; troisième raccourci GNOME sous Wayland). Sous cette touche, ce qui est dit est une commande, **jamais collé** ni gardé : la pastille dit « Commande inconnue », « Commande non reconnue », « Commande trop longue » ou « Aucune sélection » (texte fixe, jamais les mots dits). Les commandes d'aujourd'hui marchent aussi sous la touche ; sans la touche, rien ne change. Aide FR et EN, guides Linux.

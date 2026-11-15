@@ -269,6 +269,7 @@ impl CustomCommand {
 pub fn all_defs(settings: &AppSettings) -> Vec<CommandDef> {
     let mut defs = builtin();
     defs.extend(settings.custom_commands.iter().map(CustomCommand::def));
+    defs.extend(crate::web_search::defs(settings));
     defs
 }
 
@@ -578,6 +579,11 @@ pub enum Route {
     Instruction,
     /// Plus de [`INSTRUCTION_MAX_WORDS`] mots : une dictée prise par mégarde sous la touche.
     TooLong,
+    /// « nouvelle recherche <site> » dit **sans rien à chercher** : la phrase d'un site connu, seule. Message fixe, rien n'est ouvert.
+    EmptySearch,
+    /// « nouvelle recherche … » avec un site que la personne n'a pas (ni livré, ni ajouté). Message fixe, rien n'est ouvert ni envoyé
+    /// au modèle : la recherche sur internet commence par « nouvelle recherche » (décision de l'auteur), ce n'est jamais une consigne.
+    UnknownSearch,
 }
 
 /// Mots pivots d'une commande sur sélection (formes normalisées) : une phrase qui en contient un est prise pour une commande mal dite.
@@ -649,11 +655,33 @@ fn is_close(raw: &str, settings: &AppSettings) -> bool {
     })
 }
 
+/// Une phrase de recherche qui n'a pas abouti : la phrase d'un site **seule** (rien à chercher), ou « nouvelle recherche … » avec un site
+/// inconnu. `None` : ce n'est pas une phrase de recherche.
+fn search_without_target(raw: &str, settings: &AppSettings) -> Option<Route> {
+    let spoken = normalize(raw);
+    if spoken.is_empty() {
+        return None;
+    }
+    let langs = catalogues(settings.language);
+    let alone = crate::web_search::defs(settings).iter().any(|def| {
+        langs.iter().any(|lang| effective_phrases(def, &settings.voice_commands, *lang).iter().any(|phrase| normalize(phrase) == spoken))
+    });
+    if alone {
+        return Some(Route::EmptySearch);
+    }
+    let leads =
+        crate::web_search::SEARCH_LEADS.iter().any(|lead| spoken == *lead || spoken.strip_prefix(lead).is_some_and(|r| r.starts_with(' ')));
+    leads.then_some(Route::UnknownSearch)
+}
+
 /// L'aiguillage d'une phrase dite sous la touche de commande : une commande reconnue, une phrase proche d'une commande, une consigne
 /// possible ou une dictée prise par mégarde. Sous la touche, `voiceCommandsEnabled` ne s'applique pas (voir [`recognize_for`]).
 pub fn route_under_key(raw: &str, settings: &AppSettings) -> Route {
     if let Some(command) = recognize_for(raw, settings, Context::UnderKey) {
         return Route::Command(command);
+    }
+    if let Some(route) = search_without_target(raw, settings) {
+        return route;
     }
     if is_close(raw, settings) {
         return Route::Close;
@@ -668,8 +696,8 @@ pub fn route_under_key(raw: &str, settings: &AppSettings) -> Route {
 /// Contrôle d'une phrase que la personne veut donner à la commande `id` (dans la langue `lang`) : au moins deux mots, et pas déjà
 /// celle d'une autre commande (comparée sous forme normalisée, phrases par défaut ou choisies). Rend la phrase nettoyée.
 pub fn validate_phrase(phrase: &str, id: &str, lang: Lang, defs: &[CommandDef], custom: &VoicePhrases) -> Result<String, PhraseError> {
-    // Une commande de la personne pas encore créée (« perso.nouveau ») se contrôle comme les autres.
-    if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) {
+    // Une commande de la personne pas encore créée (« perso.nouveau », ou un site de recherche « recherche.nouveau ») se contrôle comme les autres.
+    if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) && id != crate::web_search::NEW {
         return Err(PhraseError::UnknownCommand);
     }
     // La longueur minimale est celle de la portée de la commande : deux mots pour une commande qui vaut aussi sans la touche (et pour une
@@ -913,6 +941,60 @@ mod tests {
         let long = vec!["mot"; INSTRUCTION_MAX_WORDS].join(" ");
         assert_eq!(route(&long), Route::Instruction);
         assert_eq!(route(&format!("{long} mot")), Route::TooLong);
+    }
+
+    /// Étape 1b : sous la touche, « nouvelle recherche <site> … » est une commande ; sans rien à chercher ou avec un site inconnu, un message
+    /// fixe (jamais une consigne de reformulation) ; sans la touche, la phrase reste du texte (cas `commands_401` pour les recherches).
+    #[test]
+    fn commands_516_a_search_phrase_is_a_command_or_a_fixed_refusal_under_the_key() {
+        use crate::web_search::WebSearch;
+        let settings = AppSettings {
+            language: DictationLanguage::Multi,
+            web_searches: vec![WebSearch {
+                id: "recherche.10".into(),
+                name: "Amazon".into(),
+                url: "https://www.amazon.fr/s?k={q}".into(),
+                phrases: vec!["nouvelle recherche amazon".into()],
+            }],
+            ..AppSettings::default()
+        };
+        let route = |raw: &str| route_under_key(raw, &settings);
+        let found = |raw: &str| match route(raw) {
+            Route::Command(c) => Some((c.id, c.argument, c.lang)),
+            _ => None,
+        };
+        assert_eq!(
+            found("Nouvelle recherche YouTube chats rigolos."),
+            Some(("recherche.2".into(), Some("chats rigolos".into()), Lang::Fr))
+        );
+        assert_eq!(found("New search on Wikipedia cats"), Some(("recherche.3".into(), Some("cats".into()), Lang::En)));
+        assert_eq!(found("nouvelle recherche wiki pédia les chats"), Some(("recherche.3".into(), Some("les chats".into()), Lang::Fr)));
+        assert_eq!(found("nouvelle recherche duck duck go chats"), Some(("recherche.4".into(), Some("chats".into()), Lang::Fr)));
+        assert_eq!(found("nouvelle recherche Amazon stylo bleu"), Some(("recherche.10".into(), Some("stylo bleu".into()), Lang::Fr)));
+        // Rien à chercher : la phrase d'un site, seule.
+        assert_eq!(route("Nouvelle recherche YouTube."), Route::EmptySearch);
+        assert_eq!(route("nouvelle recherche amazon"), Route::EmptySearch);
+        assert_eq!(route("new search youtube"), Route::EmptySearch);
+        // Site inconnu : jamais une consigne de reformulation, même avec une phrase longue.
+        assert_eq!(route("nouvelle recherche Bing chats"), Route::UnknownSearch);
+        assert_eq!(route("Nouvelle recherche"), Route::UnknownSearch);
+        assert_eq!(route("new search ecosia cats"), Route::UnknownSearch);
+        // Sans la touche, rien : une phrase de recherche reste du texte, sites de la personne compris.
+        assert!(recognize_for("Nouvelle recherche YouTube chats rigolos", &settings, Context::NoKey).is_none());
+        assert!(recognize_for("Nouvelle recherche Amazon stylo bleu", &settings, Context::NoKey).is_none());
+        // Une phrase prise : un site ne peut pas reprendre celle d'un autre (livré ou de la personne), toutes portées confondues.
+        let defs = all_defs(&settings);
+        let none = VoicePhrases::default();
+        assert_eq!(
+            validate_phrase("nouvelle recherche youtube", "recherche.10", Lang::Fr, &defs, &none),
+            Err(PhraseError::Taken("recherche.2".into()))
+        );
+        assert_eq!(
+            validate_phrase("nouvelle recherche amazon", crate::web_search::NEW, Lang::Fr, &defs, &none),
+            Err(PhraseError::Taken("recherche.10".into()))
+        );
+        assert!(validate_phrase("nouvelle recherche ebay", crate::web_search::NEW, Lang::Fr, &defs, &none).is_ok());
+        assert_eq!(validate_phrase("ebay", "extrait.42", Lang::Fr, &defs, &none), Err(PhraseError::UnknownCommand));
     }
 
     #[test]

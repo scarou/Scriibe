@@ -37,6 +37,16 @@
         { id: 'format.souligne', label: tx('Souligné'), shortcut: 'underline' },
       ],
     },
+    {
+      title: tx('Recherches sur internet'),
+      intro: tx('Ces phrases ne marchent que sous la touche de commande : « nouvelle recherche YouTube chats rigolos » ouvre la recherche dans ton navigateur. Dites sans la touche, elles restent du texte.'),
+      commands: [
+        { id: 'recherche.1', label: tx('Google') },
+        { id: 'recherche.2', label: tx('YouTube') },
+        { id: 'recherche.3', label: tx('Wikipédia') },
+        { id: 'recherche.4', label: tx('DuckDuckGo') },
+      ],
+    },
   ];
   const labelOf = (id: string) => groups.flatMap((g) => g.commands).find((c) => c.id === id)?.label ?? id;
   const defaults: Record<string, string> = { bold: 'Mod+B', italic: 'Mod+I', underline: 'Mod+U' };
@@ -115,6 +125,71 @@
     }
   }
 
+  // ---- Mes sites de recherche : un nom, une adresse https avec {q}, des phrases (sous la touche de commande seulement) ----
+  type Site = { id: string; name: string; url: string; phrases: string[] };
+  let sites = $derived((v?.webSearches ?? []) as Site[]);
+  let siteDraft = $state({ name: '', url: '', phrase: '' });
+  let siteError = $state('');
+  let siteHosts = $state<Record<string, string>>({});
+
+  const wordsIn = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+  const siteTooShort = () => t('Une phrase de recherche compte au moins deux mots (par exemple « nouvelle recherche amazon »).');
+  const checkUrl = (url: string) => api<{ ok: boolean; host?: string; error?: string }>('web-searches/check', { url });
+  const nextSiteId = () => 'recherche.' + (Math.max(9, ...sites.map((s) => Number(s.id.split('.')[1]) || 0)) + 1);
+
+  async function addSite() {
+    const name = siteDraft.name.trim();
+    const url = siteDraft.url.trim();
+    const phrase = siteDraft.phrase.trim();
+    if (!name || !url || !phrase) {
+      siteError = t('Donne un nom, une adresse avec {q} à l’endroit où va le texte cherché, et une phrase à dire.', { q: '{q}' });
+      return;
+    }
+    const address = await checkUrl(url);
+    if (!address.ok) {
+      siteError = t(address.error ?? 'Adresse refusée');
+      return;
+    }
+    if (wordsIn(phrase) < 2) {
+      siteError = siteTooShort();
+      return;
+    }
+    const check = await api<Check>('commands/validate-phrase', { id: 'recherche.nouveau', lang: i18n.lang, phrase });
+    if (!check.ok) {
+      siteError = check.error === 'taken' ? takenMessage(check.other) : siteTooShort();
+      return;
+    }
+    siteError = '';
+    await settings.change({ webSearches: [...sites, { id: nextSiteId(), name, url, phrases: [check.phrase!] }] });
+    siteDraft = { name: '', url: '', phrase: '' };
+  }
+
+  const updateSite = (id: string, patch: Partial<Site>) => settings.change({ webSearches: sites.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  const removeSite = (id: string) => settings.change({ webSearches: sites.filter((s) => s.id !== id) });
+
+  async function addSitePhrase(s: Site) {
+    const key = s.id + ':phrase';
+    const typed = (drafts[key] ?? '').trim();
+    if (!typed) return;
+    if (wordsIn(typed) < 2) {
+      errors[key] = siteTooShort();
+      return;
+    }
+    const check = await api<Check>('commands/validate-phrase', { id: s.id, lang: i18n.lang, phrase: typed });
+    if (!check.ok) {
+      errors[key] = check.error === 'taken' ? takenMessage(check.other) : siteTooShort();
+      return;
+    }
+    errors[key] = '';
+    drafts[key] = '';
+    if (!s.phrases.some((p) => p.toLowerCase() === check.phrase!.toLowerCase())) await updateSite(s.id, { phrases: [...s.phrases, check.phrase!] });
+  }
+
+  // L'hôte que fixe l'adresse de chaque site, redemandé quand elle change.
+  $effect(() => {
+    for (const s of sites) void checkUrl(s.url).then((r) => (siteHosts[s.id] = r.host ?? ''));
+  });
+
   // ---- Mes commandes : un titre, une phrase, un raccourci de l'appli active ----
   type Custom = { id: string; name: string; phrases: string[]; shortcut: string; needsSelection: boolean };
   let customs = $derived((v?.customCommands ?? []) as Custom[]);
@@ -123,7 +198,7 @@
   let customLabels = $state<Record<string, string>>({});
   let customShortcutDrafts = $state<Record<string, string>>({});
 
-  const nameOf = (id: string) => customs.find((c) => c.id === id)?.name;
+  const nameOf = (id: string) => customs.find((c) => c.id === id)?.name ?? sites.find((c) => c.id === id)?.name;
   const takenMessage = (other?: string) => t('Cette phrase sert déjà à la commande « {name} ».', { name: nameOf(other ?? '') ?? t(labelOf(other ?? '')) });
   const tooShortMessage = () => t('Une phrase compte au moins deux mots : un mot seul est trop souvent du texte à coller.');
   const badShortcutMessage = () => t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec Mod ou Ctrl ; Mod+Q (quitter) est refusé.');
@@ -281,6 +356,7 @@
   <div class:off={v?.voiceCommandsEnabled === false}>
     {#each groups as group (group.title)}
       {#if group.commands.length > 1}<h3>{t(group.title)}</h3>{/if}
+      {#if 'intro' in group}<p class="muted">{t(group.intro as string)}</p>{/if}
       {#each group.commands as def (def.id)}
         {@const c = byId(def.id)}
         {#if c}
@@ -329,6 +405,40 @@
         {/if}
       {/each}
     {/each}
+
+    <h3>{t('Mes sites de recherche')}</h3>
+    <p class="muted">{t('Ajoute un site de recherche : dis ta phrase suivie de ce que tu cherches, et l’adresse s’ouvre dans ton navigateur, avec ce texte à la place de {q}. L’adresse doit commencer par https:// et le nom du site doit être fixe : {q} ne peut pas être avant le premier /. Ça ne marche que sous la touche de commande.', { q: '{q}' })}</p>
+    {#each sites as s (s.id)}
+      <div class="command">
+        <div class="head">
+          <b>{s.name}</b>
+          <span class="muted">{t('Ouvre {host}', { host: siteHosts[s.id] ?? '' })}</span>
+          <button class="link" onclick={() => removeSite(s.id)}>{t('Supprimer')}</button>
+        </div>
+        <div class="langrow">
+          <span class="lang muted">{t('Phrases')}</span>
+          <div class="chips">
+            {#each s.phrases as phrase, i (phrase)}
+              <span class="chip">{phrase}<button class="x" title={s.phrases.length < 2 ? t('Une commande garde au moins une phrase') : t('Retirer')} disabled={s.phrases.length < 2} onclick={() => updateSite(s.id, { phrases: s.phrases.filter((_, j) => j !== i) })}>×</button></span>
+            {/each}
+            <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter une phrase')} bind:value={drafts[s.id + ':phrase']} onkeydown={(e) => e.key === 'Enter' && addSitePhrase(s)} />
+            <button onclick={() => addSitePhrase(s)} disabled={!(drafts[s.id + ':phrase'] ?? '').trim()}>{t('Ajouter')}</button>
+          </div>
+        </div>
+        {#if errors[s.id + ':phrase']}<p class="error">{errors[s.id + ':phrase']}</p>{/if}
+      </div>
+    {/each}
+    {#if sites.length === 0}<p class="muted">{t('Aucun site à toi pour l’instant.')}</p>{/if}
+    <div class="command newcommand">
+      <div class="head"><b>{t('Nouveau site')}</b></div>
+      <div class="chips">
+        <input type="text" placeholder={t('Nom (ex. : Amazon)')} bind:value={siteDraft.name} />
+        <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Adresse (ex. : https://www.amazon.fr/s?k={q})', { q: '{q}' })} bind:value={siteDraft.url} />
+        <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Phrase à dire (ex. : nouvelle recherche amazon)')} bind:value={siteDraft.phrase} />
+        <button onclick={addSite}>{t('Ajouter le site')}</button>
+      </div>
+      {#if siteError}<p class="error nomargin">{siteError}</p>{/if}
+    </div>
 
     <h3>{t('Mes commandes')}</h3>
     <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>

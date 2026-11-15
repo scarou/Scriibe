@@ -54,6 +54,10 @@ impl Paster for NoPaster {
     fn paste(&self, _: &str, _: bool) -> PasteOutcome {
         PasteOutcome::CopiedOnly(format!("collage : {MESSAGE}"))
     }
+
+    fn open_address(&self, _: &str) -> Result<(), &'static str> {
+        Err(crate::open::ADDRESS_NOT_OPENED)
+    }
 }
 
 struct NoApp;

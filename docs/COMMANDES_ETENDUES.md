@@ -120,3 +120,56 @@ Relais décidé par la règle du `CLAUDE.md` (contexte à 25 % ou plus en fin de
 - **Pièges** : (1) le Mac n'a **pas de compilateur croisé** (ni Linux ni Windows) : `ShellExecuteW` demande peut-être la fonctionnalité `Win32_UI_Shell` de `windows-sys` (`crates/platform/Cargo.toml:53-72`), à confirmer par la **CI Windows** (`gh workflow run ci.yml --repo scarou/Scriibe`, après accord de l'auteur pour pousser) ; (2) les tests du contrôleur doivent tourner sur les trois systèmes : dans le banc, Option droite dicte (`Hotkey::RightOption`) et la touche de commande se lit dans `binding()` (voir `command_rig`, `Rig::dictate_under_key`) ; (3) `fixtures/hotkey.json` ne change jamais : ne rien mettre par défaut dans `Binding::from_hotkey` ; (4) `json!` de l'état de la page est près de sa limite de récursion (`#![recursion_limit = "256"]` posé) ; (5) un champ nouveau et son classement arrivent **dans le même commit** (test du chantier 4) ; (6) pas de réponse « oui » à la place de l'auteur : rien n'est poussé sans son accord.
 - **Commits** : `7013dff` (étape 1a) sur `0e96ab3`, `5e73975` (tâche 0, constat) et `907ada5` (version 0.5.0, poussée). Trois commits locaux non poussés (`5e73975`, `0e96ab3`, `7013dff`).
 
+
+## Étape 1b : recherches (tâche 2, 15/11/2026)
+
+Code de l'étape 1b de `docs/CADRAGE_COMMANDES.md` (recherches vocales, fonction d'ouverture contrôlée, `webSearches`), fait d'après le § Constat et le § Relais de la tâche 1. **Non publié** (part dans la 0.6.0 avec l'étape 1a). Ligne d'écart : `docs/ECARTS.md` (15/11/2026).
+
+### Ce qui change pour la personne
+
+- **Sous la touche de commande seulement** : « nouvelle recherche Google », « … YouTube », « … Wikipédia », « … DuckDuckGo » (ou « new search … »), suivi de ce qu'on cherche, ouvre la recherche dans le navigateur par défaut. Wikipédia s'ouvre en français ou en anglais selon la langue de la **phrase dite**. Sans la touche, la phrase est collée comme du texte (test de non-régression).
+- **Sites de la personne** : carte « Commandes vocales » (onglet Dictionnaire), partie « Mes sites de recherche » : un nom, une adresse `https://…{q}…` et une phrase (deux mots au moins). L'hôte de chaque site est affiché ; une adresse refusée dit pourquoi. Les phrases des quatre sites livrés se changent comme celles des autres commandes (groupe « Recherches sur internet »).
+- **Messages fixes de la pastille** (traduits dans `locales/en-server.ts`) : « Site de recherche inconnu » (« nouvelle recherche » avec un site que la personne n'a pas, ou seul), « Rien à chercher » (la phrase d'un site, seule), « Recherche non ouverte » (le système n'a pas ouvert l'adresse), « Recherche impossible » (réglage devenu invalide au moment de la recherche).
+- **Export et import d'un utilisateur** : case « Sites de recherche vocale », **cochée** à l'export, **décochée** à l'import (l'hôte de chaque site est affiché, une adresse refusée est signalée et le site n'est pas importé) ; identifiants toujours neufs ; 20 sites au plus.
+- Aide FR et EN (puce « Recherches sur internet »).
+
+### Choix faits (avec la raison)
+
+1. **Identifiants** : `recherche.1` à `.4` pour Google, YouTube, Wikipédia, DuckDuckGo ; `recherche.<n>` avec n ≥ 10 pour la personne. Raison : le journal n'a que cet identifiant (cadrage, décision 5) ; les numéros 5 à 9 restent libres pour un site livré de plus. `recherche.nouveau` est l'identifiant de projet que la page donne à un site pas encore créé pour contrôler sa première phrase.
+2. **Fonction d'ouverture** : `open::open_address`, **séparée** d'`open::open` (qui reste aux usages internes). Elle ne prend que `https://` à hôte nommé et `mailto:` (le cadrage, décision 3), jamais de `http:` : un site qui n'est qu'en `http` ne peut pas être ajouté. Le contrôle est `web_search::is_openable` (dans le cœur), **partagé** avec le faux collage des tests, pour que le test et la réalité refusent la même chose. Pas d'interpréteur : `ShellExecuteW` (Windows, `Win32_UI_Shell` ajouté à `windows-sys`), `open` (Mac), `xdg-open` (Linux), l'adresse pour seul argument (elle ne commence jamais par un tiret).
+3. **Où est l'appel** : méthode `Paster::open_address` (défaut : la vraie fonction). `SwitchPaster` la neutralise pendant un essai (l'adresse est gardée dans `Captured.opened`, jamais lancée) ; `FakePaster` l'enregistre après le même contrôle ; `ConsolePaster` (`essai`) l'affiche ; `NoPaster` (système sans prise en charge) la refuse.
+4. **Modèle d'adresse valable** (`web_search::check_template`) : `https` ; hôte **nommé** (au moins un point, pas d'adresse numérique, pas `localhost`, pas de `@`, pas de `%`) ; un seul `{q}`, ni dans l'hôte ni après un `#` ; que des caractères ASCII d'adresse (ni espace, ni guillemet, ni les signes `< > \ ^ |` ni l'apostrophe inverse, accolades seulement pour `{q}`) ; 300 caractères au plus. Contrôle à la lecture des réglages (`AppSettings::from_value` → `WebSearch::cleaned`), à la page (`api/web-searches/check`), à l'import, **et** une dernière fois sur l'adresse finale (`search_url` : même hôte que le modèle, 2 000 octets au plus). Les tests injectent des réglages **non nettoyés** pour prouver que ce dernier contrôle suffit (`https://{q}`, `http:`, `https://example.com{q}`, `javascript:`, `https://user@…`).
+5. **La requête** : coupée à 300 caractères, blancs et contrôles ramenés à une espace, encodée en UTF-8 octet par octet (seuls lettres, chiffres, `- . _ ~` restent) : un `/`, `@`, `#`, `?` ou `&` dit ne change rien à l'adresse. `percent_encode` est dans `web_search` (cœur) ; celui d'`engines` (Deepgram) n'est pas touché. L'étape 3 (mail) pourra réutiliser celui du cœur.
+6. **Aiguillage sous la touche** : deux issues de plus à `Route` : `EmptySearch` (la phrase d'un site, seule) et `UnknownSearch` (commence par « nouvelle recherche » / « new search » sans site connu). Elles passent **avant** « proche d'une commande » : une recherche mal dite ne devient jamais une consigne de reformulation (décision de l'auteur : la recherche sur internet commence par « nouvelle recherche »).
+7. **Phrases des sites de la personne** : deux mots au moins (nettoyage à la lecture **et** page), alors qu'une phrase d'un site livré peut en avoir un (portée « sous la touche »). Raison : un mot seul comme « cherche » appartient à la reformulation (étape 4). Une phrase déjà prise par un site livré ou un autre site est écartée ; un site ne peut pas reprendre la phrase d'une autre commande (`validate_phrase`, toutes portées confondues).
+8. **Classement** : `webSearches` est un champ **utilisateur** (`USER_KEYS`), dans l'export d'un utilisateur (liste blanche), décoché à l'import. Il est toujours écrit (liste vide), donc pas de changement à `every_key_written`.
+9. **Langue d'une recherche** : Wikipédia suit `Recognized.lang`. Dans une langue de dictée fixe, seules les phrases de cette langue sont reconnues ; en « plusieurs langues », les deux.
+
+### Où est le code
+
+- `crates/core/src/web_search.rs` (nouveau) : `WebSearch`, `check_template`, `search_url`, `is_openable`, `percent_encode`, `builtin_defs`, `defs`, `target`, `is_search`.
+- `crates/core/src/commands.rs` : `all_defs` (sites), `Route::EmptySearch` / `UnknownSearch`, `search_without_target`, `validate_phrase` (`recherche.nouveau`).
+- `crates/core/src/settings.rs` : `web_searches`, `USER_KEYS`, lecture tolérante.
+- `crates/core/src/profile_file.rs` : `Categories.web_searches`, `Contents`, `Incoming`, `SitePreview`, `Outcome`, `read_web_searches`.
+- `crates/platform/src/open.rs` : `open_address`, `launch_address` (par système). `paste.rs` : `Paster::open_address`. `testing.rs`, `unsupported.rs`.
+- `crates/pipeline/src/controller.rs` : branche `recherche.<n>` de `run_command`, messages de `process_command`.
+- `crates/cli/src/web/` : `sinks.rs` (neutralisation), `mod.rs` (`api/web-searches/check`, liste des commandes, `validate-phrase`), `user_file_io.rs`.
+- Interface : `VoiceCommands.svelte`, `UserExport.svelte`, `UserImport.svelte`, `Help.svelte`, `HelpEn.svelte`, `api.ts`, `locales/`.
+
+### Tests (mesurés sur le Mac)
+
+- **755 tests Rust** (15 de plus que les 740 d'avant la tâche) et **109 tests de l'interface** sans erreur ; `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `svelte-check` sans erreur.
+- Nouveaux : `commands_511` (modèle d'adresse : https, hôte fixe, un `{q}`, cas refusés), `512` (requête encodée, hostile, coupée), `513` (quatre sites, langue de Wikipédia), `514` (sites de la personne nettoyés à la lecture), `515` (identifiants), `516` (aiguillage : commande, « rien à chercher », « site inconnu », sans la touche, phrases prises) ; 2 tests de `open.rs` (adresse non https refusée **avant** tout lancement : `http:`, `javascript:`, `file:`, identifiant `@`, hôte numérique, espace, guillemet, saut de ligne, application, option…) ; 4 tests du contrôleur (adresse encodée **sans trace** de la requête ni du nom du site dans le journal, la pastille, l'historique ; site de la personne ; messages fixes et réglage piégé ; **sans la touche, collée comme du texte** et rien d'ouvert) ; 3 tests d'export et d'import (liste blanche sans identifiant, décoché à l'import, adresses refusées écartées, limites) ; le test de neutralisation de `sinks.rs` couvre l'ouverture (`Captured.opened`).
+- Le test du chantier 4 (`every_settings_field_is_classified_as_user_or_computer`) passe : le champ et son classement sont dans le même commit.
+
+### Non vérifié
+
+- **Aucune adresse n'a été ouverte pour de vrai** : les tests n'ouvrent jamais de navigateur (faux collage). `ShellExecuteW`, `open` et `xdg-open` réels sont à voir à la tâche 3 (« nouvelle recherche Wikipédia … » sur les trois machines).
+- **Code Windows** : le Mac n'a pas de compilateur C croisé, donc `scriibe-platform` n'a pas été compilé pour Windows. Seule la fonction `launch_address` (`ShellExecuteW`) a été **vérifiée à part** dans une caisse isolée contre `windows-sys 0.59` (`cargo check --target x86_64-pc-windows-gnu`, sans erreur) avec la fonctionnalité `Win32_UI_Shell`. Le reste du crate pour Windows (aucun fichier `windows/` n'a été modifié) sera vu par la CI Windows (`gh workflow run ci.yml --repo scarou/Scriibe`, après accord de l'auteur pour pousser). **Code Linux** : `xdg-open` est le même code que sur Mac, non compilé pour Linux.
+- La page n'a pas été vue dans un navigateur (carte « Mes sites de recherche », cases d'export et d'import) : seulement `svelte-check`, les tests et la compilation de l'interface.
+- L'Aide dit encore « Elles ne marchent pour l'instant que sur Mac » dans une phrase d'avant (hors de cette tâche).
+
+### Suite
+
+- Tâche 3 (essai du lot 1 sur le Mac et les deux PC) : nouvelle session, `⚙ Sonnet · Élevé`, consigne dans le découpage. Cette session s'arrête là (contexte à 30 % en fin de tâche).
+- Trois commits locaux non poussés (plus celui de cette étape) : rien n'est poussé sans l'accord de l'auteur.

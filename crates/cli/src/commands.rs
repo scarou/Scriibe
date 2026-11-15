@@ -64,6 +64,12 @@ impl Paster for ConsolePaster {
         println!("\n--- texte qui serait collé ---\n{text}\n------------------------------");
         PasteOutcome::Pasted
     }
+
+    // `essai` n'ouvre aucune adresse : il l'affiche à l'écran (sortie de cette sous-commande, pas le journal).
+    fn open_address(&self, url: &str) -> Result<(), &'static str> {
+        println!("\n--- adresse qui serait ouverte ---\n{url}\n----------------------------------");
+        Ok(())
+    }
 }
 
 /// `essai` ne garde rien dans l'historique.

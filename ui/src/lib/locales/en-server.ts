@@ -249,6 +249,17 @@ export const enServer: Record<string, string> = {
   'Commande inconnue': 'Unknown command',
   'Commande non reconnue': 'Command not recognised',
   'Commande trop longue': 'Command too long',
+  'Rien à chercher': 'Nothing to search for',
+  'Site de recherche inconnu': 'Unknown search site',
+  'Recherche non ouverte': 'Search not opened',
+  'Recherche impossible': 'Search not possible',
+
+  // Adresses des sites de recherche de la personne (refus, texte fixe)
+  'Adresse refusée': 'Address refused',
+  'L\'adresse doit commencer par https:// et ne pas dépasser 300 caractères': 'The address must start with https:// and be at most 300 characters long',
+  'L\'adresse contient un caractère interdit (espace, guillemet, < > \\ ou accolade)': 'The address contains a forbidden character (space, quote, < > \\ or brace)',
+  'L\'adresse doit contenir {q} une seule fois, là où va le texte cherché': 'The address must contain {q} exactly once, where the searched text goes',
+  'Le nom du site doit être fixe : {q} ne peut pas être avant le premier /, ni de @ dans l\'adresse': 'The site name must be fixed: {q} cannot come before the first /, and there can be no @ in the address',
 
   // Banc de dictée français : catégories (bench_phrases.json)
   'Propre': 'Clean',

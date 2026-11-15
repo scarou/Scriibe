@@ -12,6 +12,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 #[derive(Debug, Default, Clone)]
 pub struct Captured {
     pub pasted: Option<String>,
+    /// L'adresse qu'une commande (recherche) aurait ouverte : gardée, jamais lancée pendant un essai.
+    pub opened: Option<String>,
     pub dictation: Option<Dictation>,
     /// Messages de l'indicateur (« Rien entendu », « Collé sans mise au propre (…) »…).
     pub messages: Vec<String>,
@@ -99,6 +101,16 @@ impl Paster for SwitchPaster {
 
     fn press_return(&self) -> bool {
         !self.0.capturing() && self.0.paster.press_return()
+    }
+
+    // Pendant une capture d'essai, aucune adresse ne s'ouvre (recherches) : l'essai garde l'adresse construite au lieu de la lancer.
+    fn open_address(&self, url: &str) -> Result<(), &'static str> {
+        if self.0.capturing() {
+            lock(&self.0.captured).opened = Some(url.to_string());
+            Ok(())
+        } else {
+            self.0.paster.open_address(url)
+        }
     }
 
     // Pendant une capture d'essai rien n'est collé : il n'y a pas de sélection à remplacer.
@@ -212,12 +224,16 @@ mod tests {
         assert!(switch.press_shortcut(&Shortcut::parse("Mod+B").unwrap()).is_err());
         assert!(!switch.press_return());
         assert!(!switch.selection().active);
-        let _ = sinks.finish();
-        assert!(paster.shortcuts().is_empty() && paster.pasted().is_empty());
+        assert!(switch.open_address("https://www.google.com/search?q=SECRET").is_ok(), "l'essai garde l'adresse, sans la lancer");
+        let captured = sinks.finish();
+        assert_eq!(captured.opened.as_deref(), Some("https://www.google.com/search?q=SECRET"));
+        assert!(paster.shortcuts().is_empty() && paster.pasted().is_empty() && paster.opened().is_empty());
         // Hors essai, la lecture de la sélection et le raccourci passent.
         assert!(matches!(switch.selected_text(), SelectedRead::Text(_)));
         assert!(switch.press_shortcut(&Shortcut::parse("Mod+B").unwrap()).is_ok());
         assert_eq!(paster.shortcuts().len(), 1);
+        assert!(switch.open_address("https://www.google.com/search?q=chats").is_ok());
+        assert_eq!(paster.opened(), vec!["https://www.google.com/search?q=chats".to_string()]);
     }
 
     #[test]

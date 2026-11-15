@@ -1674,3 +1674,112 @@ fn a_recording_processed_as_a_command_never_pastes() {
     assert!(r.paster.pasted().is_empty() && r.history.items().is_empty());
     assert_eq!(r.paster.shortcuts().len(), 1);
 }
+
+// ---- Recherches vocales (chantier 6, étape 1b) : sous la touche seulement, adresse contrôlée, rien dans l'historique ----
+
+fn search_rig(heard: &'static str, settings: AppSettings) -> Rig {
+    rig_with(settings, heard, "ne doit pas servir", true)
+}
+
+fn amazon() -> scriibe_core::web_search::WebSearch {
+    scriibe_core::web_search::WebSearch {
+        id: "recherche.10".into(),
+        name: "Amazon".into(),
+        url: "https://www.amazon.fr/s?k={q}".into(),
+        phrases: vec!["nouvelle recherche amazon".into()],
+    }
+}
+
+/// Une recherche dite sous la touche ouvre l'adresse du site avec la requête **encodée** ; rien n'est collé, rien n'entre dans l'historique,
+/// le modèle n'est pas appelé, la sélection n'est pas lue, et ni le journal ni la pastille ne contiennent la requête ni le nom du site.
+#[test]
+fn under_the_command_key_a_search_opens_the_encoded_address_and_leaves_no_trace() {
+    let r = search_rig(
+        "Nouvelle recherche YouTube SECRET-123 chats & a/b ?",
+        AppSettings { web_searches: vec![amazon()], ..command_settings() },
+    );
+    r.paster.set_selected(FakeSelected::Text("SECRET-456".into()));
+    r.dictate_under_key();
+    assert_eq!(r.paster.opened(), vec!["https://www.youtube.com/results?search_query=SECRET-123%20chats%20%26%20a%2Fb".to_string()]);
+    assert!(r.paster.pasted().is_empty() && r.paster.shortcuts().is_empty());
+    assert!(r.history.items().is_empty(), "une recherche n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty(), "le modèle de mise au propre n'est pas appelé");
+    assert_eq!(r.paster.selected_reads(), 0, "une recherche ne lit pas la sélection");
+    assert!(r.indicator.states().contains(&IndicatorState::Done), "{:?}", r.indicator.states());
+    assert!(!r.controller.is_busy());
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: recherche.2 (requête : 22 signes)"), "{log}");
+    let everything = format!("{log}|{:?}|{:?}", r.indicator.states(), r.history.items());
+    for forbidden in ["SECRET", "chats", "YouTube", "youtube"] {
+        assert!(!everything.contains(forbidden), "{forbidden} : trace dans le journal ou la pastille : {everything}");
+    }
+}
+
+/// Le site de la personne est lu dans les réglages ; le journal ne garde que son numéro. Wikipédia s'ouvre dans la langue de la phrase dite.
+#[test]
+fn a_search_on_a_site_of_the_person_and_wikipedia_in_the_language_said() {
+    let r = search_rig("Nouvelle recherche Amazon stylo bleu", AppSettings { web_searches: vec![amazon()], ..command_settings() });
+    r.dictate_under_key();
+    assert_eq!(r.paster.opened(), vec!["https://www.amazon.fr/s?k=stylo%20bleu".to_string()]);
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: recherche.10 ") && !log.to_lowercase().contains("amazon") && !log.contains("stylo"), "{log}");
+    for (heard, url) in [
+        ("New search Wikipedia cats", "https://en.wikipedia.org/w/index.php?search=cats"),
+        ("Nouvelle recherche Wikipédia chats", "https://fr.wikipedia.org/w/index.php?search=chats"),
+    ] {
+        let settings = AppSettings { language: scriibe_core::settings::DictationLanguage::Multi, ..command_settings() };
+        let r = search_rig(heard, settings);
+        r.dictate_under_key();
+        assert_eq!(r.paster.opened(), vec![url.to_string()], "{heard}");
+    }
+}
+
+/// Site inconnu, rien à chercher, adresse refusée ou ouverture en échec : un message fixe, rien n'est ouvert de travers, rien n'est collé.
+#[test]
+fn a_search_that_cannot_be_done_gives_a_fixed_message_and_opens_nothing_wrong() {
+    // (ce qui est dit, message, nombre d'ouvertures)
+    let cases: [(&'static str, &str); 4] = [
+        ("Nouvelle recherche Bing chats rigolos", "Site de recherche inconnu"),
+        ("Nouvelle recherche Bing", "Site de recherche inconnu"),
+        ("Nouvelle recherche YouTube", "Rien à chercher"),
+        ("Nouvelle recherche", "Site de recherche inconnu"),
+    ];
+    for (heard, expected) in cases {
+        let r = search_rig(heard, command_settings());
+        r.paster.set_selected(FakeSelected::Text("SECRET-456".into()));
+        r.dictate_under_key();
+        assert!(r.paster.opened().is_empty() && r.paster.pasted().is_empty() && r.history.items().is_empty(), "{heard}");
+        assert!(r.cleanup_requests().is_empty(), "{heard} : le modèle n'est pas appelé, ce n'est pas une consigne");
+        assert_eq!(r.paster.selected_reads(), 0);
+        assert!(r.indicator.states().contains(&message(expected)), "{heard} : {:?}", r.indicator.states());
+    }
+    // Ouverture en échec : message fixe, rien de collé.
+    let r = search_rig("Nouvelle recherche Google chats", command_settings());
+    r.paster.set_open_error(Some("ouverture impossible"));
+    r.dictate_under_key();
+    assert!(r.paster.pasted().is_empty() && r.paster.opened().is_empty());
+    assert!(r.indicator.states().contains(&message("Recherche non ouverte")), "{:?}", r.indicator.states());
+    // Un modèle refusé qui aurait échappé à la lecture des réglages (réglage construit sans passer par elle) n'ouvre rien non plus.
+    for url in ["https://{q}", "http://example.com/?q={q}", "https://example.com{q}", "javascript:{q}", "https://user@example.com/{q}"] {
+        let trap = scriibe_core::web_search::WebSearch { url: url.into(), ..amazon() };
+        let r = search_rig("Nouvelle recherche Amazon evil.com", AppSettings { web_searches: vec![trap], ..command_settings() });
+        r.dictate_under_key();
+        assert!(r.paster.opened().is_empty() && r.paster.pasted().is_empty(), "{url}");
+        assert!(r.indicator.states().contains(&message("Recherche impossible")), "{url} : {:?}", r.indicator.states());
+    }
+}
+
+/// Sans la touche de commande, une phrase de recherche est du texte comme un autre : collée, dans l'historique, rien d'ouvert.
+#[test]
+fn without_the_command_key_a_search_phrase_is_pasted_as_text_and_opens_nothing() {
+    let settings = AppSettings { web_searches: vec![amazon()], ..command_settings() };
+    for heard in ["Nouvelle recherche YouTube chats rigolos", "Nouvelle recherche Amazon stylo bleu"] {
+        let r = rig_with(settings.clone(), heard, heard, true);
+        r.paster.set_selected(FakeSelected::Text("cri be".into()));
+        r.dictate_without_command();
+        assert!(r.paster.opened().is_empty(), "{heard}");
+        assert_eq!(r.paster.pasted().len(), 1, "{heard} : collée comme du texte");
+        assert_eq!(r.history.items().len(), 1);
+        assert_eq!(r.paster.selected_reads(), 0);
+    }
+}

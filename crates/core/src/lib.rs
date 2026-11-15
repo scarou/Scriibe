@@ -31,5 +31,6 @@ pub mod spoken_signs;
 pub mod text;
 pub mod translation;
 pub mod typography;
+pub mod web_search;
 
 mod re;

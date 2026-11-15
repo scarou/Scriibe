@@ -132,6 +132,7 @@ fn an_unticked_category_has_no_key_and_examples_follow_their_own_box() {
         examples: false,
         styles: false,
         commands: false,
+        web_searches: false,
     };
     assert!(content_of(&export_profile("Léa", &full_user(), &dictionary(), none, "0.5.0", DAY)).is_empty());
     let only_words = export_profile("Léa", &full_user(), &dictionary(), Categories { words: true, ..none }, "0.5.0", DAY);
@@ -287,6 +288,7 @@ fn an_unticked_category_is_not_imported() {
             examples: false,
             styles: false,
             commands: false,
+            web_searches: false,
         },
     );
     assert!(nothing.profile.is_empty() && nothing.dictionary == UserDictionary::default());
@@ -409,4 +411,105 @@ fn the_inventory_of_a_user_lists_what_would_leave() {
     assert!(c.preferences.contains(&"modes masqués du menu".to_string()) && c.preferences.contains(&"genre".to_string()));
     let blank = contents("Principal", &AppSettings::default(), &UserDictionary::default());
     assert!(blank.words.is_empty() && blank.modes.is_empty() && blank.commands.is_empty() && blank.styles.is_empty());
+}
+
+// ---- Sites de recherche vocale (chantier 6, étape 1b) ----
+
+fn sites() -> Vec<WebSearch> {
+    vec![
+        WebSearch {
+            id: "recherche.10".into(),
+            name: "Amazon".into(),
+            url: "https://www.amazon.fr/s?k={q}".into(),
+            phrases: vec!["nouvelle recherche amazon".into()],
+        },
+        WebSearch {
+            id: "recherche.12".into(),
+            name: "Atlas".into(),
+            url: "https://atlas.example.org/?q={q}".into(),
+            phrases: vec!["nouvelle recherche atlas".into(), "nouvelle recherche carte".into()],
+        },
+    ]
+}
+
+fn user_with_sites() -> AppSettings {
+    AppSettings { web_searches: sites(), ..full_user() }
+}
+
+/// À l'export les sites partent (cochés par défaut) avec leur adresse, sans identifiant ; décochés, ils ne laissent aucune clé.
+#[test]
+fn web_searches_leave_with_their_address_and_without_identifier_and_only_when_ticked() {
+    let file = export_profile("Léa", &user_with_sites(), &dictionary(), Categories::export_default(), "0.5.0", DAY);
+    let list = file["content"]["webSearches"].as_array().expect("les sites partent par défaut");
+    assert_eq!(list.len(), 2);
+    assert_eq!(list[0], json!({"name": "Amazon", "url": "https://www.amazon.fr/s?k={q}", "phrases": ["nouvelle recherche amazon"]}));
+    assert!(list.iter().all(|w| w.get("id").is_none()));
+    let off = export_profile(
+        "Léa",
+        &user_with_sites(),
+        &dictionary(),
+        Categories { web_searches: false, ..Categories::export_default() },
+        "0.5.0",
+        DAY,
+    );
+    assert!(content_of(&off).get("webSearches").is_none());
+    // Sans site, pas de clé non plus.
+    assert!(content_of(&export_profile("Léa", &full_user(), &dictionary(), Categories::export_default(), "0.5.0", DAY))
+        .get("webSearches")
+        .is_none());
+    // L'inventaire de l'aperçu de l'export dit l'hôte de chaque site.
+    let inventory = contents("Léa", &user_with_sites(), &dictionary());
+    assert_eq!(
+        inventory.web_searches,
+        vec![("Amazon".to_string(), "www.amazon.fr".to_string()), ("Atlas".to_string(), "atlas.example.org".to_string())]
+    );
+}
+
+/// À l'import les sites sont **décochés par défaut** ; cochés, ils reçoivent des identifiants neufs et sont contrôlés comme à la lecture des réglages.
+#[test]
+fn web_searches_are_off_by_default_at_import_and_checked_when_ticked() {
+    assert!(!Categories::import_default().web_searches && Categories::export_default().web_searches);
+    let mut file = export_profile("Léa", &user_with_sites(), &dictionary(), Categories::export_default(), "0.5.0", DAY);
+    // Deux sites ajoutés à la main dans le fichier : une adresse piège (hôte choisi par la voix) et une adresse http.
+    let list = file["content"]["webSearches"].as_array_mut().unwrap();
+    list.push(json!({"name": "Piège", "url": "https://{q}", "phrases": ["nouvelle recherche piège"]}));
+    list.push(json!({"name": "Clair", "url": "http://example.com/?q={q}", "phrases": ["nouvelle recherche clair"]}));
+    let incoming = parse_profile(&file.to_string()).unwrap();
+    assert_eq!(incoming.web_searches.len(), 4);
+    // L'aperçu montre l'hôte de chacun, et ce qui sera refusé.
+    let hosts: Vec<Option<String>> = preview(&incoming).web_searches.iter().map(|w| w.host.clone()).collect();
+    assert_eq!(hosts, vec![Some("www.amazon.fr".into()), Some("atlas.example.org".into()), None, None]);
+    // Par défaut : rien n'est importé.
+    let by_default = build(&incoming, Categories::import_default());
+    assert!(by_default.profile.get("webSearches").is_none() && by_default.outcome.web_searches.is_empty());
+    // Coché : identifiants neufs et contrôlés, adresses refusées écartées une à une.
+    let built = build(&incoming, Categories { web_searches: true, ..Categories::import_default() });
+    assert_eq!(built.outcome.web_searches, vec!["Amazon", "Atlas"]);
+    assert_eq!(built.outcome.web_searches_skipped, 2);
+    let back = read_back(&built, "Importé");
+    let ids: Vec<&str> = back.web_searches.iter().map(|w| w.id.as_str()).collect();
+    assert_eq!(ids, vec!["recherche.10", "recherche.11"], "identifiants neufs, jamais ceux du fichier");
+    assert!(back.web_searches.iter().all(|w| web_search::check_template(&w.url).is_ok()));
+    assert_eq!(back.web_searches[1].phrases.len(), 2);
+}
+
+/// Les limites du fichier : au plus 20 sites, des phrases courtes en nombre limité, des textes bien formés.
+#[test]
+fn a_file_with_too_many_or_malformed_web_searches_is_refused() {
+    let with = |value: Value| {
+        let mut file = export_profile("Léa", &full_user(), &dictionary(), Categories::export_default(), "0.5.0", DAY);
+        file["content"]["webSearches"] = value;
+        parse_profile(&file.to_string())
+    };
+    let site =
+        |n: usize| json!({"name": format!("S{n}"), "url": "https://example.com/?q={q}", "phrases": [format!("nouvelle recherche s{n}")]});
+    assert!(with(json!((0..web_search::MAX_SITES).map(site).collect::<Vec<_>>())).is_ok());
+    assert!(with(json!((0..=web_search::MAX_SITES).map(site).collect::<Vec<_>>())).unwrap_err().contains("trop de sites"));
+    assert!(with(json!("pas une liste")).is_err());
+    assert!(with(json!([{"name": "A", "url": 3, "phrases": []}])).is_err());
+    assert!(with(json!([{"name": "A", "url": "https://example.com/{q}", "phrases": [1]}])).is_err());
+    let long = "x".repeat(MAX_PHRASE + 1);
+    assert!(with(json!([{"name": "A", "url": "https://example.com/{q}", "phrases": [long]}])).unwrap_err().contains("trop longue"));
+    let many: Vec<String> = (0..=MAX_PHRASES).map(|n| format!("phrase {n}")).collect();
+    assert!(with(json!([{"name": "A", "url": "https://example.com/{q}", "phrases": many}])).unwrap_err().contains("trop de phrases"));
 }

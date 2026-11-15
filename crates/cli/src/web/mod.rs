@@ -253,6 +253,14 @@ fn handle(ctx: &Context, mut request: Request) {
             })(),
         ),
         (Method::Post, "api/commands/import/cancel") => ok(request, commands_io::cancel()),
+        // Un modèle d'adresse de site de recherche : l'hôte qu'il fixe, ou la raison (texte fixe, traduit par la page) du refus.
+        (Method::Post, "api/web-searches/check") => ok(
+            request,
+            match scriibe_core::web_search::check_template(input["url"].as_str().unwrap_or("")) {
+                Ok(host) => json!({"ok": true, "host": host}),
+                Err(why) => json!({"ok": false, "error": why.reason()}),
+            },
+        ),
         (Method::Post, "api/commands/validate-phrase") => ok(request, validate_command_phrase(&ctx.app.config.settings(), &input)),
         (Method::Post, "api/commands/validate-shortcut") => ok(
             request,
@@ -1397,8 +1405,10 @@ fn gnome_translate_shortcut() -> Option<String> {
 /// Les commandes vocales pour la carte des réglages : identifiant, phrases par défaut et phrases en vigueur, en français et en anglais.
 fn commands_view(settings: &scriibe_core::settings::AppSettings) -> Value {
     use scriibe_core::commands::{builtin, effective_phrases, Lang};
+    // Les commandes livrées, puis les quatre sites de recherche (sous la touche de commande) ; ceux de la personne sont dans ses réglages.
     let commands: Vec<Value> = builtin()
         .iter()
+        .chain(scriibe_core::web_search::builtin_defs().iter())
         .map(|def| {
             json!({
                 "id": def.id,
@@ -1420,7 +1430,9 @@ fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input
     let id = input["id"].as_str().unwrap_or("");
     let defs = all_defs(settings);
     // Une phrase de commande de la personne vaut pour les deux langues de dictée : elle ne doit être prise dans aucune des deux.
-    let result = if id.starts_with(CUSTOM_PREFIX) {
+    // Idem pour un site de recherche de la personne (ses phrases valent pour les deux langues), créé ou en projet.
+    let own = id.starts_with(CUSTOM_PREFIX) || id == scriibe_core::web_search::NEW || settings.web_searches.iter().any(|w| w.id == id);
+    let result = if own {
         validate_phrase(phrase, id, Lang::Fr, &defs, &settings.voice_commands)
             .and_then(|_| validate_phrase(phrase, id, Lang::En, &defs, &settings.voice_commands))
     } else {

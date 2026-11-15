@@ -117,4 +117,10 @@ pub trait Paster: Send + Sync {
     fn copy(&self, _text: &str) -> bool {
         false
     }
+    /// Ouvre dans le navigateur (ou la messagerie) l'adresse construite par une commande vocale : par la fonction d'ouverture **contrôlée**
+    /// (`open::open_address`, jamais `open::open`), qui refuse tout ce qui n'est pas `https://` ou `mailto:`. L'erreur est un texte fixe.
+    /// Les essais (`SwitchPaster`) la neutralisent comme le collage.
+    fn open_address(&self, url: &str) -> Result<(), &'static str> {
+        crate::open::open_address(url)
+    }
 }

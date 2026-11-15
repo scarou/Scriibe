@@ -214,6 +214,34 @@ export const en: Record<string, string> = {
   'Souligné': 'Underlined',
   'Phrases': 'Phrases',
   'Mes commandes': 'My commands',
+  'Recherches sur internet': 'Web searches',
+  'Ces phrases ne marchent que sous la touche de commande : « nouvelle recherche YouTube chats rigolos » ouvre la recherche dans ton navigateur. Dites sans la touche, elles restent du texte.':
+    'These phrases only work under the command key: “new search YouTube funny cats” opens the search in your browser. Said without the key, they stay ordinary text.',
+  'Google': 'Google',
+  'YouTube': 'YouTube',
+  'Wikipédia': 'Wikipedia',
+  'DuckDuckGo': 'DuckDuckGo',
+  'Mes sites de recherche': 'My search sites',
+  'Ajoute un site de recherche : dis ta phrase suivie de ce que tu cherches, et l’adresse s’ouvre dans ton navigateur, avec ce texte à la place de {q}. L’adresse doit commencer par https:// et le nom du site doit être fixe : {q} ne peut pas être avant le premier /. Ça ne marche que sous la touche de commande.':
+    'Add a search site: say your phrase followed by what you are looking for, and the address opens in your browser with that text in place of {q}. The address must start with https:// and the site name must be fixed: {q} cannot come before the first /. This only works under the command key.',
+  'Ouvre {host}': 'Opens {host}',
+  'Sites de recherche vocale': 'Voice search sites',
+  '{n} site(s)': '{n} site(s)',
+  '{n} site(s) de recherche vocale.': '{n} voice search site(s).',
+  '{n} site(s) de recherche écarté(s) (adresse refusée ou phrases déjà prises).': '{n} search site(s) skipped (address refused or phrases already taken).',
+  'Décoché par défaut : un site importé ouvre son adresse quand tu dis sa phrase, sous la touche de commande. Vérifie l’hôte de chacun.':
+    'Unticked by default: an imported site opens its address when you say its phrase, under the command key. Check the host of each one.',
+  'adresse refusée : ce site ne sera pas importé': 'address refused: this site will not be imported',
+  'Aucun site à toi pour l’instant.': 'No site of your own yet.',
+  'Nouveau site': 'New site',
+  'Nom (ex. : Amazon)': 'Name (e.g. Amazon)',
+  'Adresse (ex. : https://www.amazon.fr/s?k={q})': 'Address (e.g. https://www.amazon.fr/s?k={q})',
+  'Phrase à dire (ex. : nouvelle recherche amazon)': 'Phrase to say (e.g. new search amazon)',
+  'Ajouter le site': 'Add the site',
+  'Une phrase de recherche compte au moins deux mots (par exemple « nouvelle recherche amazon »).':
+    'A search phrase has at least two words (for example “new search amazon”).',
+  'Donne un nom, une adresse avec {q} à l’endroit où va le texte cherché, et une phrase à dire.':
+    'Give a name, an address with {q} where the searched text goes, and a phrase to say.',
   'Appuie sur le raccourci…': 'Press the shortcut…',
   'Tiens ⌘ ou Ctrl avec une lettre ou un chiffre (⌘Q est refusé).': 'Hold ⌘ or Ctrl with a letter or a digit (⌘Q is refused).',
   'Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.':

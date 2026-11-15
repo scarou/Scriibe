@@ -809,6 +809,14 @@ impl Controller {
                 ));
                 self.refuse("Commande trop longue");
             }
+            Route::EmptySearch => {
+                deps.log.write("commande: recherche sans rien à chercher — rien n'est ouvert");
+                self.refuse("Rien à chercher");
+            }
+            Route::UnknownSearch => {
+                deps.log.write("commande: « nouvelle recherche » avec un site inconnu — rien n'est ouvert");
+                self.refuse("Site de recherche inconnu");
+            }
         }
     }
 
@@ -936,6 +944,24 @@ impl Controller {
                     PasteOutcome::CopiedOnly(reason) => {
                         deps.log.write(&format!("commande: {id} — copié seulement ({reason})"));
                         deps.indicator.flash(IndicatorState::Message(format!("Copié, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
+                    }
+                }
+                CommandOutcome::Handled
+            }
+            // Recherches (étape 1b, sous la touche seulement) : l'adresse est construite avec la requête encodée, puis ouverte par la fonction
+            // d'ouverture contrôlée. Le journal n'a que l'identifiant (ni le site de la personne, ni la requête) et la longueur de la requête.
+            id if scriibe_core::web_search::is_search(id) => {
+                let Some(query) = command.argument.as_deref() else { return self.nothing_to_do(context, "Rien à chercher") };
+                let Some(url) = scriibe_core::web_search::target(id, command.lang, query, settings) else {
+                    deps.log.write(&format!("commande: {id} — adresse non construite (site disparu, modèle refusé ou rien à chercher)"));
+                    return self.nothing_to_do(context, "Recherche impossible");
+                };
+                deps.log.write(&format!("commande: {id} (requête : {} signes)", query.chars().count()));
+                match deps.paster.open_address(&url) {
+                    Ok(()) => deps.indicator.flash(IndicatorState::Done, 0.9),
+                    Err(reason) => {
+                        deps.log.write(&format!("commande: {id} — adresse non ouverte ({reason})"));
+                        deps.indicator.flash(IndicatorState::Message("Recherche non ouverte".into()), 3.0);
                     }
                 }
                 CommandOutcome::Handled

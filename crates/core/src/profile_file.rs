@@ -3,7 +3,8 @@
 //!
 //! **Ce qui part** : le nom affiché et le prénom (case décochée par défaut), les réglages de personne (langues, genre, mode choisi et
 //! fidélité de Simple, modes masqués du menu, puce de liste, commandes vocales et leurs phrases), le dictionnaire, les modes
-//! personnels (avec ou sans exemples), les consignes modifiées des modes livrés, les commandes perso. **Jamais** : l'historique,
+//! personnels (avec ou sans exemples), les consignes modifiées des modes livrés, les commandes perso, les sites de recherche vocale (avec
+//! leur adresse, **décochés à l'import** : le fichier d'un autre ne choisit pas où s'ouvre une recherche à la voix). **Jamais** : l'historique,
 //! les statistiques (ni leurs trois réglages `keepDictationText`, `historyKeepDays`, `typingWPM`), les clés d'API, le banc d'essai, ni aucun
 //! champ propre à l'ordinateur (touches, micro, moteurs, apparence…).
 //!
@@ -20,6 +21,7 @@ use crate::import_commands::{self, MAX_PHRASE, MAX_PHRASES};
 use crate::import_dictionary;
 use crate::modes::{self, CustomMode, RewriteMode};
 use crate::settings::AppSettings;
+use crate::web_search::{self, WebSearch};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, HashMap};
 
@@ -64,6 +66,8 @@ pub struct Categories {
     pub styles: bool,
     /// Les commandes perso.
     pub commands: bool,
+    /// Les sites de recherche vocale de la personne (adresse comprise). Cochés à l'export, **décochés à l'import** (chantier 6, décision 5).
+    pub web_searches: bool,
 }
 
 impl Categories {
@@ -78,12 +82,14 @@ impl Categories {
             examples: true,
             styles: true,
             commands: true,
+            web_searches: true,
         }
     }
 
-    /// L'import : tout ce que le fichier contient (le fichier a déjà été limité par la personne qui l'a écrit).
+    /// L'import : tout ce que le fichier contient (le fichier a déjà été limité par la personne qui l'a écrit), **sauf les sites de
+    /// recherche** : la page montre l'hôte de chacun et la personne les coche (un site importé s'ouvrirait sur une phrase qu'elle dira).
     pub fn import_default() -> Self {
-        Self { identity: true, ..Self::export_default() }
+        Self { identity: true, web_searches: false, ..Self::export_default() }
     }
 
     /// Lit les cases d'une requête de la page ; une case absente prend la valeur par défaut donnée.
@@ -98,6 +104,7 @@ impl Categories {
             examples: get("examples", default.examples),
             styles: get("styles", default.styles),
             commands: get("commands", default.commands),
+            web_searches: get("web_searches", default.web_searches),
         }
     }
 }
@@ -119,6 +126,8 @@ pub struct Contents {
     pub examples: usize,
     pub styles: Vec<String>,
     pub commands: Vec<String>,
+    /// Les sites de recherche vocale : le nom et l'hôte que fixe l'adresse (vide si l'adresse est refusée).
+    pub web_searches: Vec<(String, String)>,
 }
 
 /// Le nom lisible d'un réglage de personne, pour l'aperçu.
@@ -167,6 +176,11 @@ pub fn contents(name: &str, settings: &AppSettings, dictionary: &UserDictionary)
         examples: settings.custom_modes.iter().map(|m| m.examples.len()).sum(),
         styles: settings.style_overrides.iter().filter(|(_, s)| !s.trim().is_empty()).map(|(id, _)| id.clone()).collect(),
         commands: settings.custom_commands.iter().map(|c| c.name.clone()).collect(),
+        web_searches: settings
+            .web_searches
+            .iter()
+            .map(|w| (w.name.clone(), web_search::template_host(&w.url).unwrap_or_default()))
+            .collect(),
     }
 }
 
@@ -226,6 +240,11 @@ pub fn export_profile(
         let list = export::commands_export(&settings.custom_commands, app_version, day);
         content.insert("customCommands".into(), list["content"]["customCommands"].clone());
     }
+    if take.web_searches && !settings.web_searches.is_empty() {
+        // Sans identifiant : l'import en donne de neufs. Le nom, l'adresse et les phrases suffisent.
+        let list: Vec<Value> = settings.web_searches.iter().map(|w| json!({"name": w.name, "url": w.url, "phrases": w.phrases})).collect();
+        content.insert("webSearches".into(), Value::Array(list));
+    }
     export::envelope("profile", app_version, day, Value::Object(content))
 }
 
@@ -244,6 +263,9 @@ pub struct Incoming {
     pub custom_mode_id: Option<String>,
     pub style_overrides: BTreeMap<String, String>,
     pub commands: Vec<CustomCommand>,
+    /// Les sites de recherche du fichier (identifiant vide : il est donné à l'import). Pas encore contrôlés : l'aperçu montre ce qui sera
+    /// refusé, l'import écarte les sites refusés un par un.
+    pub web_searches: Vec<WebSearch>,
 }
 
 fn is_empty(incoming: &Incoming) -> bool {
@@ -256,6 +278,7 @@ fn is_empty(incoming: &Incoming) -> bool {
         && incoming.modes.is_empty()
         && incoming.style_overrides.is_empty()
         && incoming.commands.is_empty()
+        && incoming.web_searches.is_empty()
 }
 
 fn too_long(text: &str, max: usize) -> bool {
@@ -304,6 +327,39 @@ fn check_voice_commands(value: &Value) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Les sites de recherche vocale d'un fichier : au plus [`web_search::MAX_SITES`], chacun avec un nom, une adresse et des phrases courtes en
+/// nombre limité. Les adresses ne sont pas encore jugées ici (l'aperçu montre l'hôte, l'import écarte les adresses refusées).
+fn read_web_searches(value: &Value) -> Result<Vec<WebSearch>, String> {
+    let bad = || "la liste des sites de recherche du fichier est mal formée".to_string();
+    let list = value.as_array().ok_or_else(bad)?;
+    if list.len() > web_search::MAX_SITES {
+        return Err(format!("trop de sites de recherche dans ce fichier : {} au maximum", web_search::MAX_SITES));
+    }
+    let mut out = Vec::new();
+    for item in list {
+        let site = item.as_object().ok_or_else(bad)?;
+        let text = |key: &str| site.get(key).and_then(Value::as_str).ok_or_else(bad);
+        let (name, url) = (text("name")?, text("url")?);
+        if too_long(name, web_search::MAX_NAME * 4) || too_long(url, web_search::MAX_TEMPLATE * 4) {
+            return Err("un site de recherche du fichier a un nom ou une adresse trop long".into());
+        }
+        let phrases = site.get("phrases").and_then(Value::as_array).ok_or_else(bad)?;
+        if phrases.len() > MAX_PHRASES {
+            return Err(format!("un site de recherche a trop de phrases : {MAX_PHRASES} au maximum"));
+        }
+        let phrases = phrases
+            .iter()
+            .map(|p| match p.as_str() {
+                Some(p) if !too_long(p, MAX_PHRASE) => Ok(p.to_string()),
+                Some(_) => Err(format!("une phrase de site de recherche est trop longue : {MAX_PHRASE} caractères au maximum")),
+                None => Err(bad()),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        out.push(WebSearch { id: String::new(), name: name.to_string(), url: url.to_string(), phrases });
+    }
+    Ok(out)
 }
 
 fn id_list(value: &Value, what: &str) -> Result<Vec<String>, String> {
@@ -369,6 +425,9 @@ pub fn parse_profile(text: &str) -> Result<Incoming, String> {
     if let Some(list) = content.get("customCommands").filter(|v| !v.is_null()) {
         incoming.commands = import_commands::read_commands(list.as_array().ok_or("la liste des commandes du fichier est mal formée")?)?;
     }
+    if let Some(list) = content.get("webSearches").filter(|v| !v.is_null()) {
+        incoming.web_searches = read_web_searches(list)?;
+    }
     if is_empty(&incoming) {
         return Err("aucun contenu dans ce fichier".into());
     }
@@ -387,6 +446,16 @@ pub struct Preview {
     pub modes: Vec<import::PreviewItem>,
     pub styles: Vec<String>,
     pub commands: Vec<import_commands::Candidate>,
+    pub web_searches: Vec<SitePreview>,
+}
+
+/// Un site de recherche du fichier, pour l'aperçu : son nom, l'hôte que fixe son adresse (`None` : adresse refusée, le site ne sera pas
+/// importé) et ses phrases.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SitePreview {
+    pub name: String,
+    pub host: Option<String>,
+    pub phrases: Vec<String>,
 }
 
 /// L'aperçu avant import : les modes et commandes sont évalués face à un utilisateur vide (titres numérotés entre eux, raccourcis contrôlés).
@@ -402,6 +471,11 @@ pub fn preview(incoming: &Incoming) -> Preview {
         modes: import::preview(&[], &incoming.modes),
         styles: usable_styles(incoming).into_keys().collect(),
         commands: import_commands::preview(&blank, &incoming.commands),
+        web_searches: incoming
+            .web_searches
+            .iter()
+            .map(|w| SitePreview { name: w.name.clone(), host: web_search::template_host(w.url.trim()), phrases: w.phrases.clone() })
+            .collect(),
     }
 }
 
@@ -437,6 +511,9 @@ pub struct Outcome {
     pub commands: Vec<String>,
     /// Les commandes écartées (raccourci illisible, plus de phrase utilisable).
     pub commands_skipped: usize,
+    /// Les noms des sites de recherche ajoutés, et le nombre de ceux qui sont écartés (adresse refusée, plus de phrase utilisable).
+    pub web_searches: Vec<String>,
+    pub web_searches_skipped: usize,
     pub preferences: usize,
     pub identity: bool,
 }
@@ -515,6 +592,22 @@ pub fn build(incoming: &Incoming, take: Categories) -> Built {
         outcome.commands = applied.added;
         outcome.commands_skipped = applied.skipped;
         keys.push("customCommands");
+    }
+    if take.web_searches && !incoming.web_searches.is_empty() {
+        // Identifiants toujours neufs (`recherche.10`, `.11`…), puis le même contrôle que la lecture des réglages : un site refusé est écarté seul.
+        let numbered: Vec<WebSearch> = incoming
+            .web_searches
+            .iter()
+            .enumerate()
+            .map(|(i, w)| WebSearch { id: format!("{}{}", web_search::PREFIX, web_search::FIRST_CUSTOM as usize + i), ..w.clone() })
+            .collect();
+        let kept = WebSearch::cleaned(numbered);
+        outcome.web_searches_skipped = incoming.web_searches.len() - kept.len();
+        outcome.web_searches = kept.iter().map(|w| w.name.clone()).collect();
+        if !kept.is_empty() {
+            settings.web_searches = kept;
+            keys.push("webSearches");
+        }
     }
     let mut dictionary = UserDictionary::default();
     let (words, corrections) = (take.words, take.corrections);

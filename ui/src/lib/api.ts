@@ -124,6 +124,8 @@ export interface Settings {
   voiceCommandsEnabled: boolean;
   voiceCommands: { fr: Record<string, string[]>; en: Record<string, string[]> };
   customCommands: { id: string; name: string; phrases: string[]; shortcut: string; needsSelection: boolean }[];
+  /** Sites de recherche de la personne (« nouvelle recherche <site> … » sous la touche de commande) : adresse https avec {q}. */
+  webSearches: { id: string; name: string; url: string; phrases: string[] }[];
   formatShortcuts: { bold: string; italic: string; underline: string };
   trialText: string;
   trialCandidates: { id: string; engine: string; model: string }[];

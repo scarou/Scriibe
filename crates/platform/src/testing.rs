@@ -138,6 +138,8 @@ pub struct FakePaster {
     selected: Mutex<FakeSelected>,
     shortcuts: Mutex<Vec<String>>,
     shortcut_error: Mutex<Option<&'static str>>,
+    opened: Mutex<Vec<String>>,
+    open_error: Mutex<Option<&'static str>>,
     reads: std::sync::atomic::AtomicUsize,
 }
 
@@ -150,6 +152,8 @@ impl Default for FakePaster {
             selected: Mutex::new(FakeSelected::NoSelection),
             shortcuts: Mutex::new(Vec::new()),
             shortcut_error: Mutex::new(None),
+            opened: Mutex::new(Vec::new()),
+            open_error: Mutex::new(None),
             reads: std::sync::atomic::AtomicUsize::new(0),
         }
     }
@@ -184,6 +188,16 @@ impl FakePaster {
         *lock(&self.shortcut_error) = error;
     }
 
+    /// Les adresses « ouvertes » (celles que la vraie fonction d'ouverture contrôlée aurait lancées : les autres sont refusées comme elle).
+    pub fn opened(&self) -> Vec<String> {
+        lock(&self.opened).clone()
+    }
+
+    /// Fait échouer les prochaines ouvertures avec cette raison.
+    pub fn set_open_error(&self, error: Option<&'static str>) {
+        *lock(&self.open_error) = error;
+    }
+
     /// Combien de fois la lecture du texte sélectionné a été demandée (une dictée ordinaire ne doit jamais la demander).
     pub fn selected_reads(&self) -> usize {
         self.reads.load(std::sync::atomic::Ordering::SeqCst)
@@ -210,6 +224,18 @@ impl Paster for FakePaster {
 
     fn selection(&self) -> crate::paste::Selection {
         crate::paste::Selection { active: *lock(&self.selection), report: String::new() }
+    }
+
+    // Même contrôle que la vraie fonction (`open::open_address`), sans rien lancer.
+    fn open_address(&self, url: &str) -> Result<(), &'static str> {
+        if !scriibe_core::web_search::is_openable(url) {
+            return Err(crate::open::ADDRESS_REFUSED);
+        }
+        if let Some(error) = *lock(&self.open_error) {
+            return Err(error);
+        }
+        lock(&self.opened).push(url.to_string());
+        Ok(())
     }
 
     fn press_return(&self) -> bool {

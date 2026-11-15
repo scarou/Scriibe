@@ -21,6 +21,7 @@
     modes: { name: string; fidelity: string; examples: number; added_as: string }[];
     styles: string[];
     commands: { name: string; phrases: string[]; dropped: string[]; shortcut: string; problem: 'no_name' | 'bad_shortcut' | 'no_phrase' | null }[];
+    web_searches: { name: string; host: string | null; phrases: string[] }[];
     suggested_name: string;
   }
 
@@ -32,7 +33,7 @@
   let busy = $state(true);
   let message = $state('');
   let name = $state('');
-  let take = $state({ identity: true, preferences: true, words: true, corrections: true, modes: true, examples: true, styles: true, commands: true });
+  let take = $state({ identity: true, preferences: true, words: true, corrections: true, modes: true, examples: true, styles: true, commands: true, web_searches: false });
   let created = $state<{ id: string; name: string } | null>(null);
 
   const problem = (p: string | null) =>
@@ -52,7 +53,7 @@
       askPath = false;
       preview = out;
       name = out.suggested_name;
-      take = { identity: !!(out.name || out.first_name), preferences: out.preferences.length > 0 || out.hidden_modes > 0, words: out.words > 0, corrections: out.corrections > 0, modes: out.modes.length > 0, examples: true, styles: out.styles.length > 0, commands: out.commands.some((c) => !c.problem) };
+      take = { identity: !!(out.name || out.first_name), preferences: out.preferences.length > 0 || out.hidden_modes > 0, words: out.words > 0, corrections: out.corrections > 0, modes: out.modes.length > 0, examples: true, styles: out.styles.length > 0, commands: out.commands.some((c) => !c.problem), web_searches: false };
     } else if (out.ask_path) askPath = true;
     else message = t(out.error ?? 'le fichier n’a pas pu être lu');
   }
@@ -60,7 +61,7 @@
   async function apply() {
     if (!preview) return;
     busy = true;
-    const out = await api<{ ok: boolean; error?: string; created?: { id: string; name: string }; outcome?: { words: number; corrections: number; modes: string[]; commands: string[]; commands_skipped: number } }>('profile/import/apply', {
+    const out = await api<{ ok: boolean; error?: string; created?: { id: string; name: string }; outcome?: { words: number; corrections: number; modes: string[]; commands: string[]; commands_skipped: number; web_searches: string[]; web_searches_skipped: number } }>('profile/import/apply', {
       token: preview.token,
       name,
       include: take,
@@ -74,6 +75,8 @@
     const o = out.outcome;
     message = t('Utilisateur « {name} » créé : {words} mot(s), {corrections} correction(s), {modes} mode(s), {commands} commande(s).', { name: out.created.name, words: o.words, corrections: o.corrections, modes: o.modes.length, commands: o.commands.length });
     if (o.commands_skipped > 0) message += ' ' + t('{n} commande(s) écartée(s) (raccourci illisible ou phrases déjà prises).', { n: o.commands_skipped });
+    if (o.web_searches.length > 0) message += ' ' + t('{n} site(s) de recherche vocale.', { n: o.web_searches.length });
+    if (o.web_searches_skipped > 0) message += ' ' + t('{n} site(s) de recherche écarté(s) (adresse refusée ou phrases déjà prises).', { n: o.web_searches_skipped });
     preview = null;
     onchanged();
   }
@@ -128,6 +131,15 @@
           <li><b>{c.name || t('Commande sans titre')}</b> <span class="muted">{c.shortcut}</span>
             {#if c.problem}<br /><span class="warn">{problem(c.problem)}</span>{/if}
             {#if c.dropped.length > 0}<br /><span class="warn">{t('Phrase(s) écartée(s) (déjà prises ou trop courtes) : {list}', { list: c.dropped.map((p) => '« ' + p + ' »').join(' ') })}</span>{/if}</li>
+        {/each}</ul></div>
+    {/if}
+    {#if preview.web_searches.length > 0}
+      <div class="cat"><label><input type="checkbox" bind:checked={take.web_searches} disabled={busy || !preview.web_searches.some((w) => w.host)} /> {t('Sites de recherche vocale')}</label> <span class="muted">{t('{n} site(s)', { n: preview.web_searches.length })}</span>
+        <p class="warn">{t('Décoché par défaut : un site importé ouvre son adresse quand tu dis sa phrase, sous la touche de commande. Vérifie l’hôte de chacun.')}</p>
+        <ul class="list">{#each preview.web_searches as w, i (i)}
+          <li><b>{w.name}</b> <span class="muted">{w.host ? t('Ouvre {host}', { host: w.host }) : ''}</span>
+            {#if !w.host}<br /><span class="warn">{t('adresse refusée : ce site ne sera pas importé')}</span>{/if}
+            <br /><span class="muted">{w.phrases.map((p) => '« ' + p + ' »').join(' ')}</span></li>
         {/each}</ul></div>
     {/if}
     <div class="row">
