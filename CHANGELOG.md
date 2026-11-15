@@ -2,6 +2,13 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C4 tâches 11 et 12 — 2026-11-14 · Profils, lot 2 : essai sur les trois systèmes et livraison (non publié : part avec la 0.5.0)
+
+- **Ce que l'on voit** : sous Linux, le titre du sous-menu « Utilisateur » de l'icône suit maintenant le changement d'utilisateur (il restait sur l'ancien nom, seule la coche suivait : le bureau ne relit pas le texte d'un sous-menu affiché ; le sous-menu est refait quand son titre change). Mac et Windows n'étaient pas touchés.
+- **Essayé** sur le Mac, le PC Linux et le PC Windows, **sur des copies des vraies données** (sauvegardes datées faites avant, le vrai dossier n'a pas été migré) : migration sans perte (réglages de personne, prénom, modes, commandes, dictionnaire, historique, statistiques), création, copie, renommage, suppression et changement d'utilisateur (route et menu de l'icône, vu par l'auteur sur les trois systèmes), garde-fou 409, export puis import d'un utilisateur (aucun secret, aucun historique, import identique à l'original, second import numéroté). Premier essai réel de la compilation Windows du menu de l'icône. Détail, constats et ajouts : `docs/PROFILS.md` § Essai lot 2.
+- **Livraison** : le lot 2 (étapes 4a à 5, tâches 6 à 12) est envoyé sur GitHub sans numéro de version (`Cargo.toml` reste en 0.4.0) ; la 0.5.0 le réunira avec le chantier 6.
+- **Données personnelles** : le compte rendu de l'essai ne reprend ni le prénom de l'auteur ni ses noms de modes (neutralisés avant le premier envoi).
+
 ## C4 tâche 10 — 2026-11-14 · Profils, étape 5 : exporter et importer un utilisateur entier (non publié : part avec la 0.5.0)
 
 - **Ce que l'on voit** : dans Réglages → Dictée, carte « Utilisateurs », **« Exporter… »** sur chaque ligne (l'actif ou un autre) et **« Importer un utilisateur… »**. L'export montre ce qui part, par catégorie, avec une case chacune ; le **prénom et le nom affiché sont décochés par défaut**. Un fichier `.scriibe.json` (non chiffré) ne contient **jamais** de clé d'API, d'historique, de statistiques ni de réglage de l'ordinateur. L'import montre un aperçu (nom à donner, case par catégorie) puis **crée un nouvel utilisateur**, jamais actif d'office, sans toucher à ceux en place ; nom déjà pris numéroté, identifiants neufs, mêmes limites et mêmes règles que les imports du dictionnaire et des commandes. Aide FR et EN complétée.
@@ -18,6 +25,12 @@ Une section par session de travail, la plus récente en haut. Versions publiées
   - Aide FR et EN : « Plusieurs utilisateurs » et « Les utilisateurs et les versions précédentes de Scriibe » (dossier `sauvegarde-avant-utilisateurs-<date>`, retour à une version antérieure, dossier de Scribe copié après coup).
 - **Technique** : `profiles.rs` (créer, copier, renommer, mettre de côté) ; verrou en mémoire des modifications et `lock_for` dans `FileConfig` ; route de changement d'utilisateur (`activeProfile` jamais écrit par `POST api/settings`) ; garde-fou 409 sur les requêtes qui écrivent chez l'utilisateur actif (dictionnaire, réglages de l'utilisateur, mode, imports, effacement de l'historique, restauration) ; le menu de l'icône renvoie l'utilisateur qu'il montrait avec un clic sur un mode ; changement refusé pendant une dictée.
 - **Mesuré** sur le Mac : 684 tests Rust (35 de plus) et 109 tests de l'interface sans erreur ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `svelte-check` sans erreur. **Non fait** : compilation du code Windows de l'icône (compilateur absent du Mac : la CI Windows le fera) et essai dans l'application (tâche 11). Détail et choix : `docs/PROFILS.md` § Étape 4c.
+
+## C4 tâches 7 et 8 — 2026-11-14 · Profils, étape 4b : migration vers le rangement par utilisateur (non publié : part avec la 0.5.0)
+
+- **Ce que l'on voit** : au premier lancement de la 0.5.0, Scriibe range les données de la personne dans `utilisateurs/<id>/` (réglages de personne, dictionnaire, historique, statistiques ; un seul utilisateur, nommé d'après le prénom, sinon « Principal ») après avoir fait une **sauvegarde datée** dans `sauvegarde-avant-utilisateurs-<date>/`, jamais effacée. Les réglages de l'ordinateur restent dans `settings.json` (`schemaVersion: 2`, `activeProfile`). Une version antérieure de Scriibe lit ce dossier sans erreur mais y voit un dictionnaire et un historique vides : l'Aide explique comment remettre la sauvegarde.
+- **Technique** : `migration.rs` (étapes dans l'ordre de la décision 6, aucune n'est un déplacement avant la dernière, reprise après arrêt brutal à chaque étape, retour d'une version antérieure, dossier de Scribe copié après coup), prise du verrou d'instance avant la migration, sauvegarde complète et restauration qui suivent l'utilisateur actif.
+- **Relecture par un agent distinct** (tâche 8) : aucun bloquant ; importants corrigés (pas de deuxième utilisateur si `utilisateurs/` est mal lu, `profile.json` manquant réparé sur place, renommages réessayés sous Windows, sauvegarde identique réutilisée, copie de restauration complète ou absente) et 9 tests ajoutés. Détail : `docs/PROFILS.md` § Étape 4b et § Relecture de la migration.
 
 ## C4 tâche 6 — 2026-11-13 · Profils, étape 4a : vue des réglages (non publié : part avec la 0.5.0)
 
