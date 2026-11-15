@@ -143,28 +143,35 @@ fn edits_under_the_lock_never_land_on_the_other_user_while_switching() {
     let (dir, config, alice) = migrated("race");
     let bruno = config.create_profile("Bruno").unwrap();
     let config = Arc::new(config);
+    let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let writer = {
-        let (config, alice) = (config.clone(), alice.id.clone());
+        let (config, alice, done) = (config.clone(), alice.id.clone(), done.clone());
         std::thread::spawn(move || {
             let mut written = 0;
-            for n in 0..300 {
+            let mut n = 0;
+            // Jusqu'à la fin des changements, puis encore tant qu'aucune écriture n'a passé le contrôle : le dernier changement remet Alice,
+            // donc une écriture finit toujours par passer (le test ne dépend pas de la vitesse de la machine).
+            while !done.load(std::sync::atomic::Ordering::SeqCst) || written == 0 {
+                n += 1;
                 if let Ok(_guard) = config.lock_for(Some(&alice)) {
                     let mut dictionary = config.dictionary();
                     dictionary.words.push(format!("alice-{n}"));
                     config.save_dictionary(&dictionary).unwrap();
                     written += 1;
                 }
+                std::thread::yield_now();
             }
             written
         })
     };
     let switcher = {
-        let (config, alice, bruno) = (config.clone(), alice.id.clone(), bruno.id.clone());
+        let (config, alice, bruno, done) = (config.clone(), alice.id.clone(), bruno.id.clone(), done.clone());
         std::thread::spawn(move || {
             for n in 0..300 {
                 let target = if n % 2 == 0 { &bruno } else { &alice };
                 config.switch_to_profile(target, |_| ()).unwrap();
             }
+            done.store(true, std::sync::atomic::Ordering::SeqCst);
         })
     };
     let written = writer.join().unwrap();
