@@ -55,6 +55,12 @@ pub fn state_tooltip(state: &IndicatorState, idle_tip: &str, translation: Option
     tip.chars().take(120).collect()
 }
 
+/// Un texte de menu pour Windows : le « & » y marque le raccourci clavier de la lettre suivante (« Tom & Jerry » s'afficherait « Tom  Jerry »).
+/// Doublé, il s'affiche tel quel.
+pub fn windows_menu_text(text: &str) -> String {
+    text.replace('&', "&&")
+}
+
 /// Un mode du sous-menu « Mode ».
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModeEntry {
@@ -122,4 +128,16 @@ pub trait TrayMenuSource: Send + Sync {
     /// Passe à un autre utilisateur (l'identifiant d'un `ProfileEntry`).
     fn choose_profile(&self, id: &str);
     fn copy_last_dictation(&self);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::windows_menu_text;
+
+    #[test]
+    fn an_ampersand_in_a_name_is_doubled_for_the_windows_menu_so_it_shows_as_written() {
+        assert_eq!(windows_menu_text("Tom & Jerry"), "Tom && Jerry");
+        assert_eq!(windows_menu_text("Anne"), "Anne");
+        assert_eq!(windows_menu_text("A&&B"), "A&&&&B", "chaque « & » est doublé, même ceux qui l'étaient déjà dans le nom");
+    }
 }

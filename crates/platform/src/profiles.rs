@@ -90,6 +90,24 @@ fn same_name(a: &str, b: &str) -> bool {
     a.to_lowercase() == b.to_lowercase()
 }
 
+/// Le nom sous lequel un utilisateur importé est créé : le sien s'il est libre, sinon numéroté (« Anne 2 »). Le nom numéroté tient toujours dans
+/// [`MAX_NAME`] : un nom de 40 caractères déjà pris perd la fin de son radical pour faire place au numéro, au lieu d'être refusé.
+pub fn free_user_name(taken: &[String], name: &str) -> String {
+    let numbered = scriibe_core::import::free_name(taken, name);
+    if numbered.chars().count() <= MAX_NAME {
+        return numbered;
+    }
+    (2..)
+        .find_map(|n| {
+            let suffix = format!(" {n}");
+            let room = MAX_NAME.saturating_sub(suffix.chars().count());
+            let stem: String = name.chars().take(room).collect();
+            let candidate = format!("{}{suffix}", stem.trim_end());
+            (!taken.iter().any(|t| same_name(t, &candidate))).then_some(candidate)
+        })
+        .unwrap_or(numbered)
+}
+
 /// Le nom affiché d'un `profile.json` lu (« Principal » s'il n'en a pas).
 fn name_in(profile: &Map<String, Value>) -> String {
     profile.get(NAME_KEY).and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()).unwrap_or(DEFAULT_NAME).to_string()
@@ -154,7 +172,15 @@ pub fn create(data: &Path, name: &str, copy_from: Option<&Path>) -> Result<Profi
         Some(source) => read_profile(source).ok_or(ProfileError::Unreadable)?,
         None => Map::new(),
     };
-    let dictionary = copy_from.and_then(|source| std::fs::read_to_string(source.join("dictionary.json")).ok());
+    // Un dictionnaire absent reste absent ; un dictionnaire qu'on n'arrive pas à lire arrête la copie (sinon : une copie sans dictionnaire, en silence).
+    let dictionary = match copy_from {
+        Some(source) => match std::fs::read_to_string(source.join("dictionary.json")) {
+            Ok(text) => Some(text),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => return Err(e.into()),
+        },
+        None => None,
+    };
     create_with(data, name, profile, dictionary)
 }
 

@@ -80,6 +80,9 @@ pub struct TrayHost {
     profile_items: Vec<(String, String, CheckMenuItem)>,
     profile_ids: HashMap<MenuId, String>,
     shown: Option<MenuView>,
+    /// L'utilisateur actif tel que le menu l'a montré la dernière fois : renvoyé avec un clic sur un mode, même juste après un autre clic
+    /// (qui remet `shown` à zéro en attendant le prochain relevé).
+    last_profile_id: String,
     source: Arc<Mutex<Option<Arc<dyn TrayMenuSource>>>>,
     /// Adresse de la page d'essais, connue une fois son serveur démarré.
     page_url: Arc<Mutex<Option<String>>>,
@@ -162,6 +165,7 @@ impl TrayHost {
             profile_items: Vec::new(),
             profile_ids: HashMap::new(),
             shown: None,
+            last_profile_id: String::new(),
             source,
             page_url,
             data_folder,
@@ -195,7 +199,7 @@ impl TrayHost {
             }
             return;
         }
-        self.profile_menu.set_text(&view.profile_title);
+        self.profile_menu.set_text(crate::tray_menu::windows_menu_text(&view.profile_title));
         let same = self.profile_items.len() == view.profiles.len()
             && self.profile_items.iter().zip(&view.profiles).all(|((id, label, _), p)| *id == p.id && *label == p.label);
         if same {
@@ -207,7 +211,7 @@ impl TrayHost {
             self.profile_items.clear();
             self.profile_ids.clear();
             for p in &view.profiles {
-                let item = CheckMenuItem::new(&p.label, true, p.checked, None);
+                let item = CheckMenuItem::new(crate::tray_menu::windows_menu_text(&p.label), true, p.checked, None);
                 let _ = self.profile_menu.append(&item);
                 self.profile_ids.insert(item.id().clone(), p.id.clone());
                 self.profile_items.push((p.id.clone(), p.label.clone(), item));
@@ -279,6 +283,7 @@ impl TrayHost {
                 shown.1.set_enabled(view.modes_enabled);
             }
         }
+        self.last_profile_id.clone_from(&view.profile_id);
         self.shown = Some(view);
     }
 
@@ -324,8 +329,7 @@ impl TrayHost {
                 } else if let Some(mode) = self.mode_ids.get(&event.id).cloned() {
                     if let Some(source) = self.source.lock().ok().and_then(|s| s.clone()) {
                         // L'utilisateur que le menu montrait : le mode ne s'applique pas à un autre si l'utilisateur a changé depuis.
-                        let profile = self.shown.as_ref().map(|v| v.profile_id.clone()).unwrap_or_default();
-                        source.choose_mode(&profile, &mode);
+                        source.choose_mode(&self.last_profile_id, &mode);
                     }
                     // Le clic a coché la case : le menu se remet tout de suite d'accord avec les réglages.
                     self.shown = None;

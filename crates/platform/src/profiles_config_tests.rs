@@ -126,9 +126,9 @@ fn a_copy_checks_the_user_the_caller_has_in_mind_and_takes_no_history() {
     config.save_settings(&settings).unwrap();
     config.save_dictionary(&words(&["alice"])).unwrap();
     std::fs::write(principal.folder.join("history.json"), r#"{"history": []}"#).unwrap();
-    assert!(matches!(config.copy_profile(Some("AUTRE"), "Copie"), Err(ProfileError::Stale)));
+    assert!(matches!(config.copy_profile(Some(Some("AUTRE")), "Copie"), Err(ProfileError::Stale)));
     assert_eq!(config.list_profiles().unwrap().len(), 1, "rien n'est créé quand l'utilisateur n'est plus le bon");
-    let copy = config.copy_profile(Some(&principal.id), "Copie").unwrap();
+    let copy = config.copy_profile(Some(Some(&principal.id)), "Copie").unwrap();
     assert_eq!(read_json(&copy.folder.join(PROFILE_FILE))["firstName"], "Alice");
     assert_eq!(read_json(&copy.folder.join("dictionary.json"))["words"], serde_json::json!(["alice"]));
     assert!(!copy.folder.join("history.json").exists() && !copy.folder.join("history-totals.json").exists());
@@ -223,5 +223,65 @@ fn a_snapshot_of_any_user_gives_the_same_view_as_switching_to_it_and_refuses_unr
     assert!(matches!(config.profile_snapshot(&principal.id), Err(ProfileError::Unreadable)));
     std::fs::write(bruno.folder.join("dictionary.json"), "pas du json").unwrap();
     assert!(matches!(config.profile_snapshot(&bruno.id), Err(ProfileError::Unreadable)), "même pour l'utilisateur actif");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_copy_without_an_opinion_on_the_active_user_is_not_checked_but_a_wrong_one_is() {
+    let (dir, config, principal) = migrated("copy-opinion");
+    assert!(matches!(config.copy_profile(Some(None), "A"), Err(ProfileError::Stale)), "la page croyait n'avoir aucun utilisateur");
+    let made = config.copy_profile(None, "B").unwrap();
+    assert_eq!(config.active_profile_id().as_deref(), Some(principal.id.as_str()));
+    assert!(made.folder.join(PROFILE_FILE).is_file(), "requête sans clé `profile` : pas de contrôle, comme les autres routes");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_dictionary_that_cannot_be_read_stops_the_copy_instead_of_giving_a_copy_without_it() {
+    let (dir, config, principal) = migrated("copy-unreadable-dictionary");
+    // Un « dictionnaire » qui est un dossier : la lecture échoue sans être « absent ».
+    std::fs::create_dir_all(principal.folder.join("dictionary.json")).unwrap();
+    let before = config.list_profiles().unwrap().len();
+    assert!(matches!(config.copy_profile(None, "Copie"), Err(ProfileError::Io(_))));
+    assert_eq!(config.list_profiles().unwrap().len(), before, "rien n'est créé");
+    // Un dictionnaire absent, lui, est permis : la copie n'en a simplement pas.
+    std::fs::remove_dir_all(principal.folder.join("dictionary.json")).unwrap();
+    let copy = config.copy_profile(None, "Copie").unwrap();
+    assert!(!copy.folder.join("dictionary.json").exists());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn a_taken_name_of_forty_characters_is_numbered_within_the_limit_when_imported() {
+    let (dir, config, _) = migrated("import-long-name");
+    let long = "N".repeat(MAX_NAME);
+    let first = config.import_profile(&long, serde_json::Map::new(), &UserDictionary::default()).unwrap();
+    assert_eq!(first.name, long);
+    let second = config.import_profile(&long, serde_json::Map::new(), &UserDictionary::default()).unwrap();
+    let third = config.import_profile(&long, serde_json::Map::new(), &UserDictionary::default()).unwrap();
+    assert!(second.name.chars().count() <= MAX_NAME && third.name.chars().count() <= MAX_NAME, "{} / {}", second.name, third.name);
+    assert!(second.name.ends_with(" 2") && third.name.ends_with(" 3"), "{} / {}", second.name, third.name);
+    // Un nom court garde sa numérotation habituelle.
+    assert_eq!(free_user_name(&["Anne".to_string()], "Anne"), "Anne 2");
+    // Des accents comptent pour un caractère chacun.
+    let accents = "é".repeat(MAX_NAME);
+    assert_eq!(free_user_name(std::slice::from_ref(&accents), &accents).chars().count(), MAX_NAME);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_failed_read_of_the_users_folder_keeps_the_last_good_list() {
+    use std::os::unix::fs::PermissionsExt;
+    let (dir, config, _) = migrated("list-kept");
+    config.create_profile("Bruno").unwrap();
+    assert_eq!(config.cached_profiles_within(std::time::Duration::ZERO).len(), 2);
+    let users = dir.join(USERS_DIR);
+    std::fs::set_permissions(&users, std::fs::Permissions::from_mode(0o000)).unwrap();
+    // Si le système laisse quand même lire (compte administrateur), il n'y a rien à vérifier ici.
+    let readable = std::fs::read_dir(&users).is_ok();
+    let kept = config.cached_profiles_within(std::time::Duration::ZERO);
+    std::fs::set_permissions(&users, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert!(readable || kept.len() == 2, "la dernière liste valable est gardée, pas une liste vide : {kept:?}");
     let _ = std::fs::remove_dir_all(dir);
 }

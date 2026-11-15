@@ -363,14 +363,24 @@ impl FileConfig {
         Ok(found)
     }
 
-    /// Les utilisateurs lus il y a moins de deux secondes (menu de l'icône, état de la page). Illisible : la liste vide, sans la garder.
+    /// Les utilisateurs lus il y a moins de deux secondes (menu de l'icône, état de la page). Une lecture qui échoue (antivirus sous Windows…)
+    /// rend la dernière liste valable : le sous-menu « Utilisateur » ne disparaît pas pour une erreur passagère (relecture de la tâche 12).
     pub fn cached_profiles(&self) -> Vec<ProfileInfo> {
-        if let Some((at, found)) = self.profiles_seen.lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
-            if at.elapsed() < PROFILES_FRESH {
-                return found.clone();
+        self.cached_profiles_within(PROFILES_FRESH)
+    }
+
+    /// `cached_profiles` avec la durée de validité donnée (zéro : toujours relire).
+    pub(crate) fn cached_profiles_within(&self, fresh: std::time::Duration) -> Vec<ProfileInfo> {
+        let last = {
+            let seen = self.profiles_seen.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some((at, found)) = seen.as_ref() {
+                if at.elapsed() < fresh {
+                    return found.clone();
+                }
             }
-        }
-        self.list_profiles().unwrap_or_default()
+            seen.as_ref().map(|(_, found)| found.clone())
+        };
+        self.list_profiles().unwrap_or_else(|_| last.unwrap_or_default())
     }
 
     /// Crée un utilisateur vide. Il ne devient pas actif.
@@ -382,9 +392,13 @@ impl FileConfig {
     }
 
     /// Crée un utilisateur copié de l'utilisateur actif (réglages et dictionnaire, jamais l'historique ni les statistiques). `given` :
-    /// l'utilisateur que la page croit actif (voir `lock_for`). Il ne devient pas actif.
-    pub fn copy_profile(&self, given: Option<&str>, name: &str) -> Result<ProfileInfo, ProfileError> {
-        let _guard = self.lock_for(given)?;
+    /// l'utilisateur que la page croit actif (voir `lock_for`) : `None` si la requête n'en dit rien (pas de contrôle, comme les autres routes),
+    /// `Some(None)` si elle croit n'en avoir aucun. Il ne devient pas actif.
+    pub fn copy_profile(&self, given: Option<Option<&str>>, name: &str) -> Result<ProfileInfo, ProfileError> {
+        let _guard = match given {
+            Some(id) => self.lock_for(id)?,
+            None => self.lock_edit(),
+        };
         let source = self.profile_folder().ok_or(ProfileError::Unknown)?;
         let made = profiles::create(&self.folder, name, Some(&source));
         self.forget_profiles();
@@ -402,7 +416,7 @@ impl FileConfig {
         let _guard = self.lock_edit();
         let name = profiles::clean_name(name)?;
         let taken: Vec<String> = profiles::list(&self.folder)?.into_iter().map(|p| p.name).collect();
-        let name = scriibe_core::import::free_name(&taken, &name);
+        let name = profiles::free_user_name(&taken, &name);
         let text = if dictionary.words.is_empty() && dictionary.corrections.is_empty() {
             None
         } else {
@@ -466,6 +480,16 @@ impl FileConfig {
     /// dossier. `also` tourne dans la foulée, sous le même verrou, avec ce dossier (l'historique change de dossier là : aucune dictée
     /// enregistrée entre les deux ne va chez le mauvais utilisateur). Rien ne change si `settings.json` est refusé (illisible, plus récent).
     pub fn switch_to_profile<R>(&self, id: &str, also: impl FnOnce(&Path) -> R) -> Result<(ProfileInfo, R), ProfileError> {
+        self.switch_to_profile_with(id, |folder, switch| {
+            switch();
+            also(folder)
+        })
+    }
+
+    /// Comme `switch_to_profile`, mais c'est `apply` qui décide du moment où la configuration passe au nouvel utilisateur : il reçoit le dossier
+    /// du nouvel utilisateur et une fonction qui fait ce passage, **qu'il doit appeler** (exactement une fois). Le changement de l'historique
+    /// l'appelle depuis son propre verrou (`FileHistory::switch_with`).
+    pub fn switch_to_profile_with<R>(&self, id: &str, apply: impl FnOnce(&Path, &dyn Fn()) -> R) -> Result<(ProfileInfo, R), ProfileError> {
         let _guard = self.lock_edit();
         let target = profiles::find(&self.folder, id)?.ok_or(ProfileError::Unknown)?;
         let (mut settings, problem) = self.settings.read_state(read_settings_object, || {
@@ -479,8 +503,7 @@ impl FileConfig {
         let text = serde_json::to_string_pretty(&settings).map_err(std::io::Error::other)?;
         write_atomic(&self.settings_path(), &text)?;
         self.settings.forget();
-        self.switch_profile(Some(target.folder.clone()));
-        let after = also(&target.folder);
+        let after = apply(&target.folder, &|| self.switch_profile(Some(target.folder.clone())));
         Ok((target, after))
     }
 
@@ -653,7 +676,16 @@ impl FileHistory {
     /// lit voit l'ancien historique en entier ou le nouveau en entier, jamais un mélange. L'ancien est déjà sur le disque (chaque
     /// changement s'écrit tout de suite) ; l'état propre à l'ancien (dernier texte dicté) n'est pas repris.
     pub fn switch(&self, folder: PathBuf) {
+        self.switch_with(folder, || ());
+    }
+
+    /// Comme `switch`, mais `before` tourne **dans le verrou de l'historique**, avant le changement de dossier : c'est là que la configuration
+    /// passe au nouvel utilisateur (`FileConfig::switch_to_profile_with`). Sans cela, une lecture de l'historique pouvait tomber entre les
+    /// deux, avec les réglages du nouvel utilisateur (durée de conservation…) appliqués à l'historique de l'ancien, qu'elle purgeait
+    /// (relecture de la tâche 12).
+    pub fn switch_with(&self, folder: PathBuf, before: impl FnOnce()) {
         let mut state = self.lock();
+        before();
         if state.folder == folder {
             return;
         }
@@ -1130,6 +1162,32 @@ mod tests {
         assert!(err.to_string().contains("profile.json"), "{err}");
         assert_eq!(std::fs::read_to_string(user.join("profile.json")).unwrap(), "{pas du json", "rien n'a été écrasé");
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_history_read_cannot_fall_between_the_switch_of_the_settings_and_the_switch_of_the_history() {
+        use std::sync::Arc;
+        let (a, b) = (temp("switch-with-a"), temp("switch-with-b"));
+        let history = Arc::new(FileHistory::open(a.clone(), AppSettings::default));
+        history.record(Dictation::new(Utc::now(), "Chrome", "un", "un", 12, 4.0, 0));
+        FileHistory::open(b.clone(), AppSettings::default).record(Dictation::new(Utc::now(), "Notes", "deux", "deux", 30, 9.0, 1));
+        FileHistory::open(b.clone(), AppSettings::default).record(Dictation::new(Utc::now(), "Notes", "trois", "trois", 30, 9.0, 2));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let in_between = std::cell::Cell::new(false);
+        history.switch_with(b.clone(), || {
+            // Pendant que « la configuration passe au nouvel utilisateur » (ce que fait `before`), une lecture de la page attend le verrou.
+            let reader = history.clone();
+            std::thread::spawn(move || tx.send(reader.dictation_count()).unwrap());
+            in_between.set(rx.recv_timeout(std::time::Duration::from_millis(250)).is_err());
+        });
+        assert!(in_between.get(), "la lecture ne doit pas passer tant que le changement n'est pas fini");
+        assert_eq!(
+            rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap(),
+            2,
+            "puis elle voit l'historique du nouvel utilisateur en entier"
+        );
+        let _ = std::fs::remove_dir_all(a);
+        let _ = std::fs::remove_dir_all(b);
     }
 
     #[test]

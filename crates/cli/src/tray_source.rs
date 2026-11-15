@@ -181,6 +181,9 @@ pub struct TraySource {
 
 impl TrayMenuSource for TraySource {
     fn view(&self) -> MenuView {
+        // Lu d'un seul tenant : un changement d'utilisateur ne peut pas s'intercaler entre les réglages (les modes) et l'identifiant, sinon le menu
+        // montrerait les modes d'un utilisateur avec l'identifiant de l'autre et le clic suivant s'appliquerait chez celui-ci (relecture de la tâche 12).
+        let _guard = self.config.lock_edit();
         let mut view = menu_view(&self.config.settings(), &self.version);
         with_profiles(&mut view, self.config.active_profile_id().as_deref(), &self.config.cached_profiles());
         view

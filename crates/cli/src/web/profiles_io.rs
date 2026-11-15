@@ -68,11 +68,8 @@ pub(crate) fn view(config: &FileConfig) -> Value {
 /// Crée un utilisateur, vide ou copié de l'utilisateur actif (`copy: true`). Il ne devient pas actif.
 pub(crate) fn create(config: &FileConfig, input: &Value) -> Result<Value, Failure> {
     let name = input["name"].as_str().unwrap_or("");
-    let made = if input["copy"].as_bool() == Some(true) {
-        config.copy_profile(given(input).flatten(), name)?
-    } else {
-        config.create_profile(name)?
-    };
+    let made =
+        if input["copy"].as_bool() == Some(true) { config.copy_profile(given(input), name)? } else { config.create_profile(name)? };
     Ok(json!({"ok": true, "created": {"id": made.id, "name": made.name}, "list": view(config)}))
 }
 
@@ -106,7 +103,9 @@ pub(crate) fn switch(config: &FileConfig, history: &FileHistory, busy: bool, id:
     if busy {
         return Err(Failure::Refused("Une dictée est en cours : attends qu'elle soit finie pour changer d'utilisateur.".into()));
     }
-    let (target, ()) = config.switch_to_profile(id, |folder| history.switch(folder.to_path_buf()))?;
+    // La configuration passe au nouvel utilisateur depuis le verrou de l'historique : aucune lecture de l'historique ne tombe entre les deux.
+    let (target, ()) =
+        config.switch_to_profile_with(id, |folder, switch_config| history.switch_with(folder.to_path_buf(), switch_config))?;
     cancel_pending();
     Ok(target)
 }
@@ -192,6 +191,8 @@ pub(super) mod tests {
             "Alice"
         );
         assert_eq!(create(&config, &json!({"name": "Autre", "copy": true, "profile": "AUTRE"})), Err(Failure::Stale));
+        // Une requête sans clé `profile` n'a pas d'avis sur l'utilisateur actif : pas de contrôle (comme les autres routes), la copie se fait.
+        assert!(create(&config, &json!({"name": "Sans clé", "copy": true})).is_ok());
         assert!(matches!(create(&config, &json!({"name": "copie"})), Err(Failure::Refused(m)) if m.contains("déjà ce nom")));
         assert!(matches!(create(&config, &json!({"name": "  "})), Err(Failure::Refused(m)) if m.contains("vide")));
         assert_eq!(config.active_profile_id().as_deref(), Some(active.as_str()), "créer ne change pas d'utilisateur");

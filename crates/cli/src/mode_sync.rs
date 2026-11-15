@@ -4,7 +4,7 @@
 use crate::tray_source::{menu_view_in, TraySource};
 use crate::web::{data, pick_mode};
 use scriibe_core::modes::RewriteMode;
-use scriibe_core::settings::{AppSettings, CleanupEngine, UiLang};
+use scriibe_core::settings::{AppSettings, CleanupEngine, UiLang, UiLanguage};
 use scriibe_platform::storage::{FileConfig, FileHistory};
 use scriibe_platform::testing::FakePaster;
 use scriibe_platform::tray_menu::TrayMenuSource;
@@ -89,7 +89,14 @@ fn two_users(busy: bool) -> (PathBuf, Arc<FileConfig>, TraySource, String, Strin
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     FileConfig::new(dir.clone())
-        .save_settings(&AppSettings { cleanup_engine: CleanupEngine::LlamaCpp, cleanup_enabled: true, ..AppSettings::default() })
+        // La langue de l'interface est fixée : « Automatique » suit celle de la machine (anglais sur les machines de la CI), et les titres du
+        // menu sont écrits dans cette langue.
+        .save_settings(&AppSettings {
+            cleanup_engine: CleanupEngine::LlamaCpp,
+            cleanup_enabled: true,
+            ui_language: UiLanguage::Fr,
+            ..AppSettings::default()
+        })
         .unwrap();
     let folder = scriibe_platform::migration::run(&dir).profile.unwrap();
     let config = Arc::new(FileConfig::new(dir.clone()));
@@ -154,5 +161,22 @@ fn the_menu_has_no_user_submenu_for_a_single_user() {
     let view = source.view();
     assert!(view.profiles.is_empty() && view.profile_title.is_empty());
     assert!(!view.profile_id.is_empty());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_menu_is_read_in_one_piece_never_between_two_users() {
+    let (dir, config, source, _, _) = two_users(false);
+    let guard = config.lock_edit();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::scope(|scope| {
+        scope.spawn(|| tx.send(source.view()).unwrap());
+        // Tant qu'un changement d'utilisateur (ou une écriture) tient le verrou, le menu attend : il ne lit pas les modes d'un utilisateur et
+        // l'identifiant de l'autre.
+        assert!(rx.recv_timeout(std::time::Duration::from_millis(250)).is_err());
+        drop(guard);
+        let view = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("le menu se lit dès que le verrou est rendu");
+        assert_eq!(view.profile_id, config.active_profile_id().unwrap());
+    });
     let _ = std::fs::remove_dir_all(dir);
 }
