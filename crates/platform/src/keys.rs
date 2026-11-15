@@ -375,12 +375,13 @@ impl Layout {
 
     /// Les touches de commande par défaut. Choix provisoire, à confirmer à l'essai du lot 1 (tâche 3) : jamais celle de la dictée ni de la
     /// traduction par défaut, et jamais une touche qui ouvre un menu (Alt gauche) ou sert à AltGr (Ctrl gauche sous Windows).
-    /// - Mac : Maj, l'une ou l'autre (⌘ traduit ; Ctrl + Option est le raccourci de VoiceOver) ;
+    /// - Mac : Maj gauche seule (⌘ traduit ; Ctrl + Option est le raccourci de VoiceOver ; décision de l'auteur à l'essai, 15/11 :
+    ///   une combinaison « Option droite + Maj gauche », Maj droit reste libre pour taper) ;
     /// - Windows : Windows droite (le crochet masque déjà son menu) ;
     /// - Linux : Ctrl gauche (X11 ; sous Wayland c'est un troisième raccourci de GNOME).
     pub fn default_command(&self) -> Vec<Key> {
         if self.mac {
-            vec![Key::LeftShift, Key::RightShift]
+            vec![Key::LeftShift]
         } else if cfg!(windows) {
             vec![Key::Vk(VK_RWIN)]
         } else {
@@ -623,7 +624,7 @@ pub fn default_dictation_label() -> &'static str {
 /// La touche de commande par défaut du système, pour l'affichage (voir `Layout::default_command`).
 pub fn default_command_label() -> &'static str {
     if cfg!(target_os = "macos") {
-        "Maj"
+        "Maj gauche"
     } else if cfg!(windows) {
         "Windows droite"
     } else {
@@ -1023,12 +1024,12 @@ mod tests {
 
     #[test]
     fn the_default_command_key_is_never_the_dictation_or_the_translation_key() {
-        // Mac : Maj (⌘ traduit, Option droite dicte).
+        // Mac : Maj gauche seule (⌘ traduit, Option droite dicte) ; Maj droit ne commande pas.
         let b = command_binding(&MAC_LAYOUT, &["right_option"], &[], &[]).unwrap();
-        assert_eq!(b.command, vec![Key::LeftShift, Key::RightShift]);
-        // Si la dictée utilise Maj, la touche par défaut n'est pas donnée (une seule des deux est prise : l'autre reste).
+        assert_eq!(b.command, vec![Key::LeftShift]);
+        // Si la dictée utilise Maj gauche, la touche par défaut n'est pas donnée : la personne choisit.
         let b = command_binding(&MAC_LAYOUT, &["left_shift", "f9"], &[], &[]).unwrap();
-        assert_eq!(b.command, vec![Key::RightShift]);
+        assert!(b.command.is_empty());
         let b = command_binding(&MAC_LAYOUT, &["left_shift", "right_shift"], &[], &[]).unwrap();
         assert!(b.command.is_empty(), "rien n'est donné de force : la personne choisit");
         // Windows et Linux : ni Maj (traduction) ni Ctrl droit (dictée).
@@ -1072,9 +1073,10 @@ mod tests {
         // La touche de traduction ne change pas : ⌘ traduit toujours, et Maj ne commande plus.
         assert_eq!(run_keys(binding.clone(), &[(Key::RightOption, true), (Key::LeftCommand, true)]), "PC");
         assert_eq!(run_keys(binding, &[(Key::RightOption, true), (Key::LeftShift, true)]), "P");
-        // Par défaut sur Mac : Maj commande.
+        // Par défaut sur Mac : Maj gauche commande, Maj droit non.
         let default = command_binding(&MAC_LAYOUT, &["right_option"], &[], &[]).unwrap();
-        assert_eq!(run_keys(default, &[(Key::RightOption, true), (Key::RightShift, true), (Key::RightOption, false)]), "PKR");
+        assert_eq!(run_keys(default.clone(), &[(Key::RightOption, true), (Key::LeftShift, true), (Key::RightOption, false)]), "PKR");
+        assert_eq!(run_keys(default, &[(Key::RightOption, true), (Key::RightShift, true), (Key::RightOption, false)]), "PR");
     }
 
     #[test]

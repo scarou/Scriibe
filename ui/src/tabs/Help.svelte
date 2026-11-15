@@ -22,7 +22,7 @@
   let linux = $derived(os === 'linux');
   let defaultDictate = $derived(mac ? 'Option droite' : 'Ctrl droit');
   let defaultTranslate = $derived(mac ? '⌘' : 'Maj');
-  let defaultCommand = $derived(mac ? 'Maj' : linux ? 'Ctrl gauche' : 'Windows droite');
+  let defaultCommand = $derived(mac ? 'Maj gauche' : linux ? 'Ctrl gauche' : 'Windows droite');
   let copyKey = $derived(mac ? '⌘C' : 'Ctrl+C');
   let pasteKey = $derived(mac ? '⌘V' : 'Ctrl+V');
   let trayNear = $derived(mac ? 'dans la barre des menus' : 'près de l’horloge');

@@ -173,3 +173,11 @@ Code de l'étape 1b de `docs/CADRAGE_COMMANDES.md` (recherches vocales, fonction
 
 - Tâche 3 (essai du lot 1 sur le Mac et les deux PC) : nouvelle session, `⚙ Sonnet · Élevé`, consigne dans le découpage. Cette session s'arrête là (contexte à 30 % en fin de tâche).
 - Trois commits locaux non poussés (plus celui de cette étape) : rien n'est poussé sans l'accord de l'auteur.
+
+## Essai lot 1 (tâche 3, 15/11/2026)
+
+Essai réel du lot 1 (étapes 1a et 1b) : Mac d'abord (copie d'essai `Scriibe-essai.app` sur une copie des données, `SCRIIBE_DATA`), puis PC Windows et PC Linux par `/pilote-pc`. Résultats ci-dessous, au fur et à mesure.
+
+### Ajouts
+
+1. **15/11, pendant l'étape 1 du Mac** — l'auteur ne veut pas une **touche seule** pour les commandes (les touches simples servent à taper) mais une **combinaison**, par exemple « Option droite + Maj gauche » ou « Option droite + Espace ». État du code : la commande se tient **déjà en plus** de la touche de dictée (Option droite + Maj marche), et n'agit jamais seule ; mais le défaut Mac est « l'une ou l'autre des deux Maj » et Espace est exclu des touches proposées (`MAC_CHOICES`, elle sert à taper ; Option + Espace écrirait une espace insécable dans l'appli, l'écoute de touches ne retenant rien). **Décision de l'auteur : « Option droite + Maj gauche »** comme défaut sur Mac (fait, traité tout de suite : `Layout::default_command` = Maj gauche seule, Maj droit libre, libellé « Maj gauche », 3 tests adaptés, Aide FR et EN ; 755 tests Rust et 109 de l'interface verts). **« Option droite + Espace » : non fait**, à proposer comme ligne du carnet (Espace est exclu des touches proposées ; il faudrait retenir l'événement pour qu'Option + Espace n'écrive pas une espace insécable dans l'appli).

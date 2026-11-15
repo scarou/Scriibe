@@ -39,7 +39,7 @@
   );
   let dictate = $derived(keyName(s?.dictation_label ?? (mac ? 'Option droite' : 'Ctrl droit')));
   let translate = $derived(keyName(s?.translate_label ?? (mac ? '⌘' : 'Maj')));
-  let command = $derived(keyName(s?.command_label ?? (mac ? 'Maj' : linux ? 'Ctrl gauche' : 'Windows droite')));
+  let command = $derived(keyName(s?.command_label ?? (mac ? 'Maj gauche' : linux ? 'Ctrl gauche' : 'Windows droite')));
   let language = $derived(
     ({ en: 'English', es: 'Spanish', de: 'German', it: 'Italian', pt: 'Portuguese (Brazil)' } as Record<string, string>)[v?.translationLanguage ?? 'en'] ?? 'English',
   );
