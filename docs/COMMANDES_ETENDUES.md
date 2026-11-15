@@ -62,3 +62,51 @@ Fait le 15/11/2026 (tâche 0), par un sous-agent de recherche en lecture seule, 
 ### Non vérifié
 
 Le détail des fonctions de `commands_io.rs` ; les numéros exacts de `Owner` et `split` dans `settings.rs` ; `FileConfig::import_profile` et `profile_snapshot` dans `platform/storage.rs` (941 lignes ajoutées, non lues) ; la carte `VoiceCommands.svelte` (103 lignes ajoutées, non lue) ; `cleaner.rs:314` (`fill`) et `llama.rs:29-31` (inutiles à 1a et 1b) ; la fonctionnalité `Win32_UI_Shell` (aucune compilation faite).
+
+## Étape 1a : socle (tâche 1, 15/11/2026)
+
+Code de l'étape 1a de `docs/CADRAGE_COMMANDES.md` (touche de commande, portée des fiches, aiguillage sous la touche), fait d'après le § Constat. **Non publié** (part dans la 0.6.0 avec l'étape 1b). Ligne d'écart : `docs/ECARTS.md` (15/11/2026).
+
+### Ce qui change pour la personne
+
+- **Une touche de commande** à tenir en plus de la touche de dictée (comme la touche de traduction). Sous cette touche, ce qui est dit est **toujours une commande**, **jamais collé**, ni corrigé, ni mis au propre, ni gardé dans l'historique. Réglable dans Réglages → Dictée (« Touche tenue en plus pour dicter une commande ») ; « Rétablir » la remet par défaut.
+- **Messages fixes de la pastille** (jamais les mots dits), traduits dans `locales/en-server.ts` : « Aucune sélection », « Sélection illisible », « Commande inconnue », « Commande non reconnue » (phrase **proche** d'une commande), « Commande trop longue » (plus de 25 mots).
+- **Les commandes d'aujourd'hui** (dictionnaire, caractères autour, gras / italique / souligné, mes commandes) marchent **aussi sous la touche**. **Sans la touche, rien ne change** : même interrupteur `voiceCommandsEnabled`, mêmes phrases (deux mots au moins), même collage de la phrase quand il n'y a pas de sélection (`commands_104` et les tests d'avant passent tels quels).
+- **La commande l'emporte sur la traduction** quand les deux touches sont tenues (indicateur de traduction effacé, modèle de traduction jamais appelé).
+- Aide FR et EN (« La touche de commande »), guides Linux FR et EN (troisième raccourci GNOME).
+
+### Choix faits (avec la raison)
+
+1. **Touche par défaut, provisoire à confirmer à l'essai (tâche 3)** : Mac **Maj** (⌘ traduit ; Ctrl + Option est le raccourci de VoiceOver) ; Windows **Windows droite** (le crochet masque déjà son menu ; Alt gauche et Ctrl gauche exclus : menu et AltGr) ; Linux **Ctrl gauche** (Super ouvrirait « Activités » au relâchement). Jamais une touche déjà prise par la dictée ou la traduction : si la touche par défaut est prise (par exemple une dictée réglée sur Maj sur Mac), elle n'est pas donnée et la personne en choisit une. Pas d'essai possible dans cette tâche : l'essai réel est la tâche 3.
+2. **`voiceCommandsEnabled` ne garde que les commandes sans la touche.** Sous la touche, la personne a demandé une commande : l'interrupteur coupé ne la rend pas muette. Facile à inverser si l'essai montre que c'est surprenant (`recognize_for`, un test).
+3. **`validate_phrase` prend la portée de la commande visée** (deux mots pour une commande qui vaut aussi sans touche, un mot pour « sous la touche seulement ») au lieu d'un contexte passé par l'appelant : on ne peut pas se tromper de contexte, et `CustomCommand::cleaned` (portée « partout » par construction) reste inchangée. Une phrase ne peut toujours appartenir qu'à une seule commande, toutes portées confondues.
+4. **Sans reformulation (étape 4)** : une phrase libre de 25 mots au plus donne « Commande inconnue » **sans lire la sélection** (pas de ⌘C inutile) ; « Commande trop longue » vaut avec ou sans sélection. L'étape 4 lira la sélection avant, comme le cadrage.
+5. **Sélection illisible** : un seul message fixe pour les trois causes (autorisation manquante, presse-papiers non textuel, échec) ; la cause précise va au journal (texte fixe). Sans la touche, les trois notes d'avant restent.
+6. **Préchauffage de la mise au propre** : non fait quand la touche de commande est **déjà tenue à l'appui** (cas testé). Si elle est ajoutée après la touche de dictée, le préchauffage a déjà commencé : inoffensif (on ne le défait pas).
+7. **Pas de « Listening » spécial** sur la pastille pendant que la touche de commande est tenue, ni de ligne dans le menu de l'icône : non demandé, à voir à l'essai.
+8. **Classement** : `commandKeys` est un champ d'**ordinateur** (`COMPUTER_KEYS`, et `backup.rs:COMPUTER_FIELDS`, qui passe à 14 clés : une sauvegarde d'un autre système ne rapporte pas la touche). Il n'entre donc **pas** dans l'export d'un utilisateur (rien à cocher à l'import). Le test du chantier 4 passe, le champ et son classement sont dans le même commit.
+9. `#![recursion_limit = "256"]` dans `crates/cli/src/main.rs` : l'état de la page est un seul `json!` très long, que trois entrées de plus ont fait dépasser la limite par défaut.
+10. **Banc d'essai** : la route d'essai accepte `"command": true` (même aiguillage, mêmes sorties neutralisées par `SwitchPaster`) ; test `during_a_trial_a_command_reaches_nothing_of_the_active_application`. Il n'y a pas encore de nouvelle sortie (ouverture, extrait, reformulation) à neutraliser : le test les couvrira à leur arrivée.
+
+### Où est le code
+
+- `crates/core/src/hotkey.rs` : `Binding.command`, `command_key_held`, `HotkeyEvent::CommandKey` (lettre `K`) ; **vide par défaut dans `from_hotkey`**, donc les séquences de `fixtures/hotkey.json` ne changent pas.
+- `crates/core/src/commands.rs` : `Scope`, `Context`, `CommandDef.scope`, `recognize` et `recognize_for` avec contexte, `Route`, `route_under_key`, `is_close`, `INSTRUCTION_MAX_WORDS`.
+- `crates/core/src/settings.rs`, `backup.rs` : `commandKeys`.
+- `crates/platform/src/keys.rs` : `validate`, `custom_binding` à trois listes, `default_command`, `binding` (touche par défaut), `hook_rules` (la touche de commande masque le menu comme les autres), `default_command_label`.
+- `crates/platform/src/linux/wayland.rs` : troisième raccourci GNOME (`command`, « CTRL+Down » proposé), `command_keys()` ; `linux/mod.rs` l'exporte.
+- `crates/pipeline/src/controller.rs` : `Intent`, `request_command`, `pending_command`, `process_command`, `run_command(Context)`, `refuse`, `nothing_to_do` ; `process_recording` prend un `Intent`.
+- `crates/cli/src/web/mod.rs` : validation à la fusion et à la capture (`kind: "command"`), état (`command_label`, `gnome_command_shortcut`, `default_command_label`), route d'essai.
+- Interface : `KeyPicker.svelte`, `Settings.svelte`, `Help.svelte`, `HelpEn.svelte`, `api.ts`, `locales/`.
+
+### Tests (mesurés sur le Mac)
+
+- **740 tests Rust** (22 de plus que les 718 d'avant la tâche) et **109 tests de l'interface** sans erreur ; `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `svelte-check` sans erreur.
+- Nouveaux : `commands_401` à `405` (portée, une phrase d'un mot, interrupteur, aiguillage proche / consigne / trop longue, « à un mot près ») ; 3 tests de la machine à états (`K`, commande avec traduction, absence par défaut) ; 4 tests de `keys.rs` (défauts jamais pris, validation, touche choisie, masque du menu) ; 8 tests du contrôleur (commande connue, interrupteur, messages fixes, aucune sélection ou sélection illisible, **mots dits sans trace** sur plusieurs phrases, commande contre traduction, préchauffage, essai en intention « commande ») ; 1 test de neutralisation (`sinks.rs`).
+
+### Non vérifié
+
+- **Code Linux** (`wayland.rs`, troisième raccourci) et **code Windows** : **non compilés ici**. Le Mac n'a ni cible Linux ni compilateur croisé Windows (`x86_64-w64-mingw32-gcc` absent : `cargo clippy --target x86_64-pc-windows-gnu` échoue dans la compilation d'une dépendance C). La CI de l'envoi (Linux) et un lancement manuel de la CI Windows et macOS (`gh workflow run ci.yml --repo scarou/Scriibe`) les vérifieront ; la tâche 3 les essaie sur les PC. Les changements propres à un système sont petits (une touche de plus rejouée à l'activation du raccourci GNOME, `VK_RWIN` comme défaut sous Windows).
+- **Aucun essai à l'écran ni au clavier réel** : la touche par défaut de chaque système, la fenêtre « Changer… » pour la touche de commande, le troisième raccourci GNOME et le masque du menu Démarrer sont à voir à la tâche 3.
+- Les nouvelles commandes (recherches, extraits, applications, mail, reformulation) n'existent pas encore : `Scope::UnderKey` n'a que des tests.
+

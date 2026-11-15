@@ -285,9 +285,15 @@ impl Layout {
         ids.iter().map(|id| self.find(id).map_or(id.as_str(), |c| c.label)).collect::<Vec<_>>().join(" + ")
     }
 
-    /// Vérifie une combinaison de dictée et la touche de traduction. Une combinaison de touches de modification seules (Maj gauche, Ctrl + Alt…)
-    /// est permise : elle n'ouvre le micro qu'après `HOLD_MS` ms, pour qu'un raccourci clavier ne le déclenche pas.
-    pub fn validate(&self, dictation: &[String], translate: &[String]) -> Result<(), String> {
+    /// Vérifie une combinaison de dictée, la touche de traduction et la touche de commande. Une combinaison de touches de modification
+    /// seules (Maj gauche, Ctrl + Alt…) est permise : elle n'ouvre le micro qu'après `HOLD_MS` ms, pour qu'un raccourci clavier ne le
+    /// déclenche pas.
+    pub fn validate(&self, dictation: &[String], translate: &[String], command: &[String]) -> Result<(), String> {
+        self.validate_dictation_and_translate(dictation, translate)?;
+        self.validate_command(dictation, translate, command)
+    }
+
+    fn validate_dictation_and_translate(&self, dictation: &[String], translate: &[String]) -> Result<(), String> {
         if dictation.is_empty() {
             return if translate.is_empty() { Ok(()) } else { self.validate_translate(&[], translate) };
         }
@@ -338,13 +344,8 @@ impl Layout {
         }
     }
 
-    /// Les touches de dictée et de traduction d'une combinaison réglée (vérifiée par `validate`), sinon `None`.
-    pub fn custom_binding(&self, dictation: &[String], translate: &[String]) -> Option<Binding> {
-        if dictation.is_empty() || self.validate(dictation, translate).is_err() {
-            return None;
-        }
-        let choices = dictation.iter().map(|id| self.find(id)).collect::<Option<Vec<_>>>()?;
-        let keys: Vec<Key> = choices.iter().map(|c| c.key).collect();
+    /// Les touches qui traduisent, d'après le réglage `translate` (vide : celles par défaut du système) et les touches de dictée `keys`.
+    fn translate_keys(&self, keys: &[Key], translate: &[String]) -> Option<Vec<Key>> {
         let default_translate = || {
             if self.mac {
                 // ⌘, mais pas celle qui sert déjà à dicter (ce que fait `Binding::from_hotkey` pour ⌘ droite).
@@ -353,17 +354,74 @@ impl Layout {
                 vec![Key::LeftShift, Key::RightShift]
             }
         };
-        let translate = match translate {
-            [] => default_translate(),
-            [id] if id == BOTH_SHIFTS => default_translate(),
-            [id] => vec![self.find(id)?.key],
-            _ => return None,
+        match translate {
+            [] => Some(default_translate()),
+            [id] if id == BOTH_SHIFTS => Some(default_translate()),
+            [id] => Some(vec![self.find(id)?.key]),
+            _ => None,
+        }
+    }
+
+    /// Les touches qui passent en commande : celle du réglage `command`, sinon celles par défaut du système, **sans** celles qui servent déjà
+    /// à dicter ou à traduire (une touche par défaut prise ailleurs n'est pas donnée : pas de touche de commande, jusqu'à ce que la personne
+    /// en choisisse une). `None` : réglage invalide.
+    fn command_keys(&self, dictation: &[Key], translate: &[Key], command: &[String]) -> Option<Vec<Key>> {
+        match command {
+            [] => Some(self.default_command().iter().copied().filter(|k| !dictation.contains(k) && !translate.contains(k)).collect()),
+            [id] => Some(vec![self.find(id)?.key]),
+            _ => None,
+        }
+    }
+
+    /// Les touches de commande par défaut. Choix provisoire, à confirmer à l'essai du lot 1 (tâche 3) : jamais celle de la dictée ni de la
+    /// traduction par défaut, et jamais une touche qui ouvre un menu (Alt gauche) ou sert à AltGr (Ctrl gauche sous Windows).
+    /// - Mac : Maj, l'une ou l'autre (⌘ traduit ; Ctrl + Option est le raccourci de VoiceOver) ;
+    /// - Windows : Windows droite (le crochet masque déjà son menu) ;
+    /// - Linux : Ctrl gauche (X11 ; sous Wayland c'est un troisième raccourci de GNOME).
+    pub fn default_command(&self) -> Vec<Key> {
+        if self.mac {
+            vec![Key::LeftShift, Key::RightShift]
+        } else if cfg!(windows) {
+            vec![Key::Vk(VK_RWIN)]
+        } else {
+            vec![Key::LeftControl]
+        }
+    }
+
+    fn validate_command(&self, dictation: &[String], translate: &[String], command: &[String]) -> Result<(), String> {
+        let id = match command {
+            [] => return Ok(()),
+            [id] => id,
+            _ => return Err("une seule touche pour les commandes".into()),
         };
+        let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
+        // Les touches de dictée : celles réglées, sinon celle par défaut du système.
+        let dictation_ids: Vec<String> =
+            if dictation.is_empty() { vec![self.default_dictation_id(&AppSettings::default()).to_string()] } else { dictation.to_vec() };
+        let dictation_keys = dictation_ids.iter().map(|d| self.find(d).map(|c| c.key)).collect::<Option<Vec<_>>>().unwrap_or_default();
+        if dictation_keys.contains(&choice.key) {
+            return Err(format!("{} sert déjà à dicter", choice.label));
+        }
+        if self.translate_keys(&dictation_keys, translate).is_some_and(|t| t.contains(&choice.key)) {
+            return Err(format!("{} sert déjà à traduire", choice.label));
+        }
+        Ok(())
+    }
+
+    /// Les touches de dictée, de traduction et de commande d'une combinaison réglée (vérifiée par `validate`), sinon `None`.
+    pub fn custom_binding(&self, dictation: &[String], translate: &[String], command: &[String]) -> Option<Binding> {
+        if dictation.is_empty() || self.validate(dictation, translate, command).is_err() {
+            return None;
+        }
+        let choices = dictation.iter().map(|id| self.find(id)).collect::<Option<Vec<_>>>()?;
+        let keys: Vec<Key> = choices.iter().map(|c| c.key).collect();
+        let translate = self.translate_keys(&keys, translate)?;
+        let command = self.command_keys(&keys, &translate, command)?;
         // Les touches de modification qui écoutent tout de suite (Ctrl droit sous Windows et Linux ; Option, ⌘ droite et Fn sur Mac, comme
         // dans Scribe) le font seules ; les autres touches de modification seules attendent.
         let only_modifiers = choices.iter().all(|c| c.modifier);
         let hold_ms = if only_modifiers && !(choices.len() == 1 && self.is_immediate(choices[0].id)) { HOLD_MS } else { 0 };
-        Some(Binding { dictation: keys, translate, hold_ms })
+        Some(Binding { dictation: keys, translate, command, hold_ms })
     }
 }
 
@@ -435,14 +493,14 @@ pub fn id_of(key: Key) -> Option<&'static str> {
     layout().id_of(key)
 }
 
-/// Vérifie une combinaison de dictée et la touche de traduction (voir `Layout::validate`).
-pub fn validate(dictation: &[String], translate: &[String]) -> Result<(), String> {
-    layout().validate(dictation, translate)
+/// Vérifie une combinaison de dictée, la touche de traduction et la touche de commande (voir `Layout::validate`).
+pub fn validate(dictation: &[String], translate: &[String], command: &[String]) -> Result<(), String> {
+    layout().validate(dictation, translate, command)
 }
 
-/// Les touches de dictée et de traduction d'une combinaison réglée (vérifiée par `validate`), sinon `None`.
-pub fn custom_binding(dictation: &[String], translate: &[String]) -> Option<Binding> {
-    layout().custom_binding(dictation, translate)
+/// Les touches de dictée, de traduction et de commande d'une combinaison réglée (vérifiée par `validate`), sinon `None`.
+pub fn custom_binding(dictation: &[String], translate: &[String], command: &[String]) -> Option<Binding> {
+    layout().custom_binding(dictation, translate, command)
 }
 
 /// La touche d'une touche vue par la page (`KeyboardEvent.code`).
@@ -451,10 +509,12 @@ pub fn key_of_web_code(code: &str) -> Option<Key> {
 }
 
 /// Les touches en vigueur : celles des réglages (Windows et Mac) si elles sont valides, sinon celles par défaut du système (la touche de
-/// traduction réglée seule, avec la dictée par défaut, compte aussi).
+/// traduction ou de commande réglée seule, avec la dictée par défaut, compte aussi). La touche de commande par défaut est toujours donnée
+/// (sauf prise par la dictée ou la traduction) : `Binding::from_hotkey` n'en a pas, pour garder les séquences de `fixtures/hotkey.json`.
 pub fn binding(settings: &AppSettings) -> Binding {
-    let default = Binding::from_hotkey(settings.hotkey);
-    if !cfg!(any(windows, target_os = "macos")) || (settings.dictation_keys.is_empty() && settings.translate_keys.is_empty()) {
+    let default = with_default_command(Binding::from_hotkey(settings.hotkey));
+    let nothing_set = settings.dictation_keys.is_empty() && settings.translate_keys.is_empty() && settings.command_keys.is_empty();
+    if !cfg!(any(windows, target_os = "macos")) || nothing_set {
         return default;
     }
     let dictation = if settings.dictation_keys.is_empty() {
@@ -462,7 +522,13 @@ pub fn binding(settings: &AppSettings) -> Binding {
     } else {
         settings.dictation_keys.clone()
     };
-    custom_binding(&dictation, &settings.translate_keys).unwrap_or(default)
+    custom_binding(&dictation, &settings.translate_keys, &settings.command_keys).unwrap_or(default)
+}
+
+fn with_default_command(mut binding: Binding) -> Binding {
+    binding.command =
+        layout().default_command().into_iter().filter(|k| !binding.dictation.contains(k) && !binding.translate.contains(k)).collect();
+    binding
 }
 
 /// Ce que le crochet du clavier doit faire en plus de signaler les touches (calculé depuis les touches en vigueur).
@@ -482,7 +548,7 @@ pub struct HookRules {
 
 pub fn hook_rules(binding: &Binding) -> HookRules {
     let codes: Vec<u32> = binding.dictation.iter().filter_map(|k| vk_of(*k)).collect();
-    let translate: Vec<u32> = binding.translate.iter().filter_map(|k| vk_of(*k)).collect();
+    let translate: Vec<u32> = binding.translate.iter().chain(binding.command.iter()).filter_map(|k| vk_of(*k)).collect();
     let is_menu_key = |code: &u32| [VK_LMENU, VK_LWIN, VK_RWIN].contains(code);
     let is_plain = |code: &u32| find_by_vk(*code).is_some_and(|c| !c.modifier);
     let plain: Vec<u32> = codes.iter().copied().filter(is_plain).collect();
@@ -554,6 +620,17 @@ pub fn default_dictation_label() -> &'static str {
     }
 }
 
+/// La touche de commande par défaut du système, pour l'affichage (voir `Layout::default_command`).
+pub fn default_command_label() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "Maj"
+    } else if cfg!(windows) {
+        "Windows droite"
+    } else {
+        "Ctrl gauche"
+    }
+}
+
 /// La touche de traduction par défaut du système (Commande, à gauche ou à droite, sur Mac), pour l'affichage.
 pub fn default_translate_label() -> &'static str {
     if cfg!(target_os = "macos") {
@@ -576,11 +653,11 @@ mod tests {
     // Les tests existants décrivent la disposition de Windows et de Linux, quel que soit le système qui les exécute ; ceux du Mac ont leurs
     // propres fonctions (`mac_*`).
     fn validate(dictation: &[String], translate: &[String]) -> Result<(), String> {
-        WINDOWS_LAYOUT.validate(dictation, translate)
+        WINDOWS_LAYOUT.validate(dictation, translate, &[])
     }
 
     fn custom_binding(dictation: &[String], translate: &[String]) -> Option<Binding> {
-        WINDOWS_LAYOUT.custom_binding(dictation, translate)
+        WINDOWS_LAYOUT.custom_binding(dictation, translate, &[])
     }
 
     fn id_of(key: Key) -> Option<&'static str> {
@@ -776,8 +853,13 @@ mod tests {
     }
     // ---- Mac (S13) : Option, Commande et Fn réglables ----
 
+    /// Le même sans la touche de commande (donnée par défaut), pour comparer aux touches de `Binding::from_hotkey`.
+    fn plain(binding: Binding) -> Binding {
+        Binding { command: Vec::new(), ..binding }
+    }
+
     fn mac_binding(dictation: &[&str], translate: &[&str]) -> Binding {
-        MAC_LAYOUT.custom_binding(&ids(dictation), &ids(translate)).unwrap()
+        MAC_LAYOUT.custom_binding(&ids(dictation), &ids(translate), &[]).unwrap()
     }
 
     #[test]
@@ -820,11 +902,11 @@ mod tests {
         let settings = AppSettings::default();
         assert_eq!(MAC_LAYOUT.default_dictation_id(&settings), "right_option");
         let explicit = mac_binding(&["right_option"], &[]);
-        assert_eq!(explicit, Binding::from_hotkey(Hotkey::RightOption));
+        assert_eq!(plain(explicit), Binding::from_hotkey(Hotkey::RightOption));
         let fn_key = mac_binding(&["fn"], &[]);
         assert_eq!((fn_key.dictation.clone(), fn_key.hold_ms), (vec![Key::Fn], 0));
         // ⌘ droite dicte : seule la ⌘ gauche traduit, comme dans Scribe.
-        assert_eq!(mac_binding(&["right_command"], &[]), Binding::from_hotkey(Hotkey::RightCommand));
+        assert_eq!(plain(mac_binding(&["right_command"], &[])), Binding::from_hotkey(Hotkey::RightCommand));
         // La touche par défaut suit le réglage de Scribe.
         let left = AppSettings { hotkey: Hotkey::LeftOption, ..AppSettings::default() };
         assert_eq!(MAC_LAYOUT.default_dictation_id(&left), "left_option");
@@ -846,7 +928,7 @@ mod tests {
 
     #[test]
     fn mac_combinations_are_checked() {
-        let check = |d: &[&str], t: &[&str]| MAC_LAYOUT.validate(&ids(d), &ids(t));
+        let check = |d: &[&str], t: &[&str]| MAC_LAYOUT.validate(&ids(d), &ids(t), &[]);
         assert!(check(&[], &[]).is_ok());
         assert!(check(&["right_option"], &[]).is_ok());
         assert!(check(&["left_shift"], &[]).is_ok(), "Maj ne traduit pas sur Mac : il peut dicter");
@@ -919,16 +1001,88 @@ mod tests {
     #[test]
     fn mac_the_effective_binding_uses_the_chosen_keys() {
         let mut settings = AppSettings::default();
-        assert_eq!(binding(&settings), Binding::from_hotkey(Hotkey::RightOption));
+        assert_eq!(plain(binding(&settings)), Binding::from_hotkey(Hotkey::RightOption));
         settings.dictation_keys = ids(&["left_option", "f9"]);
         let effective = binding(&settings);
         // Option gauche n'existe que sur Mac : ailleurs les identifiants inconnus sont ignorés et la touche par défaut reste.
-        assert_eq!(effective == Binding::from_hotkey(Hotkey::RightOption), !cfg!(target_os = "macos"));
+        assert_eq!(plain(effective.clone()) == Binding::from_hotkey(Hotkey::RightOption), !cfg!(target_os = "macos"));
         // La touche de traduction réglée seule garde la dictée par défaut.
         let translate_only = AppSettings { translate_keys: ids(&["left_shift"]), ..AppSettings::default() };
         if cfg!(target_os = "macos") {
             let b = binding(&translate_only);
             assert_eq!((b.dictation, b.translate), (vec![Key::RightOption], vec![Key::LeftShift]));
         }
+    }
+
+    // ---- Touche de commande (chantier 6, étape 1a) ----
+
+    fn command_binding(layout: &Layout, dictation: &[&str], translate: &[&str], command: &[&str]) -> Result<Binding, String> {
+        layout.validate(&ids(dictation), &ids(translate), &ids(command))?;
+        Ok(layout.custom_binding(&ids(dictation), &ids(translate), &ids(command)).unwrap())
+    }
+
+    #[test]
+    fn the_default_command_key_is_never_the_dictation_or_the_translation_key() {
+        // Mac : Maj (⌘ traduit, Option droite dicte).
+        let b = command_binding(&MAC_LAYOUT, &["right_option"], &[], &[]).unwrap();
+        assert_eq!(b.command, vec![Key::LeftShift, Key::RightShift]);
+        // Si la dictée utilise Maj, la touche par défaut n'est pas donnée (une seule des deux est prise : l'autre reste).
+        let b = command_binding(&MAC_LAYOUT, &["left_shift", "f9"], &[], &[]).unwrap();
+        assert_eq!(b.command, vec![Key::RightShift]);
+        let b = command_binding(&MAC_LAYOUT, &["left_shift", "right_shift"], &[], &[]).unwrap();
+        assert!(b.command.is_empty(), "rien n'est donné de force : la personne choisit");
+        // Windows et Linux : ni Maj (traduction) ni Ctrl droit (dictée).
+        let default = WINDOWS_LAYOUT.default_command();
+        assert!(default.iter().all(|k| ![Key::RightControl, Key::LeftShift, Key::RightShift].contains(k)));
+        assert_eq!(default, if cfg!(windows) { vec![Key::Vk(VK_RWIN)] } else { vec![Key::LeftControl] });
+        // Sans réglage, le réglage système par défaut a la touche de commande, pas `from_hotkey` seul.
+        assert!(binding(&AppSettings::default()).command.len() == layout().default_command().len());
+        assert!(Binding::from_hotkey(Hotkey::RightControl).command.is_empty());
+    }
+
+    #[test]
+    fn a_chosen_command_key_is_checked_against_the_dictation_and_translation_keys() {
+        let ok = |l: &Layout, d: &[&str], t: &[&str], c: &[&str]| l.validate(&ids(d), &ids(t), &ids(c));
+        assert!(ok(&WINDOWS_LAYOUT, &[], &[], &["f8"]).is_ok());
+        assert!(ok(&WINDOWS_LAYOUT, &["right_control"], &[], &["left_win"]).is_ok());
+        assert!(ok(&WINDOWS_LAYOUT, &["left_control", "f9"], &[], &["right_control"]).is_ok());
+        assert!(ok(&WINDOWS_LAYOUT, &["left_control", "f9"], &[], &["left_control"]).unwrap_err().contains("dicter"));
+        // La dictée par défaut (Ctrl droit) compte même quand elle n'est pas réglée.
+        assert!(ok(&WINDOWS_LAYOUT, &[], &[], &["right_control"]).unwrap_err().contains("dicter"));
+        // Maj traduit par défaut : elle ne peut pas aussi commander ; une touche de traduction réglée libère Maj.
+        assert!(ok(&WINDOWS_LAYOUT, &[], &[], &["left_shift"]).unwrap_err().contains("traduire"));
+        assert!(ok(&WINDOWS_LAYOUT, &[], &["f9"], &["left_shift"]).is_ok());
+        assert!(ok(&WINDOWS_LAYOUT, &[], &["f9"], &["f9"]).unwrap_err().contains("traduire"));
+        // Mac : ⌘ traduit par défaut ; Maj est libre.
+        assert!(ok(&MAC_LAYOUT, &[], &[], &["left_command"]).unwrap_err().contains("traduire"));
+        assert!(ok(&MAC_LAYOUT, &[], &[], &["left_shift"]).is_ok());
+        assert!(ok(&MAC_LAYOUT, &[], &[], &["right_option"]).unwrap_err().contains("dicter"));
+        // Une seule touche, connue.
+        assert!(ok(&WINDOWS_LAYOUT, &[], &[], &["f8", "f9"]).unwrap_err().contains("une seule"));
+        assert_eq!(ok(&WINDOWS_LAYOUT, &[], &[], &["a"]).unwrap_err(), "touche inconnue : a");
+        // Une touche de commande invalide ne donne aucune combinaison réglée.
+        assert!(WINDOWS_LAYOUT.custom_binding(&ids(&["right_control"]), &[], &ids(&["right_control"])).is_none());
+    }
+
+    #[test]
+    fn the_chosen_command_key_replaces_the_default_and_commands_the_dictation() {
+        let binding = command_binding(&MAC_LAYOUT, &["right_option"], &[], &["left_control"]).unwrap();
+        assert_eq!(binding.command, vec![Key::LeftControl]);
+        assert_eq!(run_keys(binding.clone(), &[(Key::RightOption, true), (Key::LeftControl, true), (Key::RightOption, false)]), "PKR");
+        // La touche de traduction ne change pas : ⌘ traduit toujours, et Maj ne commande plus.
+        assert_eq!(run_keys(binding.clone(), &[(Key::RightOption, true), (Key::LeftCommand, true)]), "PC");
+        assert_eq!(run_keys(binding, &[(Key::RightOption, true), (Key::LeftShift, true)]), "P");
+        // Par défaut sur Mac : Maj commande.
+        let default = command_binding(&MAC_LAYOUT, &["right_option"], &[], &[]).unwrap();
+        assert_eq!(run_keys(default, &[(Key::RightOption, true), (Key::RightShift, true), (Key::RightOption, false)]), "PKR");
+    }
+
+    #[test]
+    fn a_command_key_that_opens_a_menu_is_masked_by_the_hook() {
+        let binding = Binding { command: vec![Key::Vk(VK_RWIN)], ..Binding::from_hotkey(Hotkey::RightControl) };
+        assert!(hook_rules(&binding).mask_menu, "Windows droite ouvrirait le menu Démarrer");
+        let binding = Binding { command: vec![Key::LeftControl], ..Binding::from_hotkey(Hotkey::RightControl) };
+        assert!(!hook_rules(&binding).mask_menu);
+        assert!(hook_rules(&binding).binding.is_some_and(|b| b.command == vec![Key::LeftControl]));
     }
 }

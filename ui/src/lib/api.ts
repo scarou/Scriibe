@@ -66,6 +66,7 @@ export interface Status {
   /** Sous Wayland (GNOME) : le raccourci de dictée choisi dans la fenêtre de GNOME (« Ctrl + ← ») ; `null` ailleurs. */
   gnome_shortcut: string | null;
   gnome_translate_shortcut: string | null;
+  gnome_command_shortcut: string | null;
   /** Une version plus récente que celle qui tourne, trouvée par la vérification automatique (absent : à jour ou pas vérifié). */
   update: { sha: string; title: string; date: string } | null;
   /** Fichiers de données (`settings.json`, `dictionary.json`) que Scriibe refuse de réécrire : illisible, ou d'une version plus récente. */
@@ -74,12 +75,14 @@ export interface Status {
   /** « Ctrl gauche + F9 » : la dictée et la traduction en vigueur. */
   dictation_label: string;
   translate_label: string;
+  command_label: string;
   key_choices: { id: string; label: string; modifier: boolean }[];
   /** La touche de dictée par défaut du système (« right_control » ou « right_option »), et celles qui, seules, écoutent tout de suite. */
   default_dictation_id: string;
   /** « Ctrl droit » et « Maj », ou « Option droite » et « ⌘ » : les touches rétablies par « Rétablir ». */
   default_dictation_label: string;
   default_translate_label: string;
+  default_command_label: string;
   immediate_keys: string[];
   paths: { data: string; settings: string; models: string; log: string; engines: string | null };
   transcription: string;
@@ -138,6 +141,8 @@ export interface Settings {
   /** Identifiants des touches de dictée (vide : Ctrl droit) et de la touche de traduction (vide : Maj). */
   dictationKeys: string[];
   translateKeys: string[];
+  /** Identifiant de la touche tenue en plus pour passer en commande (vide : celle par défaut du système). */
+  commandKeys: string[];
   /** Langue de l'interface : automatique (celle du système), français ou anglais. */
   uiLanguage: 'auto' | 'fr' | 'en';
   theme: 'auto' | 'light' | 'dark';

@@ -15,6 +15,39 @@ use crate::settings::{AppSettings, DictationLanguage};
 /// Une phrase de commande compte au moins deux mots : un mot seul (« gras ») est trop souvent du texte à coller.
 pub const MIN_WORDS: usize = 2;
 
+/// Où une commande vaut : partout, ou seulement quand la touche de commande est tenue (chantier 6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Scope {
+    /// Sans la touche comme sous la touche : les commandes d'avant le chantier 6 et celles de la personne.
+    Always,
+    /// Sous la touche seulement : toutes les nouvelles commandes (recherches, extraits, applications, mail, reformulation). Dite sans
+    /// la touche, leur phrase est du texte comme un autre.
+    UnderKey,
+}
+
+/// Dans quelle situation une phrase est lue : sans la touche de commande (une dictée ordinaire) ou sous la touche.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Context {
+    NoKey,
+    UnderKey,
+}
+
+impl Scope {
+    /// Une phrase de commande a-t-elle une portée qui la rend lisible dans ce contexte ?
+    fn applies_in(self, context: Context) -> bool {
+        self == Scope::Always || context == Context::UnderKey
+    }
+
+    /// Mots au moins dans une phrase de cette portée : un mot seul (« gras ») est trop souvent du texte à coller sans la touche, alors
+    /// que sous la touche une phrase d'un mot est permise.
+    pub fn min_words(self) -> usize {
+        match self {
+            Scope::Always => MIN_WORDS,
+            Scope::UnderKey => 1,
+        }
+    }
+}
+
 /// Ce qu'une commande exige pour s'exécuter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Needs {
@@ -37,6 +70,7 @@ pub enum Argument {
 #[derive(Debug, Clone)]
 pub struct CommandDef {
     pub id: String,
+    pub scope: Scope,
     pub needs: Needs,
     pub argument: Argument,
     pub phrases_fr: Vec<String>,
@@ -221,6 +255,7 @@ impl CustomCommand {
 
     fn def(&self) -> CommandDef {
         CommandDef {
+            scope: Scope::Always,
             id: self.id.clone(),
             needs: if self.needs_selection { Needs::Selection } else { Needs::Nothing },
             argument: Argument::None,
@@ -272,6 +307,7 @@ pub fn builtin() -> Vec<CommandDef> {
     let v = |l: &[&str]| l.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
     // « Entre parenthèses », « mets entre parenthèses »… : une commande sur sélection, sans complément.
     let around = |id: &str, fr: &[&str], en: &[&str]| CommandDef {
+        scope: Scope::Always,
         id: format!("{SURROUND_PREFIX}{id}"),
         needs: Needs::Selection,
         argument: Argument::None,
@@ -279,6 +315,7 @@ pub fn builtin() -> Vec<CommandDef> {
         phrases_en: v(en),
     };
     let format = |id: &str, fr: &[&str], en: &[&str]| CommandDef {
+        scope: Scope::Always,
         id: format!("{FORMAT_PREFIX}{id}"),
         needs: Needs::Selection,
         argument: Argument::None,
@@ -369,6 +406,7 @@ pub fn builtin() -> Vec<CommandDef> {
             &["in curly brackets", "put in curly brackets", "put it in curly brackets", "in braces", "put in braces", "wrap in braces"],
         ),
         CommandDef {
+            scope: Scope::Always,
             id: "dictionnaire.ajouter".into(),
             needs: Needs::Selection,
             argument: Argument::None,
@@ -466,18 +504,31 @@ fn catalogues(language: DictationLanguage) -> &'static [Lang] {
 /// La phrase doit être toute la transcription ; pour une commande à complément, la phrase puis un reste non vide. À égalité de
 /// début, la phrase la plus longue l'emporte ; si deux commandes ont la même phrase, la première de `defs` l'emporte.
 /// Les phrases de moins de [`MIN_WORDS`] mots (écrites à la main dans un fichier) sont ignorées.
-pub fn recognize(raw: &str, defs: &[CommandDef], custom: &VoicePhrases, language: DictationLanguage) -> Option<Recognized> {
+///
+/// `context` : sans la touche de commande, seules les fiches de portée « partout » comptent et leurs phrases font au moins [`MIN_WORDS`]
+/// mots ; sous la touche, toutes les fiches comptent et une phrase d'un mot est permise pour celles qui sont « sous la touche seulement ».
+pub fn recognize(
+    raw: &str,
+    defs: &[CommandDef],
+    custom: &VoicePhrases,
+    language: DictationLanguage,
+    context: Context,
+) -> Option<Recognized> {
     let spoken = words(raw);
-    if spoken.len() < MIN_WORDS {
+    let shortest = match context {
+        Context::NoKey => MIN_WORDS,
+        Context::UnderKey => 1,
+    };
+    if spoken.len() < shortest {
         return None;
     }
     let mut best: Option<(usize, &CommandDef, Option<usize>, Lang)> = None;
-    for def in defs {
+    for def in defs.iter().filter(|d| d.scope.applies_in(context)) {
         for lang in catalogues(language) {
             for phrase in effective_phrases(def, custom, *lang) {
                 let normalized = normalize(&phrase);
                 let n = word_count(&normalized);
-                if n < MIN_WORDS || n > spoken.len() {
+                if n < def.scope.min_words() || n > spoken.len() {
                     continue;
                 }
                 let starts = spoken.iter().take(n).map(|(w, _)| w.as_str()).eq(normalized.split(' '));
@@ -502,12 +553,116 @@ pub fn recognize(raw: &str, defs: &[CommandDef], custom: &VoicePhrases, language
     Some(Recognized { id: def.id.clone(), lang, needs: def.needs, argument })
 }
 
-/// Reconnaissance avec les réglages : interrupteur général, langue de dictée, phrases de la personne.
-pub fn recognize_for(raw: &str, settings: &AppSettings) -> Option<Recognized> {
-    if !settings.voice_commands_enabled {
+/// Reconnaissance avec les réglages : langue de dictée, phrases de la personne, et, **sans la touche**, l'interrupteur général
+/// `voiceCommandsEnabled` (il garde les commandes d'avant le chantier 6 contre un déclenchement par erreur dans une dictée ordinaire).
+/// Sous la touche, la personne a demandé une commande : l'interrupteur ne s'applique pas.
+pub fn recognize_for(raw: &str, settings: &AppSettings, context: Context) -> Option<Recognized> {
+    if context == Context::NoKey && !settings.voice_commands_enabled {
         return None;
     }
-    recognize(raw, &all_defs(settings), &settings.voice_commands, settings.language)
+    recognize(raw, &all_defs(settings), &settings.voice_commands, settings.language, context)
+}
+
+/// Sous la touche, une phrase qui n'est ni une commande ni proche d'une commande peut être une consigne de reformulation (étape 4) :
+/// au plus ce nombre de mots. Au-delà, c'est une dictée prise par mégarde.
+pub const INSTRUCTION_MAX_WORDS: usize = 25;
+
+/// Ce que devient une phrase dite sous la touche de commande (cadrage, décision 1, « Aiguillage sous la touche »).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Route {
+    /// Une commande du catalogue (celles d'avant le chantier 6 comprises).
+    Command(Recognized),
+    /// Pas une commande, mais **proche** d'une : « Commande non reconnue », le modèle n'est pas appelé.
+    Close,
+    /// Ni l'un ni l'autre, et au plus [`INSTRUCTION_MAX_WORDS`] mots : une consigne possible (la reformulation de l'étape 4).
+    Instruction,
+    /// Plus de [`INSTRUCTION_MAX_WORDS`] mots : une dictée prise par mégarde sous la touche.
+    TooLong,
+}
+
+/// Mots pivots d'une commande sur sélection (formes normalisées) : une phrase qui en contient un est prise pour une commande mal dite.
+fn pivot_words(lang: Lang) -> &'static [&'static str] {
+    match lang {
+        Lang::Fr => &[
+            "gras",
+            "italique",
+            "souligne",
+            "parenthese",
+            "parentheses",
+            "guillemet",
+            "guillemets",
+            "crochet",
+            "crochets",
+            "accolade",
+            "accolades",
+            "dictionnaire",
+        ],
+        Lang::En => &[
+            "bold",
+            "italic",
+            "italics",
+            "underline",
+            "underlined",
+            "parenthesis",
+            "parentheses",
+            "quote",
+            "quotes",
+            "bracket",
+            "brackets",
+            "brace",
+            "braces",
+            "dictionary",
+        ],
+    }
+}
+
+/// Les deux suites de mots diffèrent d'**un seul** mot : un mot changé, ajouté ou retiré (pas zéro, pas deux).
+fn one_word_apart(a: &[String], b: &[String]) -> bool {
+    match a.len().cmp(&b.len()) {
+        std::cmp::Ordering::Equal => a.iter().zip(b).filter(|(x, y)| x != y).count() == 1,
+        std::cmp::Ordering::Greater | std::cmp::Ordering::Less => {
+            let (long, short) = if a.len() > b.len() { (a, b) } else { (b, a) };
+            long.len() - short.len() == 1
+                && (0..long.len()).any(|skip| long.iter().enumerate().filter(|(i, _)| *i != skip).map(|(_, w)| w).eq(short.iter()))
+        }
+    }
+}
+
+/// La phrase est-elle **proche** d'une commande connue (B1) : elle contient un mot pivot d'une commande sur sélection, ou elle n'est qu'à un
+/// mot d'une phrase du catalogue (celles en vigueur, de la personne comprises).
+fn is_close(raw: &str, settings: &AppSettings) -> bool {
+    let spoken: Vec<String> = words(raw).into_iter().map(|(w, _)| w).collect();
+    if spoken.is_empty() {
+        return false;
+    }
+    let langs = catalogues(settings.language);
+    if langs.iter().any(|lang| pivot_words(*lang).iter().any(|pivot| spoken.iter().any(|w| w == pivot))) {
+        return true;
+    }
+    all_defs(settings).iter().any(|def| {
+        langs.iter().any(|lang| {
+            effective_phrases(def, &settings.voice_commands, *lang).iter().any(|phrase| {
+                let phrase: Vec<String> = normalize(phrase).split(' ').filter(|w| !w.is_empty()).map(str::to_string).collect();
+                one_word_apart(&spoken, &phrase)
+            })
+        })
+    })
+}
+
+/// L'aiguillage d'une phrase dite sous la touche de commande : une commande reconnue, une phrase proche d'une commande, une consigne
+/// possible ou une dictée prise par mégarde. Sous la touche, `voiceCommandsEnabled` ne s'applique pas (voir [`recognize_for`]).
+pub fn route_under_key(raw: &str, settings: &AppSettings) -> Route {
+    if let Some(command) = recognize_for(raw, settings, Context::UnderKey) {
+        return Route::Command(command);
+    }
+    if is_close(raw, settings) {
+        return Route::Close;
+    }
+    if words(raw).len() <= INSTRUCTION_MAX_WORDS {
+        Route::Instruction
+    } else {
+        Route::TooLong
+    }
 }
 
 /// Contrôle d'une phrase que la personne veut donner à la commande `id` (dans la langue `lang`) : au moins deux mots, et pas déjà
@@ -517,8 +672,11 @@ pub fn validate_phrase(phrase: &str, id: &str, lang: Lang, defs: &[CommandDef], 
     if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) {
         return Err(PhraseError::UnknownCommand);
     }
+    // La longueur minimale est celle de la portée de la commande : deux mots pour une commande qui vaut aussi sans la touche (et pour une
+    // commande de la personne, pas encore créée), un seul pour une commande « sous la touche seulement ».
+    let min = defs.iter().find(|d| d.id == id).map_or(MIN_WORDS, |d| d.scope.min_words());
     let normalized = normalize(phrase);
-    if word_count(&normalized) < MIN_WORDS {
+    if word_count(&normalized) < min {
         return Err(PhraseError::TooShort);
     }
     for def in defs.iter().filter(|d| d.id != id) {
@@ -536,7 +694,7 @@ mod tests {
     const ADD: &str = "dictionnaire.ajouter";
 
     fn rec(raw: &str, lang: DictationLanguage) -> Option<Recognized> {
-        recognize(raw, &builtin(), &VoicePhrases::default(), lang)
+        recognize(raw, &builtin(), &VoicePhrases::default(), lang, Context::NoKey)
     }
 
     fn only(raw: &str) -> bool {
@@ -576,13 +734,14 @@ mod tests {
         let r = rec("ajouter au dictionnaire", DictationLanguage::Fr).unwrap();
         assert_eq!(r.needs, Needs::Selection);
         let free = CommandDef {
+            scope: Scope::Always,
             id: "extrait.insérer".into(),
             needs: Needs::Nothing,
             argument: Argument::None,
             phrases_fr: vec!["insérer mon adresse".into()],
             phrases_en: vec![],
         };
-        let r = recognize("Insérer mon adresse.", &[free], &VoicePhrases::default(), DictationLanguage::Fr).unwrap();
+        let r = recognize("Insérer mon adresse.", &[free], &VoicePhrases::default(), DictationLanguage::Fr, Context::NoKey).unwrap();
         assert_eq!((r.id.as_str(), r.needs), ("extrait.insérer", Needs::Nothing));
     }
 
@@ -602,10 +761,10 @@ mod tests {
     fn commands_006_custom_phrase_replaces_the_defaults_and_is_checked() {
         let mut custom = VoicePhrases::default();
         custom.fr.insert(ADD.into(), vec!["mémorise ce mot".into()]);
-        assert!(recognize("Mémorise ce mot !", &builtin(), &custom, DictationLanguage::Fr).is_some());
-        assert!(recognize("ajouter au dictionnaire", &builtin(), &custom, DictationLanguage::Fr).is_none());
+        assert!(recognize("Mémorise ce mot !", &builtin(), &custom, DictationLanguage::Fr, Context::NoKey).is_some());
+        assert!(recognize("ajouter au dictionnaire", &builtin(), &custom, DictationLanguage::Fr, Context::NoKey).is_none());
         // L'anglais garde ses phrases par défaut.
-        assert!(recognize("add to dictionary", &builtin(), &custom, DictationLanguage::En).is_some());
+        assert!(recognize("add to dictionary", &builtin(), &custom, DictationLanguage::En, Context::NoKey).is_some());
         // Un seul mot, ou pas de mot : refusé.
         let defs = builtin();
         assert_eq!(validate_phrase("mémorise", ADD, Lang::Fr, &defs, &custom), Err(PhraseError::TooShort));
@@ -614,6 +773,7 @@ mod tests {
         assert_eq!(validate_phrase("  Mémorise   ce  mot ", ADD, Lang::Fr, &defs, &custom).as_deref(), Ok("Mémorise ce mot"));
         // Déjà prise par une autre commande (comparée sous forme normalisée).
         let other = CommandDef {
+            scope: Scope::Always,
             id: "autre.chose".into(),
             needs: Needs::Selection,
             argument: Argument::None,
@@ -629,14 +789,15 @@ mod tests {
     fn commands_006_one_word_phrases_from_a_file_are_ignored() {
         let mut custom = VoicePhrases::default();
         custom.fr.insert(ADD.into(), vec!["mémorise".into(), "retiens ça".into()]);
-        assert!(recognize("mémorise", &builtin(), &custom, DictationLanguage::Fr).is_none());
-        assert!(recognize("retiens ça", &builtin(), &custom, DictationLanguage::Fr).is_some());
+        assert!(recognize("mémorise", &builtin(), &custom, DictationLanguage::Fr, Context::NoKey).is_none());
+        assert!(recognize("retiens ça", &builtin(), &custom, DictationLanguage::Fr, Context::NoKey).is_some());
     }
 
     /// Commande à complément : la phrase puis un reste non vide, rendu tel que transcrit.
     #[test]
     fn commands_extra_argument_is_the_rest_of_the_sentence() {
         let search = CommandDef {
+            scope: Scope::Always,
             id: "recherche.youtube".into(),
             needs: Needs::Nothing,
             argument: Argument::Rest,
@@ -645,15 +806,16 @@ mod tests {
         };
         let defs = [search];
         let none = VoicePhrases::default();
-        let r = recognize("Recherche YouTube, Chats rigolos !", &defs, &none, DictationLanguage::Fr).unwrap();
+        let r = recognize("Recherche YouTube, Chats rigolos !", &defs, &none, DictationLanguage::Fr, Context::NoKey).unwrap();
         assert_eq!(r.argument.as_deref(), Some("Chats rigolos"));
-        assert!(recognize("Recherche YouTube.", &defs, &none, DictationLanguage::Fr).is_none());
+        assert!(recognize("Recherche YouTube.", &defs, &none, DictationLanguage::Fr, Context::NoKey).is_none());
     }
 
     /// Entre deux phrases qui commencent pareil, la plus longue l'emporte.
     #[test]
     fn commands_extra_the_longest_phrase_wins() {
         let a = CommandDef {
+            scope: Scope::Always,
             id: "a".into(),
             needs: Needs::Nothing,
             argument: Argument::Rest,
@@ -661,29 +823,121 @@ mod tests {
             phrases_en: vec![],
         };
         let b = CommandDef {
+            scope: Scope::Always,
             id: "b".into(),
             needs: Needs::Nothing,
             argument: Argument::Rest,
             phrases_fr: vec!["recherche sur le web images".into()],
             phrases_en: vec![],
         };
-        let r = recognize("recherche sur le web images chats", &[a, b], &VoicePhrases::default(), DictationLanguage::Fr).unwrap();
+        let r = recognize("recherche sur le web images chats", &[a, b], &VoicePhrases::default(), DictationLanguage::Fr, Context::NoKey)
+            .unwrap();
         assert_eq!((r.id.as_str(), r.argument.as_deref()), ("b", Some("chats")));
     }
 
     /// Interrupteur général et réglages lus d'un fichier.
+    fn under_key_search() -> CommandDef {
+        CommandDef {
+            scope: Scope::UnderKey,
+            id: "recherche.1".into(),
+            needs: Needs::Nothing,
+            argument: Argument::Rest,
+            phrases_fr: vec!["nouvelle recherche youtube".into()],
+            phrases_en: vec!["new search youtube".into()],
+        }
+    }
+
+    /// Chantier 6, étape 1a : une commande « sous la touche seulement » n'existe pas sans la touche (sa phrase reste du texte).
+    #[test]
+    fn commands_401_an_under_key_command_is_not_recognized_without_the_key() {
+        let defs = [under_key_search()];
+        let none = VoicePhrases::default();
+        let said = "Nouvelle recherche YouTube chats rigolos";
+        assert!(recognize(said, &defs, &none, DictationLanguage::Fr, Context::NoKey).is_none());
+        let found = recognize(said, &defs, &none, DictationLanguage::Fr, Context::UnderKey).unwrap();
+        assert_eq!((found.id.as_str(), found.argument.as_deref()), ("recherche.1", Some("chats rigolos")));
+    }
+
+    /// Une phrase d'un mot est permise pour une commande « sous la touche seulement », sous la touche ; jamais pour une commande qui vaut
+    /// aussi sans la touche (même écrite à la main dans un fichier).
+    #[test]
+    fn commands_402_a_one_word_phrase_is_allowed_only_for_an_under_key_command_under_the_key() {
+        let one = CommandDef {
+            scope: Scope::UnderKey,
+            id: "extrait.1".into(),
+            needs: Needs::Nothing,
+            argument: Argument::None,
+            phrases_fr: vec!["signature".into()],
+            phrases_en: vec!["signature".into()],
+        };
+        let none = VoicePhrases::default();
+        assert!(recognize("Signature.", std::slice::from_ref(&one), &none, DictationLanguage::Fr, Context::UnderKey).is_some());
+        assert!(recognize("Signature.", std::slice::from_ref(&one), &none, DictationLanguage::Fr, Context::NoKey).is_none());
+        let always = CommandDef { scope: Scope::Always, id: "perso.9".into(), ..one.clone() };
+        assert!(recognize("Signature.", &[always], &none, DictationLanguage::Fr, Context::UnderKey).is_none());
+        // Le contrôle d'une phrase suit la portée de la commande : un mot suffit pour l'une, pas pour une commande qui vaut aussi sans touche.
+        let defs = [one, builtin().remove(0)];
+        let add = defs[1].id.clone();
+        assert!(validate_phrase("paraphe", "extrait.1", Lang::Fr, &defs, &none).is_ok());
+        assert_eq!(validate_phrase("paraphe", &add, Lang::Fr, &defs, &none), Err(PhraseError::TooShort));
+        // Une phrase reste à une seule commande, quelle que soit la portée.
+        assert_eq!(validate_phrase("mets en gras", "extrait.1", Lang::Fr, &defs, &none), Err(PhraseError::Taken(add)));
+    }
+
+    /// L'interrupteur `voiceCommandsEnabled` garde les commandes sans la touche ; sous la touche, il ne s'applique pas.
+    #[test]
+    fn commands_403_the_switch_guards_only_the_no_key_case() {
+        let off = AppSettings { voice_commands_enabled: false, ..AppSettings::default() };
+        assert!(recognize_for("Ajouter au dictionnaire.", &off, Context::NoKey).is_none());
+        assert_eq!(recognize_for("Ajouter au dictionnaire.", &off, Context::UnderKey).map(|r| r.id).as_deref(), Some(ADD));
+    }
+
+    /// Aiguillage sous la touche : commande, phrase proche, consigne possible (au plus 25 mots), dictée prise par mégarde.
+    #[test]
+    fn commands_404_under_the_key_a_phrase_is_a_command_a_near_miss_an_instruction_or_too_long() {
+        let settings = AppSettings::default();
+        let route = |raw: &str| route_under_key(raw, &settings);
+        assert!(matches!(route("mets en gras"), Route::Command(c) if c.id == "format.gras"));
+        // Mot pivot d'une commande sur sélection : proche, même si la phrase est longue.
+        assert_eq!(route("mets ça en rouge et en gras s'il te plaît"), Route::Close);
+        assert_eq!(route("entoure ça de crochets"), Route::Close);
+        // À un mot d'une phrase du catalogue (un mot de plus, de moins ou changé).
+        assert_eq!(route("ajouter au dictionnaire ici"), Route::Close);
+        assert_eq!(route("ajouter dictionnaire"), Route::Close);
+        // « mets en rouge » est à un mot de « mets en gras » : proche, donc jamais prise pour une consigne (choix du cadrage, B1).
+        assert_eq!(route("mets en rouge"), Route::Close);
+        assert_eq!(route("rends ça plus amical"), Route::Instruction);
+        // Une consigne libre : ni pivot ni proche.
+        assert_eq!(route("cherche les fautes"), Route::Instruction);
+        assert_eq!(route("raccourcis"), Route::Instruction);
+        let long = vec!["mot"; INSTRUCTION_MAX_WORDS].join(" ");
+        assert_eq!(route(&long), Route::Instruction);
+        assert_eq!(route(&format!("{long} mot")), Route::TooLong);
+    }
+
+    #[test]
+    fn commands_405_one_word_apart_means_exactly_one_word() {
+        let v = |t: &str| t.split(' ').map(str::to_string).collect::<Vec<_>>();
+        assert!(one_word_apart(&v("a b c"), &v("a x c")));
+        assert!(one_word_apart(&v("a b c"), &v("a b")));
+        assert!(one_word_apart(&v("a b"), &v("a b c")));
+        assert!(!one_word_apart(&v("a b c"), &v("a b c")));
+        assert!(!one_word_apart(&v("a b c"), &v("x y c")));
+        assert!(!one_word_apart(&v("a b c d"), &v("a b")));
+    }
+
     #[test]
     fn commands_extra_settings_switch_and_file() {
         let on = AppSettings::from_json("{}").unwrap();
         assert!(on.voice_commands_enabled);
-        assert!(recognize_for("Ajouter au dictionnaire.", &on).is_some());
+        assert!(recognize_for("Ajouter au dictionnaire.", &on, Context::NoKey).is_some());
         let off = AppSettings::from_json(r#"{"voiceCommandsEnabled": false}"#).unwrap();
-        assert!(recognize_for("Ajouter au dictionnaire.", &off).is_none());
+        assert!(recognize_for("Ajouter au dictionnaire.", &off, Context::NoKey).is_none());
         let custom =
             AppSettings::from_json(r#"{"voiceCommands": {"fr": {"dictionnaire.ajouter": ["  mémorise   ça ", "", "Mémorise ça"]}}}"#)
                 .unwrap();
         assert_eq!(custom.voice_commands.fr[ADD], vec!["mémorise ça".to_string()]);
-        assert!(recognize_for("Mémorise ça.", &custom).is_some());
+        assert!(recognize_for("Mémorise ça.", &custom, Context::NoKey).is_some());
         // Valeur incorrecte : réglage par défaut.
         let bad = AppSettings::from_json(r#"{"voiceCommands": 3, "voiceCommandsEnabled": "oui"}"#).unwrap();
         assert!(bad.voice_commands_enabled && bad.voice_commands == VoicePhrases::default());
@@ -843,7 +1097,7 @@ mod tests {
         assert_eq!(settings.custom_commands[0].phrases, vec!["appliquer le titre"], "espaces ramenés à un, mot seul écarté");
         for language in [DictationLanguage::Fr, DictationLanguage::En, DictationLanguage::Multi] {
             let s = AppSettings { language, ..settings.clone() };
-            assert_eq!(recognize_for("Appliquer le titre.", &s).map(|r| r.id), Some("perso.1".to_string()));
+            assert_eq!(recognize_for("Appliquer le titre.", &s, Context::NoKey).map(|r| r.id), Some("perso.1".to_string()));
         }
     }
 

@@ -39,6 +39,7 @@
   );
   let dictate = $derived(keyName(s?.dictation_label ?? (mac ? 'Option droite' : 'Ctrl droit')));
   let translate = $derived(keyName(s?.translate_label ?? (mac ? '⌘' : 'Maj')));
+  let command = $derived(keyName(s?.command_label ?? (mac ? 'Maj' : linux ? 'Ctrl gauche' : 'Windows droite')));
   let language = $derived(
     ({ en: 'English', es: 'Spanish', de: 'German', it: 'Italian', pt: 'Portuguese (Brazil)' } as Record<string, string>)[v?.translationLanguage ?? 'en'] ?? 'English',
   );
@@ -288,6 +289,7 @@
       <p>Whisper mishears addresses: it often drops “arobase” and “gmail”, or writes your name differently (“john dot smith dot com”). The signs cannot guess that. Dictate with each word clearly separated (“jean at sign gmail dot com”), and for <b>your own address</b>, add a correction: “Heard” what Whisper writes (read it in the history), “Written” your full address. Likewise add several “Heard” entries for “@” (“at sign”, “at”, “arobase”…) and, if Whisper spells your name differently, a correction for your name: the dictionary is tuned over time, with your own listening mistakes.</p>
       <h3>Voice commands</h3>
       <p>When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words around it, the phrase stays ordinary text. Neither the selected text nor the command is kept in the history.</p>
+      <p><b>The command key.</b> Hold <b>{command}</b> in addition to the dictation key: what you say is then a command, <b>never pasted text</b>. It works even if the commands switch is off, and the commands below also work under this key. If what you say is not a command, Scriibe says so on the indicator and <b>pastes nothing</b>: “Unknown command”, “Command not recognised” (the phrase looks like a command: try saying it again), “Command too long” (more than 25 words) or “No selection”. A dictation made by mistake under this key therefore disappears without a trace, and nothing goes into the history. The command wins over translation. To change the key: Settings → Dictation, “Key held in addition to dictate a command”.{#if linux} On GNOME (Wayland), it is a third GNOME shortcut, in the same place as the other two.{/if} <i>Why:</i> a separate key stops a phrase dictated normally from triggering an action by mistake.</p>
       <ul>
         <li><b>Add to dictionary</b>: “add to dictionary” opens this tab with the selected text in “Heard”.</li>
         <li><b>Characters around</b>: “in parentheses”, “in quotes” (« » in French, " " in English), “in brackets” or “in braces” wrap the selection; a single ⌘Z undoes it (on Mac, in Chrome and its derivatives, where the text is typed, it takes several).</li>

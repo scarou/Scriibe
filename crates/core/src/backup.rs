@@ -19,10 +19,11 @@ pub use crate::settings::SETTINGS_SCHEMA;
 
 /// Les réglages propres à l'ordinateur : touches, micro, sons, chemins de modèles, carte graphique, adresses de serveurs locaux.
 /// Ils ne sont restaurés que si la sauvegarde vient du même système (`docs/CADRAGE_PROFILS.md`, décision 1).
-pub const COMPUTER_FIELDS: [&str; 13] = [
+pub const COMPUTER_FIELDS: [&str; 14] = [
     "hotkey",
     "dictationKeys",
     "translateKeys",
+    "commandKeys",
     "formatShortcuts",
     "microphoneUID",
     "microphoneName",

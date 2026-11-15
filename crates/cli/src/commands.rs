@@ -406,7 +406,11 @@ pub fn trial(args: &[String]) -> Result<(), String> {
     // La première dictée charge les modèles : les temps suivants sont ceux d'un usage normal. On passe donc deux fois.
     for pass in 1..=2 {
         println!("\n=== passage {pass}{} ===", if pass == 1 { " (chargement des modèles compris)" } else { " (modèles chargés)" });
-        app.controller.process_recording(recording.clone(), translate, "fichier");
+        app.controller.process_recording(
+            recording.clone(),
+            scriibe_pipeline::Intent::dictation_or_translation(translate, &settings),
+            "fichier",
+        );
     }
     app.whisper.stop();
     app.llama.stop();

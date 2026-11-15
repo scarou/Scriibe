@@ -313,7 +313,11 @@ fn handle(ctx: &Context, mut request: Request) {
             }
         }
         (Method::Post, "api/keys/capture/start") => {
-            *lock(&ctx.capture_kind) = if input["kind"] == "translate" { "translate".into() } else { "dictation".into() };
+            *lock(&ctx.capture_kind) = match input["kind"].as_str() {
+                Some("translate") => "translate".into(),
+                Some("command") => "command".into(),
+                _ => "dictation".into(),
+            };
             lock(&ctx.capture_held).clear();
             ctx.app.controller.start_capture();
             ok(request, json!({"ok": true}))
@@ -760,6 +764,9 @@ fn status(ctx: &Context) -> Value {
         "dictation_label": if let Some(shortcut) = gnome_shortcut() { shortcut } else if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
         "gnome_translate_shortcut": gnome_translate_shortcut(),
         "translate_label": if let Some(shortcut) = gnome_translate_shortcut() { shortcut } else if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
+        "gnome_command_shortcut": gnome_command_shortcut(),
+        "command_label": if let Some(shortcut) = gnome_command_shortcut() { shortcut } else if settings.command_keys.is_empty() { scriibe_platform::keys::default_command_label().to_string() } else { scriibe_platform::keys::label(&settings.command_keys) },
+        "default_command_label": scriibe_platform::keys::default_command_label(),
         "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "default_dictation_label": scriibe_platform::keys::default_dictation_label(),
         "default_translate_label": scriibe_platform::keys::default_translate_label(),
@@ -833,7 +840,7 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
         return Err("appareil invalide".into());
     }
     let merged = AppSettings::from_value(&merged).ok_or_else(|| "réglages illisibles".to_string())?;
-    scriibe_platform::keys::validate(&merged.dictation_keys, &merged.translate_keys)?;
+    scriibe_platform::keys::validate(&merged.dictation_keys, &merged.translate_keys, &merged.command_keys)?;
     Ok(merged)
 }
 
@@ -884,10 +891,14 @@ fn capture_view(ctx: &Context) -> Value {
         error = match &ids {
             None => Some(format!("{} ne peut pas servir de touche de dictée : elle sert à taper (ou à AltGr).", labels.join(" + "))),
             Some(ids) if kind == "translate" => match ids.as_slice() {
-                [one] => keys::validate(&settings.dictation_keys, std::slice::from_ref(one)).err(),
+                [one] => keys::validate(&settings.dictation_keys, std::slice::from_ref(one), &settings.command_keys).err(),
                 _ => Some("une seule touche pour traduire".into()),
             },
-            Some(ids) => keys::validate(ids, &settings.translate_keys).err(),
+            Some(ids) if kind == "command" => match ids.as_slice() {
+                [one] => keys::validate(&settings.dictation_keys, &settings.translate_keys, std::slice::from_ref(one)).err(),
+                _ => Some("une seule touche pour les commandes".into()),
+            },
+            Some(ids) => keys::validate(ids, &settings.translate_keys, &settings.command_keys).err(),
         };
     }
     json!({"active": true, "kind": kind, "finished": capture.finished, "labels": labels, "ids": ids, "error": error})
@@ -1040,7 +1051,14 @@ fn transcribe(ctx: &Context, input: &Value) -> Result<Value, String> {
     }
     let translate = input["translate"].as_bool().unwrap_or(false);
     ctx.sinks.begin();
-    ctx.app.controller.process_recording(recording.clone(), translate, "banc d'essai");
+    // Le banc essaie aussi la phrase dite sous la touche de commande (`command`) : les sorties y sont neutralisées comme pour une dictée
+    // (`SwitchPaster`) et le message de la pastille est repris dans le résultat.
+    let intent = if input["command"].as_bool().unwrap_or(false) {
+        scriibe_pipeline::Intent::Command
+    } else {
+        scriibe_pipeline::Intent::dictation_or_translation(translate, &ctx.app.config.settings())
+    };
+    ctx.app.controller.process_recording(recording.clone(), intent, "banc d'essai");
     let captured = ctx.sinks.finish();
     let phrase = input["phrase"].as_u64().and_then(|i| bench::phrases_for(ctx.app.config.settings().language).get(i as usize));
     let pasted = captured.pasted.clone().unwrap_or_default();
@@ -1345,6 +1363,18 @@ fn gnome_shortcut() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         scriibe_platform::linux::wayland_trigger()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// Sous Wayland (GNOME), le raccourci de commande accepté par GNOME ; aucun ailleurs.
+fn gnome_command_shortcut() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        scriibe_platform::linux::wayland_command_trigger()
     }
     #[cfg(not(target_os = "linux"))]
     {

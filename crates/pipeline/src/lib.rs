@@ -7,5 +7,5 @@
 mod controller;
 mod executor;
 
-pub use controller::{CommandSink, Controller, Deps, KeyCapture};
+pub use controller::{CommandSink, Controller, Deps, Intent, KeyCapture};
 pub use executor::{Executor, InlineExecutor, ThreadExecutor};

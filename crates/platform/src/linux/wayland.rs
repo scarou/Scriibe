@@ -33,8 +33,11 @@ pub const APP_ID: &str = "fr.scriibe.Scriibe";
 pub const PREFERRED_TRIGGER: &str = "CTRL+ALT+space";
 const SHORTCUT_DICTATION: &str = "dictation";
 const SHORTCUT_TRANSLATE: &str = "translate";
+const SHORTCUT_COMMAND: &str = "command";
 /// Proposé par défaut pour traduire : en face de Ctrl + ← (choisi pour dicter sur le PC d’essai) ; GNOME laisse en choisir un autre.
 pub const PREFERRED_TRANSLATE_TRIGGER: &str = "CTRL+Right";
+/// Proposé par défaut pour les commandes : sous Ctrl + ← (dicter) et Ctrl + → (traduire) ; GNOME laisse en choisir un autre.
+pub const PREFERRED_COMMAND_TRIGGER: &str = "CTRL+Down";
 const KEYSYM_CONTROL_L: i32 = 0xFFE3;
 const KEYSYM_V: i32 = 0x76;
 /// La fenêtre d'autorisation de GNOME attend la personne : au-delà, le collage abandonne (le texte reste copié).
@@ -211,8 +214,18 @@ fn translate_keys() -> Vec<Key> {
     keys
 }
 
-/// Les deux raccourcis acceptés par GNOME (descriptions de GNOME), dictée puis traduction.
-type Triggers = (String, Option<String>);
+/// Commander = dicter en tenant aussi la touche de commande (Ctrl gauche par défaut) : le raccourci de commande rejoue les deux.
+fn command_keys() -> Vec<Key> {
+    let binding = crate::keys::current_hook_rules().binding.unwrap_or_else(|| Binding::from_hotkey(Hotkey::RightControl));
+    let mut keys = dictation_keys();
+    if let Some(extra) = binding.command.iter().find(|k| !keys.contains(k)) {
+        keys.push(*extra);
+    }
+    keys
+}
+
+/// Les trois raccourcis acceptés par GNOME (descriptions de GNOME) : dictée, puis traduction et commande, s'il y en a un.
+type Triggers = (String, Option<String>, Option<String>);
 
 /// Ouvre la session de raccourcis, fait accepter le raccourci à GNOME et relaie appui et relâchement jusqu'à `stop`.
 async fn listen(
@@ -228,6 +241,8 @@ async fn listen(
             NewShortcut::new(SHORTCUT_DICTATION, "Dicter (maintenir, parler, relâcher)").preferred_trigger(PREFERRED_TRIGGER),
             NewShortcut::new(SHORTCUT_TRANSLATE, "Dicter et traduire (maintenir, parler, relâcher)")
                 .preferred_trigger(PREFERRED_TRANSLATE_TRIGGER),
+            NewShortcut::new(SHORTCUT_COMMAND, "Dicter une commande (maintenir, parler, relâcher)")
+                .preferred_trigger(PREFERRED_COMMAND_TRIGGER),
         ];
         let bound = proxy
             .bind_shortcuts(&session, &shortcuts, None, Default::default())
@@ -246,7 +261,13 @@ async fn listen(
             .find(|s| s.id() == SHORTCUT_TRANSLATE)
             .map(|s| s.trigger_description().to_string())
             .filter(|t| !t.trim().is_empty());
-        let trigger = (trigger, translate);
+        let command = bound
+            .shortcuts()
+            .iter()
+            .find(|s| s.id() == SHORTCUT_COMMAND)
+            .map(|s| s.trigger_description().to_string())
+            .filter(|t| !t.trim().is_empty());
+        let trigger = (trigger, translate, command);
         let activated = proxy.receive_activated().await.map_err(|e| e.to_string())?;
         let deactivated = proxy.receive_deactivated().await.map_err(|e| e.to_string())?;
         Ok::<_, String>((proxy, session, trigger, activated, deactivated))
@@ -284,9 +305,13 @@ async fn listen(
             }
             Some(signal) = activated.next() => {
                 let id = signal.shortcut_id();
-                if pressed.is_empty() && (id == SHORTCUT_DICTATION || id == SHORTCUT_TRANSLATE) {
+                if pressed.is_empty() && (id == SHORTCUT_DICTATION || id == SHORTCUT_TRANSLATE || id == SHORTCUT_COMMAND) {
                     active = id.to_string();
-                    pressed = if id == SHORTCUT_TRANSLATE { translate_keys() } else { dictation_keys() };
+                    pressed = match id {
+                        SHORTCUT_TRANSLATE => translate_keys(),
+                        SHORTCUT_COMMAND => command_keys(),
+                        _ => dictation_keys(),
+                    };
                     eprintln!("portails: raccourci « {id} » appuyé");
                     for key in &pressed {
                         if let Some(event) = translate_key(&mut held, *key, true) {
@@ -412,12 +437,17 @@ impl Drop for Listening {
 static TRIGGER: std::sync::Mutex<Option<Triggers>> = std::sync::Mutex::new(None);
 
 pub fn current_trigger() -> Option<String> {
-    TRIGGER.lock().ok().and_then(|t| t.clone()).map(|(t, _)| pretty_trigger(&t))
+    TRIGGER.lock().ok().and_then(|t| t.clone()).map(|(t, _, _)| pretty_trigger(&t))
 }
 
 /// Le raccourci de traduction accepté par GNOME (« Ctrl + Alt + T »), s'il y en a un.
 pub fn current_translate_trigger() -> Option<String> {
-    TRIGGER.lock().ok().and_then(|t| t.clone()).and_then(|(_, t)| t).map(|t| pretty_trigger(&t))
+    TRIGGER.lock().ok().and_then(|t| t.clone()).and_then(|(_, t, _)| t).map(|t| pretty_trigger(&t))
+}
+
+/// Le raccourci de commande accepté par GNOME (« Ctrl + ↓ »), s'il y en a un.
+pub fn current_command_trigger() -> Option<String> {
+    TRIGGER.lock().ok().and_then(|t| t.clone()).and_then(|(_, _, t)| t).map(|t| pretty_trigger(&t))
 }
 
 /// « Appuyer sur <Control>Left » (texte de GNOME, dans sa langue) → « Ctrl + ← », dans les noms de touches de Scriibe.
@@ -467,6 +497,10 @@ impl crate::keys::KeyListener for WaylandKeys {
         match &trigger.1 {
             Some(t) => eprintln!("portails: raccourci de traduction accepté par GNOME : {t}"),
             None => eprintln!("portails: pas de raccourci de traduction"),
+        }
+        match &trigger.2 {
+            Some(t) => eprintln!("portails: raccourci de commande accepté par GNOME : {t}"),
+            None => eprintln!("portails: pas de raccourci de commande"),
         }
         if let Ok(mut slot) = TRIGGER.lock() {
             *slot = Some(trigger);

@@ -22,6 +22,7 @@
   let linux = $derived(os === 'linux');
   let defaultDictate = $derived(mac ? 'Option droite' : 'Ctrl droit');
   let defaultTranslate = $derived(mac ? '⌘' : 'Maj');
+  let defaultCommand = $derived(mac ? 'Maj' : linux ? 'Ctrl gauche' : 'Windows droite');
   let copyKey = $derived(mac ? '⌘C' : 'Ctrl+C');
   let pasteKey = $derived(mac ? '⌘V' : 'Ctrl+V');
   let trayNear = $derived(mac ? 'dans la barre des menus' : 'près de l’horloge');
@@ -36,6 +37,7 @@
   );
   let dictate = $derived(s?.dictation_label ?? defaultDictate);
   let translate = $derived(s?.translate_label ?? defaultTranslate);
+  let command = $derived(s?.command_label ?? defaultCommand);
   let language = $derived(
     ({ en: 'anglais', es: 'espagnol', de: 'allemand', it: 'italien', pt: 'portugais (Brésil)' } as Record<string, string>)[v?.translationLanguage ?? 'en'] ?? 'anglais',
   );
@@ -275,6 +277,7 @@
       <p>Whisper entend mal les adresses : il efface souvent « arobase » et « gmail », ou écrit ton nom autrement (« jean point dupont point com »). Les signes ne peuvent pas le deviner. Dicte en détachant bien chaque mot (« jean arobase gmail point com »), et pour <b>ta propre adresse</b>, ajoute une correction : « Entendu » ce que Whisper écrit (relis-le dans l’historique), « Écrit » ton adresse complète. Ajoute de la même façon plusieurs « Entendu » pour « @ » (« arobase », « aro base », « a rond »…) et, si Whisper écrit ton nom autrement, une correction pour ton nom : le dictionnaire se règle au fil de l’eau, avec tes propres erreurs d’écoute.</p>
       <h3>Commandes vocales</h3>
       <p>Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots autour, la phrase reste du texte ordinaire. Ni le texte sélectionné ni la commande ne sont gardés dans l’historique.</p>
+      <p><b>La touche de commande.</b> Tiens <b>{command}</b> en plus de la touche de dictée : ce que tu dis est alors une commande, <b>jamais du texte collé</b>. Elle marche même si l’interrupteur des commandes est coupé, et les commandes ci-dessous marchent aussi sous cette touche. Si ce que tu dis n’est pas une commande, Scriibe le dit sur la pastille et <b>ne colle rien</b> : « Commande inconnue », « Commande non reconnue » (la phrase ressemble à une commande : essaie de la redire), « Commande trop longue » (plus de 25 mots) ou « Aucune sélection ». Une dictée prise par mégarde sous cette touche disparaît donc sans trace, et rien n’entre dans l’historique. La commande l’emporte sur la traduction. Pour changer la touche : Réglages → Dictée, « Touche tenue en plus pour dicter une commande ».{#if linux} Sous GNOME (Wayland), c’est un troisième raccourci de GNOME, au même endroit que les deux autres.{/if} <i>Pourquoi :</i> une touche à part évite qu’une phrase dictée normalement déclenche une action par erreur.</p>
       <ul>
         <li><b>Ajouter au dictionnaire</b> : « ajouter au dictionnaire » ouvre cet onglet avec le texte sélectionné dans « Entendu ».</li>
         <li><b>Caractères autour</b> : « entre parenthèses », « entre guillemets » (« » en français, " " en anglais), « entre crochets » ou « entre accolades » entourent la sélection ; un seul ⌘Z l’annule (sur Mac, dans Chrome et ses dérivés, où le texte est tapé, il en faut plusieurs).</li>

@@ -44,6 +44,26 @@ pub trait CommandSink: Send + Sync {
 /// Une sélection plus longue ne se met pas dans le dictionnaire (un mot ou une expression, sur une ligne).
 const DICTIONARY_MAX_CHARS: usize = 80;
 
+/// Ce que devient la dictée au relâchement de la touche : du texte collé, du texte traduit, ou une commande (touche de commande tenue :
+/// rien n'est alors jamais collé comme une dictée).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Intent {
+    Dictation,
+    Translation(TranslationLanguage),
+    Command,
+}
+
+impl Intent {
+    /// Pour les essais en ligne de commande et le banc : une dictée, ou une traduction dans la langue des réglages.
+    pub fn dictation_or_translation(translate: bool, settings: &AppSettings) -> Self {
+        if translate {
+            Self::Translation(settings.translation_language)
+        } else {
+            Self::Dictation
+        }
+    }
+}
+
 /// Ce que devient une transcription qui ressemble à une commande.
 enum CommandOutcome {
     /// La commande est faite (ou refusée sans rien coller) : la dictée s'arrête là.
@@ -79,6 +99,8 @@ struct State {
     busy: bool,
     /// Maj tenue pendant cette dictée : le texte est collé traduit dans la langue des réglages.
     translating: bool,
+    /// La touche de commande est tenue pendant cette dictée : la transcription est une commande, jamais du texte à coller.
+    commanding: bool,
     target: AppInfo,
     started_at: Duration,
     /// Quand charger le modèle de traduction (400 ms après l'ajout de la touche).
@@ -90,6 +112,8 @@ struct State {
     hold_token: u64,
     /// ⌘ ou Maj ajoutée pendant l'attente : la traduction sera demandée quand l'écoute commencera.
     pending_translate: bool,
+    /// La touche de commande ajoutée pendant l'attente : la commande sera demandée quand l'écoute commencera.
+    pending_command: bool,
     /// Capture d'une combinaison dans les réglages : les touches ne dictent plus, elles sont notées.
     capture: Option<KeyCapture>,
     /// Ce qui rend le préchargement caduc (moteur, modèle, mode…) tel qu'il a été préchargé, et un changement vu depuis quand.
@@ -171,6 +195,7 @@ impl Controller {
             recording: false,
             busy: false,
             translating: false,
+            commanding: false,
             target: AppInfo::unknown(),
             started_at: Duration::ZERO,
             translation_warm_up_due: None,
@@ -179,6 +204,7 @@ impl Controller {
             holding: false,
             hold_token: 0,
             pending_translate: false,
+            pending_command: false,
             capture: None,
             preload_signature: None,
             preload_pending: None,
@@ -269,9 +295,11 @@ impl Controller {
             }
             (state.monitor.handle_change(changed, down, &held), state.monitor.binding.hold_ms)
         };
+        // La touche de commande déjà tenue à l'appui : le préchauffage de la mise au propre, inutile sous cette touche, n'est pas fait.
+        let command_first = events.contains(&HotkeyEvent::Press) && events.contains(&HotkeyEvent::CommandKey);
         for event in events {
             match event {
-                HotkeyEvent::Press if hold_ms == 0 => self.press(),
+                HotkeyEvent::Press if hold_ms == 0 => self.press(command_first),
                 HotkeyEvent::Press => self.start_hold(hold_ms),
                 HotkeyEvent::Release => {
                     self.end_hold();
@@ -287,6 +315,18 @@ impl Controller {
                     };
                     if !waiting {
                         self.request_translation();
+                    }
+                }
+                HotkeyEvent::CommandKey => {
+                    let waiting = {
+                        let mut state = lock(&self.inner.state);
+                        if state.holding {
+                            state.pending_command = true;
+                        }
+                        state.holding
+                    };
+                    if !waiting {
+                        self.request_command();
                     }
                 }
                 HotkeyEvent::OtherKey => {
@@ -305,27 +345,31 @@ impl Controller {
             state.hold_token += 1;
             state.holding = true;
             state.pending_translate = false;
+            state.pending_command = false;
             state.hold_token
         };
         let this = self.clone();
         let spawned = std::thread::Builder::new().name("scriibe-appui-long".into()).spawn(move || {
             std::thread::sleep(Duration::from_millis(u64::from(hold_ms)));
-            let translate = {
+            let (translate, command) = {
                 let mut state = lock(&this.inner.state);
                 if state.hold_token != token || !state.holding {
                     return;
                 }
                 state.holding = false;
-                std::mem::take(&mut state.pending_translate)
+                (std::mem::take(&mut state.pending_translate), std::mem::take(&mut state.pending_command))
             };
-            this.press();
-            if translate {
+            this.press(command);
+            // La commande l'emporte sur la traduction.
+            if command {
+                this.request_command();
+            } else if translate {
                 this.request_translation();
             }
         });
         if spawned.is_err() {
             self.end_hold();
-            self.press();
+            self.press(false);
         }
     }
 
@@ -334,6 +378,7 @@ impl Controller {
         state.hold_token += 1;
         state.holding = false;
         state.pending_translate = false;
+        state.pending_command = false;
     }
 
     /// Commence à noter la combinaison que la personne tient (réglage de la touche de dictée) : tant que la capture dure, les touches ne
@@ -490,7 +535,8 @@ impl Controller {
         }
     }
 
-    fn press(&self) {
+    /// `command_first` : la touche de commande était déjà tenue à l'appui, donc la mise au propre ne servira pas : pas de préchauffage.
+    fn press(&self, command_first: bool) {
         let deps = &self.inner.deps;
         {
             let state = lock(&self.inner.state);
@@ -516,6 +562,7 @@ impl Controller {
             let mut state = lock(&self.inner.state);
             state.recording = true;
             state.translating = false;
+            state.commanding = false;
             state.translation_warm_up_due = None;
             state.mic_warned = false;
             state.target = app;
@@ -531,7 +578,7 @@ impl Controller {
         // Avant le son de début : le média s'arrête, et le micro ne l'entend pas.
         deps.media.pause_if_playing(settings.pause_media);
         deps.sounds.play(&settings.start_sound_name, settings.sound_volume);
-        self.warm_up(&settings);
+        self.warm_up(&settings, !command_first);
     }
 
     /// Au lancement du programme : charge les modèles locaux et lit les prompts (mise au propre, puis traduction) sans attendre une
@@ -562,10 +609,13 @@ impl Controller {
     }
 
     /// Pendant que la personne parle : démarre Whisper si besoin, charge le modèle local ou ouvre les connexions cloud.
-    fn warm_up(&self, settings: &AppSettings) {
+    fn warm_up(&self, settings: &AppSettings, with_cleanup: bool) {
         let deps = &self.inner.deps;
-        let words = deps.config.dictionary().words;
         self.warm_up_transcription(settings);
+        if !with_cleanup {
+            return;
+        }
+        let words = deps.config.dictionary().words;
         let cleaner = Arc::clone(&deps.cleaner);
         let for_cleanup = settings.clone();
         deps.executor.spawn("prechauffage-nettoyage", Box::new(move || cleaner.warm_up(&for_cleanup, false, &words, None)));
@@ -606,13 +656,32 @@ impl Controller {
         }
         {
             let mut state = lock(&self.inner.state);
-            if !state.recording || state.translating {
+            // Sous la touche de commande, rien ne se traduit : la commande l'emporte.
+            if !state.recording || state.translating || state.commanding {
                 return;
             }
             state.translating = true;
             state.translation_warm_up_due = Some(deps.clock.now() + TRANSLATION_WARM_UP_DELAY);
         }
         deps.indicator.set_translation(Some(settings.translation_language.name().to_string()));
+    }
+
+    /// La touche de commande ajoutée pendant l'écoute : la transcription sera une commande, jamais du texte collé. Elle l'emporte sur la
+    /// traduction (indicateur effacé, préchauffage de la traduction annulé). Rien n'est préchauffé pour la mise au propre.
+    fn request_command(&self) {
+        let deps = &self.inner.deps;
+        let was_translating = {
+            let mut state = lock(&self.inner.state);
+            if !state.recording || state.commanding {
+                return;
+            }
+            state.commanding = true;
+            state.translation_warm_up_due = None;
+            std::mem::take(&mut state.translating)
+        };
+        if was_translating {
+            deps.indicator.set_translation(None);
+        }
     }
 
     /// Une autre touche pendant l'appui : c'est un raccourci, pas une dictée.
@@ -634,14 +703,14 @@ impl Controller {
 
     fn release(&self) {
         let deps = &self.inner.deps;
-        let (translating, target, input) = {
+        let (translating, commanding, target, input) = {
             let mut state = lock(&self.inner.state);
             if !state.recording {
                 return;
             }
             state.recording = false;
             state.translation_warm_up_due = None;
-            (state.translating, state.target.clone(), state.input_description.clone())
+            (state.translating, state.commanding, state.target.clone(), state.input_description.clone())
         };
         let released_at = deps.clock.now();
         let recording = deps.recorder.stop();
@@ -675,7 +744,14 @@ impl Controller {
                     target,
                     input,
                 };
-                this.process(&job, &settings, translating.then_some(settings.translation_language));
+                let intent = if commanding {
+                    Intent::Command
+                } else if translating {
+                    Intent::Translation(settings.translation_language)
+                } else {
+                    Intent::Dictation
+                };
+                this.process(&job, &settings, intent);
                 lock(&this.inner.state).busy = false;
             }),
         );
@@ -683,7 +759,7 @@ impl Controller {
 
     /// Traite une prise déjà faite (essais en ligne de commande : un fichier WAV à la place du micro), sans attendre ni passer par
     /// l'exécuteur. Colle, journalise et enregistre comme une vraie dictée : l'appelant branche le collage et l'historique qu'il veut.
-    pub fn process_recording(&self, recording: scriibe_platform::audio::Recording, translate: bool, input: &str) {
+    pub fn process_recording(&self, recording: scriibe_platform::audio::Recording, intent: Intent, input: &str) {
         let deps = &self.inner.deps;
         let settings = deps.config.settings();
         let job = Job {
@@ -695,24 +771,87 @@ impl Controller {
             target: deps.apps.current(),
             input: input.to_string(),
         };
-        self.process(&job, &settings, translate.then_some(settings.translation_language));
+        self.process(&job, &settings, intent);
     }
 
     /// Reconnaît une phrase de commande et, si elle exige une sélection, la lit. Le journal ne reçoit que l'identifiant de la commande et
     /// la longueur de la sélection ; l'historique n'est pas touché ; les messages de la pastille et les erreurs sont à texte fixe.
     fn try_command(&self, raw: &str, settings: &AppSettings) -> CommandOutcome {
-        let deps = &self.inner.deps;
-        let Some(command) = scriibe_core::commands::recognize_for(raw, settings) else {
+        let Some(command) = scriibe_core::commands::recognize_for(raw, settings, scriibe_core::commands::Context::NoKey) else {
             return CommandOutcome::Text(None);
         };
+        self.run_command(command, settings, scriibe_core::commands::Context::NoKey)
+    }
+
+    /// Sous la touche de commande : jamais rien de collé comme du texte. Une phrase qui n'est pas une commande donne un message fixe de la
+    /// pastille (jamais les mots dits), et rien d'autre. La transcription n'est ni corrigée, ni mise au propre, ni gardée dans l'historique.
+    fn process_command(&self, raw: &str, settings: &AppSettings) {
+        use scriibe_core::commands::{Context, Route};
+        let deps = &self.inner.deps;
+        match scriibe_core::commands::route_under_key(raw, settings) {
+            Route::Command(command) => {
+                // Le résultat est ignoré : sous la touche, `run_command` ne rend jamais « du texte à coller ».
+                let _ = self.run_command(command, settings, Context::UnderKey);
+            }
+            Route::Close => {
+                deps.log.write("commande: phrase proche d'une commande, non reconnue — rien n'est collé");
+                self.refuse("Commande non reconnue");
+            }
+            // La reformulation de la sélection (étape 4 du chantier 6) viendra ici ; sans elle, une consigne possible reste inconnue.
+            Route::Instruction => {
+                deps.log.write("commande: aucune commande reconnue — rien n'est collé");
+                self.refuse("Commande inconnue");
+            }
+            Route::TooLong => {
+                deps.log.write(&format!(
+                    "commande: phrase de plus de {} mots, dictée prise par mégarde — rien n'est collé",
+                    scriibe_core::commands::INSTRUCTION_MAX_WORDS
+                ));
+                self.refuse("Commande trop longue");
+            }
+        }
+    }
+
+    /// Le message fixe de la pastille quand une commande ne se fait pas. Rien n'est collé.
+    fn refuse(&self, message: &'static str) -> CommandOutcome {
+        self.inner.deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
+        CommandOutcome::Handled
+    }
+
+    /// Une commande qui ne peut rien faire : sans la touche, la phrase suit le chemin d'une dictée ordinaire ; sous la touche, jamais
+    /// de collage, un message fixe.
+    fn nothing_to_do(&self, context: scriibe_core::commands::Context, message: &'static str) -> CommandOutcome {
+        match context {
+            scriibe_core::commands::Context::NoKey => CommandOutcome::Text(None),
+            scriibe_core::commands::Context::UnderKey => self.refuse(message),
+        }
+    }
+
+    /// Exécute la commande reconnue. Le journal ne reçoit que l'identifiant de la commande et la longueur de la sélection.
+    fn run_command(
+        &self,
+        command: scriibe_core::commands::Recognized,
+        settings: &AppSettings,
+        context: scriibe_core::commands::Context,
+    ) -> CommandOutcome {
+        let deps = &self.inner.deps;
+        let under_key = context == scriibe_core::commands::Context::UnderKey;
         let selected = if command.needs == scriibe_core::commands::Needs::Selection {
             match deps.paster.selected_text() {
                 SelectedRead::Text(text) => Some(text),
                 SelectedRead::NoSelection => {
+                    if under_key {
+                        deps.log.write(&format!("commande: {} ignorée (aucune sélection) — rien n'est collé", command.id));
+                        return self.refuse("Aucune sélection");
+                    }
                     deps.log.write(&format!("commande: {} ignorée (aucune sélection) — la phrase est collée comme du texte", command.id));
                     return CommandOutcome::Text(None);
                 }
                 SelectedRead::Unreadable(why) => {
+                    if under_key {
+                        deps.log.write(&format!("commande: {} ignorée ({}) — rien n'est collé", command.id, why.reason()));
+                        return self.refuse("Sélection illisible");
+                    }
                     deps.log.write(&format!("commande: {} ignorée ({}) — la phrase est collée comme du texte", command.id, why.reason()));
                     let note = match why {
                         Unreadable::NotTrusted => {
@@ -731,7 +870,7 @@ impl Controller {
         };
         match command.id.as_str() {
             "dictionnaire.ajouter" => {
-                let Some(text) = selected else { return CommandOutcome::Text(None) };
+                let Some(text) = selected else { return self.nothing_to_do(context, "Aucune sélection") };
                 let length = text.char_count();
                 deps.log.write(&format!("commande: {} (sélection : {length} signes)", command.id));
                 let shown = text.expose().trim();
@@ -757,7 +896,7 @@ impl Controller {
                 // Les commandes de la personne (`perso.*`) n'exigent une sélection que si elle l'a demandé.
                 let length = selected.as_ref().map(|t| t.char_count());
                 if command.needs == scriibe_core::commands::Needs::Selection && selected.is_none() {
-                    return CommandOutcome::Text(None);
+                    return self.nothing_to_do(context, "Aucune sélection");
                 }
                 match length {
                     Some(n) => deps.log.write(&format!("commande: {id} (sélection : {n} signes)")),
@@ -783,7 +922,7 @@ impl Controller {
             }
             // Caractères autour (tâche 7) : la sélection, restée active, est remplacée par un collage (un seul ⌘Z l'annule, comme une dictée).
             id if id.starts_with(scriibe_core::commands::SURROUND_PREFIX) => {
-                let Some(text) = selected else { return CommandOutcome::Text(None) };
+                let Some(text) = selected else { return self.nothing_to_do(context, "Aucune sélection") };
                 deps.log.write(&format!("commande: {id} (sélection : {} signes)", text.char_count()));
                 let Some(wrapped) = scriibe_core::commands::surround(id, command.lang, text.expose()) else {
                     deps.indicator.flash(IndicatorState::Message("Rien à entourer (la sélection est vide)".into()), 3.0);
@@ -803,13 +942,13 @@ impl Controller {
             }
             other => {
                 deps.log.write(&format!("commande: {other} inconnue du chef d'orchestre"));
-                CommandOutcome::Text(None)
+                self.nothing_to_do(context, "Commande inconnue")
             }
         }
     }
 
     /// Les temps comptent depuis le relâchement de la touche.
-    fn process(&self, job: &Job, settings: &AppSettings, translate_to: Option<TranslationLanguage>) {
+    fn process(&self, job: &Job, settings: &AppSettings, intent: Intent) {
         let deps = &self.inner.deps;
         let dictionary = deps.config.dictionary();
         let elapsed_since = |start: Duration| deps.clock.now().saturating_sub(start);
@@ -838,6 +977,16 @@ impl Controller {
             deps.indicator.flash(IndicatorState::Message(message.into()), 2.5);
             return;
         }
+
+        // Sous la touche de commande, la transcription brute est une commande : ni dictionnaire, ni mise au propre, ni collage, ni historique.
+        if intent == Intent::Command {
+            self.process_command(&raw, settings);
+            return;
+        }
+        let translate_to = match intent {
+            Intent::Translation(language) => Some(language),
+            Intent::Dictation | Intent::Command => None,
+        };
 
         // Commande vocale : la phrase est toute la transcription (avant `dictionary::apply`, qui la réécrirait). La sélection n'est lue qu'ici.
         let command_note = match self.try_command(&raw, settings) {

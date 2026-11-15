@@ -257,6 +257,7 @@
     {#if s?.gnome_shortcut}
       <p class="muted">{t('Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.', { shortcut: keyName(s.gnome_shortcut) })}</p>
       <p class="muted">{s.gnome_translate_shortcut ? t('Pour dicter et traduire : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_translate_shortcut) }) : t('Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
+      <p class="muted">{s.gnome_command_shortcut ? t('Pour dicter une commande : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_command_shortcut) }) : t('Pas encore de raccourci de commande : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
     {:else}
       <KeyPicker />
     {/if}

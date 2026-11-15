@@ -71,7 +71,7 @@ ls ~/scriibe
 
 2. The terminal stays busy: this is Scriibe's log. **Leave it open** and do not close it as long as you use Scriibe.
 3. **On GNOME with Wayland (the usual case on recent Ubuntu)**, GNOME opens some windows, **only once**:
-   - a **keyboard shortcut** to dictate, then a second one to dictate and translate. GNOME does not accept a single key such as right Ctrl: choose a combination with an ordinary key (for example **Ctrl + ←** to dictate and **Ctrl + →** to translate, or Ctrl + Alt + Space), then click **Add**;
+   - a **keyboard shortcut** to dictate, then a second one to dictate and translate, then a third one to dictate a command (the phrase you say becomes a command, never pasted text; suggested: **Ctrl + ↓**). GNOME does not accept a single key such as right Ctrl: choose a combination with an ordinary key (for example **Ctrl + ←** to dictate and **Ctrl + →** to translate, or Ctrl + Alt + Space), then click **Add**;
    - at the first paste, a request for permission to **control the keyboard**: this is what lets Scriibe paste the text. Accept.
 4. If the program complains about a missing library, note its name, then go to “If it does not work”.
 

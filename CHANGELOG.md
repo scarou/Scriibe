@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C6 tâche 1 — 2026-11-15 · Commandes vocales étendues, étape 1a : touche de commande et aiguillage sous la touche (non publié : part avec la 0.6.0)
+
+- **Ce que l'on voit** : une **touche de commande** à tenir en plus de la touche de dictée (Réglages → Dictée ; par défaut Maj sur Mac, Windows droite sous Windows, Ctrl gauche sous Linux ; troisième raccourci GNOME sous Wayland). Sous cette touche, ce qui est dit est une commande, **jamais collé** ni gardé : la pastille dit « Commande inconnue », « Commande non reconnue », « Commande trop longue » ou « Aucune sélection » (texte fixe, jamais les mots dits). Les commandes d'aujourd'hui marchent aussi sous la touche ; sans la touche, rien ne change. Aide FR et EN, guides Linux.
+- **Technique** : `Intent` (dictée, traduction, commande) de `release()` à `process` ; `Binding.command`, `HotkeyEvent::CommandKey` ; portée des fiches (`Scope`) et contexte de `recognize` ; `route_under_key` (phrase proche d'une commande, plafond de 25 mots) ; `commandKeys` classé « ordinateur ». Détail, choix et écarts : `docs/COMMANDES_ETENDUES.md` § Étape 1a, `docs/ECARTS.md`.
+- **Mesuré** sur le Mac : 740 tests Rust et 109 tests de l'interface sans erreur ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `svelte-check` sans erreur. **Non fait** : compilation des codes Linux et Windows (CI), essai réel (tâche 3).
+
 ## 0.5.0 — 2026-11-15 · Publication : profils et utilisateurs, import et export, fichiers protégés
 
 - Version publiée : réunit le chantier 4 seul (profils et dictionnaires, lots 1 et 2, tâches 1 à 12), soit 16 commits depuis la 0.4.0. Le chantier 6 (commandes vocales étendues) n'en fait pas partie : il partira dans une version suivante.

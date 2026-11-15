@@ -626,6 +626,7 @@ export const en: Record<string, string> = {
   'Touche de dictée :': 'Dictation key:',
   'Changer…': 'Change…',
   'Touche tenue en plus pour traduire :': 'Key held in addition to translate:',
+  'Touche tenue en plus pour dicter une commande :': 'Key held in addition to dictate a command:',
   'Appuie sur la touche ou la combinaison voulue, puis relâche tout.': 'Press the key or combination you want, then release everything.',
   'Appuie sur la touche à tenir en plus, puis relâche tout.': 'Press the key to hold in addition, then release everything.',
   'Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre : passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.':
@@ -842,6 +843,9 @@ export const en: Record<string, string> = {
   'Pour dicter et traduire : {shortcut} (même endroit pour le changer).': 'To dictate and translate: {shortcut} (change it in the same place).',
   'Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.':
     'No translation shortcut yet: restart Scriibe, and GNOME will ask you to choose one.',
+  'Pour dicter une commande : {shortcut} (même endroit pour le changer).': 'To dictate a command: {shortcut} (change it in the same place).',
+  'Pas encore de raccourci de commande : relancez Scriibe, GNOME vous en fera choisir un.':
+    'No command shortcut yet: restart Scriibe, and GNOME will ask you to choose one.',
   'Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.':
     'On GNOME (Wayland), you dictate with a GNOME shortcut: {shortcut}. GNOME does not accept a single key such as Right Ctrl: it needs a combination with an ordinary key (a letter, an arrow, Space). To change it: GNOME Settings → Apps → Scriibe → Global Shortcuts, then restart Scriibe.',
   // Utilisateurs (étape 4c)

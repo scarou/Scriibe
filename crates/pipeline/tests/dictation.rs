@@ -866,7 +866,7 @@ fn a_recording_from_a_file_goes_through_the_same_chain() {
     let r = rig("bonjour tout le monde on commence", "Bonjour tout le monde, on commence.");
     let wav = scriibe_platform::audio::wav(&vec![1000i16; 32_000]);
     let recording = scriibe_platform::audio::read_wav(&wav).unwrap();
-    r.controller.process_recording(recording, false, "fichier");
+    r.controller.process_recording(recording, scriibe_pipeline::Intent::Dictation, "fichier");
     assert_eq!(r.paster.pasted()[0].0, "Bonjour tout le monde, on commence. ");
     assert_eq!(r.history.items().len(), 1);
     assert!(r.recorder.starts().is_empty(), "le micro n'est pas ouvert");
@@ -1455,4 +1455,222 @@ fn a_mode_changed_while_listening_applies_to_that_dictation_and_one_changed_whil
     r.dictate();
     r.executor.run_all("");
     assert_eq!(r.history.items()[1].mode.as_deref(), Some("Pro · Informatique et IA"), "la dictée suivante prend le nouveau mode");
+}
+
+// ---- Touche de commande (chantier 6, étape 1a) : sous la touche, rien n'est jamais collé ----
+
+/// Option droite dicte sur tous les systèmes (`from_hotkey`) ; la touche de commande et celle de traduction sont celles du système.
+fn command_settings() -> AppSettings {
+    AppSettings { hotkey: Hotkey::RightOption, cleanup_engine: CleanupEngine::LmStudio, ..AppSettings::default() }
+}
+
+fn command_rig(heard: &'static str) -> Rig {
+    rig_with(command_settings(), heard, "ne doit pas servir", true)
+}
+
+impl Rig {
+    fn binding(&self) -> scriibe_core::hotkey::Binding {
+        scriibe_platform::keys::binding(&scriibe_platform::storage::ConfigSource::settings(self.config.as_ref()))
+    }
+
+    fn option_down(&self) {
+        self.controller.handle_key(KeyEvent::Changed { changed: Key::RightOption, down: true, held: vec![Key::RightOption] });
+    }
+
+    fn option_up(&self, still_held: Vec<Key>) {
+        self.controller.handle_key(KeyEvent::Changed { changed: Key::RightOption, down: false, held: still_held });
+    }
+
+    /// La touche de commande tenue pendant la dictée.
+    fn command_down(&self) {
+        let command = self.binding().command[0];
+        self.controller.handle_key(KeyEvent::Changed { changed: command, down: true, held: vec![Key::RightOption, command] });
+    }
+
+    /// Dicte sous la touche de commande : Option droite, puis la touche de commande, puis le relâchement.
+    fn dictate_under_key(&self) {
+        let command = self.binding().command[0];
+        self.option_down();
+        self.command_down();
+        self.option_up(vec![command]);
+    }
+}
+
+#[test]
+fn the_default_command_key_is_never_the_dictation_or_translation_key_and_dictation_is_unchanged_without_it() {
+    let r = command_rig("bonjour tout le monde");
+    let binding = r.binding();
+    assert!(!binding.command.is_empty(), "une touche de commande existe par défaut");
+    assert!(binding.command.iter().all(|k| !binding.dictation.contains(k) && !binding.translate.contains(k)));
+    // Sans la touche de commande, une dictée est une dictée : collée, dans l'historique.
+    r.dictate_without_command();
+    assert_eq!(r.paster.pasted().len(), 1);
+    assert_eq!(r.history.items().len(), 1);
+}
+
+impl Rig {
+    fn dictate_without_command(&self) {
+        self.option_down();
+        self.option_up(vec![]);
+    }
+}
+
+#[test]
+fn under_the_command_key_a_known_command_runs_and_nothing_is_pasted_or_recorded() {
+    let r = command_rig("Ajoute au Dictionnaire !");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["cri be".to_string()]);
+    assert!(r.paster.pasted().is_empty());
+    assert!(r.history.items().is_empty(), "une commande n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty(), "le modèle de mise au propre n'est pas appelé");
+    assert!(!r.controller.is_busy());
+}
+
+#[test]
+fn under_the_command_key_the_switch_of_voice_commands_does_not_apply() {
+    let settings = AppSettings { voice_commands_enabled: false, ..command_settings() };
+    // Sans la touche, l'interrupteur coupé laisse la phrase en texte à coller (comme avant).
+    let r = rig_with(settings.clone(), "Ajoute au dictionnaire", "Ajoute au dictionnaire.", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_without_command();
+    assert_eq!(r.paster.pasted().len(), 1);
+    assert!(r.commands.heard.lock().unwrap().is_empty());
+    // Sous la touche, la personne demande une commande : elle se fait.
+    let r = rig_with(settings, "Ajoute au dictionnaire", "x", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["cri be".to_string()]);
+    assert!(r.paster.pasted().is_empty());
+}
+
+/// Les phrases qui ne sont pas des commandes, sous la touche : un message fixe, ni collage, ni lecture de la sélection (pas de reformulation
+/// avant l'étape 4), ni historique, ni modèle.
+#[test]
+fn under_the_command_key_a_phrase_that_is_no_command_gives_a_fixed_message_and_pastes_nothing() {
+    let long = "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize dix-sept dix-huit dix-neuf vingt \
+                vingt-et-un vingt-deux vingt-trois vingt-quatre vingt-cinq vingt-six";
+    let cases: [(&'static str, &str); 4] = [
+        ("cherche les fautes", "Commande inconnue"),
+        ("mets ça en rouge et en gras", "Commande non reconnue"),
+        ("ajouter au dictionnaire ici", "Commande non reconnue"),
+        (long, "Commande trop longue"),
+    ];
+    for (heard, expected) in cases {
+        let r = command_rig(heard);
+        r.paster.set_selected(FakeSelected::Text("cri be".into()));
+        r.dictate_under_key();
+        assert!(r.paster.pasted().is_empty(), "{expected} : rien n'est collé");
+        assert!(r.paster.shortcuts().is_empty());
+        assert!(r.history.items().is_empty());
+        assert!(r.cleanup_requests().is_empty());
+        assert_eq!(r.paster.selected_reads(), 0, "{expected} : la sélection n'est pas lue");
+        assert!(r.indicator.states().contains(&message(expected)), "{expected} : {:?}", r.indicator.states());
+        assert!(!r.controller.is_busy());
+    }
+}
+
+/// Sans sélection ou avec une sélection illisible, une commande sur sélection donne un message fixe sous la touche (sans la touche, la
+/// phrase est collée comme du texte : cas `commands_104`).
+#[test]
+fn under_the_command_key_no_selection_or_an_unreadable_one_never_pastes_the_phrase() {
+    let r = command_rig("Mets en gras");
+    r.dictate_under_key();
+    assert!(r.paster.pasted().is_empty() && r.paster.shortcuts().is_empty() && r.history.items().is_empty());
+    assert!(r.indicator.states().contains(&message("Aucune sélection")), "{:?}", r.indicator.states());
+    for why in [Unreadable::NotTrusted, Unreadable::ClipboardNotText, Unreadable::Failed] {
+        let r = command_rig("Mets en gras");
+        r.paster.set_selected(FakeSelected::Unreadable(why));
+        r.dictate_under_key();
+        assert!(r.paster.pasted().is_empty() && r.history.items().is_empty());
+        assert!(r.indicator.states().contains(&message("Sélection illisible")), "{:?}", r.indicator.states());
+    }
+    // Une commande sur sélection qui a sa sélection appuie son raccourci, sans rien coller.
+    let r = command_rig("Mets en gras");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert_eq!(r.paster.shortcuts().len(), 1);
+    assert!(r.paster.pasted().is_empty());
+}
+
+/// Ni le journal, ni la pastille, ni l'historique, ni ce qui est collé, ni les requêtes ne contiennent les mots dits sous la touche.
+#[test]
+fn under_the_command_key_the_words_said_leave_no_trace() {
+    for heard in [
+        "SECRET-123 mot de passe",
+        "SECRET-123 mets en gras",
+        "SECRET-123 ajouter au dictionnaire ici",
+        "Mets en gras",
+        "SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 \
+         SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 SECRET-123 \
+         SECRET-123 SECRET-123",
+    ] {
+        for selection in [FakeSelected::NoSelection, FakeSelected::Text("SECRET-456".into())] {
+            let r = command_rig(heard);
+            r.paster.set_selected(selection);
+            r.dictate_under_key();
+            let everything = format!(
+                "{}|{:?}|{:?}|{:?}|{:?}|{:?}",
+                r.world.log.lines().join("\n"),
+                r.history.items(),
+                r.indicator.states(),
+                r.paster.pasted(),
+                r.paster.shortcuts(),
+                r.world.requests().iter().filter(|q| !q.url.contains("deepgram")).map(|q| String::from_utf8_lossy(&q.body).to_string() + &q.url).collect::<Vec<_>>()
+            );
+            assert!(!everything.contains("SECRET"), "{heard} : les mots dits ont laissé une trace : {everything}");
+        }
+    }
+}
+
+/// La commande l'emporte sur la traduction : l'indicateur de traduction est effacé et le modèle de traduction n'est jamais appelé.
+#[test]
+fn the_command_key_wins_over_the_translation_key() {
+    let r = command_rig("Ajoute au dictionnaire");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    let binding = r.binding();
+    let (translate, command) = (binding.translate[0], binding.command[0]);
+    r.option_down();
+    r.controller.handle_key(KeyEvent::Changed { changed: translate, down: true, held: vec![Key::RightOption, translate] });
+    assert_eq!(r.indicator.translations(), vec![Some("anglais".to_string())]);
+    r.controller.handle_key(KeyEvent::Changed { changed: command, down: true, held: vec![Key::RightOption, translate, command] });
+    assert_eq!(r.indicator.translations(), vec![Some("anglais".to_string()), None], "l'indicateur de traduction est effacé");
+    r.option_up(vec![translate, command]);
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["cri be".to_string()]);
+    assert!(r.cleanup_requests().is_empty() && r.paster.pasted().is_empty() && r.history.items().is_empty());
+    // La traduction demandée après la commande ne reprend pas la main.
+    let r = command_rig("Ajoute au dictionnaire");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.option_down();
+    r.command_down();
+    r.controller.handle_key(KeyEvent::Changed { changed: translate, down: true, held: vec![Key::RightOption, command, translate] });
+    assert!(r.indicator.translations().is_empty(), "pas de traduction sous la touche de commande");
+}
+
+/// Le préchauffage de la mise au propre, inutile sous la touche, n'est pas fait quand la touche de commande est déjà tenue à l'appui.
+#[test]
+fn a_command_key_held_before_the_dictation_key_skips_the_cleanup_warm_up() {
+    let r = command_rig("Ajoute au dictionnaire");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    let command = r.binding().command[0];
+    r.controller.handle_key(KeyEvent::Changed { changed: command, down: true, held: vec![command] });
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::RightOption, down: true, held: vec![command, Key::RightOption] });
+    assert!(r.warm_up_requests().is_empty(), "pas de préchauffage de la mise au propre sous la touche de commande");
+    r.option_up(vec![command]);
+    assert_eq!(*r.commands.heard.lock().unwrap(), vec!["cri be".to_string()]);
+    // Sans la touche de commande, le préchauffage a lieu comme avant.
+    let r = command_rig("bonjour tout le monde");
+    r.dictate_without_command();
+    assert!(!r.warm_up_requests().is_empty(), "le préchauffage a lieu sans la touche de commande");
+}
+
+/// Un essai (banc, ligne de commande) peut aussi passer par l'intention « commande » : même aiguillage, même absence de collage.
+#[test]
+fn a_recording_processed_as_a_command_never_pastes() {
+    let r = command_rig("Mets en gras");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    let recording = scriibe_platform::audio::read_wav(&scriibe_platform::audio::wav(&vec![1000i16; 32_000])).unwrap();
+    r.controller.process_recording(recording, scriibe_pipeline::Intent::Command, "fichier");
+    assert!(r.paster.pasted().is_empty() && r.history.items().is_empty());
+    assert_eq!(r.paster.shortcuts().len(), 1);
 }

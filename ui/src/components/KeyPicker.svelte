@@ -7,7 +7,7 @@
 
   interface Capture {
     active: boolean;
-    kind?: 'dictation' | 'translate';
+    kind?: 'dictation' | 'translate' | 'command';
     finished?: boolean;
     labels?: string[];
     ids?: string[] | null;
@@ -17,7 +17,7 @@
   let s = $derived(status.value);
   let v = $derived(settings.value);
 
-  let kind = $state<'dictation' | 'translate' | null>(null);
+  let kind = $state<'dictation' | 'translate' | 'command' | null>(null);
   let capture = $state<Capture>({ active: false });
   let waited = $state(0);
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -36,7 +36,7 @@
     return ids.every((id) => modifiers.has(id)) && !(ids.length === 1 && s.immediate_keys.includes(ids[0]));
   });
 
-  async function begin(which: 'dictation' | 'translate') {
+  async function begin(which: 'dictation' | 'translate' | 'command') {
     stop(false);
     kind = which;
     waited = 0;
@@ -98,13 +98,15 @@
     const ok =
       kind === 'dictation'
         ? await settings.change({ dictationKeys: ids.length === 1 && ids[0] === defaultId ? [] : ids })
-        : await settings.change({ translateKeys: ids });
+        : kind === 'translate'
+          ? await settings.change({ translateKeys: ids })
+          : await settings.change({ commandKeys: ids });
     if (ok) stop();
   }
 
   async function reset() {
     stop();
-    await settings.change({ dictationKeys: [], translateKeys: [] });
+    await settings.change({ dictationKeys: [], translateKeys: [], commandKeys: [] });
   }
 
   /** Quinze secondes pendant lesquelles on relit l'état toutes les 0,3 s : la touche maintenue doit faire passer Scriibe en écoute. */
@@ -138,6 +140,10 @@
     <span>{t('Touche tenue en plus pour traduire :')} <b>{keyName(s.translate_label)}</b></span>
     <button onclick={() => begin('translate')} disabled={kind === 'translate'}>{t('Changer…')}</button>
   </div>
+  <div class="row">
+    <span>{t('Touche tenue en plus pour dicter une commande :')} <b>{keyName(s.command_label)}</b></span>
+    <button onclick={() => begin('command')} disabled={kind === 'command'}>{t('Changer…')}</button>
+  </div>
 
   {#if kind}
     <div class="capture" role="status">
@@ -169,7 +175,7 @@
 
   <div class="row">
     <button onclick={test} disabled={testing || !!kind}>{testing ? t('Maintiens ta touche…') : t('Tester ma touche')}</button>
-    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length}>{t('Rétablir {keys}', { keys: keyName(`${s.default_dictation_label} + ${s.default_translate_label}`) })}</button>
+    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length && !v.commandKeys.length}>{t('Rétablir {keys}', { keys: keyName(`${s.default_dictation_label} + ${s.default_translate_label} + ${s.default_command_label}`) })}</button>
     {#if detected}<span class="ok">{t('✔ Touche reconnue : Scriibe écoute ({key}).', { key: keyName(s.dictation_label) })}</span>{:else if testing}<span class="muted">{mac ? t('Passe dans TextEdit (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) }) : t('Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) })}</span>{/if}
   </div>
   <details class="muted">

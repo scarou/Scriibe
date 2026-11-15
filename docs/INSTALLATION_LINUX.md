@@ -69,7 +69,7 @@ ls ~/scriibe
 
 2. Le terminal reste occupé : c'est le journal de Scriibe. **Laissez-le ouvert** et ne le fermez pas tant que vous utilisez Scriibe.
 3. **Sous GNOME en Wayland (le cas général d'Ubuntu récent)**, GNOME ouvre des fenêtres, **une seule fois** :
-   - un **raccourci clavier** pour dicter, puis un second pour dicter et traduire. GNOME n'accepte pas une touche seule comme Ctrl droit : choisissez une combinaison avec une touche ordinaire (par exemple **Ctrl + ←** pour dicter et **Ctrl + →** pour traduire, ou Ctrl + Alt + Espace), puis cliquez sur **Add** (Ajouter) ;
+   - un **raccourci clavier** pour dicter, puis un second pour dicter et traduire, puis un troisième pour dicter une commande (la phrase dite devient une commande, jamais du texte collé ; proposé : **Ctrl + ↓**). GNOME n'accepte pas une touche seule comme Ctrl droit : choisissez une combinaison avec une touche ordinaire (par exemple **Ctrl + ←** pour dicter et **Ctrl + →** pour traduire, ou Ctrl + Alt + Espace), puis cliquez sur **Add** (Ajouter) ;
    - au premier collage, une demande d'autorisation de **contrôler le clavier** : c'est ce qui permet à Scriibe de coller le texte. Acceptez.
 4. Si le programme se plaint d'une bibliothèque manquante, notez son nom, puis allez à « Si ça ne marche pas ».
 

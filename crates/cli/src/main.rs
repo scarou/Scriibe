@@ -7,6 +7,8 @@
 //! - `cle deepgram|openrouter|github` : enregistre une clé d'API dans le Gestionnaire d'identifiants (lue sur l'entrée standard) ;
 //! - `lancer` : la dictée, touche maintenue (Ctrl droit sous Windows), icône dans la zone de notification et page d'essais dans le
 //!   navigateur (téléchargements, micro, phrases du banc, rapport) ; c'est ce que fait un double-clic.
+// L'état de la page (`status_view`) est un seul `json!` très long : il dépasse la limite par défaut de la macro.
+#![recursion_limit = "256"]
 
 mod app;
 mod assistant;

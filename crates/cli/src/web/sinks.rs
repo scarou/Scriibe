@@ -195,6 +195,31 @@ mod tests {
         assert_eq!(sinks.finish().pasted, None);
     }
 
+    /// Chantier 6 : pendant un essai (y compris sous la touche de commande), aucune sortie n'atteint l'application active : ni lecture de la
+    /// sélection, ni raccourci, ni touche Entrée, ni collage. Les nouvelles sorties (ouverture, extrait, reformulation) passeront par le même
+    /// aiguillage et ce test les couvrira à leur arrivée.
+    #[test]
+    fn during_a_trial_a_command_reaches_nothing_of_the_active_application() {
+        use scriibe_core::shortcut::Shortcut;
+        use scriibe_platform::paste::SelectedRead;
+        use scriibe_platform::testing::FakeSelected;
+        let (sinks, paster, ..) = rig();
+        paster.set_selected(FakeSelected::Text("SECRET".into()));
+        let switch = SwitchPaster(sinks.clone());
+        sinks.begin();
+        assert!(matches!(switch.selected_text(), SelectedRead::NoSelection), "la sélection n'est pas lue pendant un essai");
+        assert_eq!(paster.selected_reads(), 0);
+        assert!(switch.press_shortcut(&Shortcut::parse("Mod+B").unwrap()).is_err());
+        assert!(!switch.press_return());
+        assert!(!switch.selection().active);
+        let _ = sinks.finish();
+        assert!(paster.shortcuts().is_empty() && paster.pasted().is_empty());
+        // Hors essai, la lecture de la sélection et le raccourci passent.
+        assert!(matches!(switch.selected_text(), SelectedRead::Text(_)));
+        assert!(switch.press_shortcut(&Shortcut::parse("Mod+B").unwrap()).is_ok());
+        assert_eq!(paster.shortcuts().len(), 1);
+    }
+
     #[test]
     fn the_microphone_level_is_kept_for_the_page() {
         let (sinks, ..) = rig();

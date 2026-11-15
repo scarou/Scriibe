@@ -88,6 +88,10 @@ pub struct Binding {
     pub dictation: Vec<Key>,
     /// L'une de ces touches tenue en plus : la traduction.
     pub translate: Vec<Key>,
+    /// L'une de ces touches tenue en plus : la commande (chantier 6). Vide : pas de touche de commande. Toujours vide dans
+    /// `from_hotkey` (la touche par défaut vient de `scriibe_platform::keys::binding`), ce qui laisse les séquences de
+    /// `fixtures/hotkey.json` telles quelles.
+    pub command: Vec<Key>,
     /// Millisecondes à tenir la combinaison avant que l'écoute commence (0 : tout de suite). Pour une combinaison de touches de
     /// modification seules (Maj gauche, Ctrl + Alt…), que les raccourcis clavier appuient aussi : un appui bref n'ouvre pas le micro.
     pub hold_ms: u32,
@@ -102,7 +106,7 @@ impl Binding {
         } else {
             vec![Key::LeftCommand, Key::RightCommand]
         };
-        Self { dictation: vec![hotkey.key()], translate, hold_ms: 0 }
+        Self { dictation: vec![hotkey.key()], translate, command: Vec::new(), hold_ms: 0 }
     }
 
     pub fn is_down(&self, held: &[Key]) -> bool {
@@ -111,6 +115,11 @@ impl Binding {
 
     pub fn translate_held(&self, held: &[Key]) -> bool {
         self.translate.iter().any(|key| held.contains(key))
+    }
+
+    /// Une touche de commande tenue en plus de la touche de dictée : sous cette touche, la dictée est une commande, jamais du texte.
+    pub fn command_key_held(&self, held: &[Key]) -> bool {
+        self.command.iter().any(|key| held.contains(key))
     }
 }
 
@@ -125,16 +134,19 @@ pub enum HotkeyEvent {
     Command,
     /// Une autre touche tapée pendant l'appui : c'est un raccourci clavier, pas une dictée.
     OtherKey,
+    /// La touche de commande est tenue pendant l'appui (avant ou après la touche de dictée) ; peut arriver plusieurs fois par dictée.
+    CommandKey,
 }
 
 impl HotkeyEvent {
-    /// Lettre du journal des tests : P, R, C, X.
+    /// Lettre du journal des tests : P, R, C, X (et K pour la touche de commande, absente des séquences de `fixtures/hotkey.json`).
     pub fn letter(self) -> char {
         match self {
             Self::Press => 'P',
             Self::Release => 'R',
             Self::Command => 'C',
             Self::OtherKey => 'X',
+            Self::CommandKey => 'K',
         }
     }
 }
@@ -163,7 +175,9 @@ impl HotkeyMonitor {
     /// Une touche (quelconque) a changé d'état ; `held` : toutes celles qui sont tenues maintenant. Une touche qui n'est ni de dictée ni de
     /// traduction et qui n'est pas une touche de modification Ctrl ou Maj est une frappe ordinaire : un raccourci, qui annule la dictée.
     pub fn handle_change(&mut self, changed: Key, down: bool, held: &[Key]) -> Vec<HotkeyEvent> {
-        let known = self.binding.dictation.contains(&changed) || self.binding.translate.contains(&changed);
+        let known = self.binding.dictation.contains(&changed)
+            || self.binding.translate.contains(&changed)
+            || self.binding.command.contains(&changed);
         if matches!(changed, Key::Vk(_)) && !known {
             return if down { self.handle_key_down() } else { Vec::new() };
         }
@@ -177,6 +191,9 @@ impl HotkeyMonitor {
             if self.is_down && self.binding.translate_held(held) {
                 events.push(HotkeyEvent::Command);
             }
+            if self.is_down && self.binding.command_key_held(held) {
+                events.push(HotkeyEvent::CommandKey);
+            }
             return events;
         }
         let down = self.binding.is_down(held);
@@ -185,6 +202,9 @@ impl HotkeyMonitor {
             events.push(HotkeyEvent::Press);
             if self.binding.translate_held(held) {
                 events.push(HotkeyEvent::Command);
+            }
+            if self.binding.command_key_held(held) {
+                events.push(HotkeyEvent::CommandKey);
             }
         } else if !down && self.is_down {
             self.is_down = false;
@@ -259,7 +279,7 @@ mod tests {
     const A: Key = Key::Vk(0x41);
 
     fn control_f9() -> Binding {
-        Binding { dictation: vec![Key::LeftControl, F9], translate: vec![Key::LeftShift, Key::RightShift], hold_ms: 0 }
+        Binding { dictation: vec![Key::LeftControl, F9], translate: vec![Key::LeftShift, Key::RightShift], command: Vec::new(), hold_ms: 0 }
     }
 
     #[test]
@@ -302,11 +322,62 @@ mod tests {
     #[test]
     fn a_single_non_modifier_key_can_dictate_and_alt_is_a_normal_key_otherwise() {
         use Key::*;
-        let alt = Binding { dictation: vec![LEFT_ALT], translate: vec![LeftShift], hold_ms: 0 };
+        let alt = Binding { dictation: vec![LEFT_ALT], translate: vec![LeftShift], command: Vec::new(), hold_ms: 0 };
         assert_eq!(run_changes(alt.clone(), &[(LEFT_ALT, true, &[LEFT_ALT]), (LEFT_ALT, false, &[])]), "PR");
         // Alt gauche n'est pas la touche de dictée : avec Ctrl droit tenu, c'est un raccourci qui annule.
         let steps: [(Key, bool, &[Key]); 2] = [(RightControl, true, &[RightControl]), (LEFT_ALT, true, &[RightControl, LEFT_ALT])];
         assert_eq!(run_changes(Binding::from_hotkey(Hotkey::RightControl), &steps), "PX");
+    }
+
+    /// Touche de commande (chantier 6) : Ctrl droit dicte, Maj traduit, Ctrl gauche commande.
+    fn with_command_key() -> Binding {
+        Binding { command: vec![Key::LeftControl], ..Binding::from_hotkey(Hotkey::RightControl) }
+    }
+
+    #[test]
+    fn the_command_key_is_announced_after_or_before_the_dictation_key_and_never_without_it() {
+        use Key::*;
+        // Commande ajoutée pendant l'appui.
+        let steps: [(Key, bool, &[Key]); 3] = [
+            (RightControl, true, &[RightControl]),
+            (LeftControl, true, &[RightControl, LeftControl]),
+            (RightControl, false, &[LeftControl]),
+        ];
+        assert_eq!(run_changes(with_command_key(), &steps), "PKR");
+        // Commande tenue avant la dictée : annoncée dès l'appui, après lui.
+        let steps: [(Key, bool, &[Key]); 3] = [
+            (LeftControl, true, &[LeftControl]),
+            (RightControl, true, &[LeftControl, RightControl]),
+            (RightControl, false, &[LeftControl]),
+        ];
+        assert_eq!(run_changes(with_command_key(), &steps), "PKR");
+        // Seule, la touche de commande ne fait rien.
+        assert_eq!(run_changes(with_command_key(), &[(LeftControl, true, &[LeftControl]), (LeftControl, false, &[])]), "");
+    }
+
+    #[test]
+    fn command_and_translation_keys_together_announce_both_and_a_plain_command_key_does_not_cancel() {
+        use Key::*;
+        let steps: [(Key, bool, &[Key]); 3] = [
+            (RightControl, true, &[RightControl]),
+            (LeftControl, true, &[RightControl, LeftControl]),
+            (LeftShift, true, &[RightControl, LeftControl, LeftShift]),
+        ];
+        assert_eq!(run_changes(with_command_key(), &steps), "PKCK");
+        // Une touche de commande ordinaire (F8) ne compte pas comme un raccourci qui annule la dictée.
+        let f8 = Key::Vk(0x77);
+        let binding = Binding { command: vec![f8], ..Binding::from_hotkey(Hotkey::RightControl) };
+        let steps: [(Key, bool, &[Key]); 2] = [(RightControl, true, &[RightControl]), (f8, true, &[RightControl, f8])];
+        assert_eq!(run_changes(binding, &steps), "PK");
+    }
+
+    #[test]
+    fn without_a_command_key_the_sequences_are_those_of_before() {
+        use Key::*;
+        // Défaut de `from_hotkey` : aucune touche de commande, donc jamais de K (garde les séquences de fixtures/hotkey.json).
+        assert!(Binding::from_hotkey(Hotkey::RightControl).command.is_empty());
+        let steps: [(Key, bool, &[Key]); 2] = [(RightControl, true, &[RightControl]), (LeftControl, true, &[RightControl, LeftControl])];
+        assert_eq!(run_changes(Binding::from_hotkey(Hotkey::RightControl), &steps), "P");
     }
 
     #[test]

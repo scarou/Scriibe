@@ -240,6 +240,15 @@ export const enServer: Record<string, string> = {
   'la dictée utilise Maj : choisis une autre touche pour traduire': 'dictation uses Shift: choose another key for translation',
   '{label} sert déjà à dicter': '{label} is already used to dictate',
   'une seule touche pour traduire': 'only one key to translate',
+  '{label} sert déjà à traduire': '{label} is already used to translate',
+  'une seule touche pour les commandes': 'only one key for commands',
+
+  // Messages fixes de la pastille sous la touche de commande (jamais les mots dits)
+  'Aucune sélection': 'No selection',
+  'Sélection illisible': 'Selection unreadable',
+  'Commande inconnue': 'Unknown command',
+  'Commande non reconnue': 'Command not recognised',
+  'Commande trop longue': 'Command too long',
 
   // Banc de dictée français : catégories (bench_phrases.json)
   'Propre': 'Clean',

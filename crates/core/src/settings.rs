@@ -389,6 +389,10 @@ pub struct AppSettings {
     /// Touche tenue en plus pour traduire (une seule, ou « Maj, l'une ou l'autre ») ; vide : celle par défaut (Maj). Propre à Scriibe.
     #[serde(rename = "translateKeys")]
     pub translate_keys: Vec<String>,
+    /// Touche tenue en plus pour passer en commande (chantier 6 : sous cette touche, la dictée est une commande, jamais du texte collé) :
+    /// une seule ; vide : celle par défaut du système (`scriibe_platform::keys::default_command_label`). Propre à Scriibe, à l'ordinateur.
+    #[serde(rename = "commandKeys")]
+    pub command_keys: Vec<String>,
     /// Langue de l'interface (S08) : automatique (celle du système), français ou anglais. Propre à Scriibe.
     #[serde(rename = "uiLanguage")]
     pub ui_language: UiLanguage,
@@ -464,6 +468,7 @@ impl Default for AppSettings {
             overlay_enabled: true,
             dictation_keys: Vec::new(),
             translate_keys: Vec::new(),
+            command_keys: Vec::new(),
             ui_language: UiLanguage::default(),
             theme: Theme::default(),
             check_updates: false,
@@ -510,6 +515,7 @@ pub const COMPUTER_KEYS: &[&str] = &[
     "hotkey",
     "dictationKeys",
     "translateKeys",
+    "commandKeys",
     "formatShortcuts",
     "microphoneUID",
     "microphoneName",
@@ -680,6 +686,7 @@ impl AppSettings {
             overlay_enabled: get(o, "overlayEnabled").unwrap_or(d.overlay_enabled),
             dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
             translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
+            command_keys: get(o, "commandKeys").unwrap_or(d.command_keys),
             ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
             theme: get(o, "theme").unwrap_or(d.theme),
             check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
