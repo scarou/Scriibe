@@ -860,7 +860,7 @@ mod tests {
     fn the_hook_masks_the_menu_keys_and_holds_back_ordinary_keys_of_the_combination() {
         let rules = |dictation: &[&str], translate: &[&str]| hook_rules(&custom_binding(&ids(dictation), &ids(translate)).unwrap());
         let plain = rules(&["right_control"], &[]);
-        assert_eq!(HookRules { binding: None, dictation: Vec::new(), ..plain.clone() }, HookRules::default());
+        assert_eq!(HookRules { binding: None, dictation: Vec::new(), command_menu: Vec::new(), ..plain.clone() }, HookRules::default());
         assert_eq!(plain.binding.map(|b| b.dictation), Some(vec![Key::RightControl]), "les touches en vigueur suivent (Wayland)");
         assert!(rules(&["left_win"], &[]).mask_menu);
         assert!(rules(&["left_control", "f9"], &["left_alt"]).mask_menu, "Alt gauche pour traduire compte aussi");
