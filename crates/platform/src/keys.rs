@@ -658,7 +658,9 @@ mod tests {
     }
 
     fn custom_binding(dictation: &[String], translate: &[String]) -> Option<Binding> {
-        WINDOWS_LAYOUT.custom_binding(dictation, translate, &[])
+        // Une touche de commande sans effet sur les menus (F12) : la touche par défaut de Windows (Windows droite) masquerait le menu
+        // Démarrer et fausserait les tests des règles du crochet, qui ne portent que sur la dictée et la traduction.
+        WINDOWS_LAYOUT.custom_binding(dictation, translate, &ids(&["f12"]))
     }
 
     fn id_of(key: Key) -> Option<&'static str> {
@@ -777,13 +779,15 @@ mod tests {
     #[test]
     fn the_effective_binding_falls_back_to_the_default_when_the_settings_are_invalid() {
         let mut settings = AppSettings { hotkey: Hotkey::RightControl, ..AppSettings::default() };
-        assert_eq!(binding(&settings), Binding::from_hotkey(Hotkey::RightControl));
+        // La touche de commande par défaut du système est toujours donnée (sauf prise par la dictée ou la traduction).
+        let default = || with_default_command(Binding::from_hotkey(Hotkey::RightControl));
+        assert_eq!(binding(&settings), default());
         settings.dictation_keys = ids(&["nimporte-quoi"]);
-        assert_eq!(binding(&settings), Binding::from_hotkey(Hotkey::RightControl));
+        assert_eq!(binding(&settings), default());
         settings.dictation_keys = ids(&["left_control", "f9"]);
         let effective = binding(&settings);
         // Sur Windows la combinaison s'applique ; ailleurs, la touche par défaut du système.
-        assert_eq!(effective == Binding::from_hotkey(Hotkey::RightControl), !cfg!(any(windows, target_os = "macos")));
+        assert_eq!(effective == default(), !cfg!(any(windows, target_os = "macos")));
     }
 
     #[test]
