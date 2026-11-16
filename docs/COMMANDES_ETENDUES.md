@@ -474,3 +474,14 @@ Code de l'étape 4 de `docs/CADRAGE_COMMANDES.md` (décision 2 et décision 5). 
 ### Suite
 
 - Tâche 10 (même session) : relecture par un sous-agent Sonnet, puis corrections et § Relecture reformulation.
+
+### Relais (fin de la tâche 9, contexte à 33 %)
+
+Relais décidé par la règle du `CLAUDE.md` (contexte à 25 % ou plus en fin de tâche : la tâche suivante part d'une nouvelle session). Ne change ni l'ordre ni les consignes.
+
+- **Fait** : toute la tâche 9 (étape 4), commit local `8861771` (puis ce relais), **rien de poussé**. 815 tests Rust (3 ignorés) et 109 tests de l'interface verts, `fmt`, `clippy -D warnings`, `svelte-check` sans erreur (mesurés).
+- **En cours** : rien (arbre propre après le commit de ce relais).
+- **Prochain pas** : la tâche 10 du découpage (relecture de la reformulation par un sous-agent Sonnet, effort Élevé ; session sur Opus, effort Moyen), consigne de la tâche 10 telle quelle. Fichiers à donner au relecteur : `crates/core/src/rewrite.rs`, `crates/engines/src/services.rs` (`rewrite_selection`, `may_receive_selection`, `complete_on`), `crates/engines/src/http.rs`, `crates/pipeline/src/controller.rs` (`rewrite_selection`), `crates/core/src/settings.rs` (`rewrite_consent`, fin de `from_value`), `crates/cli/src/web/mod.rs` (`merge_settings`, état `rewrite`), `crates/cli/src/web/sinks.rs`, et leurs tests (`engines/tests/services.rs` fin du fichier, `pipeline/tests/dictation.rs` fin du fichier).
+- **Points à faire regarder en priorité** : (1) l'adresse contrôlée est `ep.base`, et `complete_on` poste vers `ep.base + "/v1/chat/completions"` : rien d'autre ne doit pouvoir changer l'hôte ; (2) `consent_matches` compare au `binding` tiré des réglages, `may_receive_selection` revérifie moteur, modèle envoyé et adresse ; (3) la chute de l'accord à la lecture (`from_value`) et l'écriture par `true` / `false` seulement ; (4) l'application inconnue au départ traitée comme changée ; (5) `Reformulation impossible — {e}` affiche le message d'un `ServiceError` : vérifier qu'aucun ne peut contenir du texte de la personne.
+- **Pièges** : (1) le Mac n'a pas de compilateur croisé : le code Windows (`reads_selection` de `WindowsPaster`, une ligne) n'est pas compilé ici, la CI Windows le fera avant la 0.8.0 (pousser demande l'accord de l'auteur) ; (2) pour une mesure avec le vrai `llama-server`, prendre un autre port que 8179 (8190 a servi) et l'arrêter par `pgrep -x llama-server` + filtre sur le port, jamais `pkill -f` ; (3) le message « 3 000 signes au plus » est écrit en dur : le test `the_cap_is_the_one_the_pill_message_says` le relie à `MAX_SELECTION_CHARS`.
+- **Commits** : `8861771` (étape 4) sur `a463780` (tâche 8). Commits locaux non poussés : `8861771` et ce relais.
