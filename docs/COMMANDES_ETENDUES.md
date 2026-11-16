@@ -549,6 +549,39 @@ Copie d'essai `Scriibe-essai.app` (`SCRIIBE_INSTALL`) lancée par `open -n --env
 - **Non vu sur le Mac** : reformulation **copiée** (application changée *après* la lecture) ; la copie « à coller avec ⌘V » n'est pas vue à l'écran (couverte par les tests).
 - Moteurs : les serveurs lancés par la copie d'essai restent en vie quand on la quitte (orphelins : `llama-server` et `whisper-server`) ; arrêtés à la main par PID pour relancer proprement. Même comportement pour l'instance habituelle (hors sujet de l'essai, noté).
 
+
+### PC Windows (essai fait en partie)
+
+PC portable de l'auteur, `b5c16f8` poussé (CI manuelle `43911926008` : Linux, Windows et cas de référence verts, macOS à confirmer), `pilote maj` puis `compiler --mode release` (Windows 1 min 57 s : le code Windows de l'étape 4, `reads_selection` et `copy_transient`, est enfin compilé pour de bon). Copie des données dans `C:\essai-lot3\donnees` (modèles par jonction), instance lancée dans la session de l'auteur par une tâche planifiée `/it`, supprimée ensuite ; Scriibe habituel (`C:\scriibe\scriibe.exe`) arrêté puis relancé. Moteur de la mise au propre : Qwen 2.5 1,5 Md (llama.cpp, CPU). Touches : dictée Ctrl droit, commande **Maj gauche** (pas de touche Windows droite sur le portable), traduction Maj droit. Texte d'essai de 164 signes dans le Bloc-notes.
+
+| Essai | Résultat | Journal |
+|---|---|---|
+| « Cherche les fautes », moteur local | texte corrigé, mais le petit modèle a aussi **supprimé « je vous écris pour vous dire que »** (136 signes au lieu de 164) | `reformulation (sélection : 164 signes, consigne : 3 mots, moteur : llama.cpp)`, `collée (136 signes, 11.83 s à froid)` |
+| « Rends ça plus amical », moteur local | ton plus amical, **tutoiement et vouvoiement mélangés** (limite du petit modèle) | `collée (178 signes, 2.86 s)` |
+| OpenRouter **sans accord** | texte inchangé, pastille lue **en entier** sur plusieurs lignes (correctif des Ajouts 1, vérifié sur Windows) | `OpenRouter n'est pas sur cet ordinateur et n'a pas d'accord — rien n'est envoyé` |
+| Application changée **avant la lecture** de la sélection (changement de fenêtre moins de 2 s après le relâchement) | rien n'est lu ni collé, message « l'application a changé » | `reformulation impossible, l'application au premier plan a changé — rien n'est lu ni collé` |
+
+- **Non essayé sur Windows** : (a) **acceptation avec accord** : ce PC n'a **pas de clé OpenRouter** (Scriibe y tourne en local seul ; une clé n'est jamais saisie par la session) ; fait sur le Mac, avec un vrai appel ; (b) **reformulation copiée seulement** (application changée *après* la lecture, fenêtre de 2,4 à 5 s) et **absence de la copie dans Win+V** : trois tentatives, aucune n'a atteint cette branche (le journal ne montre jamais de « copiée ») ; à la deuxième, l'auteur a rapporté « copiée » alors que le journal disait « l'application a changé » : **la pastille a été mal lue, le journal fait foi**. Test à la main jugé trop pénible par l'auteur ; la branche est couverte par les tests (`pipeline/tests/dictation.rs`, copie transitoire refusée ou acceptée) ; `WindowsPaster::copy_transient` (3 lignes sur `write_text(text, true)`, déjà utilisé par chaque collage transitoire) n'a pas été observé dans Win+V.
+- **Pastille bloquée sur « j'écoute »** (deux fois, 21 et 26 s) quand l'auteur a changé de fenêtre pendant que les touches étaient tenues : dictée « annulée (une autre touche a été tapée) » au bout de ce délai. **Pas reproduit, pas expliqué** (l'auteur n'a pas précisé s'il avait relâché avant) ; défaut de la touche globale et non de la reformulation ; à reprendre (ligne du carnet).
+- **Réglage des touches** : l'auteur a rencontré un message d'erreur « nécessaires pour écrire » en voulant changer les touches dans l'interface de la copie d'essai, **non élucidé** (la cause immédiate des mauvaises touches était un défaut de ma préparation : noms `ShiftLeft` au lieu de `left_shift` dans `settings.json`, ignorés sans erreur) ; à reprendre avec l'auteur.
+
+### PC Linux (GNOME Wayland)
+
+Même mise à jour et même compilation (`b5c16f8`, release) ; Scriibe habituel relancé sur ses vraies données avec les variables de la session graphique (piège de `docs/PIEGES.md`). Dictée de « Cherche les fautes » sous la touche de commande (Ctrl + ↓) : pastille **« Non disponible sous Linux »** (lue par l'auteur), rien collé ; journal `commande: reformulation impossible, ce système ne lit pas la sélection — rien n'est collé`. Raison : Linux ne lit pas la sélection ni n'envoie de raccourci autre que Ctrl+V (ROADMAP n°3), donc la reformulation écraserait ce qui n'a pas été lu.
+
+### Constats
+
+- **Reformulation locale réussie sur Mac et Windows** ; refus sans accord vu sur les deux ; acceptation avec accord lié vue sur le Mac ; message Linux vu. L'accord tombe quand le modèle change et ne revit pas.
+- **Qualité** : sur le Mac (Gemma 4 E4B) la reformulation est fidèle ; sur le PC Windows (Qwen 1,5 Md) elle ajoute des suppressions et mélange tu et vous. Le garde-fou ne l'arrête pas (le sens reste proche). **À dire dans les notes de version** : la reformulation demande un modèle d'au moins quelques milliards de paramètres.
+- **Pas vu à l'écran** : copie seule (Mac et Windows) et Win+V ; acceptation avec accord sous Windows (pas de clé) ; Linux X11 (non demandé).
+- **Machines remises en état** : Mac : copie d'essai arrêtée, `Scriibe-essai.app` et la copie de données (scratchpad de la session) restent, Scriibe habituel relancé par `open` ; Windows : habituel relancé, tâches temporaires supprimées, `C:\essai-lot3` reste ; Linux : habituel relancé sur la version `b5c16f8`.
+
+### Suite
+
+Tâche 12 (même session, `/livrer-git` en mode version 0.8.0) : aperçu et accord de l'auteur avant la Release ; CI macOS à confirmer au commit à publier ; notes de version avec le statut d'essai par système ci-dessus.
+
 ### Ajouts
 
 1. **16/11, pastille tronquée** — « Reformulation impossible : moteur hors de cet ordinateur, sans accord… » était coupée à ≈ 50 signes (capsule en `white-space: nowrap` dans une fenêtre de 440 px). **Défaut réel, traité tout de suite** pour **tous** les messages de la pastille : capsule `message` qui passe à la ligne (`OverlayView.svelte`, hauteur automatique, au plus trois lignes dans les 110 px de la fenêtre). 109 tests de l'interface verts ; **relu à l'écran sur le Mac** : phrase lisible en entier.
+2. **16/11, Windows, réglage des touches** et **pastille bloquée** : voir « PC Windows » ci-dessus ; deux points non élucidés, à mettre au carnet.
+3. **16/11, essai pénible** — l'auteur a trouvé « particulièrement pénible » le test de la copie seule sur Windows (temps de réponse court, trois tentatives) ; décision : ne plus demander d'essai à la main qui dépend d'un créneau de quelques secondes, le couvrir par un test ou un réglage de banc.
