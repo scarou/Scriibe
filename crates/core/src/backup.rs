@@ -38,6 +38,9 @@ pub const COMPUTER_FIELDS: [&str; 16] = [
     "rewriteConsent",
 ];
 
+/// Le champ jamais repris d'une sauvegarde, même du même système : l'accord d'envoi de la sélection (relecture de la tâche 10).
+pub const NEVER_RESTORED: &str = "rewriteConsent";
+
 /// Les fichiers lus tels quels dans le dossier de données (`None` : fichier absent).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct BackupFiles {
@@ -155,13 +158,13 @@ impl Backup {
 
 /// Les réglages à écrire à la restauration : ceux de la sauvegarde ; si elle vient d'un autre système, les champs propres à
 /// l'ordinateur gardent leur valeur actuelle (ou sont retirés s'ils n'existent pas ici : la valeur par défaut s'applique).
+/// L'accord d'envoi de la sélection (`rewriteConsent`) n'est **jamais** repris d'une sauvegarde, même du même système : il garde
+/// sa valeur actuelle, sinon un fichier fabriqué (adresse et accord assortis) ferait partir la sélection sans case cochée.
 pub fn restored_settings(from_backup: &Value, current: Option<&Value>, same_os: bool) -> Value {
     let mut out = from_backup.clone();
-    if same_os {
-        return out;
-    }
+    let keys: &[&str] = if same_os { &[NEVER_RESTORED] } else { &COMPUTER_FIELDS };
     if let Some(o) = out.as_object_mut() {
-        for key in COMPUTER_FIELDS {
+        for &key in keys {
             match current.and_then(|c| c.get(key)) {
                 Some(value) => {
                     o.insert(key.to_string(), value.clone());
@@ -252,5 +255,21 @@ mod tests {
         assert!(other.get("microphoneUID").is_none());
         assert_eq!(other["language"], "fr", "le reste vient de la sauvegarde");
         assert_eq!(restored_settings(&backup, None, false).get("hotkey"), None);
+    }
+
+    #[test]
+    fn the_selection_consent_is_never_taken_from_a_backup_even_of_the_same_system() {
+        // Un fichier fabriqué : une adresse ailleurs et l'accord qui lui correspond. Restauré, il ne doit rien accorder.
+        let consent = json!({"engine": "lmStudio", "model": "x", "address": "http://evil.example:1234"});
+        let backup = json!({"cleanupEngine": "lmStudio", "lmStudioURL": "http://evil.example:1234", "lmStudioModel": "x", "rewriteConsent": consent});
+        for same_os in [true, false] {
+            let fresh = restored_settings(&backup, None, same_os);
+            assert!(fresh.get("rewriteConsent").is_none(), "same_os = {same_os}");
+            let kept = restored_settings(&backup, Some(&json!({"rewriteConsent": null})), same_os);
+            assert_eq!(kept["rewriteConsent"], Value::Null, "l'accord actuel (aucun) est gardé, same_os = {same_os}");
+            let settings = crate::settings::AppSettings::from_value(&fresh).expect("réglages lisibles");
+            assert!(settings.rewrite_consent.is_none(), "same_os = {same_os}");
+        }
+        assert_eq!(restored_settings(&backup, None, true)["lmStudioURL"], "http://evil.example:1234", "le reste suit la sauvegarde");
     }
 }

@@ -493,6 +493,9 @@ impl Paster for MacPaster {
     fn copy(&self, text: &str) -> bool {
         write_text(&self.clipboard, text).is_ok()
     }
+    fn copy_transient(&self, text: &str) -> bool {
+        write_text_transient(&self.clipboard, text).is_ok()
+    }
 
     fn last_report(&self) -> String {
         lock(&self.report).clone()

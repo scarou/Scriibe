@@ -715,4 +715,7 @@ fn a_forgotten_debug_print_shows_neither_the_body_nor_the_key() {
     let message = &rewrite::messages(SECRET, "plus amical")[7];
     let shown = format!("{message:?}");
     assert!(!shown.contains("SECRET") && shown.contains("signes"), "{shown}");
+    let response = scriibe_engines::http::HttpResponse { status: 200, body: SECRET.as_bytes().to_vec() };
+    let shown = format!("{response:?}");
+    assert!(!shown.contains("SECRET") && shown.contains("200"), "{shown}");
 }

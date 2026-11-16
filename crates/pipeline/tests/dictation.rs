@@ -132,6 +132,8 @@ struct Rig {
     apps: Arc<FakeApps>,
     /// Si présente, l'appli au premier plan devient celle-ci pendant l'appel au modèle (la personne a changé de fenêtre entre-temps).
     switch_app_during_model: Arc<Mutex<Option<AppInfo>>>,
+    /// Si présente, l'appli au premier plan devient celle-ci pendant la transcription (avant la lecture de la sélection).
+    switch_app_during_transcription: Arc<Mutex<Option<AppInfo>>>,
 }
 
 fn transcript(text: &str) -> HttpResponse {
@@ -164,18 +166,25 @@ fn rig_full(
     let world = FakeWorld::new();
     let cleanup_fails = Arc::new(AtomicBool::new(false));
     let clock = Arc::new(TestClock::default());
+    let apps = Arc::new(FakeApps::new(AppInfo { name: "notepad".into(), id: Some("notepad.exe".into()) }));
+    let switch_app_during_transcription: Arc<Mutex<Option<AppInfo>>> = Arc::default();
+    let (switch, switched) = (switch_app_during_transcription.clone(), apps.clone());
     let c = clock.clone();
     world.route("api.deepgram.com/v1/listen?", move |_| {
+        if let Some(app) = switch.lock().unwrap().clone() {
+            switched.set(app);
+        }
         c.advance(Duration::from_millis(300));
         Ok(transcript(heard))
     });
     let c = clock.clone();
     let fails = cleanup_fails.clone();
-    let apps = Arc::new(FakeApps::new(AppInfo { name: "notepad".into(), id: Some("notepad.exe".into()) }));
     let switch_app_during_model: Arc<Mutex<Option<AppInfo>>> = Arc::default();
     let (switch, switched) = (switch_app_during_model.clone(), apps.clone());
     world.route("/v1/chat/completions", move |request| {
-        if let Some(app) = switch.lock().unwrap().clone() {
+        // Pas pendant le préchauffage (un jeton, à l'appui) : seulement pendant l'appel qui porte le texte.
+        let warm_up = serde_json::from_slice::<Value>(&request.body).is_ok_and(|b| b["max_tokens"] == 1);
+        if let Some(app) = switch.lock().unwrap().clone().filter(|_| !warm_up) {
             switched.set(app);
         }
         if fails.load(Ordering::SeqCst) {
@@ -259,6 +268,7 @@ fn rig_full(
         cleanup_fails,
         apps,
         switch_app_during_model,
+        switch_app_during_transcription,
     }
 }
 
@@ -2122,7 +2132,9 @@ fn under_the_command_key_a_rewrite_is_only_copied_when_the_foreground_applicatio
     *r.switch_app_during_model.lock().unwrap() = Some(AppInfo { name: "Messages".into(), id: Some("com.apple.MobileSMS".into()) });
     r.dictate_under_key();
     assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty(), "rien n'est collé dans une autre application");
-    assert_eq!(r.paster.copied(), vec!["Coucou ! La réunion est annulée.".to_string()]);
+    // Copié marqué « ne pas garder » (historique Win+V, presse-papiers du cloud, gestionnaires du Mac), jamais par la copie ordinaire.
+    assert_eq!(r.paster.copied_transient(), vec!["Coucou ! La réunion est annulée.".to_string()]);
+    assert!(r.paster.copied().is_empty());
     let shortcut = if cfg!(target_os = "macos") { "⌘V" } else { "Ctrl+V" };
     assert!(
         r.indicator.states().contains(&message(&format!("Reformulation copiée : l'application a changé, à coller avec {shortcut}"))),
@@ -2155,4 +2167,60 @@ fn under_the_command_key_a_failed_rewrite_replaces_nothing() {
     r.dictate_under_key();
     assert!(r.indicator.states().contains(&message("Sélection trop longue pour la reformulation (3 000 signes au plus)")));
     assert!(r.cleanup_requests().is_empty());
+}
+
+/// Relecture de la tâche 10 : la personne a changé d'application **avant** la lecture de la sélection (pendant la transcription). La
+/// sélection de l'autre application n'est ni lue ni envoyée : sinon, revenue dans la première, elle y verrait collée la reformulation
+/// d'un texte d'ailleurs.
+#[test]
+fn under_the_command_key_a_rewrite_reads_nothing_when_the_application_changed_before_the_selection_was_read() {
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    *r.switch_app_during_transcription.lock().unwrap() = Some(AppInfo { name: "Messages".into(), id: Some("com.apple.MobileSMS".into()) });
+    r.dictate_under_key();
+    assert_eq!(r.paster.selected_reads(), 0, "la sélection de l'autre application n'est pas lue");
+    assert!(rewrite_requests(&r).iter().all(|q| !String::from_utf8_lossy(&q.body).contains("<consigne>")), "rien n'est envoyé");
+    assert!(r.indicator.states().contains(&message("Reformulation impossible : l'application a changé")), "{:?}", r.indicator.states());
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.copied_transient().is_empty() && r.paster.copied().is_empty());
+    nothing_said_or_selected_in(&r);
+}
+
+/// Application inconnue à l'appui : on ne peut pas vérifier qu'on colle au même endroit, donc rien n'est lu ni envoyé.
+#[test]
+fn under_the_command_key_a_rewrite_reads_nothing_when_the_application_is_unknown() {
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    r.apps.set(AppInfo::unknown());
+    r.dictate_under_key();
+    assert_eq!(r.paster.selected_reads(), 0);
+    assert!(rewrite_requests(&r).iter().all(|q| !String::from_utf8_lossy(&q.body).contains("<consigne>")));
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.copied_transient().is_empty());
+    assert!(r.indicator.states().contains(&message("Reformulation impossible : l'application a changé")), "{:?}", r.indicator.states());
+    // L'application devient inconnue pendant l'appel : seulement copié.
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    *r.switch_app_during_model.lock().unwrap() = Some(AppInfo::unknown());
+    r.dictate_under_key();
+    assert!(r.paster.pasted_transient().is_empty());
+    assert_eq!(r.paster.copied_transient().len(), 1);
+}
+
+/// Copie refusée après un changement d'application : message fixe, rien de collé ; collage refusé par l'application (copié seulement) :
+/// message fixe avec la raison du système.
+#[test]
+fn under_the_command_key_a_rewrite_that_cannot_be_copied_or_pasted_says_so_without_the_text() {
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    *r.switch_app_during_model.lock().unwrap() = Some(AppInfo { name: "Messages".into(), id: Some("com.apple.MobileSMS".into()) });
+    r.paster.fail_copy();
+    r.dictate_under_key();
+    assert!(r.indicator.states().contains(&message("Reformulation non collée : l'application a changé")), "{:?}", r.indicator.states());
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.copied_transient().is_empty());
+    nothing_said_or_selected_in(&r);
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    r.paster.set_outcome(PasteOutcome::CopiedOnly("Accessibilité refusée".into()));
+    r.dictate_under_key();
+    let shortcut = if cfg!(target_os = "macos") { "⌘V" } else { "Ctrl+V" };
+    assert!(
+        r.indicator.states().contains(&message(&format!("Reformulation copiée, à coller avec {shortcut} — Accessibilité refusée"))),
+        "{:?}",
+        r.indicator.states()
+    );
+    nothing_said_or_selected_in(&r);
 }

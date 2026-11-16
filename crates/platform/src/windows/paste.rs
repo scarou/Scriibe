@@ -339,6 +339,10 @@ impl Paster for WindowsPaster {
         write_text(text, false).is_ok()
     }
 
+    fn copy_transient(&self, text: &str) -> bool {
+        write_text(text, true).is_ok()
+    }
+
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
         paste_with(text, restore_clipboard, restore_clipboard, false)
     }

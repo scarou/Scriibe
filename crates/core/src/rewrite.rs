@@ -56,11 +56,15 @@ pub fn consent_matches(settings: &AppSettings) -> bool {
 }
 
 /// L'adresse a pour hôte `127.0.0.1`, `localhost` ou `[::1]` (adresse de boucle locale : cet ordinateur), en `http` ou `https`, avec
-/// un port facultatif. Lecture **stricte** : tout ce qui n'est pas exactement l'une de ces formes est « ailleurs » (un `@`, une barre
+/// un port facultatif, sans requête ni fragment. Lecture **stricte** : tout ce qui n'est pas exactement l'une de ces formes est « ailleurs » (un `@`, une barre
 /// oblique inverse, un caractère encodé, un blanc, `127.0.0.2` ou `[0:0:0:0:0:0:0:1]` sont refusés). On ne se sert pas de
 /// `CleanupEngine::is_local`, qui vaut « tout sauf OpenRouter » quelle que soit l'adresse (un LM Studio sur une autre machine de la maison).
 pub fn is_loopback_address(url: &str) -> bool {
     let lower = url.to_ascii_lowercase();
+    // Une requête ou un fragment casserait l'adresse appelée (`base + "/v1/chat/completions"`) : refusé (relecture de la tâche 10).
+    if lower.contains(['?', '#']) {
+        return false;
+    }
     let Some(rest) = lower.strip_prefix("http://").or_else(|| lower.strip_prefix("https://")) else { return false };
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
     if authority.contains(['@', '\\', '%']) || authority.chars().any(|c| c.is_whitespace() || c.is_control()) {
@@ -276,13 +280,8 @@ pub fn accepts_rewrite(selection: &str, instruction: &str, output: &str) -> Verd
     if body.chars().count() > selection.chars().count() * 3 + 300 {
         return Verdict::Rejected("réponse trop longue");
     }
-    let source_start = lower_words(selection, 2);
-    let first = lower_words(body, 1);
-    let two = lower_words(body, 2);
-    let starts_like_source = |words: &str| source_start.starts_with(words);
-    if (OPENERS.iter().any(|o| two == *o || first == *o) && !starts_like_source(&first))
-        || (TWO_WORD_OPENERS.contains(&two.as_str()) && !starts_like_source(&two))
-    {
+    // Une sélection qui commence elle-même par une formule (« Voici le document. ») peut la garder, ou la traduire (« Here is… »).
+    if !opens_with_formula(selection) && opens_with_formula(body) {
         return Verdict::Rejected("formule de réponse en tête");
     }
     // « Version plus amicale :\n… » : une première ligne courte qui annonce la suite, absente de la sélection.
@@ -299,7 +298,47 @@ pub fn accepts_rewrite(selection: &str, instruction: &str, output: &str) -> Verd
     if squashed(body) == squashed(selection) {
         return Verdict::Unchanged;
     }
+    if !is_translation(instruction) && shares_no_word(selection, body) {
+        return Verdict::Rejected("réponse sans rapport avec la sélection");
+    }
     Verdict::Accepted
+}
+
+/// Le texte commence-t-il par une formule de réponse (« Voici », « Bien sûr », « Here is »…) ?
+fn opens_with_formula(text: &str) -> bool {
+    let (first, two) = (lower_words(text, 1), lower_words(text, 2));
+    OPENERS.iter().any(|o| two == *o || first == *o) || TWO_WORD_OPENERS.contains(&two.as_str())
+}
+
+/// La consigne demande-t-elle une traduction ? Alors la réponse n'a normalement aucun mot de la sélection.
+fn is_translation(instruction: &str) -> bool {
+    let lower = instruction.to_lowercase();
+    ["tradu", "translat", "anglais", "english", "espagnol", "allemand", "italien", "portugais", "langue"].iter().any(|w| lower.contains(w))
+}
+
+/// Les mots de 4 lettres ou plus, en minuscules et sans accents (une correction peut ajouter ou ôter un accent).
+fn content_words(text: &str) -> std::collections::HashSet<String> {
+    let fold = |c: char| match c {
+        'à' | 'â' | 'ä' => 'a',
+        'é' | 'è' | 'ê' | 'ë' => 'e',
+        'î' | 'ï' => 'i',
+        'ô' | 'ö' => 'o',
+        'ù' | 'û' | 'ü' => 'u',
+        'ç' => 'c',
+        c => c,
+    };
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.chars().count() >= 4)
+        .map(|w| w.chars().map(fold).collect())
+        .collect()
+}
+
+/// Une réponse qui ne reprend aucun mot d'une sélection qui en a au moins deux (« Aucune faute détectée. », « Le texte est correct. »)
+/// commente au lieu de réécrire : elle ne remplace pas la sélection (relecture de la tâche 10).
+fn shares_no_word(selection: &str, output: &str) -> bool {
+    let source = content_words(selection);
+    source.len() >= 2 && content_words(output).is_disjoint(&source)
 }
 
 #[cfg(test)]
@@ -319,7 +358,6 @@ mod tests {
             "HTTP://LOCALHOST:11434",
             "http://[::1]:1234/v1",
             "https://127.0.0.1:8443",
-            "http://127.0.0.1:1234?x=1",
         ] {
             assert!(is_loopback_address(yes), "{yes}");
         }
@@ -334,6 +372,8 @@ mod tests {
             "http://127.0.0.1\t.evil.example",
             "http://%31%32%37.0.0.1:1234",
             "http://127.0.0.2:1234",
+            "http://127.0.0.1:1234?x=1",
+            "http://127.0.0.1:1234/#x",
             "http://[0:0:0:0:0:0:0:1]:1234",
             "http://[::1",
             "http://127.0.0.1:12a4",
@@ -464,6 +504,25 @@ mod tests {
             accepts_rewrite("Écris à paul@example.org avant 2026.", "plus poli", "Merci d'écrire à paul@example.org avant 2026."),
             Verdict::Accepted
         );
+        // Relecture de la tâche 10 : une sélection qui commence par une formule se traduit (« Voici » → « Here is »).
+        assert_eq!(accepts_rewrite("Voici le document.", "traduis en anglais", "Here is the document."), Verdict::Accepted);
+        assert_eq!(accepts_rewrite("Bien sûr, je viens.", "traduis en anglais", "Of course, I'm coming."), Verdict::Accepted);
+        assert_eq!(accepts_rewrite("Of course I will.", "translate to French", "Bien sûr que oui."), Verdict::Accepted);
+        // Un accent corrigé reste le même mot.
+        assert_eq!(accepts_rewrite("la reunion annulee", "cherche les fautes", "La réunion annulée."), Verdict::Accepted);
+    }
+
+    #[test]
+    fn the_guard_refuses_a_comment_instead_of_a_rewrite() {
+        let sel = "La réunion de lundi est annulée.";
+        for out in ["Aucune faute détectée.", "Le texte est déjà correct.", "Je ne peux pas faire ça."] {
+            assert_eq!(
+                accepts_rewrite(sel, "cherche les fautes", out),
+                Verdict::Rejected("réponse sans rapport avec la sélection"),
+                "{out}"
+            );
+        }
+        assert_eq!(accepts_rewrite("Oui.", "plus poli", "Volontiers."), Verdict::Accepted, "trop court pour juger");
     }
 
     #[test]

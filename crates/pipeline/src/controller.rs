@@ -185,6 +185,12 @@ fn seconds(duration: Duration) -> String {
     format!("{:.2} s", duration.as_secs_f64())
 }
 
+/// Même application au premier plan que celle de l'appui ? Une application inconnue (d'un côté ou de l'autre) ne l'est jamais : on ne peut
+/// pas vérifier, donc la reformulation n'est ni lue ni collée.
+fn same_app(target: &AppInfo, now: &AppInfo) -> bool {
+    target.id.is_some() && now.id == target.id
+}
+
 impl Controller {
     pub fn new(deps: Deps) -> Self {
         let binding = scriibe_platform::keys::binding(&deps.config.settings());
@@ -819,13 +825,21 @@ impl Controller {
 
     /// Reformulation de la sélection par la consigne dite (chantier 6, étape 4 ; `docs/CADRAGE_COMMANDES.md`, décision 2). La sélection
     /// part seulement vers un moteur sur cet ordinateur, ou vers le moteur qui a l'accord (contrôle dans `Cleaner::rewrite_selection`).
-    /// Juste avant de coller, l'application au premier plan est comparée à celle de la dictée : si elle a changé, le texte est seulement
-    /// copié. Toute autre issue ne remplace rien. Journal : longueurs, moteur et durée ; pastille : messages fixes ; rien dans l'historique.
+    /// L'application au premier plan est comparée à celle de l'appui deux fois : avant de lire la sélection (si elle a changé, rien n'est
+    /// lu ni envoyé) et juste avant de coller (si elle a changé, le texte est seulement copié, marqué « ne pas garder »). Une application
+    /// inconnue compte comme changée. Toute autre issue ne remplace rien. Journal : longueurs, moteur et durée ; pastille : messages fixes ; rien dans l'historique.
     fn rewrite_selection(&self, instruction: &str, settings: &AppSettings, target: &AppInfo) {
         let deps = &self.inner.deps;
         if !deps.paster.reads_selection() {
             deps.log.write("commande: reformulation impossible, ce système ne lit pas la sélection — rien n'est collé");
             self.refuse("Non disponible sous Linux");
+            return;
+        }
+        // La sélection lue doit être celle de l'application de l'appui : sinon la reformulation d'un texte d'une autre application
+        // pourrait être collée dans celle-ci au retour (relecture de la tâche 10).
+        if !same_app(target, &deps.apps.current()) {
+            deps.log.write("commande: reformulation impossible, l'application au premier plan a changé — rien n'est lu ni collé");
+            self.refuse("Reformulation impossible : l'application a changé");
             return;
         }
         let selection = match deps.paster.selected_text() {
@@ -877,13 +891,12 @@ impl Controller {
                 return;
             }
         };
-        let now = deps.apps.current();
-        if target.id.is_none() || now.id != target.id {
+        if !same_app(target, &deps.apps.current()) {
             deps.log.write(&format!(
                 "commande: reformulation copiée, l'application au premier plan a changé ({} signes, {took}) — rien n'est collé",
                 text.char_count()
             ));
-            let message = if deps.paster.copy(text.expose()) {
+            let message = if deps.paster.copy_transient(text.expose()) {
                 format!("Reformulation copiée : l'application a changé, à coller avec {PASTE_SHORTCUT}")
             } else {
                 "Reformulation non collée : l'application a changé".to_string()

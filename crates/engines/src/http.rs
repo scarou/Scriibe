@@ -59,10 +59,17 @@ impl HttpRequest {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct HttpResponse {
     pub status: u16,
     pub body: Vec<u8>,
+}
+
+/// Le corps peut porter la réponse du modèle (la sélection reformulée, la dictée) : `Debug` n'en montre que la taille.
+impl std::fmt::Debug for HttpResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HttpResponse").field("status", &self.status).field("body_bytes", &self.body.len()).finish()
+    }
 }
 
 /// Le serveur n'a pas répondu (réseau coupé, port fermé, délai dépassé). Un code 4xx ou 5xx n'est **pas** une erreur ici.

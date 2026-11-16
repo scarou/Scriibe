@@ -268,6 +268,7 @@ export const enServer: Record<string, string> = {
   'Reformulation copiée : l\'application a changé, à coller avec ⌘V': 'Rewrite copied: the application changed, paste it with ⌘V',
   'Reformulation copiée : l\'application a changé, à coller avec Ctrl+V': 'Rewrite copied: the application changed, paste it with Ctrl+V',
   'Reformulation non collée : l\'application a changé': 'Rewrite not pasted: the application changed',
+  'Reformulation impossible : l\'application a changé': 'Rewrite not possible: the application changed',
   'Reformulation copiée, à coller avec ⌘V — {reason}': 'Rewrite copied, paste it with ⌘V — {reason}',
   'Reformulation copiée, à coller avec Ctrl+V — {reason}': 'Rewrite copied, paste it with Ctrl+V — {reason}',
   'accord illisible': 'unreadable consent',

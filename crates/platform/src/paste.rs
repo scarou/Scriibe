@@ -130,6 +130,11 @@ pub trait Paster: Send + Sync {
     fn copy(&self, _text: &str) -> bool {
         false
     }
+    /// Comme `copy`, mais le texte est marqué « ne pas garder » (historique du presse-papiers, Win+V, presse-papiers du cloud), comme
+    /// `paste_transient` : une reformulation qu'on n'a pas pu coller vient de la sélection. Par défaut : le système ne sait pas.
+    fn copy_transient(&self, _text: &str) -> bool {
+        false
+    }
     /// Ouvre dans le navigateur (ou la messagerie) l'adresse construite par une commande vocale : par la fonction d'ouverture **contrôlée**
     /// (`open::open_address`, jamais `open::open`), qui refuse tout ce qui n'est pas `https://` ou `mailto:`. L'erreur est un texte fixe.
     /// Les essais (`SwitchPaster`) la neutralisent comme le collage.

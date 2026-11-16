@@ -485,3 +485,45 @@ Relais décidé par la règle du `CLAUDE.md` (contexte à 25 % ou plus en fin de
 - **Points à faire regarder en priorité** : (1) l'adresse contrôlée est `ep.base`, et `complete_on` poste vers `ep.base + "/v1/chat/completions"` : rien d'autre ne doit pouvoir changer l'hôte ; (2) `consent_matches` compare au `binding` tiré des réglages, `may_receive_selection` revérifie moteur, modèle envoyé et adresse ; (3) la chute de l'accord à la lecture (`from_value`) et l'écriture par `true` / `false` seulement ; (4) l'application inconnue au départ traitée comme changée ; (5) `Reformulation impossible — {e}` affiche le message d'un `ServiceError` : vérifier qu'aucun ne peut contenir du texte de la personne.
 - **Pièges** : (1) le Mac n'a pas de compilateur croisé : le code Windows (`reads_selection` de `WindowsPaster`, une ligne) n'est pas compilé ici, la CI Windows le fera avant la 0.8.0 (pousser demande l'accord de l'auteur) ; (2) pour une mesure avec le vrai `llama-server`, prendre un autre port que 8179 (8190 a servi) et l'arrêter par `pgrep -x llama-server` + filtre sur le port, jamais `pkill -f` ; (3) le message « 3 000 signes au plus » est écrit en dur : le test `the_cap_is_the_one_the_pill_message_says` le relie à `MAX_SELECTION_CHARS`.
 - **Commits** : `8861771` (étape 4) sur `a463780` (tâche 8). Commits locaux non poussés : `8861771` et ce relais.
+
+## Relecture reformulation (tâche 10, 16/11/2026)
+
+Relecture du code de l'étape 4 (commit `8861771`) par un sous-agent Sonnet (effort Élevé, lecture seule), pilotée sur Opus. Questions posées : la sélection peut-elle partir hors de cet ordinateur sans accord ; fuite dans le journal, la pastille ou `llama-server.log` ; collage dans une autre application que celle d'origine ; accord lié à un moteur précis ; tests qui prouvent vraiment ces garanties.
+
+### Défauts trouvés et corrigés
+
+| Gravité | Défaut | Correction |
+|---|---|---|
+| **Bloquant** | L'accord était repris d'une **sauvegarde du même système** (`restored_settings` ne protégeait `COMPUTER_FIELDS` que d'un autre système). Un fichier `.scriibe.json` fabriqué (adresse `evil.example` et accord assorti) aurait fait partir la sélection sans case cochée ; une sauvegarde honnête emportait aussi l'accord vers un autre ordinateur. | `backup::NEVER_RESTORED` : `rewriteConsent` garde **toujours** sa valeur actuelle (ou est retiré), quel que soit le système. Test `the_selection_consent_is_never_taken_from_a_backup_even_of_the_same_system` (échoue sur l'ancien code). |
+| Important | Reformulation **copiée** (application changée) par la copie ordinaire : elle entrait dans l'historique Win+V, le presse-papiers du cloud, les gestionnaires du Mac. | `Paster::copy_transient` (Mac : marques `ConcealedType` et `TransientType` ; Windows : `write_text(text, true)` ; faux par défaut), délégué par `SwitchPaster` (neutralisé pendant un essai). |
+| Important | L'application n'était comparée qu'**après** l'appel au modèle : appui dans A, passage à B pendant la transcription (la sélection de B est lue), retour dans A pendant l'appel → texte de B collé dans A. | `same_app` comparé aussi **avant de lire la sélection** : changée ou inconnue → rien n'est lu ni envoyé, « Reformulation impossible : l'application a changé » (traduit). |
+| Important | Le garde-fou écartait des **traductions** légitimes (« Voici le document. » → « Here is the document. ») : la formule de tête n'était permise que si la sélection commençait par le même mot. | Formule de tête permise dès que la sélection commence elle-même par une formule (`opens_with_formula`). |
+| Important | Une réponse qui **commente** au lieu de réécrire (« Aucune faute détectée. ») remplaçait la sélection. | Écartée si elle ne reprend aucun mot de 4 lettres ou plus (accents ignorés) d'une sélection qui en a deux, sauf consigne de traduction (`shares_no_word`, `is_translation`). |
+| Important | Garanties non testées : redirection avec le **vrai** client, application inconnue, copie refusée, `CopiedOnly`. | Tests `a_request_without_redirects_never_reaches_the_redirect_target` (vrai `ureq`, deux serveurs locaux ; la même requête qui suit les redirections atteint bien le second, l'essai sait donc le voir), `…reads_nothing_when_the_application_changed_before…`, `…when_the_application_is_unknown`, `…cannot_be_copied_or_pasted_says_so_without_the_text`. Le banc ne change plus d'application pendant le préchauffage (un jeton), seulement pendant l'appel qui porte le texte. |
+| Mineur | Adresse avec `?` ou `#` acceptée (appel cassé, même hôte, pas de fuite). | Refusée par `is_loopback_address`. |
+| Mineur | `HttpResponse` montrait son corps (réponse du modèle) au `Debug` ; aucun usage aujourd'hui. | `Debug` masqué (statut et taille), testé. |
+
+### Points vérifiés sans défaut (par le relecteur, dans le code)
+
+- L'hôte appelé est `ep.base`, contrôlé juste avant l'appel avec le même instantané des réglages ; `ureq` 2.12.1 sans `proxy-from-env` (`HTTP_PROXY`, `ALL_PROXY` ignorés) ; aucun autre chemin n'envoie la sélection ; ni repli vers un autre moteur, ni second essai.
+- `merge_settings` n'accepte que `true` / `false` / `null` ; l'accord tombe dès qu'un des trois change, n'est jamais exporté avec l'utilisateur.
+- Journal et pastille : longueurs, moteur, durées, raisons fixes ; aucun logger branché (le `log` d'`ureq` ne sort nulle part) ; `ServiceError` sans corps ni adresse ; rien dans l'historique ni les statistiques ; `llama-server` lancé sans option de verbosité (mesures de la tâche 9 sur `llama-server.log` et `/slots` non refaites).
+- Linux, essais (`SwitchPaster`), plafond en caractères avant tout envoi, `clean_output` sans coupure UTF-8.
+
+### Non corrigé (mineur ou limite, avec la raison)
+
+- **Même application, autre fenêtre, onglet ou document** pendant l'appel : la reformulation y est collée. Relire la sélection avant de coller demanderait une seconde copie (presse-papiers touché deux fois, ⌘C envoyé à une fenêtre peut-être changée) ; limite dite dans l'Aide (« Reste dans la même fenêtre jusqu'au collage »). À revoir après l'essai (tâche 11).
+- Message « Réponse … coupée (dictée trop longue…) » de `complete_on` affiché aussi pour une reformulation : partagé avec la dictée et ses traductions ; à reprendre avec le prochain passage sur les messages.
+- Ligne courte finissant par « : » ajoutée par le modèle (« Ingrédients » → « Ingrédients : ») : écartée à tort, sans danger (rien n'est remplacé).
+- Guillemets d'un autre type retirés à tort dans `clean_output` ; `<texte>` de la sélection rendu en `‹texte›` (neutralisation du gabarit) : rares, notés.
+- `assistant_apply` change le moteur sans passer par `merge_settings` : l'accord périmé reste sur disque jusqu'au rechargement, mais le contrôle à l'usage compare toujours le triplet exact, donc il ne vaut que pour le moteur déjà accordé.
+- Boucle locale ≠ « cet ordinateur » si un tunnel SSH écoute sur `127.0.0.1` ; plafond de 3 000 signes compté en caractères (une écriture non latine coûte plus de jetons) : limites de conception, inchangées.
+
+### Tests (mesurés sur le Mac)
+
+- **821 tests Rust** (3 ignorés), 6 de plus que les 815 de la tâche 9, et **109 tests de l'interface** sans erreur ; `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `svelte-check` sans erreur.
+- **Non compilé ici** : `WindowsPaster::copy_transient` (3 lignes, `write_text` existant) s'ajoute à `reads_selection` ; la CI Windows le vérifiera avant la 0.8.0.
+
+### Suite
+
+- Tâche 11 (nouvelle session, ⚙ Sonnet · Élevé) : essai réel du lot 3 sur le Mac puis le PC Windows. Ajouter à l'essai : changer d'application pendant la transcription (rien n'est lu), et vérifier qu'une reformulation copiée n'apparaît pas dans Win+V.

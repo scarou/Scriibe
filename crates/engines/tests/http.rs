@@ -88,3 +88,43 @@ fn a_silent_server_hits_the_timeout() {
     assert!(start.elapsed() < Duration::from_secs(3));
     drop(listener);
 }
+
+/// Répond une fois « 307, va voir `location` » et renvoie le port.
+fn redirect_once(location: String) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        stream.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
+        let mut chunk = [0u8; 4096];
+        let _ = stream.read(&mut chunk);
+        let response = format!("HTTP/1.1 307 Temporary Redirect\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        let _ = stream.write_all(response.as_bytes());
+    });
+    port
+}
+
+/// Relecture de la tâche 10 : la reformulation (`without_redirects`) ne suit **jamais** une redirection avec le vrai client — sinon un
+/// serveur de cet ordinateur pourrait renvoyer la sélection ailleurs. La même requête qui suit les redirections atteint bien le second
+/// serveur : l'essai sait donc le voir.
+#[test]
+fn a_request_without_redirects_never_reaches_the_redirect_target() {
+    for follow in [false, true] {
+        let elsewhere = TcpListener::bind("127.0.0.1:0").unwrap();
+        elsewhere.set_nonblocking(true).unwrap();
+        let target = format!("http://127.0.0.1:{}/v1/chat/completions", elsewhere.local_addr().unwrap().port());
+        let port = redirect_once(target);
+        let mut request = HttpRequest::get(format!("http://127.0.0.1:{port}/v1/chat/completions"), Duration::from_secs(1));
+        if !follow {
+            request = request.without_redirects();
+        }
+        let response = UreqHttp::default().send(request);
+        std::thread::sleep(Duration::from_millis(100));
+        let reached = elsewhere.accept().is_ok();
+        assert_eq!(reached, follow, "follow_redirects = {follow}");
+        if !follow {
+            let status = response.as_ref().map(|r| r.status).ok();
+            assert!(status.is_none() || status.is_some_and(|s| (300..400).contains(&s)), "{status:?}");
+        }
+    }
+}

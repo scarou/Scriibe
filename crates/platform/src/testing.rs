@@ -145,6 +145,8 @@ pub struct FakePaster {
     opened_apps: Mutex<Vec<String>>,
     reads: std::sync::atomic::AtomicUsize,
     copied: Mutex<Vec<String>>,
+    copied_transient: Mutex<Vec<String>>,
+    copy_fails: std::sync::atomic::AtomicBool,
     reads_selection: std::sync::atomic::AtomicBool,
 }
 
@@ -164,6 +166,8 @@ impl Default for FakePaster {
             opened_apps: Mutex::new(Vec::new()),
             reads: std::sync::atomic::AtomicUsize::new(0),
             copied: Mutex::new(Vec::new()),
+            copied_transient: Mutex::new(Vec::new()),
+            copy_fails: std::sync::atomic::AtomicBool::new(false),
             reads_selection: std::sync::atomic::AtomicBool::new(true),
         }
     }
@@ -228,6 +232,16 @@ impl FakePaster {
         lock(&self.copied).clone()
     }
 
+    /// Les textes mis dans le presse-papiers sans être collés, marqués « ne pas garder » (`copy_transient`).
+    pub fn copied_transient(&self) -> Vec<String> {
+        lock(&self.copied_transient).clone()
+    }
+
+    /// Fait échouer `copy` et `copy_transient` (presse-papiers refusé).
+    pub fn fail_copy(&self) {
+        self.copy_fails.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
     /// Fait croire que le système sait (vrai, par défaut : Mac et Windows) ou ne sait pas (Linux) lire la sélection.
     pub fn set_reads_selection(&self, reads: bool) {
         self.reads_selection.store(reads, std::sync::atomic::Ordering::SeqCst);
@@ -253,7 +267,18 @@ impl Paster for FakePaster {
     }
 
     fn copy(&self, text: &str) -> bool {
+        if self.copy_fails.load(std::sync::atomic::Ordering::SeqCst) {
+            return false;
+        }
         lock(&self.copied).push(text.to_string());
+        true
+    }
+
+    fn copy_transient(&self, text: &str) -> bool {
+        if self.copy_fails.load(std::sync::atomic::Ordering::SeqCst) {
+            return false;
+        }
+        lock(&self.copied_transient).push(text.to_string());
         true
     }
 
