@@ -370,6 +370,9 @@ pub struct AppSettings {
     /// d'adresse `https://…{q}…` à hôte fixe, des phrases. Contrôlés à la lecture. Propre à Scriibe.
     #[serde(rename = "webSearches")]
     pub web_searches: Vec<crate::web_search::WebSearch>,
+    /// Extraits vocaux de la personne (une phrase dite sous la touche de commande colle un texte, chantier 6 étape 2) : un nom, des
+    /// phrases, un texte de 5 000 signes au plus. Contrôlés à la lecture. Propre à Scriibe.
+    pub snippets: Vec<crate::snippet::Snippet>,
     /// Nombre de jours d'historique gardés (aujourd'hui compris) ; `None` : tout garder.
     #[serde(rename = "historyKeepDays", skip_serializing_if = "Option::is_none")]
     pub history_keep_days: Option<i64>,
@@ -466,6 +469,7 @@ impl Default for AppSettings {
             format_shortcuts: Default::default(),
             custom_commands: Vec::new(),
             web_searches: Vec::new(),
+            snippets: Vec::new(),
             history_keep_days: None,
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
@@ -506,6 +510,7 @@ pub const USER_KEYS: &[&str] = &[
     "styleOverrides",
     "customCommands",
     "webSearches",
+    "snippets",
     "voiceCommandsEnabled",
     "voiceCommands",
     "listBullet",
@@ -688,6 +693,10 @@ impl AppSettings {
             // Un site mal écrit (adresse refusée, aucune phrase…) est écarté seul : les autres sont gardés.
             web_searches: o.get("webSearches").and_then(Value::as_array).map_or(d.web_searches, |list| {
                 crate::web_search::WebSearch::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            }),
+            // Un extrait mal écrit (texte vide ou trop long, aucune phrase…) est écarté seul : les autres sont gardés.
+            snippets: o.get("snippets").and_then(Value::as_array).map_or(d.snippets, |list| {
+                crate::snippet::Snippet::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
             }),
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
             llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),

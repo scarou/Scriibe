@@ -2,6 +2,12 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C6 tâche 5 — 2026-11-16 · Commandes vocales étendues, étape 2 : extraits (non publié : part avec la 0.7.0)
+
+- **Ce que l'on voit** : sous la touche de commande seulement, une phrase choisie (« insérer mon adresse email ») colle un texte écrit par la personne (carte « Commandes vocales », partie « Mes extraits » : nom, phrases, texte de 5 000 signes au plus, plusieurs lignes permises). Collé tel quel, jamais dans l'historique, presse-papiers d'avant toujours remis et texte marqué « ne pas garder ». Pastille : « Extrait impossible », « Extrait copié, à coller avec … ». Sans la touche, la phrase reste du texte. Export d'un utilisateur : case « Extraits vocaux », **décochée à l'export comme à l'import** (l'aperçu de l'import montre le texte). Aide FR et EN.
+- **Technique** : `Paster::paste_transient` (Mac : marques `ConcealedType` et `TransientType`, jamais de frappe dans un navigateur Chromium ; Windows : exclusion de l'historique Win+V ; Linux : `x-kde-passwordManagerHint`), neutralisée pendant les essais ; `snippets` classé « utilisateur » ; collage direct sans `process`. Détail et choix : `docs/COMMANDES_ETENDUES.md` § Étape 2, `docs/ECARTS.md`.
+- **Mesuré** sur le Mac : 767 tests Rust et 109 tests de l'interface sans erreur ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `svelte-check` sans erreur ; marque du presse-papiers vérifiée sur le vrai. **Non fait** : aucun extrait collé pour de vrai dans une appli, `scriibe-platform` non compilé pour Windows (seul `windows/paste.rs` vérifié à part) ni pour Linux (CI), page non vue dans un navigateur ; essai réel à la tâche 7.
+
 ## 0.6.0 — 2026-11-16 · Publication : touche de commande et recherches vocales (lot 1 du chantier 6)
 
 - Version publiée : réunit les étapes 1a et 1b des commandes vocales étendues (9 commits depuis la 0.5.0). Le lot 2 (extraits) et le lot 3 (applications, mail) partiront en 0.7.0 et 0.8.0.

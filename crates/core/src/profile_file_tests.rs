@@ -133,6 +133,7 @@ fn an_unticked_category_has_no_key_and_examples_follow_their_own_box() {
         styles: false,
         commands: false,
         web_searches: false,
+        snippets: false,
     };
     assert!(content_of(&export_profile("Léa", &full_user(), &dictionary(), none, "0.5.0", DAY)).is_empty());
     let only_words = export_profile("Léa", &full_user(), &dictionary(), Categories { words: true, ..none }, "0.5.0", DAY);
@@ -289,6 +290,7 @@ fn an_unticked_category_is_not_imported() {
             styles: false,
             commands: false,
             web_searches: false,
+            snippets: false,
         },
     );
     assert!(nothing.profile.is_empty() && nothing.dictionary == UserDictionary::default());
@@ -512,4 +514,102 @@ fn a_file_with_too_many_or_malformed_web_searches_is_refused() {
     assert!(with(json!([{"name": "A", "url": "https://example.com/{q}", "phrases": [long]}])).unwrap_err().contains("trop longue"));
     let many: Vec<String> = (0..=MAX_PHRASES).map(|n| format!("phrase {n}")).collect();
     assert!(with(json!([{"name": "A", "url": "https://example.com/{q}", "phrases": many}])).unwrap_err().contains("trop de phrases"));
+}
+
+fn user_with_snippets() -> AppSettings {
+    AppSettings {
+        snippets: vec![
+            Snippet {
+                id: "extrait.3".into(),
+                name: "Adresse".into(),
+                phrases: vec!["insérer mon adresse".into()],
+                text: "12 rue des Lilas\nParis".into(),
+            },
+            Snippet {
+                id: "extrait.7".into(),
+                name: "IBAN".into(),
+                phrases: vec!["insérer mon iban".into(), "mon iban".into()],
+                text: "FR76 0000".into(),
+            },
+        ],
+        ..full_user()
+    }
+}
+
+/// À l'export les extraits sont **décochés par défaut** : ils ne partent que cochés, avec leur texte, sans identifiant.
+#[test]
+fn snippets_are_off_by_default_at_export_and_leave_without_identifier_when_ticked() {
+    assert!(!Categories::export_default().snippets && !Categories::import_default().snippets);
+    let default = export_profile("Léa", &user_with_snippets(), &dictionary(), Categories::export_default(), "0.6.0", DAY);
+    assert!(content_of(&default).get("snippets").is_none(), "décoché par défaut : aucune clé, aucun texte dans le fichier");
+    assert!(!default.to_string().contains("Lilas"));
+    let ticked = export_profile(
+        "Léa",
+        &user_with_snippets(),
+        &dictionary(),
+        Categories { snippets: true, ..Categories::export_default() },
+        "0.6.0",
+        DAY,
+    );
+    let list = ticked["content"]["snippets"].as_array().expect("coché : les extraits partent");
+    assert_eq!(list[0], json!({"name": "Adresse", "phrases": ["insérer mon adresse"], "text": "12 rue des Lilas\nParis"}));
+    assert!(list.iter().all(|s| s.get("id").is_none()));
+    // Sans extrait, pas de clé même cochée.
+    let none =
+        export_profile("Léa", &full_user(), &dictionary(), Categories { snippets: true, ..Categories::export_default() }, "0.6.0", DAY);
+    assert!(content_of(&none).get("snippets").is_none());
+    // L'aperçu de l'export ne dit que les noms.
+    assert_eq!(contents("Léa", &user_with_snippets(), &dictionary()).snippets, vec!["Adresse", "IBAN"]);
+}
+
+/// À l'import les extraits sont décochés par défaut ; cochés, ils reçoivent des identifiants neufs et sont nettoyés comme à la lecture des
+/// réglages. L'aperçu montre le texte de chacun et ce qui sera écarté.
+#[test]
+fn snippets_are_off_by_default_at_import_and_cleaned_when_ticked() {
+    let mut file = export_profile(
+        "Léa",
+        &user_with_snippets(),
+        &dictionary(),
+        Categories { snippets: true, ..Categories::export_default() },
+        "0.6.0",
+        DAY,
+    );
+    let list = file["content"]["snippets"].as_array_mut().unwrap();
+    list.push(json!({"name": "Vide", "phrases": ["texte vide"], "text": "  "}));
+    list.push(json!({"name": "Pris", "phrases": ["mettre en gras"], "text": "x"}));
+    let incoming = parse_profile(&file.to_string()).unwrap();
+    assert_eq!(incoming.snippets.len(), 4);
+    let shown = preview(&incoming).snippets;
+    assert_eq!(shown.iter().map(|s| s.usable).collect::<Vec<_>>(), vec![true, true, false, false]);
+    assert_eq!(shown[0].text, "12 rue des Lilas\nParis", "l'aperçu montre le texte qui serait collé");
+    let by_default = build(&incoming, Categories::import_default());
+    assert!(by_default.profile.get("snippets").is_none() && by_default.outcome.snippets.is_empty());
+    let built = build(&incoming, Categories { snippets: true, ..Categories::import_default() });
+    assert_eq!(built.outcome.snippets, vec!["Adresse", "IBAN"]);
+    assert_eq!(built.outcome.snippets_skipped, 2);
+    let back = read_back(&built, "Importé");
+    let ids: Vec<&str> = back.snippets.iter().map(|s| s.id.as_str()).collect();
+    assert_eq!(ids, vec!["extrait.1", "extrait.2"], "identifiants neufs, jamais ceux du fichier");
+    assert_eq!(back.snippets[1].phrases.len(), 2);
+}
+
+/// Limites du fichier : au plus 50 extraits, des textes et des phrases de taille limitée, des champs bien formés.
+#[test]
+fn a_file_with_too_many_or_malformed_snippets_is_refused() {
+    let with = |value: Value| {
+        let mut file = export_profile("Léa", &full_user(), &dictionary(), Categories::export_default(), "0.6.0", DAY);
+        file["content"]["snippets"] = value;
+        parse_profile(&file.to_string())
+    };
+    let one = |n: usize| json!({"name": format!("E{n}"), "phrases": [format!("phrase {n}")], "text": "t"});
+    assert!(with(json!((0..snippet::MAX_SNIPPETS).map(one).collect::<Vec<_>>())).is_ok());
+    assert!(with(json!((0..=snippet::MAX_SNIPPETS).map(one).collect::<Vec<_>>())).unwrap_err().contains("trop d'extraits"));
+    assert!(with(json!("pas une liste")).is_err());
+    assert!(with(json!([{"name": "A", "phrases": ["a b"], "text": 3}])).is_err());
+    assert!(with(json!([{"name": "A", "phrases": [1], "text": "t"}])).is_err());
+    let huge = "x".repeat(snippet::MAX_TEXT * 4 + 1);
+    let err = with(json!([{"name": "A", "phrases": ["a b"], "text": huge}])).unwrap_err();
+    assert!(err.contains("trop long") && !err.contains("xxxx"), "le message ne cite pas le texte");
+    let long = "x".repeat(MAX_PHRASE + 1);
+    assert!(with(json!([{"name": "A", "phrases": [long], "text": "t"}])).unwrap_err().contains("trop longue"));
 }

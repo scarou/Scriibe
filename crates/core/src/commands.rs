@@ -270,6 +270,7 @@ pub fn all_defs(settings: &AppSettings) -> Vec<CommandDef> {
     let mut defs = builtin();
     defs.extend(settings.custom_commands.iter().map(CustomCommand::def));
     defs.extend(crate::web_search::defs(settings));
+    defs.extend(crate::snippet::defs(settings));
     defs
 }
 
@@ -697,12 +698,13 @@ pub fn route_under_key(raw: &str, settings: &AppSettings) -> Route {
 /// celle d'une autre commande (comparée sous forme normalisée, phrases par défaut ou choisies). Rend la phrase nettoyée.
 pub fn validate_phrase(phrase: &str, id: &str, lang: Lang, defs: &[CommandDef], custom: &VoicePhrases) -> Result<String, PhraseError> {
     // Une commande de la personne pas encore créée (« perso.nouveau », ou un site de recherche « recherche.nouveau ») se contrôle comme les autres.
-    if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) && id != crate::web_search::NEW {
+    if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) && id != crate::web_search::NEW && id != crate::snippet::NEW {
         return Err(PhraseError::UnknownCommand);
     }
     // La longueur minimale est celle de la portée de la commande : deux mots pour une commande qui vaut aussi sans la touche (et pour une
     // commande de la personne, pas encore créée), un seul pour une commande « sous la touche seulement ».
-    let min = defs.iter().find(|d| d.id == id).map_or(MIN_WORDS, |d| d.scope.min_words());
+    // Un extrait pas encore créé (`extrait.nouveau`) vaut sous la touche seulement, comme ceux qui existent : un mot seul est permis.
+    let min = if id == crate::snippet::NEW { 1 } else { defs.iter().find(|d| d.id == id).map_or(MIN_WORDS, |d| d.scope.min_words()) };
     let normalized = normalize(phrase);
     if word_count(&normalized) < min {
         return Err(PhraseError::TooShort);

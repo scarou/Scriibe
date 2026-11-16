@@ -21,6 +21,7 @@ use crate::import_commands::{self, MAX_PHRASE, MAX_PHRASES};
 use crate::import_dictionary;
 use crate::modes::{self, CustomMode, RewriteMode};
 use crate::settings::AppSettings;
+use crate::snippet::{self, Snippet};
 use crate::web_search::{self, WebSearch};
 use serde_json::{json, Map, Value};
 use std::collections::{BTreeMap, HashMap};
@@ -68,6 +69,9 @@ pub struct Categories {
     pub commands: bool,
     /// Les sites de recherche vocale de la personne (adresse comprise). Cochés à l'export, **décochés à l'import** (chantier 6, décision 5).
     pub web_searches: bool,
+    /// Les extraits vocaux de la personne (texte compris : une adresse, un IBAN, une signature). **Décochés à l'export comme à l'import**
+    /// (chantier 6, décision 5) : un extrait ne part que si la personne le coche, et un extrait importé serait collé sur une phrase qu'elle dira.
+    pub snippets: bool,
 }
 
 impl Categories {
@@ -83,13 +87,14 @@ impl Categories {
             styles: true,
             commands: true,
             web_searches: true,
+            snippets: false,
         }
     }
 
     /// L'import : tout ce que le fichier contient (le fichier a déjà été limité par la personne qui l'a écrit), **sauf les sites de
     /// recherche** : la page montre l'hôte de chacun et la personne les coche (un site importé s'ouvrirait sur une phrase qu'elle dira).
     pub fn import_default() -> Self {
-        Self { identity: true, web_searches: false, ..Self::export_default() }
+        Self { identity: true, web_searches: false, snippets: false, ..Self::export_default() }
     }
 
     /// Lit les cases d'une requête de la page ; une case absente prend la valeur par défaut donnée.
@@ -105,6 +110,7 @@ impl Categories {
             styles: get("styles", default.styles),
             commands: get("commands", default.commands),
             web_searches: get("web_searches", default.web_searches),
+            snippets: get("snippets", default.snippets),
         }
     }
 }
@@ -128,6 +134,8 @@ pub struct Contents {
     pub commands: Vec<String>,
     /// Les sites de recherche vocale : le nom et l'hôte que fixe l'adresse (vide si l'adresse est refusée).
     pub web_searches: Vec<(String, String)>,
+    /// Les noms des extraits vocaux (jamais leur texte : l'aperçu de l'export n'a pas à l'afficher).
+    pub snippets: Vec<String>,
 }
 
 /// Le nom lisible d'un réglage de personne, pour l'aperçu.
@@ -181,6 +189,7 @@ pub fn contents(name: &str, settings: &AppSettings, dictionary: &UserDictionary)
             .iter()
             .map(|w| (w.name.clone(), web_search::template_host(&w.url).unwrap_or_default()))
             .collect(),
+        snippets: settings.snippets.iter().map(|s| s.name.clone()).collect(),
     }
 }
 
@@ -245,6 +254,11 @@ pub fn export_profile(
         let list: Vec<Value> = settings.web_searches.iter().map(|w| json!({"name": w.name, "url": w.url, "phrases": w.phrases})).collect();
         content.insert("webSearches".into(), Value::Array(list));
     }
+    if take.snippets && !settings.snippets.is_empty() {
+        // Sans identifiant : l'import en donne de neufs. Le nom, les phrases et le texte suffisent.
+        let list: Vec<Value> = settings.snippets.iter().map(|s| json!({"name": s.name, "phrases": s.phrases, "text": s.text})).collect();
+        content.insert("snippets".into(), Value::Array(list));
+    }
     export::envelope("profile", app_version, day, Value::Object(content))
 }
 
@@ -266,6 +280,9 @@ pub struct Incoming {
     /// Les sites de recherche du fichier (identifiant vide : il est donné à l'import). Pas encore contrôlés : l'aperçu montre ce qui sera
     /// refusé, l'import écarte les sites refusés un par un.
     pub web_searches: Vec<WebSearch>,
+    /// Les extraits du fichier (identifiant vide : il est donné à l'import). Pas encore nettoyés : l'import écarte un par un ceux qui ne
+    /// sont pas valables (texte vide ou trop long, plus de phrase utilisable).
+    pub snippets: Vec<Snippet>,
 }
 
 fn is_empty(incoming: &Incoming) -> bool {
@@ -279,6 +296,7 @@ fn is_empty(incoming: &Incoming) -> bool {
         && incoming.style_overrides.is_empty()
         && incoming.commands.is_empty()
         && incoming.web_searches.is_empty()
+        && incoming.snippets.is_empty()
 }
 
 fn too_long(text: &str, max: usize) -> bool {
@@ -362,6 +380,39 @@ fn read_web_searches(value: &Value) -> Result<Vec<WebSearch>, String> {
     Ok(out)
 }
 
+/// Les extraits d'un fichier : au plus [`snippet::MAX_SNIPPETS`], chacun avec un nom, des phrases courtes en nombre limité et un texte
+/// (contrôlé à l'import : un texte trop long ou vide écarte l'extrait seul). Rien n'est jamais écrit dans un message d'erreur.
+fn read_snippets(value: &Value) -> Result<Vec<Snippet>, String> {
+    let bad = || "la liste des extraits du fichier est mal formée".to_string();
+    let list = value.as_array().ok_or_else(bad)?;
+    if list.len() > snippet::MAX_SNIPPETS {
+        return Err(format!("trop d'extraits dans ce fichier : {} au maximum", snippet::MAX_SNIPPETS));
+    }
+    let mut out = Vec::new();
+    for item in list {
+        let entry = item.as_object().ok_or_else(bad)?;
+        let text_of = |key: &str| entry.get(key).and_then(Value::as_str).ok_or_else(bad);
+        let (name, text) = (text_of("name")?, text_of("text")?);
+        if too_long(name, snippet::MAX_NAME * 4) || too_long(text, snippet::MAX_TEXT * 4) {
+            return Err("un extrait du fichier a un nom ou un texte trop long".into());
+        }
+        let phrases = entry.get("phrases").and_then(Value::as_array).ok_or_else(bad)?;
+        if phrases.len() > MAX_PHRASES {
+            return Err(format!("un extrait a trop de phrases : {MAX_PHRASES} au maximum"));
+        }
+        let phrases = phrases
+            .iter()
+            .map(|p| match p.as_str() {
+                Some(p) if !too_long(p, MAX_PHRASE) => Ok(p.to_string()),
+                Some(_) => Err(format!("une phrase d'extrait est trop longue : {MAX_PHRASE} caractères au maximum")),
+                None => Err(bad()),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        out.push(Snippet { id: String::new(), name: name.to_string(), phrases, text: text.to_string() });
+    }
+    Ok(out)
+}
+
 fn id_list(value: &Value, what: &str) -> Result<Vec<String>, String> {
     let bad = || format!("{what} du fichier est mal formée");
     let list = value.as_array().ok_or_else(bad)?;
@@ -428,6 +479,9 @@ pub fn parse_profile(text: &str) -> Result<Incoming, String> {
     if let Some(list) = content.get("webSearches").filter(|v| !v.is_null()) {
         incoming.web_searches = read_web_searches(list)?;
     }
+    if let Some(list) = content.get("snippets").filter(|v| !v.is_null()) {
+        incoming.snippets = read_snippets(list)?;
+    }
     if is_empty(&incoming) {
         return Err("aucun contenu dans ce fichier".into());
     }
@@ -447,6 +501,17 @@ pub struct Preview {
     pub styles: Vec<String>,
     pub commands: Vec<import_commands::Candidate>,
     pub web_searches: Vec<SitePreview>,
+    pub snippets: Vec<SnippetPreview>,
+}
+
+/// Un extrait du fichier, pour l'aperçu de l'import : la personne voit le **texte** qui serait collé sur chaque phrase avant de cocher.
+/// `usable` est faux si l'extrait sera écarté (texte vide ou trop long, plus aucune phrase utilisable).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SnippetPreview {
+    pub name: String,
+    pub phrases: Vec<String>,
+    pub text: String,
+    pub usable: bool,
 }
 
 /// Un site de recherche du fichier, pour l'aperçu : son nom, l'hôte que fixe son adresse (`None` : adresse refusée, le site ne sera pas
@@ -476,7 +541,20 @@ pub fn preview(incoming: &Incoming) -> Preview {
             .iter()
             .map(|w| SitePreview { name: w.name.clone(), host: web_search::template_host(w.url.trim()), phrases: w.phrases.clone() })
             .collect(),
+        snippets: numbered_snippets(&incoming.snippets)
+            .into_iter()
+            .zip(&incoming.snippets)
+            .map(|(numbered, raw)| {
+                let usable = !Snippet::cleaned(vec![numbered]).is_empty();
+                SnippetPreview { name: raw.name.clone(), phrases: raw.phrases.clone(), text: raw.text.clone(), usable }
+            })
+            .collect(),
     }
+}
+
+/// Les extraits du fichier avec des identifiants neufs (`extrait.1`, `.2`…).
+fn numbered_snippets(list: &[Snippet]) -> Vec<Snippet> {
+    list.iter().enumerate().map(|(i, s)| Snippet { id: format!("{}{}", snippet::PREFIX, i + 1), ..s.clone() }).collect()
 }
 
 /// Les consignes modifiées qui visent un mode livré (une clé qui n'en est pas un est écartée).
@@ -514,6 +592,9 @@ pub struct Outcome {
     /// Les noms des sites de recherche ajoutés, et le nombre de ceux qui sont écartés (adresse refusée, plus de phrase utilisable).
     pub web_searches: Vec<String>,
     pub web_searches_skipped: usize,
+    /// Les noms des extraits ajoutés, et le nombre de ceux qui sont écartés (texte vide ou trop long, plus de phrase utilisable).
+    pub snippets: Vec<String>,
+    pub snippets_skipped: usize,
     pub preferences: usize,
     pub identity: bool,
 }
@@ -607,6 +688,16 @@ pub fn build(incoming: &Incoming, take: Categories) -> Built {
         if !kept.is_empty() {
             settings.web_searches = kept;
             keys.push("webSearches");
+        }
+    }
+    if take.snippets && !incoming.snippets.is_empty() {
+        // Identifiants toujours neufs, puis le même nettoyage que la lecture des réglages : un extrait refusé est écarté seul.
+        let kept = Snippet::cleaned(numbered_snippets(&incoming.snippets));
+        outcome.snippets_skipped = incoming.snippets.len() - kept.len();
+        outcome.snippets = kept.iter().map(|s| s.name.clone()).collect();
+        if !kept.is_empty() {
+            settings.snippets = kept;
+            keys.push("snippets");
         }
     }
     let mut dictionary = UserDictionary::default();

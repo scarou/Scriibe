@@ -18,6 +18,7 @@
     styles: string[];
     commands: string[];
     web_searches: { name: string; host: string }[];
+    snippets: string[];
   }
 
   let { id, onclose }: { id: string; onclose: () => void } = $props();
@@ -25,7 +26,7 @@
   let preview = $state<Preview | null>(null);
   let failed = $state('');
   // Le prénom et le nom affiché sont décochés par défaut : un fichier qui voyage ne dit pas qui l'a écrit tant qu'on ne l'a pas voulu.
-  let take = $state({ identity: false, preferences: true, words: true, corrections: true, modes: true, examples: true, styles: true, commands: true, web_searches: true });
+  let take = $state({ identity: false, preferences: true, words: true, corrections: true, modes: true, examples: true, styles: true, commands: true, web_searches: true, snippets: false });
   let busy = $state(false);
   let result = $state('');
 
@@ -46,6 +47,7 @@
       styles: out.styles.length > 0,
       commands: out.commands.length > 0,
       web_searches: out.web_searches.length > 0,
+      snippets: false, // décoché par défaut : un extrait peut être une adresse, un IBAN…
     };
   });
 
@@ -59,7 +61,8 @@
         (take.modes && preview.modes.length > 0) ||
         (take.styles && preview.styles.length > 0) ||
         (take.commands && preview.commands.length > 0) ||
-        (take.web_searches && preview.web_searches.length > 0)),
+        (take.web_searches && preview.web_searches.length > 0) ||
+        (take.snippets && preview.snippets.length > 0)),
   );
 
   async function save() {
@@ -119,6 +122,12 @@
       <label><input type="checkbox" bind:checked={take.web_searches} disabled={busy || preview.web_searches.length === 0} /> {t('Sites de recherche vocale')}</label>
       <span class="muted">{t('{n} site(s)', { n: preview.web_searches.length })}</span>
       {#if preview.web_searches.length > 0}<details><summary>{t('Voir la liste')}</summary><p class="list">{preview.web_searches.map((w) => w.name + ' (' + (w.host || '—') + ')').join(', ')}</p></details>{/if}
+    </div>
+    <div class="cat">
+      <label><input type="checkbox" bind:checked={take.snippets} disabled={busy || preview.snippets.length === 0} /> {t('Extraits vocaux (texte compris)')}</label>
+      <span class="muted">{t('{n} extrait(s)', { n: preview.snippets.length })}</span>
+      {#if preview.snippets.length > 0}<details><summary>{t('Voir la liste')}</summary><p class="list">{preview.snippets.join(', ')}</p></details>{/if}
+      {#if preview.snippets.length > 0}<p class="muted">{t('Décoché par défaut : un extrait peut contenir une adresse, un IBAN ou une signature, et le fichier le contiendrait en clair.')}</p>{/if}
     </div>
     <div class="row">
       <button class="primary" onclick={save} disabled={busy || !leaves}>{t('Enregistrer…')}</button>

@@ -221,3 +221,55 @@ Relecture du code du lot 1 par un agent distinct (aucun bloquant, 2 importants, 
 1. **Windows : menu Démarrer masqué en permanence** par la touche de commande par défaut (`hook_rules` la mettait dans `mask_menu`). Maintenant `HookRules.command_menu` + `CommandMenuMask` (testé sur Mac : appui seul libre, commande donnée masquée, dictée tenue avant ou après, relâchée avant). Le code du crochet Windows (`windows/keyboard.rs`) n'est compilé que par le PC et la CI.
 2. **Touche de commande affichée alors qu'elle n'existe pas** : `keys::command_label(settings)` (touche en vigueur ou `None`), page « aucune (à choisir) ».
 Mineurs non corrigés : voir CHANGELOG 0.6.0 (« Connu, non corrigé »). Mesuré sur le Mac : 756 tests Rust, 109 tests de l'interface, `cargo fmt`, `clippy -D warnings`, `svelte-check` sans erreur.
+
+## Étape 2 : extraits (tâche 5, 16/11/2026)
+
+Code de l'étape 2 de `docs/CADRAGE_COMMANDES.md` (extraits vocaux, `Paster::paste_transient`, `snippets`), calqué sur l'étape 1b. **Non publié** (part dans la 0.7.0 avec l'étape 3). Ligne d'écart : `docs/ECARTS.md` (16/11/2026).
+
+### Ce qui change pour la personne
+
+- **Sous la touche de commande seulement**, une phrase qu'elle a choisie (« insérer mon adresse email ») colle un texte qu'elle a écrit (plusieurs lignes, 5 000 signes au plus). Carte « Commandes vocales » (onglet Dictionnaire), partie **« Mes extraits »** : un nom, une ou plusieurs phrases, le texte (modifiable sur place, enregistré en quittant le champ). La phrase doit être **toute** la phrase dite ; un mot seul suffit. Dite sans la touche, la phrase reste du texte collé (test de non-régression).
+- L'extrait est collé **tel quel** : ni modèle, ni dictionnaire, ni typographie, ni espace ajoutée. Il n'entre **jamais** dans l'historique ni les statistiques ; le journal n'a que `extrait.<n>` et la longueur.
+- Le presse-papiers d'avant est **toujours remis**, même si « Remettre le presse-papiers d'avant après le collage » est décoché ; le texte est marqué « ne pas garder » pour les historiques de presse-papiers.
+- **Messages fixes de la pastille** (traduits dans `locales/en-server.ts`) : « Extrait impossible » (extrait disparu ou vide au moment de la phrase) ; « Extrait copié, à coller avec ⌘V — <raison> » (collage refusé, par exemple Accessibilité manquante : le texte reste dans le presse-papiers).
+- **Export et import d'un utilisateur** : case « Extraits vocaux (texte compris) », **décochée à l'export** (un extrait peut être une adresse ou un IBAN, le fichier le contient en clair) **et à l'import** ; l'aperçu de l'import montre le **texte** de chaque extrait et ceux qui seront écartés ; identifiants toujours neufs ; 50 extraits au plus.
+- Aide FR et EN (puce « Extraits »).
+
+### Choix faits (avec la raison)
+
+1. **Collage direct, sans `process`** : la branche `extrait.<n>` de `run_command` appelle `paste_transient` et rend `Handled`, comme `surround` (C7). Raison : un extrait passé par `process` entrerait dans `rawText`/`finalText` (historique) et serait « corrigé » par le dictionnaire et la typographie.
+2. **`Paster::paste_transient(text)` avec une valeur par défaut** (`paste(text, true)`) plutôt qu'une méthode obligatoire : les systèmes réels la **redéfinissent tous** (Mac, Windows, Linux) ; la valeur par défaut ne sert qu'à `NoPaster` (système sans prise en charge). Les doublures : `FakePaster` l'enregistre à part (`pasted_transient`, jamais mêlé à `pasted`), `SwitchPaster` la neutralise pendant un essai (`Captured.snippet_chars`, **la longueur seulement** : le texte n'est jamais gardé), `ConsolePaster` n'affiche que la longueur.
+3. **Marque « ne pas garder » sur Mac : les deux** (`ConcealedType` par `arboard`, `TransientType` par `objc2`, comme Scribe). Raison : le cadrage nomme `TransientType` ; `ConcealedType` est la marque plus stricte que respectent aussi les gestionnaires qui ignorent la première. **Vérifié sur le vrai presse-papiers** par un test `#[ignore]` (`cargo test -p scriibe-platform transient -- --ignored`) : les deux types y sont, le texte aussi.
+4. **Jamais tapé** : sur Mac, un navigateur Chromium reçoit le menu Édition → Coller puis ⌘V (la frappe de `paste` est sautée pour un extrait : chaque saut de ligne tapé serait une touche Entrée).
+5. **Remise du presse-papiers d'avant** : toujours, 1,5 s après, si le presse-papiers contient encore l'extrait ; s'il était vide ou sans texte, il est **vidé** (l'extrait ne reste pas dedans). Si le collage échoue, rien n'est remis ni vidé : le texte reste pour que la personne le colle elle-même.
+6. **Phrases** : valables pour toutes les langues (c'est la personne qui les écrit), **une phrase d'un mot permise** (portée « sous la touche seulement » : la phrase doit être toute la transcription), refusées si elles sont celles d'une commande du programme (toutes portées et langues confondues) ou d'un autre extrait, dès la lecture des réglages ; `validate_phrase` contrôle en plus les commandes de la personne et les sites (`extrait.nouveau` pour un extrait pas encore créé, un mot seul permis).
+7. **Texte nettoyé à la lecture** (`snippet::clean_text`) : fins de ligne ramenées à `\n`, caractères de contrôle retirés (sauf `\n` et tabulation), blancs de bord retirés ; vide ou plus de 5 000 signes : extrait écarté seul. Raison : un texte avec un `\r` ou un contrôle collé tel quel poserait des problèmes dans une appli ; la page montre le texte nettoyé.
+8. **`Debug` de `Snippet` masque le texte, le nom et le nombre de phrases** : un `{:?}` perdu sur les réglages ne fuit rien.
+9. **Classement** : `snippets` est un champ **utilisateur** (`USER_KEYS`), dans l'export d'un utilisateur (liste blanche), décoché à l'export **et** à l'import ; toujours écrit (liste vide), donc pas de changement à `every_key_written`. Le test du chantier 4 passe : le champ et son classement sont dans le même commit.
+10. **L'aperçu de l'export ne dit que les noms** ; celui de l'import montre le texte (la personne doit pouvoir lire ce qui sera collé sur une phrase qu'elle dira, C11).
+11. **Plafonds** : 50 extraits, 5 000 signes, nom 40 caractères, 20 phrases de 200 caractères au plus (mêmes limites que les commandes).
+
+### Où est le code
+
+- `crates/core/src/snippet.rs` (nouveau) : `Snippet`, `cleaned`, `clean_text`, `defs`, `text_of`, `is_snippet`, `next_id`. `commands.rs` : `all_defs`, `validate_phrase` (`extrait.nouveau`). `settings.rs` : `snippets`, `USER_KEYS`, lecture tolérante. `profile_file.rs` : `Categories.snippets`, `Contents`, `Incoming`, `SnippetPreview`, `Outcome`, `read_snippets`, `numbered_snippets`.
+- `crates/platform/src/paste.rs` : `Paster::paste_transient`. `macos/paste.rs`, `windows/paste.rs`, `linux/paste.rs` : `paste_with(text, restore, transient)`. `testing.rs` : `FakePaster`.
+- `crates/pipeline/src/controller.rs` : branche `extrait.<n>` de `run_command`.
+- `crates/cli/src/web/` : `sinks.rs` (neutralisation), `mod.rs` (`api/snippets/check`, `validate-phrase`), `user_file_io.rs`. `crates/cli/src/commands.rs` : `ConsolePaster`.
+- Interface : `VoiceCommands.svelte` (« Mes extraits »), `UserExport.svelte`, `UserImport.svelte`, `Help.svelte`, `HelpEn.svelte`, `api.ts`, `locales/`.
+
+### Tests (mesurés sur le Mac)
+
+- **767 tests Rust** sans erreur (2 ignorés : celui d'avant et le test de marque du presse-papiers, lancé à la main : ok), **109 tests de l'interface** ; `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `svelte-check` sans erreur.
+- Nouveaux : `commands_521` (phrase d'extrait = commande sous la touche seulement, un mot seul, jamais sans la touche), `522` (nettoyage à la lecture : préfixe, doublon, texte vide ou trop long, phrases prises, 50 au plus, `Debug` masqué), `523` (identifiants, prochain numéro, texte par identifiant), `524` (une phrase = une seule commande, `extrait.nouveau`) ; 3 tests du contrôleur (**collé tel quel par `paste_transient` et jamais par `paste`**, rien dans l'historique, ni modèle, ni lecture de la sélection, **aucune trace** du nom, des phrases ni du texte dans le journal, la pastille, l'historique ; **sans la touche, collé comme du texte** ; extrait disparu et collage impossible) ; 3 tests d'export et d'import (décoché des deux côtés, sans identifiant, aperçu avec le texte, identifiants neufs, extraits refusés écartés, limites du fichier sans citer le texte) ; la neutralisation de `sinks.rs` (longueur seulement) ; la route `validate-phrase` (un mot, phrase prise dans les deux langues).
+
+### Non vérifié
+
+- **Aucun extrait n'a été collé pour de vrai** dans une appli (les tests n'utilisent que des doublures) ; seule la **marque du presse-papiers sur Mac** a été vérifiée sur le vrai. À voir à l'essai du lot 2 (tâche 7) : Mac (Chrome et une appli native), Windows, Linux.
+- **Code Windows** : `scriibe-platform` ne se compile pas sur le Mac (pas de compilateur C croisé pour `ring`). `windows/paste.rs` a été **vérifié à part** (copie dans une caisse isolée contre `windows-sys 0.59`, `cargo check --target x86_64-pc-windows-gnu`, sans erreur ni avertissement) ; le reste passera par la CI Windows après accord pour pousser. **Code Linux** : non compilé (cible absente) ; l'appel `Set::exclude_from_history` d'`arboard` 3.7 a été vérifié dans ses sources.
+- Les formats d'exclusion Windows (`ExcludeClipboardContentFromMonitorProcessing`…) sont ceux du collage existant : un extrait n'apparaît pas dans Win+V, à confirmer à la main.
+- La page (carte « Mes extraits », cases d'export et d'import, aperçu du texte importé) n'a pas été vue dans un navigateur : `svelte-check`, tests et compilation seulement.
+- Limite connue : un presse-papiers qui contenait une image ou des fichiers n'est pas remis (seul le texte l'est).
+
+### Suite
+
+Tâche 6 (étape 3, applications et mail) dans cette session, sauf relais (contexte à vérifier à la fin de la tâche).

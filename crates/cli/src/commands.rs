@@ -65,6 +65,12 @@ impl Paster for ConsolePaster {
         PasteOutcome::Pasted
     }
 
+    // `essai` ne colle pas un extrait : il n'en dit que la longueur (le texte est confidentiel).
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        println!("\n--- extrait qui serait collé ({} signes) ---", text.chars().count());
+        PasteOutcome::Pasted
+    }
+
     // `essai` n'ouvre aucune adresse : il l'affiche à l'écran (sortie de cette sous-commande, pas le journal).
     fn open_address(&self, url: &str) -> Result<(), &'static str> {
         println!("\n--- adresse qui serait ouverte ---\n{url}\n----------------------------------");

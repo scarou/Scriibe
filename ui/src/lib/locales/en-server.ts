@@ -254,6 +254,13 @@ export const enServer: Record<string, string> = {
   'Recherche non ouverte': 'Search not opened',
   'Recherche impossible': 'Search not possible',
 
+  // Extraits vocaux (étape 2 du chantier 6)
+  'Extrait impossible': 'Snippet not possible',
+  'Texte refusé': 'Text refused',
+  'Extrait copié, à coller avec Ctrl+V — {reason}': 'Snippet copied, paste it with Ctrl+V — {reason}',
+  'Extrait copié, à coller avec ⌘V — {reason}': 'Snippet copied, paste it with ⌘V — {reason}',
+  'Le texte doit être non vide et ne pas dépasser 5 000 signes': 'The text must not be empty or longer than 5,000 characters',
+
   // Adresses des sites de recherche de la personne (refus, texte fixe)
   'Adresse refusée': 'Address refused',
   'L\'adresse doit commencer par https:// et ne pas dépasser 300 caractères': 'The address must start with https:// and be at most 300 characters long',

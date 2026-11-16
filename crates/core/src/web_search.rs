@@ -299,7 +299,7 @@ pub fn target(id: &str, lang: Lang, query: &str, settings: &AppSettings) -> Opti
 }
 
 /// Toutes les phrases (normalisées) des sites livrés, dans les deux langues : celles qu'un site de la personne ne peut pas reprendre.
-fn builtin_phrases() -> Vec<String> {
+pub(crate) fn builtin_phrases() -> Vec<String> {
     SITES.iter().flat_map(|s| s.phrases_fr.iter().chain(s.phrases_en)).map(|p| normalize(p)).collect()
 }
 

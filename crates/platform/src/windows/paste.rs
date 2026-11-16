@@ -336,28 +336,54 @@ impl Paster for WindowsPaster {
     }
 
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
-        let saved = if restore_clipboard { read_text() } else { None };
-        if let Err(e) = write_text(text, restore_clipboard) {
-            return PasteOutcome::CopiedOnly(e);
-        }
-        // SAFETY : lecture du numéro de séquence du presse-papiers.
-        let ours = unsafe { GetClipboardSequenceNumber() };
-        wait_for_modifiers_released();
-        std::thread::sleep(Duration::from_millis(40));
-        if let Err(e) = send_ctrl_v() {
-            return PasteOutcome::CopiedOnly(e);
-        }
-        if let (true, Some(saved)) = (restore_clipboard, saved) {
-            // En arrière-plan : la dictée suivante n'attend pas. 1,5 s : une appli lente (Electron, bureau à distance) doit avoir
-            // lu la dictée avant qu'on remette l'ancien contenu ; si autre chose a été copié entre-temps, on n'y touche pas.
-            std::thread::spawn(move || {
-                std::thread::sleep(Duration::from_millis(1500));
-                // SAFETY : lecture du numéro de séquence.
-                if unsafe { GetClipboardSequenceNumber() } == ours {
-                    let _ = write_text(&saved, false);
-                }
-            });
-        }
-        PasteOutcome::Pasted
+        paste_with(text, restore_clipboard, restore_clipboard)
     }
+
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        paste_with(text, true, true)
+    }
+}
+
+/// Vide le presse-papiers (un extrait collé sur un presse-papiers vide ou sans texte ne doit pas y rester).
+fn clear_clipboard() {
+    if open_clipboard() {
+        // SAFETY : presse-papiers ouvert par ce fil.
+        unsafe {
+            EmptyClipboard();
+            CloseClipboard();
+        }
+    }
+}
+
+/// Le collage. `transient` : le texte est marqué « ne pas garder » (historique Win+V, presse-papiers du cloud) ; un collage ordinaire ne le
+/// demande que s'il remet l'ancien contenu (`restore_clipboard`), un extrait toujours. Un presse-papiers qui était vide est vidé à la remise
+/// d'un extrait.
+fn paste_with(text: &str, restore_clipboard: bool, transient: bool) -> PasteOutcome {
+    let saved = if restore_clipboard { read_text() } else { None };
+    if let Err(e) = write_text(text, transient) {
+        return PasteOutcome::CopiedOnly(e);
+    }
+    // SAFETY : lecture du numéro de séquence du presse-papiers.
+    let ours = unsafe { GetClipboardSequenceNumber() };
+    wait_for_modifiers_released();
+    std::thread::sleep(Duration::from_millis(40));
+    if let Err(e) = send_ctrl_v() {
+        return PasteOutcome::CopiedOnly(e);
+    }
+    if restore_clipboard {
+        // En arrière-plan : la dictée suivante n'attend pas. 1,5 s : une appli lente (Electron, bureau à distance) doit avoir
+        // lu la dictée avant qu'on remette l'ancien contenu ; si autre chose a été copié entre-temps, on n'y touche pas.
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(1500));
+            // SAFETY : lecture du numéro de séquence.
+            if unsafe { GetClipboardSequenceNumber() } == ours {
+                match saved {
+                    Some(saved) => drop(write_text(&saved, false)),
+                    None if transient => clear_clipboard(),
+                    None => {}
+                }
+            }
+        });
+    }
+    PasteOutcome::Pasted
 }

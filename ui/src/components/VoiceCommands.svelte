@@ -190,6 +190,70 @@
     for (const s of sites) void checkUrl(s.url).then((r) => (siteHosts[s.id] = r.host ?? ''));
   });
 
+  // ---- Mes extraits : un nom, des phrases, un texte collé tel quel (sous la touche de commande seulement) ----
+  type Snippet = { id: string; name: string; phrases: string[]; text: string };
+  const SNIPPET_MAX = 5000;
+  let snippets = $derived((v?.snippets ?? []) as Snippet[]);
+  let snippetDraft = $state({ name: '', phrase: '', text: '' });
+  let snippetError = $state('');
+  let textDrafts = $state<Record<string, string>>({});
+  const nextSnippetId = () => 'extrait.' + (Math.max(0, ...snippets.map((s) => Number(s.id.split('.')[1]) || 0)) + 1);
+  const checkSnippetText = (text: string) => api<{ ok: boolean; text?: string; error?: string }>('snippets/check', { text });
+  const snippetPhraseMessage = () => t('Donne une phrase à dire (un mot seul suffit : elle doit être toute la phrase dite).');
+
+  async function addSnippet() {
+    const name = snippetDraft.name.trim();
+    const phrase = snippetDraft.phrase.trim();
+    if (!name || !phrase || !snippetDraft.text.trim()) {
+      snippetError = t('Donne un nom, une phrase à dire et le texte à coller.');
+      return;
+    }
+    const text = await checkSnippetText(snippetDraft.text);
+    if (!text.ok) {
+      snippetError = t(text.error ?? 'Texte refusé');
+      return;
+    }
+    const check = await api<Check>('commands/validate-phrase', { id: 'extrait.nouveau', lang: i18n.lang, phrase });
+    if (!check.ok) {
+      snippetError = check.error === 'taken' ? takenMessage(check.other) : snippetPhraseMessage();
+      return;
+    }
+    snippetError = '';
+    await settings.change({ snippets: [...snippets, { id: nextSnippetId(), name, phrases: [check.phrase!], text: text.text! }] });
+    snippetDraft = { name: '', phrase: '', text: '' };
+  }
+
+  const updateSnippet = (id: string, patch: Partial<Snippet>) => settings.change({ snippets: snippets.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
+  const removeSnippet = (id: string) => settings.change({ snippets: snippets.filter((s) => s.id !== id) });
+
+  async function addSnippetPhrase(s: Snippet) {
+    const key = s.id + ':phrase';
+    const typed = (drafts[key] ?? '').trim();
+    if (!typed) return;
+    const check = await api<Check>('commands/validate-phrase', { id: s.id, lang: i18n.lang, phrase: typed });
+    if (!check.ok) {
+      errors[key] = check.error === 'taken' ? takenMessage(check.other) : snippetPhraseMessage();
+      return;
+    }
+    errors[key] = '';
+    drafts[key] = '';
+    if (!s.phrases.some((p) => p.toLowerCase() === check.phrase!.toLowerCase())) await updateSnippet(s.id, { phrases: [...s.phrases, check.phrase!] });
+  }
+
+  async function saveSnippetText(s: Snippet) {
+    const draft = textDrafts[s.id];
+    if (draft === undefined || draft === s.text) return;
+    const check = await checkSnippetText(draft);
+    const key = s.id + ':text';
+    if (!check.ok) {
+      errors[key] = t(check.error ?? 'Texte refusé');
+      return;
+    }
+    errors[key] = '';
+    delete textDrafts[s.id];
+    await updateSnippet(s.id, { text: check.text! });
+  }
+
   // ---- Mes commandes : un titre, une phrase, un raccourci de l'appli active ----
   type Custom = { id: string; name: string; phrases: string[]; shortcut: string; needsSelection: boolean };
   let customs = $derived((v?.customCommands ?? []) as Custom[]);
@@ -198,7 +262,7 @@
   let customLabels = $state<Record<string, string>>({});
   let customShortcutDrafts = $state<Record<string, string>>({});
 
-  const nameOf = (id: string) => customs.find((c) => c.id === id)?.name ?? sites.find((c) => c.id === id)?.name;
+  const nameOf = (id: string) => customs.find((c) => c.id === id)?.name ?? sites.find((c) => c.id === id)?.name ?? snippets.find((c) => c.id === id)?.name;
   const takenMessage = (other?: string) => t('Cette phrase sert déjà à la commande « {name} ».', { name: nameOf(other ?? '') ?? t(labelOf(other ?? '')) });
   const tooShortMessage = () => t('Une phrase compte au moins deux mots : un mot seul est trop souvent du texte à coller.');
   const badShortcutMessage = () => t('Raccourci illisible : écris par exemple « Mod+B » (⌘B sur Mac, Ctrl+B ailleurs), avec Mod ou Ctrl ; Mod+Q (quitter) est refusé.');
@@ -440,6 +504,42 @@
       {#if siteError}<p class="error nomargin">{siteError}</p>{/if}
     </div>
 
+    <h3>{t('Mes extraits')}</h3>
+    <p class="muted">{t('Un extrait est un texte que tu colles en disant une phrase : « insérer mon adresse email » colle ton adresse. Il est collé tel quel (plusieurs lignes permises, 5 000 signes au plus), jamais gardé dans l’historique, et le presse-papiers d’avant est remis. Ça ne marche que sous la touche de commande ; dite sans elle, la phrase reste du texte. Un extrait peut contenir une adresse ou un IBAN : il n’est exporté que si tu le coches.')}</p>
+    {#each snippets as s (s.id)}
+      <div class="command">
+        <div class="head">
+          <b>{s.name}</b>
+          <span class="muted">{t('{n} signe(s)', { n: s.text.length })}</span>
+          <button class="link" onclick={() => removeSnippet(s.id)}>{t('Supprimer')}</button>
+        </div>
+        <div class="langrow">
+          <span class="lang muted">{t('Phrases')}</span>
+          <div class="chips">
+            {#each s.phrases as phrase, i (phrase)}
+              <span class="chip">{phrase}<button class="x" title={s.phrases.length < 2 ? t('Une commande garde au moins une phrase') : t('Retirer')} disabled={s.phrases.length < 2} onclick={() => updateSnippet(s.id, { phrases: s.phrases.filter((_, j) => j !== i) })}>×</button></span>
+            {/each}
+            <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter une phrase')} bind:value={drafts[s.id + ':phrase']} onkeydown={(e) => e.key === 'Enter' && addSnippetPhrase(s)} />
+            <button onclick={() => addSnippetPhrase(s)} disabled={!(drafts[s.id + ':phrase'] ?? '').trim()}>{t('Ajouter')}</button>
+          </div>
+        </div>
+        {#if errors[s.id + ':phrase']}<p class="error">{errors[s.id + ':phrase']}</p>{/if}
+        <textarea class="snippettext" rows="3" maxlength={SNIPPET_MAX * 2} spellcheck="false" aria-label={t('Texte à coller')} value={textDrafts[s.id] ?? s.text} oninput={(e) => (textDrafts[s.id] = e.currentTarget.value)} onblur={() => saveSnippetText(s)}></textarea>
+        {#if errors[s.id + ':text']}<p class="error">{errors[s.id + ':text']}</p>{/if}
+      </div>
+    {/each}
+    {#if snippets.length === 0}<p class="muted">{t('Aucun extrait pour l’instant.')}</p>{/if}
+    <div class="command newcommand">
+      <div class="head"><b>{t('Nouvel extrait')}</b></div>
+      <div class="chips">
+        <input type="text" placeholder={t('Nom (ex. : Adresse email)')} bind:value={snippetDraft.name} />
+        <input type="text" class="phrase" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Phrase à dire (ex. : insérer mon adresse email)')} bind:value={snippetDraft.phrase} />
+      </div>
+      <textarea class="snippettext" rows="3" maxlength={SNIPPET_MAX * 2} spellcheck="false" placeholder={t('Texte à coller')} bind:value={snippetDraft.text}></textarea>
+      <div class="chips"><button onclick={addSnippet}>{t('Ajouter l’extrait')}</button></div>
+      {#if snippetError}<p class="error nomargin">{snippetError}</p>{/if}
+    </div>
+
     <h3>{t('Mes commandes')}</h3>
     <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>
     {#each customs as c (c.id)}
@@ -529,6 +629,7 @@
 
 <style>
   h3 { margin: 14px 0 4px; font-size: 1rem; }
+  .snippettext { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; resize: vertical; }
   .command { border-top: 1px solid var(--line); padding: 8px 0; }
   .head { display: flex; align-items: center; gap: 12px; }
   .langrow { display: flex; gap: 10px; align-items: flex-start; margin-top: 6px; }

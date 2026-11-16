@@ -261,6 +261,14 @@ fn handle(ctx: &Context, mut request: Request) {
                 Err(why) => json!({"ok": false, "error": why.reason()}),
             },
         ),
+        // Le texte d'un extrait tel qu'il serait gardé (fins de ligne unifiées, bords nettoyés), ou la raison du refus (texte fixe, traduit par la page).
+        (Method::Post, "api/snippets/check") => ok(
+            request,
+            match scriibe_core::snippet::clean_text(input["text"].as_str().unwrap_or("")) {
+                Some(text) => json!({"ok": true, "text": text}),
+                None => json!({"ok": false, "error": "Le texte doit être non vide et ne pas dépasser 5 000 signes"}),
+            },
+        ),
         (Method::Post, "api/commands/validate-phrase") => ok(request, validate_command_phrase(&ctx.app.config.settings(), &input)),
         (Method::Post, "api/commands/validate-shortcut") => ok(
             request,
@@ -1431,7 +1439,12 @@ fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input
     let defs = all_defs(settings);
     // Une phrase de commande de la personne vaut pour les deux langues de dictée : elle ne doit être prise dans aucune des deux.
     // Idem pour un site de recherche de la personne (ses phrases valent pour les deux langues), créé ou en projet.
-    let own = id.starts_with(CUSTOM_PREFIX) || id == scriibe_core::web_search::NEW || settings.web_searches.iter().any(|w| w.id == id);
+    // Idem pour un extrait vocal (ses phrases valent pour les deux langues), créé ou en projet.
+    let own = id.starts_with(CUSTOM_PREFIX)
+        || id == scriibe_core::web_search::NEW
+        || id == scriibe_core::snippet::NEW
+        || settings.web_searches.iter().any(|w| w.id == id)
+        || settings.snippets.iter().any(|s| s.id == id);
     let result = if own {
         validate_phrase(phrase, id, Lang::Fr, &defs, &settings.voice_commands)
             .and_then(|_| validate_phrase(phrase, id, Lang::En, &defs, &settings.voice_commands))
@@ -1449,6 +1462,25 @@ fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// La page contrôle la phrase d'un extrait (créé ou en projet) : un mot seul est permis, une phrase déjà prise est refusée dans les deux langues.
+    #[test]
+    fn the_phrase_of_a_snippet_is_checked_for_both_languages_and_one_word_is_enough() {
+        let snippet = scriibe_core::snippet::Snippet {
+            id: "extrait.1".into(),
+            name: "Adresse".into(),
+            phrases: vec!["mon adresse".into()],
+            text: "12 rue des Lilas".into(),
+        };
+        let settings = AppSettings { snippets: scriibe_core::snippet::Snippet::cleaned(vec![snippet]), ..AppSettings::default() };
+        let check =
+            |id: &str, phrase: &str, lang: &str| validate_command_phrase(&settings, &json!({"id": id, "lang": lang, "phrase": phrase}));
+        assert_eq!(check("extrait.nouveau", "signature", "fr")["ok"], true, "un mot seul suffit pour un extrait");
+        assert_eq!(check("extrait.nouveau", "mon adresse", "en"), json!({"ok": false, "error": "taken", "other": "extrait.1"}));
+        assert_eq!(check("extrait.nouveau", "mettre en gras", "fr")["other"], "format.gras");
+        assert_eq!(check("extrait.1", "mon adresse", "fr")["ok"], true, "sa propre phrase");
+        assert_eq!(check("extrait.9", "bonjour", "fr")["error"], "unknown");
+    }
 
     #[test]
     fn the_page_cannot_change_the_schema_version_of_the_settings() {

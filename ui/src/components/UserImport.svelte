@@ -22,6 +22,7 @@
     styles: string[];
     commands: { name: string; phrases: string[]; dropped: string[]; shortcut: string; problem: 'no_name' | 'bad_shortcut' | 'no_phrase' | null }[];
     web_searches: { name: string; host: string | null; phrases: string[] }[];
+    snippets: { name: string; phrases: string[]; text: string; usable: boolean }[];
     suggested_name: string;
   }
 
@@ -33,7 +34,7 @@
   let busy = $state(true);
   let message = $state('');
   let name = $state('');
-  let take = $state({ identity: true, preferences: true, words: true, corrections: true, modes: true, examples: true, styles: true, commands: true, web_searches: false });
+  let take = $state({ identity: true, preferences: true, words: true, corrections: true, modes: true, examples: true, styles: true, commands: true, web_searches: false, snippets: false });
   let created = $state<{ id: string; name: string } | null>(null);
 
   const problem = (p: string | null) =>
@@ -53,7 +54,7 @@
       askPath = false;
       preview = out;
       name = out.suggested_name;
-      take = { identity: !!(out.name || out.first_name), preferences: out.preferences.length > 0 || out.hidden_modes > 0, words: out.words > 0, corrections: out.corrections > 0, modes: out.modes.length > 0, examples: true, styles: out.styles.length > 0, commands: out.commands.some((c) => !c.problem), web_searches: false };
+      take = { identity: !!(out.name || out.first_name), preferences: out.preferences.length > 0 || out.hidden_modes > 0, words: out.words > 0, corrections: out.corrections > 0, modes: out.modes.length > 0, examples: true, styles: out.styles.length > 0, commands: out.commands.some((c) => !c.problem), web_searches: false, snippets: false };
     } else if (out.ask_path) askPath = true;
     else message = t(out.error ?? 'le fichier n’a pas pu être lu');
   }
@@ -61,7 +62,7 @@
   async function apply() {
     if (!preview) return;
     busy = true;
-    const out = await api<{ ok: boolean; error?: string; created?: { id: string; name: string }; outcome?: { words: number; corrections: number; modes: string[]; commands: string[]; commands_skipped: number; web_searches: string[]; web_searches_skipped: number } }>('profile/import/apply', {
+    const out = await api<{ ok: boolean; error?: string; created?: { id: string; name: string }; outcome?: { words: number; corrections: number; modes: string[]; commands: string[]; commands_skipped: number; web_searches: string[]; web_searches_skipped: number; snippets: string[]; snippets_skipped: number } }>('profile/import/apply', {
       token: preview.token,
       name,
       include: take,
@@ -76,6 +77,8 @@
     message = t('Utilisateur « {name} » créé : {words} mot(s), {corrections} correction(s), {modes} mode(s), {commands} commande(s).', { name: out.created.name, words: o.words, corrections: o.corrections, modes: o.modes.length, commands: o.commands.length });
     if (o.commands_skipped > 0) message += ' ' + t('{n} commande(s) écartée(s) (raccourci illisible ou phrases déjà prises).', { n: o.commands_skipped });
     if (o.web_searches.length > 0) message += ' ' + t('{n} site(s) de recherche vocale.', { n: o.web_searches.length });
+    if (o.snippets.length > 0) message += ' ' + t('{n} extrait(s) vocal(aux).', { n: o.snippets.length });
+    if (o.snippets_skipped > 0) message += ' ' + t('{n} extrait(s) écarté(s) (texte vide ou trop long, ou phrases déjà prises).', { n: o.snippets_skipped });
     if (o.web_searches_skipped > 0) message += ' ' + t('{n} site(s) de recherche écarté(s) (adresse refusée ou phrases déjà prises).', { n: o.web_searches_skipped });
     preview = null;
     onchanged();
@@ -142,6 +145,16 @@
             <br /><span class="muted">{w.phrases.map((p) => '« ' + p + ' »').join(' ')}</span></li>
         {/each}</ul></div>
     {/if}
+    {#if preview.snippets.length > 0}
+      <div class="cat"><label><input type="checkbox" bind:checked={take.snippets} disabled={busy || !preview.snippets.some((x) => x.usable)} /> {t('Extraits vocaux')}</label> <span class="muted">{t('{n} extrait(s)', { n: preview.snippets.length })}</span>
+        <p class="warn">{t('Décoché par défaut : un extrait importé est collé quand tu dis sa phrase, sous la touche de commande. Lis le texte de chacun avant de cocher.')}</p>
+        <ul class="list">{#each preview.snippets as x, i (i)}
+          <li><b>{x.name}</b>
+            {#if !x.usable}<br /><span class="warn">{t('texte vide ou trop long, ou phrases déjà prises : cet extrait ne sera pas importé')}</span>{/if}
+            <br /><span class="muted">{x.phrases.map((p) => '« ' + p + ' »').join(' ')}</span>
+            <pre class="snippetpreview">{x.text}</pre></li>
+        {/each}</ul></div>
+    {/if}
     <div class="row">
       <button class="primary" onclick={apply} disabled={busy || !name.trim()}>{t('Importer')}</button>
       <button onclick={cancel} disabled={busy}>{t('Annuler')}</button>
@@ -164,6 +177,7 @@
   .field { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .cat { padding: 4px 0; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
   .sub { flex-basis: 100%; margin-left: 1.6em; color: var(--muted); font-size: .9rem; }
+  .snippetpreview { margin: 2px 0 6px; padding: 6px 8px; white-space: pre-wrap; word-break: break-word; max-height: 8em; overflow: auto; background: var(--soft, rgba(127,127,127,.12)); border-radius: 4px; font: inherit; }
   .list { margin: 4px 0; padding-left: 1.2em; flex-basis: 100%; }
   .grow { flex: 1; min-width: 10em; }
   .warn { color: var(--warn); }

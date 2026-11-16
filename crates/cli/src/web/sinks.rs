@@ -14,6 +14,8 @@ pub struct Captured {
     pub pasted: Option<String>,
     /// L'adresse qu'une commande (recherche) aurait ouverte : gardée, jamais lancée pendant un essai.
     pub opened: Option<String>,
+    /// La longueur (en signes) de l'extrait qu'une commande aurait collé : le texte n'est jamais gardé (il est confidentiel), ni collé.
+    pub snippet_chars: Option<usize>,
     pub dictation: Option<Dictation>,
     /// Messages de l'indicateur (« Rien entendu », « Collé sans mise au propre (…) »…).
     pub messages: Vec<String>,
@@ -74,6 +76,16 @@ impl Paster for SwitchPaster {
             PasteOutcome::Pasted
         } else {
             self.0.paster.paste(text, restore_clipboard)
+        }
+    }
+
+    // Pendant une capture d'essai, aucun extrait n'est collé : l'essai n'en garde que la longueur.
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        if self.0.capturing() {
+            lock(&self.0.captured).snippet_chars = Some(text.chars().count());
+            PasteOutcome::Pasted
+        } else {
+            self.0.paster.paste_transient(text)
         }
     }
 
@@ -225,15 +237,23 @@ mod tests {
         assert!(!switch.press_return());
         assert!(!switch.selection().active);
         assert!(switch.open_address("https://www.google.com/search?q=SECRET").is_ok(), "l'essai garde l'adresse, sans la lancer");
+        // Un extrait n'est ni collé ni gardé (il est confidentiel) : l'essai n'en retient que la longueur.
+        assert_eq!(switch.paste_transient("FR76 SECRET-IBAN"), PasteOutcome::Pasted);
         let captured = sinks.finish();
         assert_eq!(captured.opened.as_deref(), Some("https://www.google.com/search?q=SECRET"));
+        assert_eq!(captured.snippet_chars, Some(16));
+        assert!(captured.pasted.is_none(), "l'extrait n'est pas rendu comme un texte collé");
+        assert!(!format!("{captured:?}").contains("SECRET-IBAN"), "le texte de l'extrait n'est nulle part dans l'essai");
         assert!(paster.shortcuts().is_empty() && paster.pasted().is_empty() && paster.opened().is_empty());
+        assert!(paster.pasted_transient().is_empty(), "rien n'atteint le vrai collage pendant un essai");
         // Hors essai, la lecture de la sélection et le raccourci passent.
         assert!(matches!(switch.selected_text(), SelectedRead::Text(_)));
         assert!(switch.press_shortcut(&Shortcut::parse("Mod+B").unwrap()).is_ok());
         assert_eq!(paster.shortcuts().len(), 1);
         assert!(switch.open_address("https://www.google.com/search?q=chats").is_ok());
         assert_eq!(paster.opened(), vec!["https://www.google.com/search?q=chats".to_string()]);
+        assert_eq!(switch.paste_transient("hors essai"), PasteOutcome::Pasted);
+        assert_eq!(paster.pasted_transient(), vec!["hors essai".to_string()]);
     }
 
     #[test]

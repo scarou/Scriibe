@@ -42,6 +42,7 @@ fn contents_json(id: &str, c: &Contents) -> Value {
         "styles": c.styles.iter().map(|s| built_in_label(s)).collect::<Vec<_>>(),
         "commands": c.commands,
         "web_searches": c.web_searches.iter().map(|(name, host)| json!({"name": name, "host": host})).collect::<Vec<_>>(),
+        "snippets": c.snippets,
     })
 }
 
@@ -104,6 +105,7 @@ fn preview_json(incoming: &Incoming) -> Value {
         "styles": p.styles.iter().map(|s| built_in_label(s)).collect::<Vec<_>>(),
         "commands": commands_io::items_json(&p.commands),
         "web_searches": p.web_searches.iter().map(|w| json!({"name": w.name, "host": w.host, "phrases": w.phrases})).collect::<Vec<_>>(),
+        "snippets": p.snippets.iter().map(|s| json!({"name": s.name, "phrases": s.phrases, "text": s.text, "usable": s.usable})).collect::<Vec<_>>(),
         "suggested_name": p.name.clone().unwrap_or_else(|| user_file::UNNAMED.to_string()),
     })
 }
@@ -175,6 +177,7 @@ pub(crate) fn apply_pending(config: &FileConfig, input: &Value) -> Result<Value,
             "words": o.words, "corrections": o.corrections, "modes": o.modes, "examples": o.examples, "styles": o.styles,
             "commands": o.commands, "commands_skipped": o.commands_skipped, "preferences": o.preferences, "identity": o.identity,
             "web_searches": o.web_searches, "web_searches_skipped": o.web_searches_skipped,
+            "snippets": o.snippets, "snippets_skipped": o.snippets_skipped,
         },
         "list": profiles_io::view(config),
     }))
@@ -298,6 +301,7 @@ mod tests {
             styles: false,
             commands: false,
             web_searches: false,
+            snippets: false,
         };
         assert!(prepare(&config, &id, none, 0).unwrap_err().contains("rien à exporter"));
         let folder = config.profile_folder().unwrap();

@@ -11,7 +11,7 @@ use crate::apple::PASTE_BLOCKING_FLAGS;
 use crate::paste::{
     PasteOutcome, Paster, SelectedRead, SelectedText, Selection, Unreadable, SHORTCUT_KEY_UNKNOWN, SHORTCUT_NOT_SENT, SHORTCUT_NOT_TRUSTED,
 };
-use arboard::Clipboard;
+use arboard::{Clipboard, SetExtApple};
 use scriibe_core::shortcut::Shortcut;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -48,6 +48,35 @@ fn with_clipboard<R>(slot: &Mutex<Option<Clipboard>>, f: impl FnOnce(&mut Clipbo
 
 fn write_text(slot: &Mutex<Option<Clipboard>>, text: &str) -> Result<(), String> {
     with_clipboard(slot, |c| c.set_text(text.to_string()).map_err(|e| format!("écriture dans le presse-papiers refusée ({e})")))
+}
+
+/// Comme `write_text`, mais le texte est marqué « ne pas garder » pour les gestionnaires d'historique du presse-papiers : la marque
+/// `org.nspasteboard.ConcealedType` (posée par `arboard`) et `org.nspasteboard.TransientType` (celle de Scribe), toutes deux de la
+/// convention nspasteboard.org. Un extrait peut être une adresse, un IBAN, une signature.
+fn write_text_transient(slot: &Mutex<Option<Clipboard>>, text: &str) -> Result<(), String> {
+    with_clipboard(slot, |c| {
+        c.set().exclude_from_history().text(text.to_string()).map_err(|e| format!("écriture dans le presse-papiers refusée ({e})"))
+    })?;
+    mark_transient();
+    Ok(())
+}
+
+/// Ajoute à ce que contient le presse-papiers la marque `org.nspasteboard.TransientType` (donnée vide).
+fn mark_transient() {
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send};
+    objc2::rc::autoreleasepool(|_| {
+        // SAFETY : `NSPasteboard` et `NSString` existent (AppKit est chargé par `arboard` dès qu'un presse-papiers est ouvert) ;
+        // les chaînes sont des littéraux C terminés par zéro, les objets rendus sont vérifiés avant l'appel.
+        unsafe {
+            let board: *mut AnyObject = msg_send![class!(NSPasteboard), generalPasteboard];
+            let kind: *mut AnyObject = msg_send![class!(NSString), stringWithUTF8String: c"org.nspasteboard.TransientType".as_ptr()];
+            let empty: *mut AnyObject = msg_send![class!(NSString), stringWithUTF8String: c"".as_ptr()];
+            if !board.is_null() && !kind.is_null() && !empty.is_null() {
+                let _: bool = msg_send![board, setString: empty, forType: kind];
+            }
+        }
+    });
 }
 
 fn read_text(slot: &Mutex<Option<Clipboard>>) -> Option<String> {
@@ -466,11 +495,24 @@ impl Paster for MacPaster {
     }
 
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
+        self.paste_with(text, restore_clipboard, false)
+    }
+
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        self.paste_with(text, true, true)
+    }
+}
+
+impl MacPaster {
+    /// Le collage. `transient` (les extraits) : jamais de frappe (un saut de ligne tapé dans un navigateur serait une touche Entrée qui
+    /// envoie le message : le texte est collé par le menu Édition → Coller ou par ⌘V), le texte est marqué « ne pas garder » et, quand on
+    /// remet le presse-papiers d'avant, un presse-papiers qui était vide est vidé (l'extrait ne reste pas dedans).
+    fn paste_with(&self, text: &str, restore_clipboard: bool, transient: bool) -> PasteOutcome {
         // Un navigateur Chromium : le texte est « tapé » (sans toucher au presse-papiers), le collage étant parfois ignoré par ses champs.
         let browser = crate::apps::ForegroundApp::current(&super::foreground::MacForeground)
             .id
             .is_some_and(|id| CHROMIUM_BROWSERS.contains(&id.as_str()));
-        if browser {
+        if browser && !transient {
             let started = std::time::Instant::now();
             match type_text(text) {
                 Ok(()) => {
@@ -481,7 +523,8 @@ impl Paster for MacPaster {
             }
         }
         let saved = if restore_clipboard { read_text(&self.clipboard) } else { None };
-        if let Err(e) = write_text(&self.clipboard, text) {
+        let written = if transient { write_text_transient(&self.clipboard, text) } else { write_text(&self.clipboard, text) };
+        if let Err(e) = written {
             return PasteOutcome::CopiedOnly(e);
         }
         // Le collage lit le presse-papiers : on s'assure que c'est bien la dictée qu'il contient (0,2 s au plus).
@@ -518,14 +561,19 @@ impl Paster for MacPaster {
             }
         }
         *lock(&self.report) = report;
-        if let (true, Some(saved)) = (restore_clipboard, saved) {
+        if restore_clipboard {
             // En arrière-plan, 1,5 s après : une appli lente doit avoir lu la dictée ; si autre chose a été copié entre-temps, on n'y touche pas.
             let slot = self.clipboard.clone();
             let ours = text.to_string();
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(1500));
                 if read_text(&slot).as_deref() == Some(ours.as_str()) {
-                    let _ = write_text(&slot, &saved);
+                    match saved {
+                        Some(saved) => drop(write_text(&slot, &saved)),
+                        // Un extrait collé sur un presse-papiers vide ou sans texte : on vide, il ne doit pas y rester.
+                        None if transient => drop(with_clipboard(&slot, |c| c.clear().map_err(|e| e.to_string()))),
+                        None => {}
+                    }
                 }
             });
         }
@@ -545,6 +593,34 @@ mod tests {
         assert!(has_non_text_type("«class PNGf», 48210, «class TIFF», 99000"));
         assert!(has_non_text_type("«class furl», 120, «class utf8», 14"));
         assert!(has_non_text_type("«class utf8», 12, «class JPEG», 30000"));
+    }
+
+    /// Écrit dans le **vrai** presse-papiers (remis ensuite) : à lancer à la main, `cargo test -p scriibe-platform transient -- --ignored`.
+    /// Un extrait écrit par `write_text_transient` porte les deux marques « ne pas garder » et son texte.
+    #[test]
+    #[ignore = "écrit dans le vrai presse-papiers"]
+    fn the_transient_write_marks_the_pasteboard_and_keeps_the_text() {
+        let slot = Mutex::new(None);
+        let before = read_text(&slot);
+        write_text_transient(&slot, "essai-extrait").unwrap();
+        let types = std::process::Command::new("/usr/bin/osascript")
+            .args([
+                "-l",
+                "JavaScript",
+                "-e",
+                "ObjC.import('AppKit'); ObjC.unwrap($.NSPasteboard.generalPasteboard.types).map(x => ObjC.unwrap(x)).join(',')",
+            ])
+            .output()
+            .unwrap();
+        let types = String::from_utf8_lossy(&types.stdout).to_string();
+        let text = read_text(&slot);
+        match &before {
+            Some(saved) => drop(write_text(&slot, saved)),
+            None => drop(with_clipboard(&slot, |c| c.clear().map_err(|e| e.to_string()))),
+        }
+        assert!(types.contains("org.nspasteboard.ConcealedType"), "{types}");
+        assert!(types.contains("org.nspasteboard.TransientType"), "{types}");
+        assert_eq!(text.as_deref(), Some("essai-extrait"));
     }
 
     #[test]

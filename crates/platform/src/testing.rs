@@ -139,6 +139,7 @@ pub struct FakePaster {
     shortcuts: Mutex<Vec<String>>,
     shortcut_error: Mutex<Option<&'static str>>,
     opened: Mutex<Vec<String>>,
+    transient: Mutex<Vec<String>>,
     open_error: Mutex<Option<&'static str>>,
     reads: std::sync::atomic::AtomicUsize,
 }
@@ -153,6 +154,7 @@ impl Default for FakePaster {
             shortcuts: Mutex::new(Vec::new()),
             shortcut_error: Mutex::new(None),
             opened: Mutex::new(Vec::new()),
+            transient: Mutex::new(Vec::new()),
             open_error: Mutex::new(None),
             reads: std::sync::atomic::AtomicUsize::new(0),
         }
@@ -162,6 +164,11 @@ impl Default for FakePaster {
 impl FakePaster {
     pub fn pasted(&self) -> Vec<(String, bool)> {
         lock(&self.pasted).clone()
+    }
+
+    /// Les textes collés par `paste_transient` (les extraits) : jamais mêlés à `pasted`, qui n'a que les collages ordinaires.
+    pub fn pasted_transient(&self) -> Vec<String> {
+        lock(&self.transient).clone()
     }
 
     pub fn set_outcome(&self, outcome: PasteOutcome) {
@@ -245,6 +252,11 @@ impl Paster for FakePaster {
 
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
         lock(&self.pasted).push((text.to_string(), restore_clipboard));
+        lock(&self.outcome).clone()
+    }
+
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        lock(&self.transient).push(text.to_string());
         lock(&self.outcome).clone()
     }
 }

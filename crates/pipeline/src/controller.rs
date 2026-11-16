@@ -966,6 +966,25 @@ impl Controller {
                 }
                 CommandOutcome::Handled
             }
+            // Extraits (étape 2, sous la touche seulement) : le texte est collé **tel quel** par `paste_transient` (presse-papiers d'avant toujours
+            // remis, texte marqué « ne pas garder »), sans passer par `process` : ni modèle, ni dictionnaire, ni typographie, rien dans
+            // l'historique. Le journal n'a que l'identifiant et la longueur (ni le nom, ni le texte, ni les phrases).
+            id if scriibe_core::snippet::is_snippet(id) => {
+                let Some(text) = scriibe_core::snippet::text_of(id, settings) else {
+                    deps.log.write(&format!("commande: {id} — extrait disparu ou vide"));
+                    return self.nothing_to_do(context, "Extrait impossible");
+                };
+                deps.log.write(&format!("commande: {id} (extrait : {} signes)", text.chars().count()));
+                match deps.paster.paste_transient(text) {
+                    PasteOutcome::Pasted => deps.indicator.flash(IndicatorState::Done, 0.9),
+                    PasteOutcome::CopiedOnly(reason) => {
+                        deps.log.write(&format!("commande: {id} — copié seulement ({reason})"));
+                        deps.indicator
+                            .flash(IndicatorState::Message(format!("Extrait copié, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
+                    }
+                }
+                CommandOutcome::Handled
+            }
             other => {
                 deps.log.write(&format!("commande: {other} inconnue du chef d'orchestre"));
                 self.nothing_to_do(context, "Commande inconnue")

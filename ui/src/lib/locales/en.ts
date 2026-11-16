@@ -233,6 +233,30 @@ export const en: Record<string, string> = {
     'Unticked by default: an imported site opens its address when you say its phrase, under the command key. Check the host of each one.',
   'adresse refusée : ce site ne sera pas importé': 'address refused: this site will not be imported',
   'Aucun site à toi pour l’instant.': 'No site of your own yet.',
+  'Donne une phrase à dire (un mot seul suffit : elle doit être toute la phrase dite).':
+    'Give a phrase to say (a single word is enough: it must be the whole phrase said).',
+  'Donne un nom, une phrase à dire et le texte à coller.': 'Give a name, a phrase to say and the text to paste.',
+  'Mes extraits': 'My snippets',
+  'Un extrait est un texte que tu colles en disant une phrase : « insérer mon adresse email » colle ton adresse. Il est collé tel quel (plusieurs lignes permises, 5 000 signes au plus), jamais gardé dans l’historique, et le presse-papiers d’avant est remis. Ça ne marche que sous la touche de commande ; dite sans elle, la phrase reste du texte. Un extrait peut contenir une adresse ou un IBAN : il n’est exporté que si tu le coches.':
+    'A snippet is a text you paste by saying a phrase: “insert my email address” pastes your address. It is pasted as it is (several lines allowed, 5,000 characters at most), never kept in the history, and your previous clipboard is put back. It only works under the command key; said without it, the phrase stays text. A snippet can hold an address or an IBAN: it is only exported if you tick it.',
+  '{n} signe(s)': '{n} character(s)',
+  'Texte à coller': 'Text to paste',
+  'Aucun extrait pour l’instant.': 'No snippet yet.',
+  'Nouvel extrait': 'New snippet',
+  'Nom (ex. : Adresse email)': 'Name (e.g. Email address)',
+  'Phrase à dire (ex. : insérer mon adresse email)': 'Phrase to say (e.g. insert my email address)',
+  'Ajouter l’extrait': 'Add the snippet',
+  'Extraits vocaux (texte compris)': 'Voice snippets (text included)',
+  'Extraits vocaux': 'Voice snippets',
+  '{n} extrait(s)': '{n} snippet(s)',
+  '{n} extrait(s) vocal(aux).': '{n} voice snippet(s).',
+  '{n} extrait(s) écarté(s) (texte vide ou trop long, ou phrases déjà prises).': '{n} snippet(s) skipped (empty or too long text, or phrases already taken).',
+  'Décoché par défaut : un extrait peut contenir une adresse, un IBAN ou une signature, et le fichier le contiendrait en clair.':
+    'Unticked by default: a snippet can hold an address, an IBAN or a signature, and the file would contain it in clear.',
+  'Décoché par défaut : un extrait importé est collé quand tu dis sa phrase, sous la touche de commande. Lis le texte de chacun avant de cocher.':
+    'Unticked by default: an imported snippet is pasted when you say its phrase, under the command key. Read the text of each one before ticking.',
+  'texte vide ou trop long, ou phrases déjà prises : cet extrait ne sera pas importé':
+    'empty or too long text, or phrases already taken: this snippet will not be imported',
   'Nouveau site': 'New site',
   'Nom (ex. : Amazon)': 'Name (e.g. Amazon)',
   'Adresse (ex. : https://www.amazon.fr/s?k={q})': 'Address (e.g. https://www.amazon.fr/s?k={q})',

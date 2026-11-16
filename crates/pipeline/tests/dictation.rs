@@ -1783,3 +1783,79 @@ fn without_the_command_key_a_search_phrase_is_pasted_as_text_and_opens_nothing()
         assert_eq!(r.paster.selected_reads(), 0);
     }
 }
+
+// ---- Extraits vocaux (chantier 6, étape 2) : collage direct, transitoire, sous la touche seulement ----
+
+fn adresse() -> scriibe_core::snippet::Snippet {
+    scriibe_core::snippet::Snippet {
+        id: "extrait.1".into(),
+        name: "Coordonnées SECRET-NOM".into(),
+        phrases: vec!["insérer mon adresse SECRET-PHRASE".into()],
+        text: "Jean Dupont\n12 rue  des Lilas ,  Paris\nFR76 SECRET-IBAN".into(),
+    }
+}
+
+fn snippet_settings() -> AppSettings {
+    AppSettings { snippets: vec![adresse()], ..command_settings() }
+}
+
+/// Un extrait dit sous la touche est collé **tel quel** par `paste_transient` : pas par le collage ordinaire, rien dans l'historique, ni
+/// modèle, ni lecture de la sélection ; ni le journal ni la pastille ne contiennent son nom, ses phrases ni son texte.
+#[test]
+fn under_the_command_key_a_snippet_is_pasted_verbatim_and_leaves_no_trace() {
+    let r = rig_with(snippet_settings(), "Insérer mon adresse SECRET-PHRASE.", "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::Text("SECRET-456".into()));
+    r.dictate_under_key();
+    assert_eq!(
+        r.paster.pasted_transient(),
+        vec![adresse().text],
+        "collé tel quel : sauts de ligne, espaces doubles, espace avant la virgule"
+    );
+    assert!(r.paster.pasted().is_empty(), "jamais par le collage ordinaire (qui est celui d'une dictée)");
+    assert!(r.history.items().is_empty(), "un extrait n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty(), "ni modèle ni mise au propre");
+    assert_eq!(r.paster.selected_reads(), 0, "un extrait ne lit pas la sélection");
+    assert!(r.paster.shortcuts().is_empty() && r.paster.opened().is_empty());
+    assert!(r.indicator.states().contains(&IndicatorState::Done), "{:?}", r.indicator.states());
+    assert!(!r.controller.is_busy());
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: extrait.1 (extrait : 55 signes)"), "{log}");
+    let everything = format!("{log}|{:?}|{:?}", r.indicator.states(), r.history.items());
+    for forbidden in ["SECRET", "Dupont", "Lilas", "adresse", "Coordonn"] {
+        assert!(!everything.contains(forbidden), "{forbidden} : trace dans le journal ou la pastille : {everything}");
+    }
+}
+
+/// Non-régression : sans la touche de commande, la phrase d'un extrait est du texte comme un autre (collée, dans l'historique), rien de
+/// transitoire n'est collé.
+#[test]
+fn without_the_command_key_a_snippet_phrase_is_pasted_as_text() {
+    let heard = "Insérer mon adresse SECRET-PHRASE";
+    let r = rig_with(snippet_settings(), heard, heard, true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_without_command();
+    assert!(r.paster.pasted_transient().is_empty(), "l'extrait n'est pas collé sans la touche");
+    assert_eq!(r.paster.pasted().len(), 1, "la phrase est collée comme du texte");
+    assert_eq!(r.history.items().len(), 1);
+    assert_eq!(r.paster.selected_reads(), 0);
+}
+
+/// Un extrait disparu ou vide (réglage qui aurait échappé à la lecture) : message fixe, rien n'est collé. Collage impossible : le texte
+/// reste dans le presse-papiers et la pastille le dit sans le montrer.
+#[test]
+fn a_snippet_that_cannot_be_pasted_gives_a_fixed_message() {
+    let empty = scriibe_core::snippet::Snippet { text: "  \n ".into(), ..adresse() };
+    let r = rig_with(AppSettings { snippets: vec![empty], ..command_settings() }, "Insérer mon adresse SECRET-PHRASE", "x", true);
+    r.dictate_under_key();
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty() && r.history.items().is_empty());
+    assert!(r.indicator.states().contains(&message("Extrait impossible")), "{:?}", r.indicator.states());
+
+    let r = rig_with(snippet_settings(), "Insérer mon adresse SECRET-PHRASE", "x", true);
+    r.paster.set_outcome(PasteOutcome::CopiedOnly("autorisation manquante".into()));
+    r.dictate_under_key();
+    assert_eq!(r.paster.pasted_transient().len(), 1);
+    assert!(r.history.items().is_empty() && r.paster.pasted().is_empty());
+    let states = format!("{:?}", r.indicator.states());
+    assert!(states.contains("Extrait copié, à coller avec") && states.contains("autorisation manquante"), "{states}");
+    assert!(!states.contains("Dupont") && !states.contains("SECRET"), "{states}");
+}

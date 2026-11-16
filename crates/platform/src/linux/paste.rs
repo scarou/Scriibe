@@ -7,7 +7,7 @@
 use super::evdev::MODIFIER_KEYCODES;
 use super::x11;
 use crate::paste::{PasteOutcome, Paster};
-use arboard::Clipboard;
+use arboard::{Clipboard, SetExtLinux};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use x11rb::connection::Connection;
@@ -37,6 +37,14 @@ fn with_clipboard<R>(slot: &Mutex<Option<Clipboard>>, f: impl FnOnce(&mut Clipbo
 
 fn write_text(slot: &Mutex<Option<Clipboard>>, text: &str) -> Result<(), String> {
     with_clipboard(slot, |c| c.set_text(text.to_string()).map_err(|e| format!("écriture dans le presse-papiers refusée ({e})")))
+}
+
+/// Comme `write_text`, mais le texte est marqué « ne pas garder » pour les gestionnaires d'historique du presse-papiers qui lisent cette
+/// marque (`x-kde-passwordManagerHint`, que `arboard` pose). Un extrait peut être une adresse, un IBAN, une signature.
+fn write_text_transient(slot: &Mutex<Option<Clipboard>>, text: &str) -> Result<(), String> {
+    with_clipboard(slot, |c| {
+        c.set().exclude_from_history().text(text.to_string()).map_err(|e| format!("écriture dans le presse-papiers refusée ({e})"))
+    })
 }
 
 fn read_text(slot: &Mutex<Option<Clipboard>>) -> Option<String> {
@@ -84,14 +92,27 @@ impl Paster for X11Paster {
     }
 
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
+        self.paste_with(text, restore_clipboard, false)
+    }
+
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        self.paste_with(text, true, true)
+    }
+}
+
+impl X11Paster {
+    /// Le collage. `transient` (les extraits) : le texte est marqué « ne pas garder » et un presse-papiers qui était vide est vidé à la
+    /// remise (l'extrait ne reste pas dedans).
+    fn paste_with(&self, text: &str, restore_clipboard: bool, transient: bool) -> PasteOutcome {
         let saved = if restore_clipboard { read_text(&self.clipboard) } else { None };
-        if let Err(e) = write_text(&self.clipboard, text) {
+        let written = if transient { write_text_transient(&self.clipboard, text) } else { write_text(&self.clipboard, text) };
+        if let Err(e) = written {
             return PasteOutcome::CopiedOnly(e);
         }
         if let Err(e) = send_ctrl_v() {
             return PasteOutcome::CopiedOnly(e);
         }
-        if let (true, Some(saved)) = (restore_clipboard, saved) {
+        if restore_clipboard {
             // En arrière-plan : la dictée suivante n'attend pas. 1,5 s : une appli lente doit avoir lu la dictée avant qu'on remette
             // l'ancien contenu ; si autre chose a été copié entre-temps, on n'y touche pas.
             let slot = self.clipboard.clone();
@@ -99,7 +120,11 @@ impl Paster for X11Paster {
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(1500));
                 if read_text(&slot).as_deref() == Some(ours.as_str()) {
-                    let _ = write_text(&slot, &saved);
+                    match saved {
+                        Some(saved) => drop(write_text(&slot, &saved)),
+                        None if transient => drop(with_clipboard(&slot, |c| c.clear().map_err(|e| e.to_string()))),
+                        None => {}
+                    }
                 }
             });
         }

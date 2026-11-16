@@ -90,6 +90,14 @@ pub trait Paster: Send + Sync {
     /// Met `text` dans le presse-papiers, attend que les touches de modification soient relâchées, envoie le collage.
     /// `restore_clipboard` : remet ensuite l'ancien contenu (en arrière-plan), s'il n'a pas changé entre-temps.
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome;
+    /// Colle un texte **confidentiel** (un extrait : adresse, IBAN, signature) : comme `paste`, mais le presse-papiers d'avant est **toujours**
+    /// remis (quel que soit `restoreClipboard`), le texte est marqué « ne pas garder » pour les historiques de presse-papiers (Win+V et
+    /// presse-papiers du cloud sous Windows, `org.nspasteboard.TransientType` sous macOS), et il est **collé, jamais tapé** (dans un
+    /// navigateur Chromium sur Mac, chaque saut de ligne tapé serait une touche Entrée). Si le collage échoue (`CopiedOnly`), le texte reste
+    /// dans le presse-papiers pour que la personne le colle elle-même. Par défaut : un collage ordinaire avec remise.
+    fn paste_transient(&self, text: &str) -> PasteOutcome {
+        self.paste(text, true)
+    }
     /// Le détail du dernier collage (route prise, attentes) pour le journal ; vide si le système n'en dit rien.
     fn last_report(&self) -> String {
         String::new()
