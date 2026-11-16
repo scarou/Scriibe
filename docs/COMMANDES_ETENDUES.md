@@ -272,4 +272,14 @@ Code de l'étape 2 de `docs/CADRAGE_COMMANDES.md` (extraits vocaux, `Paster::pas
 
 ### Suite
 
-Tâche 6 (étape 3, applications et mail) dans cette session, sauf relais (contexte à vérifier à la fin de la tâche).
+Tâche 6 (étape 3, applications et mail) : nouvelle session (relais ci-dessous).
+
+### Relais (fin de la tâche 5, contexte à 30 %)
+
+Relais décidé par la règle du `CLAUDE.md` (contexte à 25 % ou plus en fin de tâche : on ne commence pas la tâche suivante dans cette session). Ne change ni l'ordre ni les consignes.
+
+- **Fait** : toute la tâche 5 (étape 2, extraits), résultats ci-dessus ; commit local `79d2610` puis celui de ce relais. Rien n'est poussé (le dernier envoi sur GitHub est la 0.6.0, `1f90af2`).
+- **En cours** : rien (arbre propre après le commit de ce relais).
+- **Prochain pas** : la tâche 6 du découpage (étape 3 : `voiceApps`, `OptionalRest`, `percent_encode` public, « nouveau mail … »), consigne telle quelle. Points d'accroche déjà en place : `open::open_address` accepte déjà `mailto:` (`web_search::is_openable`) mais son commentaire dit « à resserrer avant "nouveau mail" » (CHANGELOG 0.6.0, « Connu, non corrigé ») ; `web_search::percent_encode` est dans le cœur ; `Argument` n'a que `None` et `Rest` (ajouter `OptionalRest`) ; `Paster::open_address` ne lance que des adresses : une application de la liste demande une autre fonction d'ouverture contrôlée (identifiant de la liste, `gtk-launch` sous Linux). `voiceApps` se classe en **`COMPUTER_KEYS`** (champ d'ordinateur : jamais exporté ; à ajouter aussi à `backup.rs:COMPUTER_FIELDS`) ; le test du chantier 4 échoue sinon.
+- **Pièges** : (1) `paste_transient` existe maintenant ; un nouveau `Paster` (doublure ou système) peut s'en passer, la valeur par défaut colle avec remise ; (2) les tests du contrôleur d'extraits sont à la fin de `crates/pipeline/tests/dictation.rs` (modèle : `search_rig`, `rig_with`, `dictate_under_key`) ; (3) `ui/src/lib/i18n.test.ts` échoue pour une traduction qui n'est utilisée que dans une valeur de repli dynamique (`t(x.error ?? '…')`) : la mettre dans `en-server.ts` ; (4) le Mac n'a pas de compilateur C croisé : le code Windows se vérifie par une caisse isolée (copie du fichier contre `windows-sys`, `cargo check --target x86_64-pc-windows-gnu`, dossier de travail temporaire) ; (5) `cargo fmt --all` avant clippy ; (6) la page (carte « Mes extraits ») n'a pas été vue dans un navigateur : la voir à l'essai du lot 2 (tâche 7).
+- **Commits** : `79d2610` (tâche 5), celui de ce relais ; `1f90af2` est le dernier poussé.
