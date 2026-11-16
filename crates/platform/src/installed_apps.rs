@@ -227,7 +227,8 @@ fn scan() -> Vec<InstalledApp> {
 #[cfg(target_os = "macos")]
 fn launch(app: &InstalledApp) -> Result<(), &'static str> {
     // `launch` est un identifiant de bundle conforme (`is_plain_id`, tiret initial exclu) : il ne peut pas passer pour une option.
-    std::process::Command::new("open").arg("-b").arg(&app.launch).spawn().map(|_| ()).map_err(|_| APP_NOT_OPENED)
+    // Le code de sortie de `open` est lu (application disparue, refusée…) : une réussite n'est affichée que si le système a lancé.
+    crate::open::run_launcher("open", &["-b", &app.launch], APP_NOT_OPENED)
 }
 
 #[cfg(windows)]
@@ -269,7 +270,8 @@ fn scan() -> Vec<InstalledApp> {
 #[cfg(all(unix, not(target_os = "macos")))]
 fn launch(app: &InstalledApp) -> Result<(), &'static str> {
     // `launch` est un identifiant `.desktop` conforme (`is_plain_id`, tiret initial exclu) : il ne peut pas passer pour une option.
-    std::process::Command::new("gtk-launch").arg(&app.launch).spawn().map(|_| ()).map_err(|_| APP_NOT_OPENED)
+    // Le code de sortie de `gtk-launch` est lu (fichier `.desktop` disparu, lanceur en échec) : pas de fausse réussite.
+    crate::open::run_launcher("gtk-launch", &[&app.launch], APP_NOT_OPENED)
 }
 
 #[cfg(test)]

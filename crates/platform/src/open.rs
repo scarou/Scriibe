@@ -90,7 +90,37 @@ fn launch_address(url: &str) -> Result<(), &'static str> {
     #[cfg(not(target_os = "macos"))]
     let program = "xdg-open";
     // L'adresse commence par `https:` ou `mailto:` (contrôlé plus haut) : jamais par un tiret, donc jamais prise pour une option.
-    Command::new(program).arg(url).spawn().map(|_| ()).map_err(|_| ADDRESS_NOT_OPENED)
+    run_launcher(program, &[url], ADDRESS_NOT_OPENED)
+}
+
+/// Combien de temps on attend le code de sortie d'un lanceur du système (`open`, `xdg-open`, `gtk-launch`) avant de le laisser partir.
+#[cfg(not(windows))]
+const LAUNCHER_PATIENCE: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Lance `program` avec ces arguments, sans fenêtre ni sortie, et **regarde son code de sortie** : un lanceur qui échoue (par exemple
+/// `xdg-open mailto:` sans messagerie : code 4) donne `failure`, au lieu d'une réussite affichée alors que rien ne s'est ouvert (essai du
+/// lot 2, Linux, 16/11/2026). Un lanceur encore en route après [`LAUNCHER_PATIENCE`] (certains attendent la fin de l'application) compte
+/// comme parti : on ne bloque jamais plus longtemps.
+#[cfg(not(windows))]
+pub(crate) fn run_launcher(program: &str, args: &[&str], failure: &'static str) -> Result<(), &'static str> {
+    run_launcher_within(program, args, failure, LAUNCHER_PATIENCE)
+}
+
+#[cfg(not(windows))]
+fn run_launcher_within(program: &str, args: &[&str], failure: &'static str, patience: std::time::Duration) -> Result<(), &'static str> {
+    use std::process::Stdio;
+    use std::time::Instant;
+    let mut child =
+        Command::new(program).args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|_| failure)?;
+    let start = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return if status.success() { Ok(()) } else { Err(failure) },
+            Ok(None) if start.elapsed() < patience => std::thread::sleep(std::time::Duration::from_millis(25)),
+            Ok(None) => return Ok(()),
+            Err(_) => return Err(failure),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -132,6 +162,22 @@ mod tests {
             assert_eq!(open_address(refused), Err(ADDRESS_REFUSED), "{refused:?}");
         }
         assert_eq!(open_address(&format!("https://example.com/{}", "a".repeat(2000))), Err(ADDRESS_REFUSED), "trop longue");
+    }
+
+    /// Un lanceur du système qui échoue (code de sortie non nul), ou qui n'existe pas, n'est plus affiché comme une réussite ; un lanceur
+    /// qui réussit l'est ; un lanceur encore en route après la patience est laissé partir (on ne bloque pas).
+    #[cfg(unix)]
+    #[test]
+    fn a_launcher_that_fails_is_reported_as_not_opened() {
+        use std::time::Duration;
+        let patience = Duration::from_secs(2);
+        assert_eq!(run_launcher_within("true", &[], "échec", patience), Ok(()));
+        assert_eq!(run_launcher_within("false", &[], "échec", patience), Err("échec"), "code de sortie non nul");
+        assert_eq!(run_launcher_within("sh", &["-c", "exit 4"], "échec", patience), Err("échec"), "comme xdg-open sans messagerie");
+        assert_eq!(run_launcher_within("scriibe-lanceur-inexistant", &[], "échec", patience), Err("échec"), "programme absent");
+        let started = std::time::Instant::now();
+        assert_eq!(run_launcher_within("sleep", &["5"], "échec", Duration::from_millis(200)), Ok(()), "toujours en route : parti");
+        assert!(started.elapsed() < Duration::from_secs(3), "n'attend pas la fin du lanceur");
     }
 
     #[test]
