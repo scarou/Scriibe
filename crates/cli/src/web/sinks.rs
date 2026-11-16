@@ -16,6 +16,8 @@ pub struct Captured {
     pub opened: Option<String>,
     /// La longueur (en signes) de l'extrait qu'une commande aurait collé : le texte n'est jamais gardé (il est confidentiel), ni collé.
     pub snippet_chars: Option<usize>,
+    /// Une commande aurait ouvert une application de la liste : seul le fait est gardé (ni le nom, ni l'identifiant), rien n'est lancé.
+    pub app_opened: bool,
     pub dictation: Option<Dictation>,
     /// Messages de l'indicateur (« Rien entendu », « Collé sans mise au propre (…) »…).
     pub messages: Vec<String>,
@@ -122,6 +124,16 @@ impl Paster for SwitchPaster {
             Ok(())
         } else {
             self.0.paster.open_address(url)
+        }
+    }
+
+    // Pendant une capture d'essai, aucune application ne s'ouvre : l'essai ne garde que le fait.
+    fn open_app(&self, app_id: &str) -> Result<(), &'static str> {
+        if self.0.capturing() {
+            lock(&self.0.captured).app_opened = true;
+            Ok(())
+        } else {
+            self.0.paster.open_app(app_id)
         }
     }
 
@@ -239,9 +251,12 @@ mod tests {
         assert!(switch.open_address("https://www.google.com/search?q=SECRET").is_ok(), "l'essai garde l'adresse, sans la lancer");
         // Un extrait n'est ni collé ni gardé (il est confidentiel) : l'essai n'en retient que la longueur.
         assert_eq!(switch.paste_transient("FR76 SECRET-IBAN"), PasteOutcome::Pasted);
+        paster.set_installed_apps(&["com.apple.Safari"]);
+        assert!(switch.open_app("com.apple.Safari").is_ok(), "l'essai ne lance pas l'application");
         let captured = sinks.finish();
         assert_eq!(captured.opened.as_deref(), Some("https://www.google.com/search?q=SECRET"));
         assert_eq!(captured.snippet_chars, Some(16));
+        assert!(captured.app_opened && paster.opened_apps().is_empty(), "l'essai n'a pas lancé l'application");
         assert!(captured.pasted.is_none(), "l'extrait n'est pas rendu comme un texte collé");
         assert!(!format!("{captured:?}").contains("SECRET-IBAN"), "le texte de l'extrait n'est nulle part dans l'essai");
         assert!(paster.shortcuts().is_empty() && paster.pasted().is_empty() && paster.opened().is_empty());
@@ -254,6 +269,8 @@ mod tests {
         assert_eq!(paster.opened(), vec!["https://www.google.com/search?q=chats".to_string()]);
         assert_eq!(switch.paste_transient("hors essai"), PasteOutcome::Pasted);
         assert_eq!(paster.pasted_transient(), vec!["hors essai".to_string()]);
+        assert!(switch.open_app("com.apple.Safari").is_ok());
+        assert_eq!(paster.opened_apps(), vec!["com.apple.Safari".to_string()]);
     }
 
     #[test]

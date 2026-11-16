@@ -985,6 +985,46 @@ impl Controller {
                 }
                 CommandOutcome::Handled
             }
+            // « Nouveau mail » (étape 3, sous la touche seulement) : `mailto:` seul, ou avec l'objet dicté, encodé, ouvert par la fonction
+            // d'ouverture contrôlée. Rien n'est envoyé. Le journal n'a que l'identifiant et la longueur de l'objet, jamais l'objet.
+            id if scriibe_core::mail::is_mail(id) => {
+                let subject = scriibe_core::mail::clean_subject(command.argument.as_deref());
+                match &subject {
+                    Some(text) => deps.log.write(&format!("commande: {id} (objet : {} signes)", text.chars().count())),
+                    None => deps.log.write(&format!("commande: {id}")),
+                }
+                match deps.paster.open_address(&scriibe_core::mail::url(subject.as_deref())) {
+                    Ok(()) => deps.indicator.flash(IndicatorState::Done, 0.9),
+                    Err(reason) => {
+                        deps.log.write(&format!("commande: {id} — messagerie non ouverte ({reason})"));
+                        deps.indicator.flash(IndicatorState::Message("Mail non ouvert".into()), 3.0);
+                    }
+                }
+                CommandOutcome::Handled
+            }
+            // Applications (étape 3, sous la touche seulement) : l'identifiant des réglages est retrouvé dans une énumération fraîche des
+            // applications installées, et seule l'entrée de cette liste est lancée (aucun argument). Le journal n'a que `appli.<n>` : ni le
+            // nom, ni l'identifiant système, ni les phrases ; la pastille est à texte fixe.
+            id if scriibe_core::voice_app::is_app(id) => {
+                let Some(app_id) = scriibe_core::voice_app::app_id_of(id, settings) else {
+                    deps.log.write(&format!("commande: {id} — application disparue des réglages"));
+                    return self.nothing_to_do(context, "Application introuvable");
+                };
+                deps.log.write(&format!("commande: {id}"));
+                match deps.paster.open_app(app_id) {
+                    Ok(()) => deps.indicator.flash(IndicatorState::Message("Ouverture de l'application".into()), 2.0),
+                    Err(reason) => {
+                        deps.log.write(&format!("commande: {id} — application non ouverte ({reason})"));
+                        let message = if reason == scriibe_platform::installed_apps::APP_NOT_FOUND {
+                            "Application introuvable"
+                        } else {
+                            "Application non ouverte"
+                        };
+                        deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
+                    }
+                }
+                CommandOutcome::Handled
+            }
             other => {
                 deps.log.write(&format!("commande: {other} inconnue du chef d'orchestre"));
                 self.nothing_to_do(context, "Commande inconnue")

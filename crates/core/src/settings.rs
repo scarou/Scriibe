@@ -373,6 +373,11 @@ pub struct AppSettings {
     /// Extraits vocaux de la personne (une phrase dite sous la touche de commande colle un texte, chantier 6 étape 2) : un nom, des
     /// phrases, un texte de 5 000 signes au plus. Contrôlés à la lecture. Propre à Scriibe.
     pub snippets: Vec<crate::snippet::Snippet>,
+    /// Applications ouvertes à la voix (liste autorisée, sous la touche de commande, chantier 6 étape 3) : un nom, l'identifiant système
+    /// choisi dans la liste des applications installées, des phrases. **Propre à l'ordinateur** (les identifiants ne valent que sur ce
+    /// système) : jamais exporté. Contrôlé à la lecture ; le lancement relit la liste fraîche des applications installées.
+    #[serde(rename = "voiceApps")]
+    pub voice_apps: Vec<crate::voice_app::VoiceApp>,
     /// Nombre de jours d'historique gardés (aujourd'hui compris) ; `None` : tout garder.
     #[serde(rename = "historyKeepDays", skip_serializing_if = "Option::is_none")]
     pub history_keep_days: Option<i64>,
@@ -470,6 +475,7 @@ impl Default for AppSettings {
             custom_commands: Vec::new(),
             web_searches: Vec::new(),
             snippets: Vec::new(),
+            voice_apps: Vec::new(),
             history_keep_days: None,
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
@@ -563,6 +569,7 @@ pub const COMPUTER_KEYS: &[&str] = &[
     "checkUpdates",
     "setupDone",
     "activeProfile",
+    "voiceApps",
 ];
 
 /// Le propriétaire d'une clé de réglage ; `None` pour une clé inconnue (refusée par la page, voir `merge_settings`).
@@ -697,6 +704,10 @@ impl AppSettings {
             // Un extrait mal écrit (texte vide ou trop long, aucune phrase…) est écarté seul : les autres sont gardés.
             snippets: o.get("snippets").and_then(Value::as_array).map_or(d.snippets, |list| {
                 crate::snippet::Snippet::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            }),
+            // Une application mal écrite (identifiant illisible, aucune phrase…) est écartée seule : les autres sont gardées.
+            voice_apps: o.get("voiceApps").and_then(Value::as_array).map_or(d.voice_apps, |list| {
+                crate::voice_app::VoiceApp::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
             }),
             history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
             llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),

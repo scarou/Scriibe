@@ -131,4 +131,11 @@ pub trait Paster: Send + Sync {
     fn open_address(&self, url: &str) -> Result<(), &'static str> {
         crate::open::open_address(url)
     }
+    /// Ouvre l'application de la liste autorisée désignée par `app_id` (`installed_apps::launch_app`) : l'identifiant est retrouvé dans une
+    /// **énumération fraîche** des applications installées, rien n'est lancé s'il n'y est pas, et ce qui est lancé vient de la liste, jamais
+    /// d'une chaîne des réglages. Aucun argument, aucun interpréteur de commandes. L'erreur est un texte fixe. Les essais (`SwitchPaster`)
+    /// la neutralisent comme le collage.
+    fn open_app(&self, app_id: &str) -> Result<(), &'static str> {
+        crate::installed_apps::launch_app(app_id)
+    }
 }

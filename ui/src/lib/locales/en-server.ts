@@ -252,6 +252,10 @@ export const enServer: Record<string, string> = {
   'Rien à chercher': 'Nothing to search for',
   'Site de recherche inconnu': 'Unknown search site',
   'Recherche non ouverte': 'Search not opened',
+  "Ouverture de l'application": 'Opening the application',
+  'Application introuvable': 'Application not found',
+  'Application non ouverte': 'Application not opened',
+  'Mail non ouvert': 'Mail not opened',
   'Recherche impossible': 'Search not possible',
 
   // Extraits vocaux (étape 2 du chantier 6)

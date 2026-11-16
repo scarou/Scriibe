@@ -18,6 +18,7 @@ pub mod import_commands;
 pub mod import_dictionary;
 pub mod inline;
 pub mod lang;
+pub mod mail;
 pub mod media_pause;
 pub mod microphone;
 pub mod modes;
@@ -32,6 +33,7 @@ pub mod spoken_signs;
 pub mod text;
 pub mod translation;
 pub mod typography;
+pub mod voice_app;
 pub mod web_search;
 
 mod re;

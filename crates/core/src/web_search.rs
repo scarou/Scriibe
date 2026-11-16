@@ -184,7 +184,18 @@ pub fn is_openable(url: &str) -> bool {
     if let Some((authority, _)) = split_https(url) {
         return host_of(authority).is_some();
     }
-    url.get(..7).is_some_and(|scheme| scheme.eq_ignore_ascii_case("mailto:")) && url.len() > 7
+    // `mailto:` : seulement un message vierge (`mailto:`) ou un objet encodé (`mailto:?subject=<encodé>`), les formes que construit « nouveau
+    // mail » : jamais de destinataire ni de corps, que la voix ne choisit pas.
+    match url.get(..7) {
+        Some(scheme) if scheme.eq_ignore_ascii_case("mailto:") => {
+            let rest = &url[7..];
+            rest.is_empty()
+                || rest.strip_prefix("?subject=").is_some_and(|s| {
+                    !s.is_empty() && s.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'%' | b'.' | b'_' | b'~' | b'-'))
+                })
+        }
+        _ => false,
+    }
 }
 
 /// Les sites livrés : numéro, modèle en français, modèle en anglais (Wikipédia change de langue), phrases françaises, phrases anglaises.
@@ -323,7 +334,8 @@ impl WebSearch {
     /// identifiants `recherche.<n>` (n ≥ 10) uniques ; un site mal écrit est écarté seul, les autres sont gardés. Une phrase de moins de
     /// deux mots, déjà prise par un site livré ou par un site précédent, ou trop longue est écartée.
     pub fn cleaned(list: Vec<WebSearch>) -> Vec<WebSearch> {
-        let taken_builtin = builtin_phrases();
+        let mut taken_builtin = builtin_phrases();
+        taken_builtin.extend(crate::mail::phrases());
         let mut seen_phrases: Vec<String> = Vec::new();
         let mut out: Vec<WebSearch> = Vec::new();
         for mut site in list {

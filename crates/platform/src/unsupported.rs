@@ -58,6 +58,10 @@ impl Paster for NoPaster {
     fn open_address(&self, _: &str) -> Result<(), &'static str> {
         Err(crate::open::ADDRESS_NOT_OPENED)
     }
+
+    fn open_app(&self, _: &str) -> Result<(), &'static str> {
+        Err(crate::installed_apps::APP_NOT_OPENED)
+    }
 }
 
 struct NoApp;

@@ -10,6 +10,7 @@ pub mod audio;
 pub mod autostart;
 pub mod bench_store;
 pub mod indicator;
+pub mod installed_apps;
 pub mod instance;
 pub mod keys;
 pub mod locale;

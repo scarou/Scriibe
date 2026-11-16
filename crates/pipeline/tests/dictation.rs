@@ -1859,3 +1859,132 @@ fn a_snippet_that_cannot_be_pasted_gives_a_fixed_message() {
     assert!(states.contains("Extrait copié, à coller avec") && states.contains("autorisation manquante"), "{states}");
     assert!(!states.contains("Dupont") && !states.contains("SECRET"), "{states}");
 }
+
+// ---- Applications et nouveau mail (chantier 6, étape 3) : liste autorisée, objet encodé, rien dans l'historique ----
+
+fn navigateur() -> scriibe_core::voice_app::VoiceApp {
+    scriibe_core::voice_app::VoiceApp {
+        id: "appli.1".into(),
+        name: "Navigateur SECRET-NOM".into(),
+        app_id: "com.SECRET-ID.App".into(),
+        phrases: vec!["ouvre le navigateur SECRET-PHRASE".into()],
+    }
+}
+
+fn app_settings() -> AppSettings {
+    AppSettings { voice_apps: vec![navigateur()], ..command_settings() }
+}
+
+/// « Nouveau mail » avec un objet dit sous la touche : l'adresse `mailto:?subject=` porte l'objet **encodé** (un `&to=` dit reste du texte,
+/// le mot « objet » est ôté) ; rien n'est collé, rien n'entre dans l'historique, le modèle n'est pas appelé, la sélection n'est pas lue, et
+/// ni le journal ni la pastille ne contiennent l'objet.
+#[test]
+fn under_the_command_key_new_mail_opens_the_encoded_subject_and_leaves_no_trace() {
+    let r = rig_with(command_settings(), "Nouveau mail objet SECRET-OBJET & to=x.", "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::Text("SECRET-456".into()));
+    r.dictate_under_key();
+    assert_eq!(r.paster.opened(), vec!["mailto:?subject=SECRET-OBJET%20%26%20to%3Dx".to_string()]);
+    assert!(r.paster.pasted().is_empty() && r.paster.pasted_transient().is_empty() && r.paster.shortcuts().is_empty());
+    assert!(r.history.items().is_empty(), "un nouveau mail n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty(), "le modèle de mise au propre n'est pas appelé");
+    assert_eq!(r.paster.selected_reads(), 0, "un nouveau mail ne lit pas la sélection");
+    assert!(r.indicator.states().contains(&IndicatorState::Done), "{:?}", r.indicator.states());
+    assert!(!r.controller.is_busy());
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: mail.nouveau (objet : 19 signes)"), "{log}");
+    let everything = format!("{log}|{:?}|{:?}", r.indicator.states(), r.history.items());
+    for forbidden in ["SECRET", "OBJET", "to=x"] {
+        assert!(!everything.contains(forbidden), "{forbidden} : trace dans le journal ou la pastille : {everything}");
+    }
+
+    // Sans objet : un message vierge.
+    let r = rig_with(command_settings(), "Nouveau mail", "ne doit pas servir", true);
+    r.dictate_under_key();
+    assert_eq!(r.paster.opened(), vec!["mailto:".to_string()]);
+    assert!(r.history.items().is_empty() && r.paster.pasted().is_empty());
+
+    // La messagerie ne s'ouvre pas : message fixe.
+    let r = rig_with(command_settings(), "Nouveau courriel SECRET-OBJET", "ne doit pas servir", true);
+    r.paster.set_open_error(Some("ouverture impossible"));
+    r.dictate_under_key();
+    assert!(r.paster.opened().is_empty());
+    assert!(r.indicator.states().contains(&message("Mail non ouvert")), "{:?}", r.indicator.states());
+    assert!(!format!("{:?}", r.indicator.states()).contains("SECRET"));
+}
+
+/// Non-régression : sans la touche de commande, « nouveau mail … » est du texte comme un autre, et rien n'est ouvert.
+#[test]
+fn without_the_command_key_new_mail_is_pasted_as_text_and_opens_nothing() {
+    let heard = "Nouveau mail réunion de lundi";
+    let r = rig_with(command_settings(), heard, heard, true);
+    r.dictate_without_command();
+    assert!(r.paster.opened().is_empty());
+    assert_eq!(r.paster.pasted().len(), 1, "la phrase est collée comme du texte");
+    assert_eq!(r.history.items().len(), 1);
+}
+
+/// Une application de la liste dite sous la touche s'ouvre ; rien n'est collé ni gardé dans l'historique, le modèle n'est pas appelé, et ni
+/// le journal ni la pastille ne contiennent son nom, son identifiant système ni ses phrases.
+#[test]
+fn under_the_command_key_an_app_of_the_list_opens_and_leaves_no_trace() {
+    let r = rig_with(app_settings(), "Ouvre le navigateur SECRET-PHRASE.", "ne doit pas servir", true);
+    r.paster.set_installed_apps(&["com.apple.Notes", "com.SECRET-ID.App"]);
+    r.paster.set_selected(FakeSelected::Text("SECRET-456".into()));
+    r.dictate_under_key();
+    assert_eq!(r.paster.opened_apps(), vec!["com.SECRET-ID.App".to_string()]);
+    assert!(r.paster.pasted().is_empty() && r.paster.pasted_transient().is_empty() && r.paster.opened().is_empty());
+    assert!(r.history.items().is_empty(), "une application ouverte à la voix n'entre pas dans l'historique");
+    assert!(r.cleanup_requests().is_empty());
+    assert_eq!(r.paster.selected_reads(), 0);
+    assert!(r.indicator.states().contains(&message("Ouverture de l'application")), "{:?}", r.indicator.states());
+    assert!(!r.controller.is_busy());
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: appli.1"), "{log}");
+    let everything = format!("{log}|{:?}|{:?}", r.indicator.states(), r.history.items());
+    for forbidden in ["SECRET", "Navigateur", "navigateur", "com."] {
+        assert!(!everything.contains(forbidden), "{forbidden} : trace dans le journal ou la pastille : {everything}");
+    }
+}
+
+/// Une application **hors de la liste** installée est refusée, quelle que soit la phrase ou le réglage : un `voiceApps` écrit à la main
+/// (identifiant piégé, application désinstallée) n'ouvre rien ; message fixe, et ni l'identifiant ni le nom dans la trace.
+#[test]
+fn an_app_outside_the_fresh_list_is_refused_with_a_fixed_message() {
+    let trapped = scriibe_core::voice_app::VoiceApp { app_id: "-a Calculator".into(), ..navigateur() };
+    for (settings, installed) in [
+        (app_settings(), vec!["com.apple.Notes"]), // désinstallée depuis le choix
+        (app_settings(), vec![]),                  // aucune liste
+        (AppSettings { voice_apps: vec![trapped], ..command_settings() }, vec!["com.apple.Notes", "com.SECRET-ID.App"]), // piégée
+    ] {
+        let r = rig_with(settings, "Ouvre le navigateur SECRET-PHRASE", "x", true);
+        r.paster.set_installed_apps(&installed);
+        r.dictate_under_key();
+        assert!(r.paster.opened_apps().is_empty(), "rien n'est lancé");
+        assert!(r.paster.pasted().is_empty() && r.history.items().is_empty() && r.paster.opened().is_empty());
+        assert!(r.indicator.states().contains(&message("Application introuvable")), "{:?}", r.indicator.states());
+        let log = r.world.log.lines().join("\n");
+        let everything = format!("{log}|{:?}", r.indicator.states());
+        for forbidden in ["SECRET", "Navigateur", "Calculator"] {
+            assert!(!everything.contains(forbidden), "{forbidden} : {everything}");
+        }
+    }
+    // L'application est dans la liste mais le système ne l'ouvre pas : un autre message fixe.
+    let r = rig_with(app_settings(), "Ouvre le navigateur SECRET-PHRASE", "x", true);
+    r.paster.set_installed_apps(&["com.SECRET-ID.App"]);
+    r.paster.set_open_error(Some("ouverture impossible"));
+    r.dictate_under_key();
+    assert!(r.paster.opened_apps().is_empty());
+    assert!(r.indicator.states().contains(&message("Application non ouverte")), "{:?}", r.indicator.states());
+}
+
+/// Non-régression : sans la touche de commande, la phrase d'une application est du texte comme un autre, et rien n'est ouvert.
+#[test]
+fn without_the_command_key_an_app_phrase_is_pasted_as_text_and_opens_nothing() {
+    let heard = "Ouvre le navigateur SECRET-PHRASE";
+    let r = rig_with(app_settings(), heard, heard, true);
+    r.paster.set_installed_apps(&["com.SECRET-ID.App"]);
+    r.dictate_without_command();
+    assert!(r.paster.opened_apps().is_empty());
+    assert_eq!(r.paster.pasted().len(), 1, "la phrase est collée comme du texte");
+    assert_eq!(r.history.items().len(), 1);
+}

@@ -257,6 +257,20 @@ export const en: Record<string, string> = {
     'Unticked by default: an imported snippet is pasted when you say its phrase, under the command key. Read the text of each one before ticking.',
   'texte vide ou trop long, ou phrases déjà prises : cet extrait ne sera pas importé':
     'empty or too long text, or phrases already taken: this snippet will not be imported',
+  'Nouveau mail': 'New email',
+  'Ces phrases ne marchent que sous la touche de commande : « nouveau mail » ouvre un message vierge dans ta messagerie, « nouveau mail réunion de lundi » préremplit l’objet. Rien n’est envoyé, et il n’y a pas de destinataire : « nouveau mail à Marie » met « à Marie » en objet. Dites sans la touche, elles restent du texte.':
+    'These phrases only work under the command key: “new email” opens a blank message in your mail app, “new email monday meeting” fills in the subject. Nothing is sent, and there is no recipient: “new email to Marie” puts “to Marie” in the subject. Said without the key, they stay text.',
+  'Mes applications': 'My applications',
+  'Choisis une application installée sur cet ordinateur et une phrase : dite sous la touche de commande, elle ouvre l’application. Seules les applications de cette liste peuvent s’ouvrir, sans rien d’autre (ni commande, ni option). Cette liste reste sur cet ordinateur : elle n’est pas exportée avec l’utilisateur.':
+    'Pick an application installed on this computer and a phrase: said under the command key, it opens the application. Only the applications in this list can be opened, nothing else (no command, no option). This list stays on this computer: it is not exported with the user.',
+  'Cette application n’est plus installée : la phrase ne l’ouvrira pas.': 'This application is no longer installed: the phrase will not open it.',
+  'Aucune application pour l’instant.': 'No application yet.',
+  'Nouvelle application': 'New application',
+  'Application installée': 'Installed application',
+  'Choisir une application…': 'Choose an application…',
+  'Phrase à dire (ex. : ouvre le navigateur)': 'Phrase to say (e.g. open the browser)',
+  'Ajouter l’application': 'Add the application',
+  'Choisis une application et donne une phrase à dire.': 'Choose an application and give a phrase to say.',
   'Nouveau site': 'New site',
   'Nom (ex. : Amazon)': 'Name (e.g. Amazon)',
   'Adresse (ex. : https://www.amazon.fr/s?k={q})': 'Address (e.g. https://www.amazon.fr/s?k={q})',

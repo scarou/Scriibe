@@ -64,6 +64,9 @@ pub enum Argument {
     None,
     /// Le reste de la transcription, non vide (« recherche YouTube » + des mots).
     Rest,
+    /// Le reste de la transcription, **facultatif** : la phrase seule suffit, un reste est repris s'il y en a (« nouveau mail » et
+    /// « nouveau mail réunion de lundi » sont la même commande). Une seule fiche, pas deux qui se déclareraient prises l'une l'autre.
+    OptionalRest,
 }
 
 /// Fiche d'une commande : identifiant « verbe.objet », exigences et phrases par défaut.
@@ -271,7 +274,20 @@ pub fn all_defs(settings: &AppSettings) -> Vec<CommandDef> {
     defs.extend(settings.custom_commands.iter().map(CustomCommand::def));
     defs.extend(crate::web_search::defs(settings));
     defs.extend(crate::snippet::defs(settings));
+    defs.extend(crate::mail::defs());
+    defs.extend(crate::voice_app::defs(settings));
     defs
+}
+
+/// Les phrases (normalisées, deux langues) de toutes les commandes **du programme** : celles qu'un extrait ou une application de la
+/// personne ne peuvent pas reprendre (commandes d'avant le chantier 6, sites livrés, « nouveau mail »).
+pub(crate) fn program_phrases() -> Vec<String> {
+    let mut taken = crate::web_search::builtin_phrases();
+    taken.extend(crate::mail::phrases());
+    for def in builtin() {
+        taken.extend(def.phrases_fr.iter().chain(&def.phrases_en).map(|p| normalize(p)));
+    }
+    taken
 }
 
 /// Préfixe des identifiants des commandes « caractères autour » (tâche 7) : `entourer.parentheses`, `entourer.guillemets`, `entourer.crochets`,
@@ -537,6 +553,7 @@ pub fn recognize(
                 let fits = match def.argument {
                     Argument::None => spoken.len() == n,
                     Argument::Rest => spoken.len() > n,
+                    Argument::OptionalRest => true,
                 };
                 if starts && fits && best.as_ref().is_none_or(|(len, _, _, _)| n > *len) {
                     best = Some((n, def, Some(spoken[n - 1].1), *lang));
@@ -550,6 +567,10 @@ pub fn recognize(
         Argument::Rest => {
             let rest = raw[cut?..].trim_matches(|c: char| !c.is_alphanumeric());
             Some(rest.to_string())
+        }
+        Argument::OptionalRest => {
+            let rest = raw[cut?..].trim_matches(|c: char| !c.is_alphanumeric());
+            (!rest.is_empty()).then(|| rest.to_string())
         }
     };
     Some(Recognized { id: def.id.clone(), lang, needs: def.needs, argument })
@@ -698,13 +719,22 @@ pub fn route_under_key(raw: &str, settings: &AppSettings) -> Route {
 /// celle d'une autre commande (comparée sous forme normalisée, phrases par défaut ou choisies). Rend la phrase nettoyée.
 pub fn validate_phrase(phrase: &str, id: &str, lang: Lang, defs: &[CommandDef], custom: &VoicePhrases) -> Result<String, PhraseError> {
     // Une commande de la personne pas encore créée (« perso.nouveau », ou un site de recherche « recherche.nouveau ») se contrôle comme les autres.
-    if !defs.iter().any(|d| d.id == id) && !id.starts_with(CUSTOM_PREFIX) && id != crate::web_search::NEW && id != crate::snippet::NEW {
+    if !defs.iter().any(|d| d.id == id)
+        && !id.starts_with(CUSTOM_PREFIX)
+        && id != crate::web_search::NEW
+        && id != crate::snippet::NEW
+        && id != crate::voice_app::NEW
+    {
         return Err(PhraseError::UnknownCommand);
     }
     // La longueur minimale est celle de la portée de la commande : deux mots pour une commande qui vaut aussi sans la touche (et pour une
     // commande de la personne, pas encore créée), un seul pour une commande « sous la touche seulement ».
     // Un extrait pas encore créé (`extrait.nouveau`) vaut sous la touche seulement, comme ceux qui existent : un mot seul est permis.
-    let min = if id == crate::snippet::NEW { 1 } else { defs.iter().find(|d| d.id == id).map_or(MIN_WORDS, |d| d.scope.min_words()) };
+    let min = if id == crate::snippet::NEW || id == crate::voice_app::NEW {
+        1
+    } else {
+        defs.iter().find(|d| d.id == id).map_or(MIN_WORDS, |d| d.scope.min_words())
+    };
     let normalized = normalize(phrase);
     if word_count(&normalized) < min {
         return Err(PhraseError::TooShort);

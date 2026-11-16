@@ -84,15 +84,6 @@ pub fn defs(settings: &AppSettings) -> Vec<CommandDef> {
         .collect()
 }
 
-/// Les phrases (normalisées) de toutes les commandes du programme, dans les deux langues : celles qu'un extrait ne peut pas reprendre.
-fn taken_by_program() -> Vec<String> {
-    let mut taken = crate::web_search::builtin_phrases();
-    for def in crate::commands::builtin() {
-        taken.extend(def.phrases_fr.iter().chain(&def.phrases_en).map(|p| normalize(p)));
-    }
-    taken
-}
-
 /// Le texte d'un extrait lu ou reçu : fins de ligne ramenées à `\n`, sans caractère de contrôle (hors saut de ligne et tabulation), et
 /// sans espace ni saut de ligne en trop aux bords. `None` : vide, ou plus long que [`MAX_TEXT`].
 pub fn clean_text(text: &str) -> Option<String> {
@@ -114,7 +105,7 @@ impl Snippet {
     /// vide, trop longue, déjà prise par une commande du programme ou par un extrait précédent est écartée (une phrase d'un seul mot est
     /// permise : la phrase doit être toute la transcription).
     pub fn cleaned(list: Vec<Snippet>) -> Vec<Snippet> {
-        let taken = taken_by_program();
+        let taken = crate::commands::program_phrases();
         let mut seen_phrases: Vec<String> = Vec::new();
         let mut out: Vec<Snippet> = Vec::new();
         for mut snippet in list {

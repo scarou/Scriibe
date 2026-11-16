@@ -127,6 +127,8 @@ export interface Settings {
   /** Sites de recherche de la personne (« nouvelle recherche <site> … » sous la touche de commande) : adresse https avec {q}. */
   webSearches: { id: string; name: string; url: string; phrases: string[] }[];
   snippets: { id: string; name: string; phrases: string[]; text: string }[];
+  /** Applications ouvertes à la voix (liste autorisée, sous la touche de commande) : propre à l'ordinateur, jamais exporté. */
+  voiceApps: { id: string; name: string; appId: string; phrases: string[] }[];
   formatShortcuts: { bold: string; italic: string; underline: string };
   trialText: string;
   trialCandidates: { id: string; engine: string; model: string }[];

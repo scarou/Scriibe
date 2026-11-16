@@ -76,6 +76,12 @@ impl Paster for ConsolePaster {
         println!("\n--- adresse qui serait ouverte ---\n{url}\n----------------------------------");
         Ok(())
     }
+
+    // `essai` n'ouvre aucune application : il n'en dit rien (ni le nom, ni l'identifiant).
+    fn open_app(&self, _: &str) -> Result<(), &'static str> {
+        println!("\n--- une application de la liste serait ouverte ---");
+        Ok(())
+    }
 }
 
 /// `essai` ne garde rien dans l'historique.

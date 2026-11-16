@@ -141,6 +141,8 @@ pub struct FakePaster {
     opened: Mutex<Vec<String>>,
     transient: Mutex<Vec<String>>,
     open_error: Mutex<Option<&'static str>>,
+    installed: Mutex<Vec<String>>,
+    opened_apps: Mutex<Vec<String>>,
     reads: std::sync::atomic::AtomicUsize,
 }
 
@@ -156,6 +158,8 @@ impl Default for FakePaster {
             opened: Mutex::new(Vec::new()),
             transient: Mutex::new(Vec::new()),
             open_error: Mutex::new(None),
+            installed: Mutex::new(Vec::new()),
+            opened_apps: Mutex::new(Vec::new()),
             reads: std::sync::atomic::AtomicUsize::new(0),
         }
     }
@@ -205,6 +209,16 @@ impl FakePaster {
         *lock(&self.open_error) = error;
     }
 
+    /// Les applications « installées » (la liste fraîche que la vraie fonction relit à chaque lancement) : les autres sont refusées.
+    pub fn set_installed_apps(&self, ids: &[&str]) {
+        *lock(&self.installed) = ids.iter().map(|id| (*id).to_string()).collect();
+    }
+
+    /// Les applications « ouvertes » (celles que la vraie fonction aurait lancées : une application hors de la liste est refusée).
+    pub fn opened_apps(&self) -> Vec<String> {
+        lock(&self.opened_apps).clone()
+    }
+
     /// Combien de fois la lecture du texte sélectionné a été demandée (une dictée ordinaire ne doit jamais la demander).
     pub fn selected_reads(&self) -> usize {
         self.reads.load(std::sync::atomic::Ordering::SeqCst)
@@ -242,6 +256,18 @@ impl Paster for FakePaster {
             return Err(error);
         }
         lock(&self.opened).push(url.to_string());
+        Ok(())
+    }
+
+    // Même contrôle que la vraie fonction (`installed_apps::launch_app`) : seule une application de la liste fraîche s'ouvre.
+    fn open_app(&self, app_id: &str) -> Result<(), &'static str> {
+        if !lock(&self.installed).iter().any(|id| id == app_id) {
+            return Err(crate::installed_apps::APP_NOT_FOUND);
+        }
+        if let Some(error) = *lock(&self.open_error) {
+            return Err(error);
+        }
+        lock(&self.opened_apps).push(app_id.to_string());
         Ok(())
     }
 

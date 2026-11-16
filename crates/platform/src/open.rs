@@ -61,10 +61,17 @@ pub fn open_address(url: &str) -> Result<(), &'static str> {
 
 #[cfg(windows)]
 fn launch_address(url: &str) -> Result<(), &'static str> {
+    shell_execute(url)
+}
+
+/// `ShellExecuteW` « open » sur `target` (adresse contrôlée, ou raccourci du menu Démarrer trouvé par l'énumération des applications),
+/// sans interpréteur de commandes. Rend `Ok` quand l'ouverture est partie, sans attendre.
+#[cfg(windows)]
+pub(crate) fn shell_execute(target: &str) -> Result<(), &'static str> {
     use windows_sys::Win32::UI::Shell::ShellExecuteW;
     use windows_sys::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
     let wide = |text: &str| text.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
-    let (verb, file) = (wide("open"), wide(url));
+    let (verb, file) = (wide("open"), wide(target));
     // SAFETY: les deux chaînes se terminent par un zéro et vivent jusqu'au retour ; les autres paramètres sont nuls (permis par l'API).
     let result =
         unsafe { ShellExecuteW(std::ptr::null_mut(), verb.as_ptr(), file.as_ptr(), std::ptr::null(), std::ptr::null(), SW_SHOWNORMAL) };
@@ -112,7 +119,13 @@ mod tests {
             "https://example.com/\nnotepad",
             "https://exämple.com/",
             "https://{q}/",
-            "mailto:",
+            "mailto:a@b.fr",
+            "mailto:?to=a@b.fr",
+            "mailto:?subject=a&to=a@b.fr",
+            "mailto:?subject=a b",
+            "mailto:?subject=",
+            "mailto:?body=SECRET",
+            "mailto:?subject=a%20b&body=x",
             "",
             " https://example.com/",
         ] {
@@ -127,6 +140,7 @@ mod tests {
         assert!(is_openable("https://www.google.com/search?q=chats%20mignons"));
         assert!(is_openable("HTTPS://duckduckgo.com/?q=a"));
         assert!(is_openable("mailto:?subject=r%C3%A9union"));
+        assert!(is_openable("mailto:"), "message vierge : « nouveau mail » sans objet");
         // `&` est un caractère d'adresse comme un autre : aucun interpréteur de commandes ne la relit (pas de `cmd /C start`).
         assert!(is_openable("https://example.com/?a=1&b=calc.exe"));
         assert!(!is_openable("https://www.google.com/search?q=a&x={q}"));

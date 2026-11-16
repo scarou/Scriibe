@@ -269,6 +269,11 @@ fn handle(ctx: &Context, mut request: Request) {
                 None => json!({"ok": false, "error": "Le texte doit être non vide et ne pas dépasser 5 000 signes"}),
             },
         ),
+        // Les applications installées (liste fraîche, triée par nom) où la personne choisit celles que la voix peut ouvrir : identifiant et nom.
+        (Method::Get, "api/installed-apps") => ok(
+            request,
+            json!({"apps": scriibe_platform::installed_apps::installed_apps().iter().map(|a| json!({"id": a.id, "name": a.name})).collect::<Vec<_>>()}),
+        ),
         (Method::Post, "api/commands/validate-phrase") => ok(request, validate_command_phrase(&ctx.app.config.settings(), &input)),
         (Method::Post, "api/commands/validate-shortcut") => ok(
             request,
@@ -1417,6 +1422,7 @@ fn commands_view(settings: &scriibe_core::settings::AppSettings) -> Value {
     let commands: Vec<Value> = builtin()
         .iter()
         .chain(scriibe_core::web_search::builtin_defs().iter())
+        .chain(scriibe_core::mail::defs().iter())
         .map(|def| {
             json!({
                 "id": def.id,
@@ -1443,6 +1449,8 @@ fn validate_command_phrase(settings: &scriibe_core::settings::AppSettings, input
     let own = id.starts_with(CUSTOM_PREFIX)
         || id == scriibe_core::web_search::NEW
         || id == scriibe_core::snippet::NEW
+        || id == scriibe_core::voice_app::NEW
+        || settings.voice_apps.iter().any(|a| a.id == id)
         || settings.web_searches.iter().any(|w| w.id == id)
         || settings.snippets.iter().any(|s| s.id == id);
     let result = if own {
@@ -1480,6 +1488,28 @@ mod tests {
         assert_eq!(check("extrait.nouveau", "mettre en gras", "fr")["other"], "format.gras");
         assert_eq!(check("extrait.1", "mon adresse", "fr")["ok"], true, "sa propre phrase");
         assert_eq!(check("extrait.9", "bonjour", "fr")["error"], "unknown");
+    }
+
+    #[test]
+    fn the_phrase_of_an_app_is_checked_for_both_languages_and_the_mail_phrases_are_taken() {
+        let app = scriibe_core::voice_app::VoiceApp {
+            id: "appli.1".into(),
+            name: "Safari".into(),
+            app_id: "com.apple.Safari".into(),
+            phrases: vec!["ouvre le navigateur".into()],
+        };
+        let settings = AppSettings { voice_apps: scriibe_core::voice_app::VoiceApp::cleaned(vec![app]), ..AppSettings::default() };
+        let check =
+            |id: &str, phrase: &str, lang: &str| validate_command_phrase(&settings, &json!({"id": id, "lang": lang, "phrase": phrase}));
+        assert_eq!(check("appli.nouveau", "navigateur", "fr")["ok"], true, "un mot seul suffit pour une application");
+        assert_eq!(check("appli.nouveau", "ouvre le navigateur", "en"), json!({"ok": false, "error": "taken", "other": "appli.1"}));
+        assert_eq!(check("appli.nouveau", "nouveau mail", "fr"), json!({"ok": false, "error": "taken", "other": "mail.nouveau"}));
+        assert_eq!(check("mail.nouveau", "nouveau message", "fr")["ok"], true, "une autre phrase pour le mail");
+        assert_eq!(check("appli.1", "ouvre le navigateur", "fr")["ok"], true, "sa propre phrase");
+        assert_eq!(check("appli.9", "bonjour", "fr")["error"], "unknown");
+        // La carte montre « nouveau mail » avec ses phrases.
+        let view = commands_view(&settings);
+        assert!(view["commands"].as_array().unwrap().iter().any(|c| c["id"] == "mail.nouveau" && c["fr"][0] == "nouveau mail"));
     }
 
     #[test]
