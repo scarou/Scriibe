@@ -336,11 +336,11 @@ impl Paster for WindowsPaster {
     }
 
     fn paste(&self, text: &str, restore_clipboard: bool) -> PasteOutcome {
-        paste_with(text, restore_clipboard, restore_clipboard)
+        paste_with(text, restore_clipboard, restore_clipboard, false)
     }
 
     fn paste_transient(&self, text: &str) -> PasteOutcome {
-        paste_with(text, true, true)
+        paste_with(text, true, true, true)
     }
 }
 
@@ -356,9 +356,9 @@ fn clear_clipboard() {
 }
 
 /// Le collage. `transient` : le texte est marqué « ne pas garder » (historique Win+V, presse-papiers du cloud) ; un collage ordinaire ne le
-/// demande que s'il remet l'ancien contenu (`restore_clipboard`), un extrait toujours. Un presse-papiers qui était vide est vidé à la remise
-/// d'un extrait.
-fn paste_with(text: &str, restore_clipboard: bool, transient: bool) -> PasteOutcome {
+/// demande que s'il remet l'ancien contenu (`restore_clipboard`), un extrait toujours. `clear_if_empty` : un presse-papiers qui était vide
+/// (ou sans texte) est vidé à la remise ; seulement pour un extrait, une dictée ordinaire y reste comme avant.
+fn paste_with(text: &str, restore_clipboard: bool, transient: bool, clear_if_empty: bool) -> PasteOutcome {
     let saved = if restore_clipboard { read_text() } else { None };
     if let Err(e) = write_text(text, transient) {
         return PasteOutcome::CopiedOnly(e);
@@ -379,7 +379,7 @@ fn paste_with(text: &str, restore_clipboard: bool, transient: bool) -> PasteOutc
             if unsafe { GetClipboardSequenceNumber() } == ours {
                 match saved {
                     Some(saved) => drop(write_text(&saved, false)),
-                    None if transient => clear_clipboard(),
+                    None if clear_if_empty => clear_clipboard(),
                     None => {}
                 }
             }
