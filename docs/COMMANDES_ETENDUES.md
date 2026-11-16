@@ -335,3 +335,13 @@ Code de l'étape 3 de `docs/CADRAGE_COMMANDES.md` (`voiceApps` avec liste autori
 ### Suite
 
 Tâche 7 (essai du lot 2 : extraits, applications, mail sur le Mac et les deux PC) : nouvelle session, `⚙ Sonnet · Élevé`, consigne dans le découpage ; puis la 0.7.0 (tâche 8).
+
+### Relais (fin de la tâche 6, contexte à 27 %)
+
+Relais décidé par la règle du `CLAUDE.md` (contexte à 25 % ou plus en fin de tâche : on ne commence pas la suivante dans cette session). Ne change ni l'ordre ni les consignes.
+
+- **Fait** : toute la tâche 6 (étape 3), résultats ci-dessus ; commit local `ef2c3ef` puis celui de ce relais. Rien n'est poussé (le dernier envoi sur GitHub est la 0.6.0, `1f90af2`) ; trois commits locaux de C6 en attente (`79d2610`, `ef2c3ef`, relais).
+- **En cours** : rien (arbre propre après le commit de ce relais).
+- **Prochain pas** : la tâche 7 du découpage (essai du lot 2 sur le Mac et les deux PC : extraits, applications, mail), consigne telle quelle ; puis la tâche 8 (0.7.0, aperçu et accord de l'auteur avant tout push ou Release).
+- **Pièges** : (1) l'essai doit **ouvrir pour de vrai** une application, `mailto:` seul (message vierge : jamais vu à l'écran) et coller un extrait ; `open -b`, `gtk-launch` et `ShellExecuteW` sur `.lnk` n'ont tourné nulle part ; (2) Windows : seuls les raccourcis du menu Démarrer sont listés (pas les applications du Store sans raccourci) : si un essai en réclame, voir le choix 3 de § Étape 3 ; (3) le code Windows (`open.rs`, `installed_apps.rs`) n'a été vérifié qu'à part, la CI Windows le verra au push ; (4) la page (« Mes applications », groupe « Nouveau mail ») n'a jamais été vue dans un navigateur ; (5) `voiceApps` est d'ordinateur : une application choisie sur le Mac n'existe pas sur les PC, il faut la choisir sur chaque machine ; (6) le Mac n'a pas de cible Linux : le code `gtk-launch` ne se compile qu'en CI.
+- **Commits** : `79d2610`, `ef2c3ef`, celui de ce relais ; `1f90af2` est le dernier poussé.
