@@ -527,3 +527,28 @@ Relecture du code de l'étape 4 (commit `8861771`) par un sous-agent Sonnet (eff
 ### Suite
 
 - Tâche 11 (nouvelle session, ⚙ Sonnet · Élevé) : essai réel du lot 3 sur le Mac puis le PC Windows. Ajouter à l'essai : changer d'application pendant la transcription (rien n'est lu), et vérifier qu'une reformulation copiée n'apparaît pas dans Win+V.
+
+## Essai lot 3 (tâche 11, 16/11/2026)
+
+Essai réel du lot 3 (étape 4, reformulation de la sélection) sur le Mac, puis le PC Windows et le PC Linux, l'auteur seul aux gestes, une étape à la fois. Code essayé : `fe7385c` (Mac) plus le correctif de la pastille (Ajouts 1).
+
+### Mac (essai fait)
+
+Copie d'essai `Scriibe-essai.app` (`SCRIIBE_INSTALL`) lancée par `open -n --env SCRIIBE_DATA=…` sur une **copie** des réglages (modèles liés, pas copiés ; journaux vidés au départ) ; instance habituelle arrêtée pendant l'essai. Texte d'essai de 163 signes avec fautes, dans TextEdit ; touche de commande : Option droite + Maj gauche.
+
+| Essai | Résultat | Journal |
+|---|---|---|
+| « Cherche les fautes », moteur llama.cpp (sur cet ordinateur) | texte corrigé, un seul ⌘Z rend l'original | `reformulation (sélection : 163 signes, consigne : 3 mots, moteur : llama.cpp)` puis `collée (163 signes, 1.61 s)` |
+| « Rends ça plus amical », llama.cpp | tutoiement, ton chaleureux, sens gardé (texte relu par l'auteur) | `collée (154 signes, 0.80 s)` |
+| Moteur OpenRouter, **sans accord** | texte inchangé, pastille « Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs) » | `OpenRouter n'est pas sur cet ordinateur et n'a pas d'accord — rien n'est envoyé` (0,00 s) |
+| Case « Autoriser l'envoi de la sélection à ce moteur » (Réglages → Moteurs), cochée à la main, puis même consigne | texte corrigé par OpenRouter | `collée (163 signes, 1.25 s)` ; `rewriteConsent` = `{engine: openRouter, model: anthropic/claude-haiku-4.5, address: https://openrouter.ai/api}` |
+| Accord **lié** (par l'API de l'interface) | changer le modèle → accord `null` ; remettre l'ancien modèle → toujours `null` ; moteur local → `null` | — |
+| Changer d'application pendant la dictée (clic sur la fenêtre Scriibe, touches tenues) | texte de TextEdit inchangé, pastille « Reformulation impossible : l'application a changé » | `reformulation impossible, l'application au premier plan a changé — rien n'est lu ni collé` |
+
+- **Fuites** : recherche (insensible à la casse) de « écrit », « resultats », « arrivé », « avont », « livreront », « Marie », « Bonjour », « fautes », « amical » dans `scriibe.log` et `llama-server.log` de l'instance d'essai : **aucune occurrence** (seule la pastille et le texte collé les portent). Le journal ne montre que des longueurs, le moteur, la durée.
+- **Non vu sur le Mac** : reformulation **copiée** (application changée *après* la lecture) ; la copie « à coller avec ⌘V » n'est pas vue à l'écran (couverte par les tests).
+- Moteurs : les serveurs lancés par la copie d'essai restent en vie quand on la quitte (orphelins : `llama-server` et `whisper-server`) ; arrêtés à la main par PID pour relancer proprement. Même comportement pour l'instance habituelle (hors sujet de l'essai, noté).
+
+### Ajouts
+
+1. **16/11, pastille tronquée** — « Reformulation impossible : moteur hors de cet ordinateur, sans accord… » était coupée à ≈ 50 signes (capsule en `white-space: nowrap` dans une fenêtre de 440 px). **Défaut réel, traité tout de suite** pour **tous** les messages de la pastille : capsule `message` qui passe à la ligne (`OverlayView.svelte`, hauteur automatique, au plus trois lignes dans les 110 px de la fenêtre). 109 tests de l'interface verts ; **relu à l'écran sur le Mac** : phrase lisible en entier.

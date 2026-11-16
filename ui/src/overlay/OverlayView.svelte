@@ -34,7 +34,7 @@
   <div class="stage" class:inline style="align-items: {align}">
     <div class="wrap" style="align-items: {align}; opacity: {opacity}">
       {#if v.state === 'message'}
-        <div class="capsule" style="background: {fill}">
+        <div class="capsule message" style="background: {fill}">
           <span class="icon">!</span><span class="text">{v.message ? t(v.message) : ''}</span>
         </div>
       {:else if v.appearance.style === 'pill'}
@@ -78,6 +78,9 @@
   .wrap { display: flex; flex-direction: column; gap: 6px; transition: opacity 0.15s ease-out; }
   .capsule { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px; border-radius: 999px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); white-space: nowrap; max-width: 100%; }
   .capsule.compact { height: 28px; padding: 0 12px; }
+  /* Un message est une phrase entière (« Reformulation impossible : moteur hors de cet ordinateur, sans accord… ») : elle passe à la ligne au lieu d'être coupée. */
+  .capsule.message { height: auto; min-height: 40px; padding: 9px 18px; border-radius: 22px; white-space: normal; line-height: 1.3; }
+  .capsule.message .icon { flex: none; }
   .text.soft { opacity: 0.85; }
   .icon { font-weight: 800; }
   .bars { display: inline-flex; align-items: center; gap: 3px; height: 20px; }
