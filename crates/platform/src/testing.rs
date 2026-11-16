@@ -144,6 +144,8 @@ pub struct FakePaster {
     installed: Mutex<Vec<String>>,
     opened_apps: Mutex<Vec<String>>,
     reads: std::sync::atomic::AtomicUsize,
+    copied: Mutex<Vec<String>>,
+    reads_selection: std::sync::atomic::AtomicBool,
 }
 
 impl Default for FakePaster {
@@ -161,6 +163,8 @@ impl Default for FakePaster {
             installed: Mutex::new(Vec::new()),
             opened_apps: Mutex::new(Vec::new()),
             reads: std::sync::atomic::AtomicUsize::new(0),
+            copied: Mutex::new(Vec::new()),
+            reads_selection: std::sync::atomic::AtomicBool::new(true),
         }
     }
 }
@@ -219,6 +223,16 @@ impl FakePaster {
         lock(&self.opened_apps).clone()
     }
 
+    /// Les textes mis dans le presse-papiers sans être collés (`copy`).
+    pub fn copied(&self) -> Vec<String> {
+        lock(&self.copied).clone()
+    }
+
+    /// Fait croire que le système sait (vrai, par défaut : Mac et Windows) ou ne sait pas (Linux) lire la sélection.
+    pub fn set_reads_selection(&self, reads: bool) {
+        self.reads_selection.store(reads, std::sync::atomic::Ordering::SeqCst);
+    }
+
     /// Combien de fois la lecture du texte sélectionné a été demandée (une dictée ordinaire ne doit jamais la demander).
     pub fn selected_reads(&self) -> usize {
         self.reads.load(std::sync::atomic::Ordering::SeqCst)
@@ -232,6 +246,15 @@ impl Paster for FakePaster {
         }
         lock(&self.shortcuts).push(shortcut.to_string());
         Ok(())
+    }
+
+    fn reads_selection(&self) -> bool {
+        self.reads_selection.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn copy(&self, text: &str) -> bool {
+        lock(&self.copied).push(text.to_string());
+        true
     }
 
     fn selected_text(&self) -> crate::paste::SelectedRead {

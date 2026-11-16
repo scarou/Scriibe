@@ -406,3 +406,71 @@ Relais décidé par la règle du `CLAUDE.md` (contexte à 25 % ou plus en fin de
 - **Fait** : toute la tâche 8 (version 0.7.0 publiée, journal du vault `IA-OS/log.md` à jour).
 - **Prochain pas** : la tâche 9 du découpage (étape 4, reformulation, `⚙ Opus · Élevé`, nouvelle session « C6 · F · tâches 9 et 10 · reformulation »), consigne telle quelle ; commit local, pas de push. Le lot 3 partira en 0.8.0.
 - **Pièges** : voir ci-dessus (Release en brouillon) et § Relais de la tâche 7 (Linux sous Wayland par SSH : `XDG_SESSION_TYPE=wayland` ; SSH vers les PC à redemander ; shell distant de Windows = `cmd`).
+
+## Étape 4 : reformulation de la sélection (tâche 9, 16/11/2026)
+
+Code de l'étape 4 de `docs/CADRAGE_COMMANDES.md` (décision 2 et décision 5). **Non publié** (part dans la 0.8.0 après la relecture, tâche 10, et l'essai, tâche 11). Ligne d'écart : `docs/ECARTS.md` (16/11/2026, « Reformulation de la sélection »).
+
+### Ce qui change pour la personne
+
+- **Sous la touche de commande, avec une sélection**, une phrase de 25 mots au plus qui n'est ni une commande ni proche d'une commande devient la **consigne** : « cherche les fautes », « rends ça plus amical », « raccourcis », « traduis en anglais ». Le texte reformulé **remplace la sélection** (collé par `paste_transient`, jamais tapé : un seul ⌘Z ou Ctrl+Z rend l'original ; presse-papiers d'avant remis). Sans sélection : « Commande inconnue » (comme avant).
+- **La sélection ne part que vers un moteur sur cet ordinateur** : llama.cpp, ou LM Studio et Ollama dont l'adresse a pour hôte `127.0.0.1`, `localhost` ou `[::1]`. Pour OpenRouter ou un serveur sur une autre machine, une case **« Autoriser l'envoi de la sélection à ce moteur »** apparaît dans Réglages → Moteurs (décochée par défaut) ; l'accord vaut pour ce moteur, ce modèle et cette adresse et tombe dès que l'un des trois change.
+- **Messages fixes de la pastille** (jamais la sélection ni la consigne), traduits dans `en-server.ts` : « Non disponible sous Linux », « Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs) », « Sélection trop longue pour la reformulation (3 000 signes au plus) », « Rien à changer », « Reformulation impossible : réponse du modèle écartée », « Reformulation impossible — <raison fixe du moteur> », « Reformulation copiée : l'application a changé, à coller avec ⌘V / Ctrl+V », « Reformulation copiée, à coller avec … — <raison> ».
+- **Changement d'application pendant l'appel** : le texte n'est pas collé dans la nouvelle application, il est seulement copié.
+- **Linux** : « Non disponible sous Linux », sans lire la sélection ni rien envoyer.
+- Aide FR et EN (« Reformuler la sélection », onglet Dictionnaire → Commandes vocales) ; rien dans l'historique ni les statistiques.
+
+### Choix faits (avec la raison)
+
+1. **Plafond mesuré : 3 000 signes** (et non 4 000). Mesure ci-dessous : le code compte 2,1 signes par jeton ; avec une réponse aussi longue que la sélection, 4 000 signes de code (≈ 4 400 jetons) dépassent le contexte de 4 096 jetons de LM Studio par défaut. 3 000 signes tiennent avec 10 % de marge (≈ 3 460 jetons) ; c'est encore un long courriel en français (≈ 450 mots).
+2. **Contrôle par l'adresse réellement appelée**, juste avant l'appel, dans `Cleaner::rewrite_selection` (seul point de passage) : `is_loopback_address(ep.base)` ou accord égal au triplet (moteur, modèle envoyé, adresse appelée). Lecture **stricte** de l'adresse : `@`, `\`, `%`, blanc, caractère de contrôle, `127.0.0.2` ou `[0:0:0:0:0:0:0:1]` comptent comme « ailleurs » (refuser à tort coûte une case à cocher ; accepter à tort enverrait la sélection).
+3. **L'accord tombe à la lecture** (`AppSettings::from_value`) dès qu'il ne correspond plus au moteur choisi : revenir ensuite au moteur d'avant ne le fait pas revivre. **La page n'écrit que `true` ou `false`** : le serveur lie l'accord au moteur choisi après les autres changements du même envoi ; un objet fabriqué par la page est refusé (« accord illisible »). Ainsi l'accord ne peut porter que sur le moteur montré.
+4. **Classement** : `rewriteConsent` est un champ d'**ordinateur** (`COMPUTER_KEYS`, et `backup.rs:COMPUTER_FIELDS`, 16 clés) : jamais dans l'export d'un utilisateur (rien à décocher à l'import), jamais restauré depuis une sauvegarde d'un autre système. Toujours écrit (`null` sans accord) : le test de classement du chantier 4 n'a pas eu à changer.
+5. **Aucune redirection suivie** pour la reformulation : `HttpRequest.follow_redirects` (faux par `without_redirects()`), deuxième agent `ureq` avec `redirects(0)` ; une réponse 3xx devient une erreur. Les autres requêtes ne changent pas.
+6. **Garde-fou** `accepts_rewrite` comme le cadrage, avec deux précisions : un « numéro » compte à partir de **4 chiffres** (espaces, points et tirets entre chiffres ignorés : un téléphone écrit autrement reste reconnu) ; une **première ligne courte finissant par « : »**, absente de la sélection, est une annonce (« Version plus amicale : »). La réponse est d'abord nettoyée sans toucher au contenu (`clean_output` : balises `<texte>` reprises, bloc de code ou guillemets ajoutés, **seulement** si la sélection ne les avait pas ; blancs de début et de fin de la sélection remis, pour qu'une ligne entière sélectionnée garde son retour à la ligne). On n'utilise pas `cleaner::strip`, qui ôterait le gras Markdown ou un bloc de code de la sélection.
+7. **Application inconnue au départ** (`target.id` absent) : traitée comme changée (texte copié, pas collé), puisqu'on ne peut pas vérifier.
+8. **`Paster::reads_selection`** (faux par défaut, vrai sur Mac et Windows) plutôt qu'un `cfg!(target_os)` dans le chef d'orchestre : le cas Linux se teste sur tous les systèmes.
+9. **Pas de préchauffage** (cadrage) : le coût à froid mesuré est faible (≈ 0,8 s pour les 607 jetons du début fixe sur le Mac Studio) et la dictée garde son emplacement (mesure ci-dessous). `preload_signature` ne change pas.
+10. **`--no-slots` non ajouté** : `/slots` ne montre aucun texte (mesure ci-dessous).
+11. **Exemples du second prompt** : un changement de ton, une demande contenue dans le texte (corrigée, pas exécutée) et un raccourci ; ils sont dans le début fixe, gardé en mémoire par le serveur.
+12. `SwitchPaster` délègue maintenant `copy` (neutralisé pendant un essai) et `reads_selection`. Pendant un essai, la sélection n'est pas lue (`NoSelection`) : rien ne part au modèle.
+
+### Mesures (16/11/2026, Mac Studio, `llama-server` 0.8.0 build 11960 de Homebrew, Gemma 4 E4B q4_0, options de Scriibe : `-c 8192 -np 2 -kvu -fa on --jinja -ngl 99`, port d'essai 8190, sortie dans le dossier temporaire de la session)
+
+| Mesure | Résultat |
+|---|---|
+| Début fixe du second prompt (consigne et 3 exemples) | 607 jetons |
+| 4 000 signes de français (procès-verbal) | 1 480 jetons au total, donc 873 pour la sélection (4,6 signes par jeton) ; réponse 119 jetons ; 4,05 s à froid |
+| 4 000 signes de code Rust | 2 501 jetons au total, donc 1 894 pour la sélection (2,1 signes par jeton) ; 2,92 s (début fixe déjà en mémoire) |
+| Lecture du prompt | ≈ 730 jetons par seconde ; début fixe à froid ≈ 0,8 s, en mémoire ≈ 0,25 s pour une petite sélection |
+| Dictée, reformulation, dictée (deux emplacements) | la dictée reprend 1 022 jetons sur 1 074 de sa mémoire après une reformulation ; la reformulation reprend 691 sur 696 : aucune éviction entre les deux |
+| `llama-server.log` (sortie d'erreur) et sortie standard, sélection « SECRET-SELECTION-7731 … » et consigne « … CONSIGNE-4412 » | aucune trace du texte (35 lignes : chargement, compteurs, durées) |
+| `GET /slots` (activé par défaut) | 200, champs `id`, `n_ctx`, `speculative`, `is_processing`, `id_task`, `n_prompt_tokens…`, `params`, `next_token` : aucun texte ; `--no-slots` inutile |
+
+### Où est le code
+
+- `crates/core/src/rewrite.rs` (nouveau) : `MAX_SELECTION_CHARS`, `RewriteConsent`, `binding`, `needs_consent`, `consent_matches`, `is_loopback_address`, `messages` (second prompt), `clean_output`, `accepts_rewrite`, `Verdict`.
+- `crates/core/src/settings.rs` (`rewrite_consent`, chute à la lecture, `COMPUTER_KEYS`), `backup.rs` (`COMPUTER_FIELDS`), `cleaner.rs` (`Debug` de `Message`).
+- `crates/engines/src/http.rs` (`Debug` de `HttpRequest` masqué, `follow_redirects`, agent sans redirection) ; `services.rs` (`RewriteError`, `rewrite_selection`, `may_receive_selection`, `complete_on`, `OPENROUTER_BASE`).
+- `crates/platform/src/paste.rs` (`reads_selection`), `macos/paste.rs` et `windows/paste.rs` (vrai), `testing.rs` (`copied`, `set_reads_selection`).
+- `crates/pipeline/src/controller.rs` : `Route::Instruction` → `rewrite_selection` (lecture de la sélection, appel, comparaison de l'application, collage transitoire ou copie).
+- `crates/cli/src/web/mod.rs` (`merge_settings` : `true` / `false` ; état `rewrite`), `web/sinks.rs` (`copy`, `reads_selection`).
+- Interface : `Settings.svelte` (case), `api.ts`, `Help.svelte`, `HelpEn.svelte`, `locales/en.ts`, `locales/en-server.ts`.
+
+### Tests (mesurés sur le Mac)
+
+- **815 tests Rust** (3 ignorés), 28 de plus que les 787 de la 0.7.0, et **109 tests de l'interface** sans erreur ; `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` et `svelte-check` sans erreur.
+- Nouveaux : 14 dans `rewrite.rs` (adresse de boucle locale, accord lié et qui tombe, classement « ordinateur », prompt et balises neutralisées, début fixe identique, empreinte inchangée, nettoyage, garde-fou, plafond) ; 7 dans `engines/tests/services.rs` (**sans accord, aucune requête ne part** vers OpenRouter, un LM Studio de la maison ou un Ollama en `nas.local` ; accord d'un autre moteur, modèle ou adresse refusé ; avec accord, un seul appel sans redirection ; moteurs de cet ordinateur sans accord ; plafond sans envoi et `max_tokens` ; garde-fou, réponse 302, moteur en panne ; `Debug` sans corps ni clé) ; 6 dans `pipeline/tests/dictation.rs` (reformulation collée en transitoire sans trace, Linux, sans sélection ou illisible, moteur ailleurs puis accordé, **application changée → copie seulement**, échecs sans remplacement) ; 1 dans `web/mod.rs` (accord par `true` / `false`, objet fabriqué refusé). Le test « sans trace » de l'étape 1a vérifie maintenant que la seule requête qui porte la sélection va en `127.0.0.1` ; celui des phrases libres n'attend plus « Commande inconnue » pour « cherche les fautes » avec sélection.
+
+### Non vérifié
+
+- **Code Windows** (`reads_selection` de `WindowsPaster`) : non compilé ici (pas de compilateur croisé) ; à vérifier par la CI Windows avant la 0.8.0. Changement d'une ligne.
+- **Aucun essai réel** à l'écran : sélection reformulée sur Mac et Windows, case d'accord, copie quand l'application change, message Linux. C'est la tâche 11.
+- **Éditeurs de code** (ligne courante copiée sans sélection) : non mesuré ; dit dans l'Aide comme limite. La piste du cadrage (exiger l'Accessibilité sur Mac dans ces éditeurs) reste à décider après l'essai.
+- **Contextes d'Ollama et de LM Studio** : le plafond suppose 4 096 jetons au moins ; un Ollama réglé plus petit tronquerait le début du prompt (supposé, non vérifié).
+- **Troisième début de prompt** : avec la traduction en plus de la dictée et de la reformulation, llama.cpp n'a que deux emplacements ; l'un des trois sera relu à froid (non mesuré).
+- Traduction anglaise d'une raison de moteur imbriquée dans « Reformulation impossible — {reason} » : la raison reste en français si elle n'a pas sa propre traduction.
+
+### Suite
+
+- Tâche 10 (même session) : relecture par un sous-agent Sonnet, puis corrections et § Relecture reformulation.

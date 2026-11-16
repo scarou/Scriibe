@@ -524,6 +524,8 @@ export const en: Record<string, string> = {
   'Adresse du serveur :': 'Server address:',
   'Modèle OpenRouter :': 'OpenRouter model:',
   'Carte graphique :': 'Graphics card:',
+  'Autoriser l’envoi de la sélection à ce moteur': 'Allow sending the selection to this engine',
+  'Pour reformuler une sélection sous la touche de commande. Ce moteur n’est pas sur cet ordinateur : sans cette case, la sélection ne lui est jamais envoyée. L’accord vaut pour ce moteur, ce modèle et cette adresse, et tombe dès que l’un des trois change.': 'To rewrite a selection under the command key. This engine is not on this computer: without this box, the selection is never sent to it. The consent covers this engine, this model and this address, and falls as soon as any of the three changes.',
   'Lister les cartes': 'List the cards',
   'Garder le modèle chargé :': 'Keep the model loaded:',
   '30 min sans dictée (comme Scribe)': '30 min without dictation (like Scribe)',

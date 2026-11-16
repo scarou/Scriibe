@@ -785,7 +785,7 @@ impl Controller {
 
     /// Sous la touche de commande : jamais rien de collé comme du texte. Une phrase qui n'est pas une commande donne un message fixe de la
     /// pastille (jamais les mots dits), et rien d'autre. La transcription n'est ni corrigée, ni mise au propre, ni gardée dans l'historique.
-    fn process_command(&self, raw: &str, settings: &AppSettings) {
+    fn process_command(&self, raw: &str, settings: &AppSettings, target: &AppInfo) {
         use scriibe_core::commands::{Context, Route};
         let deps = &self.inner.deps;
         match scriibe_core::commands::route_under_key(raw, settings) {
@@ -797,11 +797,8 @@ impl Controller {
                 deps.log.write("commande: phrase proche d'une commande, non reconnue — rien n'est collé");
                 self.refuse("Commande non reconnue");
             }
-            // La reformulation de la sélection (étape 4 du chantier 6) viendra ici ; sans elle, une consigne possible reste inconnue.
-            Route::Instruction => {
-                deps.log.write("commande: aucune commande reconnue — rien n'est collé");
-                self.refuse("Commande inconnue");
-            }
+            // Ni une commande, ni une phrase proche : avec une sélection, la phrase est la consigne de reformulation (étape 4).
+            Route::Instruction => self.rewrite_selection(raw, settings, target),
             Route::TooLong => {
                 deps.log.write(&format!(
                     "commande: phrase de plus de {} mots, dictée prise par mégarde — rien n'est collé",
@@ -816,6 +813,93 @@ impl Controller {
             Route::UnknownSearch => {
                 deps.log.write("commande: « nouvelle recherche » avec un site inconnu — rien n'est ouvert");
                 self.refuse("Site de recherche inconnu");
+            }
+        }
+    }
+
+    /// Reformulation de la sélection par la consigne dite (chantier 6, étape 4 ; `docs/CADRAGE_COMMANDES.md`, décision 2). La sélection
+    /// part seulement vers un moteur sur cet ordinateur, ou vers le moteur qui a l'accord (contrôle dans `Cleaner::rewrite_selection`).
+    /// Juste avant de coller, l'application au premier plan est comparée à celle de la dictée : si elle a changé, le texte est seulement
+    /// copié. Toute autre issue ne remplace rien. Journal : longueurs, moteur et durée ; pastille : messages fixes ; rien dans l'historique.
+    fn rewrite_selection(&self, instruction: &str, settings: &AppSettings, target: &AppInfo) {
+        let deps = &self.inner.deps;
+        if !deps.paster.reads_selection() {
+            deps.log.write("commande: reformulation impossible, ce système ne lit pas la sélection — rien n'est collé");
+            self.refuse("Non disponible sous Linux");
+            return;
+        }
+        let selection = match deps.paster.selected_text() {
+            SelectedRead::Text(text) if !text.expose().trim().is_empty() => text,
+            SelectedRead::Text(_) | SelectedRead::NoSelection => {
+                deps.log.write("commande: aucune commande reconnue et aucune sélection — rien n'est collé");
+                self.refuse("Commande inconnue");
+                return;
+            }
+            SelectedRead::Unreadable(why) => {
+                deps.log.write(&format!("commande: reformulation impossible ({}) — rien n'est collé", why.reason()));
+                self.refuse("Sélection illisible");
+                return;
+            }
+        };
+        deps.log.write(&format!(
+            "commande: reformulation (sélection : {} signes, consigne : {} mots, moteur : {})",
+            selection.char_count(),
+            word_count(instruction),
+            settings.cleanup_engine.name()
+        ));
+        let started = deps.clock.now();
+        let result = deps.cleaner.rewrite_selection(selection.expose(), instruction, settings);
+        drop(selection);
+        let took = seconds(deps.clock.now().saturating_sub(started));
+        use scriibe_engines::services::RewriteError;
+        let text = match result {
+            // Le texte reformulé contient la sélection : masqué au `Debug`, mémoire écrasée à la fin.
+            Ok(text) => SelectedText::new(text),
+            Err(error) => {
+                let message = match &error {
+                    RewriteError::NotAllowed => {
+                        "Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs)".to_string()
+                    }
+                    RewriteError::TooLong => "Sélection trop longue pour la reformulation (3 000 signes au plus)".to_string(),
+                    RewriteError::Unchanged => "Rien à changer".to_string(),
+                    RewriteError::Rejected => "Reformulation impossible : réponse du modèle écartée".to_string(),
+                    RewriteError::Service(e) => format!("Reformulation impossible — {e}"),
+                };
+                let why = match &error {
+                    RewriteError::NotAllowed => "sans accord".to_string(),
+                    RewriteError::TooLong => "sélection trop longue".to_string(),
+                    RewriteError::Unchanged => "rien à changer".to_string(),
+                    RewriteError::Rejected => "réponse écartée".to_string(),
+                    RewriteError::Service(e) => e.to_string(),
+                };
+                deps.log.write(&format!("commande: reformulation non faite ({why}, {took}) — rien n'est remplacé"));
+                deps.indicator.flash(IndicatorState::Message(message), 4.0);
+                return;
+            }
+        };
+        let now = deps.apps.current();
+        if target.id.is_none() || now.id != target.id {
+            deps.log.write(&format!(
+                "commande: reformulation copiée, l'application au premier plan a changé ({} signes, {took}) — rien n'est collé",
+                text.char_count()
+            ));
+            let message = if deps.paster.copy(text.expose()) {
+                format!("Reformulation copiée : l'application a changé, à coller avec {PASTE_SHORTCUT}")
+            } else {
+                "Reformulation non collée : l'application a changé".to_string()
+            };
+            deps.indicator.flash(IndicatorState::Message(message), 4.0);
+            return;
+        }
+        match deps.paster.paste_transient(text.expose()) {
+            PasteOutcome::Pasted => {
+                deps.log.write(&format!("commande: reformulation collée ({} signes, {took})", text.char_count()));
+                deps.indicator.flash(IndicatorState::Done, 0.9);
+            }
+            PasteOutcome::CopiedOnly(reason) => {
+                deps.log.write(&format!("commande: reformulation copiée seulement ({reason}, {took})"));
+                deps.indicator
+                    .flash(IndicatorState::Message(format!("Reformulation copiée, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
             }
         }
     }
@@ -1065,7 +1149,7 @@ impl Controller {
 
         // Sous la touche de commande, la transcription brute est une commande : ni dictionnaire, ni mise au propre, ni collage, ni historique.
         if intent == Intent::Command {
-            self.process_command(&raw, settings);
+            self.process_command(&raw, settings, &job.target);
             return;
         }
         let translate_to = match intent {

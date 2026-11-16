@@ -25,6 +25,7 @@ pub mod modes;
 pub mod profile_file;
 mod prompt_text;
 pub mod retention;
+pub mod rewrite;
 pub mod settings;
 pub mod shortcut;
 pub mod snippet;

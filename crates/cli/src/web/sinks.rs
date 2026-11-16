@@ -95,6 +95,15 @@ impl Paster for SwitchPaster {
         self.0.paster.last_report()
     }
 
+    fn reads_selection(&self) -> bool {
+        self.0.paster.reads_selection()
+    }
+
+    // Pendant une capture d'essai, rien ne va dans le presse-papiers (une reformulation copiée faute de pouvoir la coller).
+    fn copy(&self, text: &str) -> bool {
+        !self.0.capturing() && self.0.paster.copy(text)
+    }
+
     // Pendant une capture d'essai, pas de commande vocale : rien à lire.
     fn selected_text(&self) -> scriibe_platform::paste::SelectedRead {
         if self.0.capturing() {
@@ -253,6 +262,9 @@ mod tests {
         assert_eq!(switch.paste_transient("FR76 SECRET-IBAN"), PasteOutcome::Pasted);
         paster.set_installed_apps(&["com.apple.Safari"]);
         assert!(switch.open_app("com.apple.Safari").is_ok(), "l'essai ne lance pas l'application");
+        // Reformulation (étape 4) : la sélection n'étant pas lue, rien ne part au modèle ; une reformulation copiée faute de pouvoir la
+        // coller n'atteint pas non plus le presse-papiers.
+        assert!(!switch.copy("SECRET reformulé"));
         let captured = sinks.finish();
         assert_eq!(captured.opened.as_deref(), Some("https://www.google.com/search?q=SECRET"));
         assert_eq!(captured.snippet_chars, Some(16));
@@ -261,6 +273,7 @@ mod tests {
         assert!(!format!("{captured:?}").contains("SECRET-IBAN"), "le texte de l'extrait n'est nulle part dans l'essai");
         assert!(paster.shortcuts().is_empty() && paster.pasted().is_empty() && paster.opened().is_empty());
         assert!(paster.pasted_transient().is_empty(), "rien n'atteint le vrai collage pendant un essai");
+        assert!(paster.copied().is_empty(), "rien n'atteint le presse-papiers pendant un essai");
         // Hors essai, la lecture de la sélection et le raccourci passent.
         assert!(matches!(switch.selected_text(), SelectedRead::Text(_)));
         assert!(switch.press_shortcut(&Shortcut::parse("Mod+B").unwrap()).is_ok());
@@ -271,6 +284,8 @@ mod tests {
         assert_eq!(paster.pasted_transient(), vec!["hors essai".to_string()]);
         assert!(switch.open_app("com.apple.Safari").is_ok());
         assert_eq!(paster.opened_apps(), vec!["com.apple.Safari".to_string()]);
+        assert!(switch.copy("hors essai") && switch.reads_selection());
+        assert_eq!(paster.copied(), vec!["hors essai".to_string()]);
     }
 
     #[test]

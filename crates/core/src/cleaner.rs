@@ -10,11 +10,18 @@ use crate::text::{looks_clean, overlap, overlap_without, word_count};
 use crate::translation::TranslationLanguage;
 use std::collections::HashSet;
 
-/// Un message de la conversation avec le modèle.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Un message de la conversation avec le modèle. Son contenu peut être une dictée ou une sélection confidentielle : `Debug` n'en montre
+/// que la longueur (un `{:?}` oublié dans un journal ou un message d'erreur ne laisse rien passer, cadrage du chantier 6, décision 5).
+#[derive(Clone, PartialEq, Eq)]
 pub struct Message {
     pub role: &'static str,
     pub content: String,
+}
+
+impl std::fmt::Debug for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Message {{ role: {:?}, content: <{} signes> }}", self.role, self.content.chars().count())
+    }
 }
 
 fn message(role: &'static str, content: impl Into<String>) -> Message {

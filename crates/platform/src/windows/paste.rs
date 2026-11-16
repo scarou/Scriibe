@@ -277,6 +277,10 @@ fn probe_selection(wait: Duration) -> Probe {
 }
 
 impl Paster for WindowsPaster {
+    fn reads_selection(&self) -> bool {
+        true
+    }
+
     fn selection(&self) -> Selection {
         match probe_selection(Duration::from_millis(150)) {
             Probe::Copied(text) => {

@@ -112,6 +112,11 @@ pub trait Paster: Send + Sync {
     fn selected_text(&self) -> SelectedRead {
         SelectedRead::Unreadable(Unreadable::Failed)
     }
+    /// Le système sait lire la sélection (macOS, Windows) : la reformulation d'une sélection (chantier 6, étape 4) y est possible. Faux
+    /// par défaut, donc sous Linux, où la lecture de la sélection n'existe pas encore (ROADMAP n°3) : « Non disponible sous Linux ».
+    fn reads_selection(&self) -> bool {
+        false
+    }
     /// Appuie un raccourci de l'appli active (gras, italique, souligné) sur la sélection, qui reste telle quelle. Renvoie la raison, à texte fixe
     /// (elle peut aller dans le journal et la pastille), si le raccourci n'a pas pu être envoyé. Par défaut : le système ne sait pas.
     fn press_shortcut(&self, _shortcut: &scriibe_core::shortcut::Shortcut) -> Result<(), &'static str> {

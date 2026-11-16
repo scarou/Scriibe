@@ -2,6 +2,14 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## C6 tâche 9 — 2026-11-16 · Commandes vocales étendues, étape 4 : reformulation de la sélection (non publié : part avec la 0.8.0)
+
+- **Ce que l'on voit** : sous la touche de commande, avec une sélection, une consigne libre (« cherche les fautes », « rends ça plus amical », 25 mots au plus) reformule la sélection ; le texte la remplace par un collage transitoire (un seul ⌘Z ou Ctrl+Z rend l'original). Sous Linux : « Non disponible sous Linux ».
+- **Sécurité** : la sélection ne part que vers un moteur **sur cet ordinateur** (hôte `127.0.0.1`, `localhost` ou `[::1]`, contrôlé juste avant l'appel dans `Cleaner::rewrite_selection`, seul point de passage), sinon il faut cocher « Autoriser l'envoi de la sélection à ce moteur » (Réglages → Moteurs) : accord `rewriteConsent` (champ « ordinateur ») lié au moteur, au modèle et à l'adresse, qui tombe dès que l'un change. Aucune redirection suivie, aucun second essai. Si l'application au premier plan a changé pendant l'appel, le texte est seulement copié. `Debug` de `Message` et `HttpRequest` masqué.
+- **Second prompt** à part (empreinte des prompts livrés inchangée), garde-fou `accepts_rewrite` (formule de réponse, balises, longueur, adresse, courriel ou numéro absents de la sélection), plafond **mesuré** à 3 000 signes (le code compte 2,1 signes par jeton : 4 000 dépassaient un contexte de 4 096 jetons).
+- **Mesuré avec le vrai `llama-server`** : ni son journal ni `/slots` ne contiennent la sélection ou la consigne (`--no-slots` inutile) ; dictée et reformulation gardent chacune leur début de prompt ; début fixe à froid ≈ 0,8 s sur le Mac Studio, donc pas de préchauffage.
+- **Tests** (mesurés sur le Mac) : 815 tests Rust (3 ignorés, 28 nouveaux) et 109 tests de l'interface sans erreur ; `fmt`, `clippy -D warnings`, `svelte-check` sans erreur. Code Windows (une ligne) non compilé ici. Détail, choix et mesures : `docs/COMMANDES_ETENDUES.md` § Étape 4.
+
 ## 0.7.0 — 2026-11-16 · Publication : extraits, applications et nouveau mail (lot 2 du chantier 6)
 
 - Version publiée : réunit les étapes 2 et 3 des commandes vocales étendues (extraits, applications, nouveau mail) et le correctif des lanceurs du système, soit 8 commits depuis la 0.6.0. Le lot 3 (reformulation d'une sélection) partira en 0.8.0.

@@ -9,6 +9,7 @@ use crate::whisper::{self, Whisper};
 use scriibe_core::cleaner::{self, Message};
 use scriibe_core::lang::LanguageGuesser;
 use scriibe_core::modes::RewriteMode;
+use scriibe_core::rewrite;
 use scriibe_core::settings::{AppSettings, CleanupEngine, DictationLanguage, TranscriptionEngine};
 use scriibe_core::translation::TranslationLanguage;
 use serde_json::{json, Map, Value};
@@ -130,6 +131,21 @@ impl Transcriber {
 
 // MARK: Mise au propre
 
+/// Pourquoi une reformulation de la sélection n'a pas abouti. La sélection n'est alors jamais remplacée.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RewriteError {
+    /// Le moteur n'est pas sur cet ordinateur et aucun accord ne vaut pour lui : rien n'a été envoyé.
+    NotAllowed,
+    /// La sélection dépasse `rewrite::MAX_SELECTION_CHARS` : rien n'a été envoyé.
+    TooLong,
+    /// Le modèle a rendu la sélection telle quelle.
+    Unchanged,
+    /// La réponse a été écartée par le garde-fou `accepts_rewrite`.
+    Rejected,
+    /// Le moteur a échoué (message fixe, sans texte de la personne).
+    Service(ServiceError),
+}
+
 struct Endpoint {
     base: String,
     key: Option<String>,
@@ -203,7 +219,7 @@ impl Cleaner {
                 let key = self.secrets.get(KeyKind::OpenRouter).ok_or_else(|| ServiceError::new("Clé OpenRouter manquante"))?;
                 // Laisse OpenRouter choisir le fournisseur le plus réactif pour ce modèle.
                 Endpoint {
-                    base: "https://openrouter.ai/api".into(),
+                    base: scriibe_core::rewrite::OPENROUTER_BASE.into(),
                     key: Some(key),
                     service: "OpenRouter",
                     local: false,
@@ -270,8 +286,22 @@ impl Cleaner {
     }
 
     fn post(&self, ep: &Endpoint, path: &str, body: Value, timeout: Duration) -> Result<Vec<u8>, ServiceError> {
+        self.post_with(ep, path, body, timeout, true)
+    }
+
+    fn post_with(
+        &self,
+        ep: &Endpoint,
+        path: &str,
+        body: Value,
+        timeout: Duration,
+        follow_redirects: bool,
+    ) -> Result<Vec<u8>, ServiceError> {
         let mut request = HttpRequest::post(format!("{}{path}", ep.base), body.to_string().into_bytes(), timeout)
             .header("Content-Type", "application/json");
+        if !follow_redirects {
+            request = request.without_redirects();
+        }
         if let Some(key) = &ep.key {
             request = request.header("Authorization", format!("Bearer {key}"));
         }
@@ -283,6 +313,18 @@ impl Cleaner {
 
     fn complete(&self, messages: &[Message], length: usize, settings: &AppSettings) -> Result<String, ServiceError> {
         let ep = self.endpoint(settings)?;
+        self.complete_on(&ep, messages, length, settings, true).map(|content| cleaner::strip(&content))
+    }
+
+    /// L'appel au moteur `ep` (déjà choisi, et déjà contrôlé pour la reformulation) ; rend la réponse brute du modèle.
+    fn complete_on(
+        &self,
+        ep: &Endpoint,
+        messages: &[Message],
+        length: usize,
+        settings: &AppSettings,
+        follow_redirects: bool,
+    ) -> Result<String, ServiceError> {
         if settings.active_cleanup_model().is_empty() && settings.cleanup_engine != CleanupEngine::LlamaCpp {
             return Err(ServiceError::new(format!("Choisis un modèle {} dans Réglages", ep.service)));
         }
@@ -300,7 +342,8 @@ impl Cleaner {
         if let Some(o) = body.as_object_mut() {
             o.extend(ep.extra.clone());
         }
-        let data = self.post(&ep, "/v1/chat/completions", body, Duration::from_secs(if ep.local { 40 } else { 20 }))?;
+        let data =
+            self.post_with(ep, "/v1/chat/completions", body, Duration::from_secs(if ep.local { 40 } else { 20 }), follow_redirects)?;
         let unreadable = || ServiceError::new(format!("Réponse {} illisible", ep.service));
         let json: Value = serde_json::from_slice(&data).map_err(|_| unreadable())?;
         let choice = json["choices"].get(0).ok_or_else(unreadable)?;
@@ -309,7 +352,47 @@ impl Cleaner {
         if choice["finish_reason"].as_str() == Some("length") {
             return Err(ServiceError::new(format!("Réponse {} coupée (dictée trop longue, ou modèle qui boucle)", ep.service)));
         }
-        Ok(cleaner::strip(content))
+        Ok(content.to_string())
+    }
+
+    /// Reformule la sélection selon la consigne dite sous la touche de commande (chantier 6, étape 4). **Seul point de passage** de la
+    /// sélection vers un modèle : juste avant l'appel, l'adresse réellement appelée doit être sur cet ordinateur (boucle locale), ou
+    /// l'accord rangé doit valoir pour ce moteur, ce modèle et cette adresse ; sinon rien n'est envoyé. Pas de reprise vers un autre
+    /// moteur, pas de second essai, aucune redirection suivie. Le journal ne reçoit que des longueurs et le nom du moteur.
+    pub fn rewrite_selection(&self, selection: &str, instruction: &str, settings: &AppSettings) -> Result<String, RewriteError> {
+        let length = selection.chars().count();
+        if length > rewrite::MAX_SELECTION_CHARS {
+            return Err(RewriteError::TooLong);
+        }
+        let ep = self.endpoint(settings).map_err(RewriteError::Service)?;
+        if !self.may_receive_selection(&ep, settings) {
+            self.log.write(&format!("reformulation: {} n'est pas sur cet ordinateur et n'a pas d'accord — rien n'est envoyé", ep.service));
+            return Err(RewriteError::NotAllowed);
+        }
+        let messages = rewrite::messages(selection, instruction);
+        let raw = self.complete_on(&ep, &messages, length, settings, false).map_err(RewriteError::Service)?;
+        let out = rewrite::clean_output(selection, &raw);
+        match rewrite::accepts_rewrite(selection, instruction, &out) {
+            rewrite::Verdict::Accepted => Ok(out),
+            rewrite::Verdict::Unchanged => Err(RewriteError::Unchanged),
+            rewrite::Verdict::Rejected(why) => {
+                self.log.write(&format!("reformulation: réponse écartée ({why}, {} signes)", out.chars().count()));
+                Err(RewriteError::Rejected)
+            }
+        }
+    }
+
+    /// L'adresse appelée est sur cet ordinateur, ou l'accord rangé vaut exactement pour ce moteur, ce modèle et cette adresse.
+    fn may_receive_selection(&self, ep: &Endpoint, settings: &AppSettings) -> bool {
+        if rewrite::is_loopback_address(&ep.base) {
+            return true;
+        }
+        let model = self.model_label(settings);
+        rewrite::consent_matches(settings)
+            && settings
+                .rewrite_consent
+                .as_ref()
+                .is_some_and(|c| c.engine == settings.cleanup_engine && c.address == ep.base && c.model == model && !c.model.is_empty())
     }
 
     /// Réponse du modèle, sans garde-fou (utilisée telle quelle pour mesurer).

@@ -19,7 +19,7 @@ pub use crate::settings::SETTINGS_SCHEMA;
 
 /// Les réglages propres à l'ordinateur : touches, micro, sons, chemins de modèles, carte graphique, adresses de serveurs locaux.
 /// Ils ne sont restaurés que si la sauvegarde vient du même système (`docs/CADRAGE_PROFILS.md`, décision 1).
-pub const COMPUTER_FIELDS: [&str; 15] = [
+pub const COMPUTER_FIELDS: [&str; 16] = [
     "hotkey",
     "dictationKeys",
     "translateKeys",
@@ -35,6 +35,7 @@ pub const COMPUTER_FIELDS: [&str; 15] = [
     "lmStudioURL",
     "ollamaURL",
     "voiceApps",
+    "rewriteConsent",
 ];
 
 /// Les fichiers lus tels quels dans le dossier de données (`None` : fichier absent).

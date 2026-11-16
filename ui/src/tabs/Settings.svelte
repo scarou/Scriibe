@@ -229,6 +229,13 @@
         </label>
       </div>
     {/if}
+    {#if s.rewrite?.available && s.rewrite.needsConsent}
+      <div class="row">
+        <label><input type="checkbox" checked={s.rewrite.given} onchange={(e) => settings.change({ rewriteConsent: e.currentTarget.checked })} />
+          {t('Autoriser l’envoi de la sélection à ce moteur')}</label>
+      </div>
+      <p class="muted">{t('Pour reformuler une sélection sous la touche de commande. Ce moteur n’est pas sur cet ordinateur : sans cette case, la sélection ne lui est jamais envoyée. L’accord vaut pour ce moteur, ce modèle et cette adresse, et tombe dès que l’un des trois change.')}</p>
+    {/if}
     {#if v.cleanupEngine === 'llamaCpp'}
       <div class="row">
         <label>{t('Carte graphique :')}

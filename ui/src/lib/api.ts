@@ -98,6 +98,8 @@ export interface Status {
   pause_media: boolean;
   whisper: { binary: string | null; models: string[]; chosen: string };
   llama: { binary: string | null; models: string[]; chosen: string };
+  /** Reformulation de la sélection : possible sur ce système ; la case d'accord est utile (moteur hors de cet ordinateur) ; accord donné. */
+  rewrite: { available: boolean; needsConsent: boolean; given: boolean };
   keys: { deepgram: boolean; openrouter: boolean };
   microphones: string[];
   microphone_list: { uid: string; label: string }[];
@@ -129,6 +131,9 @@ export interface Settings {
   snippets: { id: string; name: string; phrases: string[]; text: string }[];
   /** Applications ouvertes à la voix (liste autorisée, sous la touche de commande) : propre à l'ordinateur, jamais exporté. */
   voiceApps: { id: string; name: string; appId: string; phrases: string[] }[];
+  /** Accord pour envoyer la sélection à reformuler à un moteur hors de cet ordinateur (lié au moteur, au modèle et à l'adresse). La page
+   *  n'écrit que `true` (l'accord pour le moteur montré, lié par le serveur) ou `false` ; elle lit l'objet rangé, ou `null`. */
+  rewriteConsent: { engine: string; model: string; address: string } | null | boolean;
   formatShortcuts: { bold: string; italic: string; underline: string };
   trialText: string;
   trialCandidates: { id: string; engine: string; model: string }[];

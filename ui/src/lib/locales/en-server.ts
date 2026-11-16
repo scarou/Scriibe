@@ -258,6 +258,20 @@ export const enServer: Record<string, string> = {
   'Mail non ouvert': 'Mail not opened',
   'Recherche impossible': 'Search not possible',
 
+  // Reformulation de la sélection (étape 4 du chantier 6)
+  'Non disponible sous Linux': 'Not available on Linux',
+  'Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs)': 'Rewrite not possible: engine not on this computer, no consent (Settings → Engines)',
+  'Sélection trop longue pour la reformulation (3 000 signes au plus)': 'Selection too long to rewrite (3,000 characters at most)',
+  'Rien à changer': 'Nothing to change',
+  'Reformulation impossible : réponse du modèle écartée': 'Rewrite not possible: the model’s answer was rejected',
+  'Reformulation impossible — {reason}': 'Rewrite not possible — {reason}',
+  'Reformulation copiée : l\'application a changé, à coller avec ⌘V': 'Rewrite copied: the application changed, paste it with ⌘V',
+  'Reformulation copiée : l\'application a changé, à coller avec Ctrl+V': 'Rewrite copied: the application changed, paste it with Ctrl+V',
+  'Reformulation non collée : l\'application a changé': 'Rewrite not pasted: the application changed',
+  'Reformulation copiée, à coller avec ⌘V — {reason}': 'Rewrite copied, paste it with ⌘V — {reason}',
+  'Reformulation copiée, à coller avec Ctrl+V — {reason}': 'Rewrite copied, paste it with Ctrl+V — {reason}',
+  'accord illisible': 'unreadable consent',
+
   // Extraits vocaux (étape 2 du chantier 6)
   'Extrait impossible': 'Snippet not possible',
   'Texte refusé': 'Text refused',

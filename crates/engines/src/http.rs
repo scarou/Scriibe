@@ -9,26 +9,52 @@ pub enum Method {
     Head,
 }
 
-#[derive(Debug, Clone)]
+/// Une requête. Son corps peut contenir une dictée ou une sélection, ses en-têtes une clé, son adresse les mots du dictionnaire (Deepgram) :
+/// `Debug` ne montre ni le corps, ni la valeur des en-têtes, ni ce qui suit le `?` de l'adresse (un `{:?}` oublié ne fuit rien).
+#[derive(Clone)]
 pub struct HttpRequest {
     pub method: Method,
     pub url: String,
     pub headers: Vec<(String, String)>,
     pub body: Vec<u8>,
     pub timeout: Duration,
+    /// Suivre une redirection (3xx) vers une autre adresse. Faux pour la reformulation d'une sélection : la requête ne part que vers
+    /// l'adresse contrôlée, et une redirection est une erreur.
+    pub follow_redirects: bool,
+}
+
+impl std::fmt::Debug for HttpRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let url = self.url.split_once('?').map_or(self.url.clone(), |(path, _)| format!("{path}?…"));
+        let headers: Vec<&str> = self.headers.iter().map(|(name, _)| name.as_str()).collect();
+        f.debug_struct("HttpRequest")
+            .field("method", &self.method)
+            .field("url", &url)
+            .field("headers", &headers)
+            .field("body", &format_args!("<{} octets>", self.body.len()))
+            .field("timeout", &self.timeout)
+            .field("follow_redirects", &self.follow_redirects)
+            .finish()
+    }
 }
 
 impl HttpRequest {
     pub fn get(url: impl Into<String>, timeout: Duration) -> Self {
-        Self { method: Method::Get, url: url.into(), headers: Vec::new(), body: Vec::new(), timeout }
+        Self { method: Method::Get, url: url.into(), headers: Vec::new(), body: Vec::new(), timeout, follow_redirects: true }
     }
 
     pub fn post(url: impl Into<String>, body: Vec<u8>, timeout: Duration) -> Self {
-        Self { method: Method::Post, url: url.into(), headers: Vec::new(), body, timeout }
+        Self { method: Method::Post, url: url.into(), headers: Vec::new(), body, timeout, follow_redirects: true }
     }
 
     pub fn header(mut self, name: &str, value: impl Into<String>) -> Self {
         self.headers.push((name.to_string(), value.into()));
+        self
+    }
+
+    /// Aucune redirection suivie : une réponse 3xx est rendue telle quelle (donc une erreur pour `send`).
+    pub fn without_redirects(mut self) -> Self {
+        self.follow_redirects = false;
         self
     }
 }
@@ -47,14 +73,15 @@ pub trait Http: Send + Sync {
     fn send(&self, request: HttpRequest) -> Result<HttpResponse, NetworkError>;
 }
 
-/// Le vrai réseau.
+/// Le vrai réseau. `strict` ne suit aucune redirection (requêtes `without_redirects`).
 pub struct UreqHttp {
     agent: ureq::Agent,
+    strict: ureq::Agent,
 }
 
 impl Default for UreqHttp {
     fn default() -> Self {
-        Self { agent: ureq::AgentBuilder::new().build() }
+        Self { agent: ureq::AgentBuilder::new().build(), strict: ureq::AgentBuilder::new().redirects(0).build() }
     }
 }
 
@@ -65,7 +92,8 @@ impl Http for UreqHttp {
             Method::Post => "POST",
             Method::Head => "HEAD",
         };
-        let mut call = self.agent.request(method, &request.url).timeout(request.timeout);
+        let agent = if request.follow_redirects { &self.agent } else { &self.strict };
+        let mut call = agent.request(method, &request.url).timeout(request.timeout);
         for (name, value) in &request.headers {
             call = call.set(name, value);
         }

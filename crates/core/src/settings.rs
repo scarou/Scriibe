@@ -378,6 +378,12 @@ pub struct AppSettings {
     /// système) : jamais exporté. Contrôlé à la lecture ; le lancement relit la liste fraîche des applications installées.
     #[serde(rename = "voiceApps")]
     pub voice_apps: Vec<crate::voice_app::VoiceApp>,
+    /// Accord pour envoyer la sélection à reformuler (chantier 6, étape 4) à un moteur qui n'est **pas** sur cet ordinateur : lié au
+    /// moteur, au modèle et à l'adresse (`crate::rewrite::RewriteConsent`), il tombe à la lecture dès que l'un des trois change. `None`
+    /// (par défaut) : la sélection ne part que vers un moteur sur cet ordinateur. **Propre à l'ordinateur** : jamais exporté avec
+    /// l'utilisateur, jamais restauré depuis un autre système. La page ne l'écrit qu'avec `true` ou `false` (`merge_settings`).
+    #[serde(rename = "rewriteConsent")]
+    pub rewrite_consent: Option<crate::rewrite::RewriteConsent>,
     /// Nombre de jours d'historique gardés (aujourd'hui compris) ; `None` : tout garder.
     #[serde(rename = "historyKeepDays", skip_serializing_if = "Option::is_none")]
     pub history_keep_days: Option<i64>,
@@ -476,6 +482,7 @@ impl Default for AppSettings {
             web_searches: Vec::new(),
             snippets: Vec::new(),
             voice_apps: Vec::new(),
+            rewrite_consent: None,
             history_keep_days: None,
             llama_device: String::new(),
             llama_idle_minutes: LLAMA_IDLE_DEFAULT,
@@ -570,6 +577,7 @@ pub const COMPUTER_KEYS: &[&str] = &[
     "setupDone",
     "activeProfile",
     "voiceApps",
+    "rewriteConsent",
 ];
 
 /// Le propriétaire d'une clé de réglage ; `None` pour une clé inconnue (refusée par la page, voir `merge_settings`).
@@ -637,7 +645,7 @@ impl AppSettings {
         let custom_mode_id = modes::parse_id(o.get("customModeID")).filter(|id| custom_modes.iter().any(|m| &m.id == id));
         let rewrite_mode = if custom_mode_id.is_some() { RewriteMode::Simple } else { get(o, "rewriteMode").unwrap_or(d.rewrite_mode) };
         let hidden_modes = clean_hidden_modes(get::<Vec<String>>(o, "hiddenModes").unwrap_or_default(), &custom_modes);
-        Some(Self {
+        let mut settings = Self {
             schema_version: get(o, "schemaVersion").unwrap_or(d.schema_version),
             hotkey: get(o, "hotkey").unwrap_or(d.hotkey),
             language: get(o, "language").unwrap_or(d.language),
@@ -722,7 +730,13 @@ impl AppSettings {
             check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
             animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
             active_profile: get::<String>(o, "activeProfile").filter(|id| is_profile_id(id)),
-        })
+            rewrite_consent: get(o, "rewriteConsent"),
+        };
+        // L'accord tombe dès que le moteur, le modèle ou l'adresse a changé depuis qu'il a été donné (décision 2 du cadrage des commandes).
+        if !crate::rewrite::consent_matches(&settings) {
+            settings.rewrite_consent = None;
+        }
+        Some(settings)
     }
 
     /// Range les réglages selon la décision 1 : `(ordinateur, utilisateur)`, deux objets JSON. Une clé sans propriétaire (le test de

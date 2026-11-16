@@ -450,6 +450,10 @@ impl MacPaster {
 }
 
 impl Paster for MacPaster {
+    fn reads_selection(&self) -> bool {
+        true
+    }
+
     fn selected_text(&self) -> SelectedRead {
         match ffi::selected_text() {
             ffi::SelectedByAx::Text(text) => SelectedRead::Text(SelectedText::new(text)),

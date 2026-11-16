@@ -130,6 +130,8 @@ struct Rig {
     cleanup_fails: Arc<AtomicBool>,
     /// L'appli au premier plan (modifiable).
     apps: Arc<FakeApps>,
+    /// Si présente, l'appli au premier plan devient celle-ci pendant l'appel au modèle (la personne a changé de fenêtre entre-temps).
+    switch_app_during_model: Arc<Mutex<Option<AppInfo>>>,
 }
 
 fn transcript(text: &str) -> HttpResponse {
@@ -169,7 +171,13 @@ fn rig_full(
     });
     let c = clock.clone();
     let fails = cleanup_fails.clone();
+    let apps = Arc::new(FakeApps::new(AppInfo { name: "notepad".into(), id: Some("notepad.exe".into()) }));
+    let switch_app_during_model: Arc<Mutex<Option<AppInfo>>> = Arc::default();
+    let (switch, switched) = (switch_app_during_model.clone(), apps.clone());
     world.route("/v1/chat/completions", move |request| {
+        if let Some(app) = switch.lock().unwrap().clone() {
+            switched.set(app);
+        }
         if fails.load(Ordering::SeqCst) {
             return Ok(HttpResponse { status: 500, body: Vec::new() });
         }
@@ -207,7 +215,6 @@ fn rig_full(
         fs,
         warm_ups: Default::default(),
     });
-    let apps = Arc::new(FakeApps::new(AppInfo { name: "notepad".into(), id: Some("notepad.exe".into()) }));
     let recorder = Arc::new(FakeRecorder::default());
     let paster = Arc::new(FakePaster::default());
     let media = Arc::new(FakeMedia::default());
@@ -236,7 +243,23 @@ fn rig_full(
         executor: executor_dyn,
         commands: commands.clone(),
     });
-    Rig { commands, world, clock, controller, recorder, paster, media, indicator, sounds, history, config, executor, cleanup_fails, apps }
+    Rig {
+        commands,
+        world,
+        clock,
+        controller,
+        recorder,
+        paster,
+        media,
+        indicator,
+        sounds,
+        history,
+        config,
+        executor,
+        cleanup_fails,
+        apps,
+        switch_app_during_model,
+    }
 }
 
 /// Dictée complète : tout s'exécute tout de suite.
@@ -1544,14 +1567,13 @@ fn under_the_command_key_the_switch_of_voice_commands_does_not_apply() {
     assert!(r.paster.pasted().is_empty());
 }
 
-/// Les phrases qui ne sont pas des commandes, sous la touche : un message fixe, ni collage, ni lecture de la sélection (pas de reformulation
-/// avant l'étape 4), ni historique, ni modèle.
+/// Les phrases qui ne sont pas des commandes, sous la touche : un message fixe, ni collage, ni lecture de la sélection, ni historique, ni
+/// modèle. (Une consigne possible, avec une sélection, est une reformulation depuis l'étape 4 : tests « rewrite » plus bas.)
 #[test]
 fn under_the_command_key_a_phrase_that_is_no_command_gives_a_fixed_message_and_pastes_nothing() {
     let long = "un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize dix-sept dix-huit dix-neuf vingt \
                 vingt-et-un vingt-deux vingt-trois vingt-quatre vingt-cinq vingt-six";
-    let cases: [(&'static str, &str); 4] = [
-        ("cherche les fautes", "Commande inconnue"),
+    let cases: [(&'static str, &str); 3] = [
         ("mets ça en rouge et en gras", "Commande non reconnue"),
         ("ajouter au dictionnaire ici", "Commande non reconnue"),
         (long, "Commande trop longue"),
@@ -1616,9 +1638,19 @@ fn under_the_command_key_the_words_said_leave_no_trace() {
                 r.indicator.states(),
                 r.paster.pasted(),
                 r.paster.shortcuts(),
-                r.world.requests().iter().filter(|q| !q.url.contains("deepgram")).map(|q| String::from_utf8_lossy(&q.body).to_string() + &q.url).collect::<Vec<_>>()
+                r.world
+                    .requests()
+                    .iter()
+                    .filter(|q| !q.url.contains("deepgram") && !q.url.contains("/v1/chat/completions"))
+                    .map(|q| String::from_utf8_lossy(&q.body).to_string() + &q.url)
+                    .collect::<Vec<_>>()
             );
             assert!(!everything.contains("SECRET"), "{heard} : les mots dits ont laissé une trace : {everything}");
+            // Une consigne avec une sélection est une reformulation (étape 4) : la sélection et la consigne ne partent qu'au moteur de cet
+            // ordinateur (ici LM Studio en 127.0.0.1), dans le corps de la requête, et nulle part ailleurs.
+            for request in r.world.requests().iter().filter(|q| q.url.contains("/v1/chat/completions")) {
+                assert!(request.url.starts_with("http://127.0.0.1:"), "{}", request.url);
+            }
         }
     }
 }
@@ -1987,4 +2019,140 @@ fn without_the_command_key_an_app_phrase_is_pasted_as_text_and_opens_nothing() {
     assert!(r.paster.opened_apps().is_empty());
     assert_eq!(r.paster.pasted().len(), 1, "la phrase est collée comme du texte");
     assert_eq!(r.history.items().len(), 1);
+}
+
+// ---- Reformulation de la sélection (chantier 6, étape 4) : moteur sur cet ordinateur, ou accord lié au moteur ----
+
+fn rewrite_rig(heard: &'static str, answer: &'static str, settings: AppSettings) -> Rig {
+    let r = rig_with(settings, heard, answer, true);
+    r.paster.set_selected(FakeSelected::Text("SECRET la reunion est annulee".into()));
+    r
+}
+
+fn rewrite_requests(r: &Rig) -> Vec<scriibe_engines::http::HttpRequest> {
+    r.world.requests().into_iter().filter(|q| q.url.contains("/v1/chat/completions")).filter(|q| !q.body.is_empty()).collect()
+}
+
+fn nothing_said_or_selected_in(r: &Rig) {
+    let traces = format!("{}|{:?}|{:?}", r.world.log.lines().join("\n"), r.indicator.states(), r.history.items());
+    assert!(!traces.contains("SECRET") && !traces.contains("amical"), "trace de la sélection ou de la consigne : {traces}");
+}
+
+/// Sous la touche, avec une sélection, une consigne libre reformule la sélection avec le moteur de cet ordinateur : la réponse remplace la
+/// sélection par un collage transitoire ; rien dans l'historique ; ni le journal ni la pastille ne contiennent la sélection ou la consigne.
+#[test]
+fn under_the_command_key_an_instruction_rewrites_the_selection_with_an_engine_on_this_computer() {
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    r.dictate_under_key();
+    assert_eq!(r.paster.pasted_transient(), vec!["Coucou ! La réunion est annulée.".to_string()]);
+    assert!(r.paster.pasted().is_empty(), "jamais un collage ordinaire");
+    assert!(r.history.items().is_empty());
+    assert_eq!(r.paster.selected_reads(), 1);
+    let requests = rewrite_requests(&r);
+    let sent: Vec<&scriibe_engines::http::HttpRequest> =
+        requests.iter().filter(|q| String::from_utf8_lossy(&q.body).contains("<consigne>")).collect();
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].url.starts_with("http://127.0.0.1:1234/"));
+    assert!(!sent[0].follow_redirects);
+    assert!(r.indicator.states().contains(&IndicatorState::Done));
+    assert!(r.world.log.lines().iter().any(|l| l.contains("commande: reformulation collée")), "{:?}", r.world.log.lines());
+    nothing_said_or_selected_in(&r);
+    assert!(!r.controller.is_busy());
+}
+
+/// Linux ne lit pas la sélection : « Non disponible sous Linux », sans rien lire ni envoyer.
+#[test]
+fn under_the_command_key_a_rewrite_is_not_available_where_the_selection_cannot_be_read() {
+    let r = rewrite_rig("Rends ça plus amical", "Coucou !", command_settings());
+    r.paster.set_reads_selection(false);
+    r.dictate_under_key();
+    assert!(r.indicator.states().contains(&message("Non disponible sous Linux")), "{:?}", r.indicator.states());
+    assert_eq!(r.paster.selected_reads(), 0);
+    assert!(rewrite_requests(&r).iter().all(|q| !String::from_utf8_lossy(&q.body).contains("<consigne>")));
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty());
+}
+
+/// Sans sélection, une consigne n'est pas une commande (« Commande inconnue ») ; sélection illisible : « Sélection illisible ». Le modèle
+/// n'est jamais appelé.
+#[test]
+fn under_the_command_key_an_instruction_without_a_readable_selection_sends_nothing() {
+    for (selected, expected) in [
+        (FakeSelected::NoSelection, "Commande inconnue"),
+        (FakeSelected::Text("   ".into()), "Commande inconnue"),
+        (FakeSelected::Unreadable(Unreadable::ClipboardNotText), "Sélection illisible"),
+    ] {
+        let r = rewrite_rig("cherche les fautes", "x", command_settings());
+        r.paster.set_selected(selected);
+        r.dictate_under_key();
+        assert!(r.indicator.states().contains(&message(expected)), "{expected} : {:?}", r.indicator.states());
+        assert!(r.cleanup_requests().is_empty());
+        assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty());
+    }
+}
+
+/// Un moteur hors de cet ordinateur sans accord (un LM Studio sur une autre machine de la maison) : rien n'est envoyé, rien n'est remplacé,
+/// message fixe qui renvoie au réglage. Avec l'accord lié à ce moteur, la reformulation se fait.
+#[test]
+fn under_the_command_key_an_engine_elsewhere_needs_its_consent() {
+    let remote = AppSettings { lm_studio_url: "http://192.168.1.20:1234".into(), lm_studio_model: "gemma".into(), ..command_settings() };
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", remote.clone());
+    r.dictate_under_key();
+    assert!(
+        r.indicator
+            .states()
+            .contains(&message("Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs)")),
+        "{:?}",
+        r.indicator.states()
+    );
+    assert!(rewrite_requests(&r).iter().all(|q| !String::from_utf8_lossy(&q.body).contains("SECRET")), "la sélection n'est pas partie");
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty() && r.paster.copied().is_empty());
+    nothing_said_or_selected_in(&r);
+    let mut given = remote;
+    given.rewrite_consent = scriibe_core::rewrite::binding(&given);
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", given);
+    r.dictate_under_key();
+    assert_eq!(r.paster.pasted_transient(), vec!["Coucou ! La réunion est annulée.".to_string()]);
+}
+
+/// La personne a changé d'application pendant l'appel au modèle : le texte n'est pas collé dans la nouvelle application, il est seulement
+/// copié, avec un message fixe.
+#[test]
+fn under_the_command_key_a_rewrite_is_only_copied_when_the_foreground_application_changed() {
+    let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", command_settings());
+    *r.switch_app_during_model.lock().unwrap() = Some(AppInfo { name: "Messages".into(), id: Some("com.apple.MobileSMS".into()) });
+    r.dictate_under_key();
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty(), "rien n'est collé dans une autre application");
+    assert_eq!(r.paster.copied(), vec!["Coucou ! La réunion est annulée.".to_string()]);
+    let shortcut = if cfg!(target_os = "macos") { "⌘V" } else { "Ctrl+V" };
+    assert!(
+        r.indicator.states().contains(&message(&format!("Reformulation copiée : l'application a changé, à coller avec {shortcut}"))),
+        "{:?}",
+        r.indicator.states()
+    );
+    nothing_said_or_selected_in(&r);
+}
+
+/// Réponse écartée, identique, moteur en panne : la sélection reste intacte (rien n'est collé ni copié), message fixe.
+#[test]
+fn under_the_command_key_a_failed_rewrite_replaces_nothing() {
+    for (answer, expected) in [
+        ("Voici une version plus amicale : coucou !", "Reformulation impossible : réponse du modèle écartée"),
+        ("SECRET la reunion est annulee", "Rien à changer"),
+    ] {
+        let r = rewrite_rig("Rends ça plus amical", answer, command_settings());
+        r.dictate_under_key();
+        assert!(r.indicator.states().contains(&message(expected)), "{expected} : {:?}", r.indicator.states());
+        assert!(r.paster.pasted_transient().is_empty() && r.paster.pasted().is_empty() && r.paster.copied().is_empty());
+        nothing_said_or_selected_in(&r);
+    }
+    let r = rewrite_rig("Rends ça plus amical", "Coucou !", command_settings());
+    r.cleanup_fails.store(true, Ordering::SeqCst);
+    r.dictate_under_key();
+    assert!(r.indicator.states().contains(&message("Reformulation impossible — LM Studio : erreur 500")), "{:?}", r.indicator.states());
+    assert!(r.paster.pasted_transient().is_empty() && r.paster.copied().is_empty());
+    let r = rewrite_rig("Rends ça plus amical", "Coucou !", command_settings());
+    r.paster.set_selected(FakeSelected::Text("a".repeat(scriibe_core::rewrite::MAX_SELECTION_CHARS + 1)));
+    r.dictate_under_key();
+    assert!(r.indicator.states().contains(&message("Sélection trop longue pour la reformulation (3 000 signes au plus)")));
+    assert!(r.cleanup_requests().is_empty());
 }

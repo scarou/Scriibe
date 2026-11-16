@@ -813,6 +813,13 @@ fn status(ctx: &Context) -> Value {
         "pause_media": settings.pause_media,
         "whisper": {"binary": whisper_binary.map(|p| p.display().to_string()), "models": whisper_models, "chosen": settings.whisper_model_path},
         "llama": {"binary": llama_binary.map(|p| p.display().to_string()), "models": llama_models, "chosen": settings.llama_cpp_model},
+        // Reformulation de la sélection : la case « Autoriser l'envoi de la sélection à ce moteur » n'apparaît que pour un moteur hors de
+        // cet ordinateur ; `given` dit si l'accord rangé vaut pour le moteur, le modèle et l'adresse choisis.
+        "rewrite": {
+            "available": !cfg!(target_os = "linux"),
+            "needsConsent": scriibe_core::rewrite::needs_consent(&settings),
+            "given": scriibe_core::rewrite::consent_matches(&settings),
+        },
         "keys": {"deepgram": key(KeyKind::Deepgram), "openrouter": key(KeyKind::OpenRouter)},
         "microphones": app.platform.recorder.microphones().iter().map(|m| m.label()).collect::<Vec<_>>(),
         "microphone_list": app.platform.recorder.microphones().iter().map(|m| json!({"uid": m.uid, "label": m.label()})).collect::<Vec<_>>(),
@@ -844,7 +851,18 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
     let Some(changes) = changes.as_object() else { return Err("changements illisibles".into()) };
     let mut merged = serde_json::to_value(before).map_err(|e| e.to_string())?;
     let object = merged.as_object_mut().ok_or("réglages illisibles")?;
+    // L'accord de la reformulation (chantier 6, étape 4) ne s'écrit que par `true` (pour le moteur, le modèle et l'adresse choisis, après
+    // les autres changements) ou `false` : la page ne peut pas donner un accord pour un autre moteur que celui qu'elle montre.
+    let consent = match changes.get("rewriteConsent") {
+        None => None,
+        Some(Value::Bool(given)) => Some(*given),
+        Some(Value::Null) => Some(false),
+        Some(_) => return Err("accord illisible".into()),
+    };
     for (key, value) in changes {
+        if key == "rewriteConsent" {
+            continue;
+        }
         // Le numéro de version du fichier et l'utilisateur actif ne sont pas des réglages : la page ne les change jamais (la migration
         // et, plus tard, la route de changement d'utilisateur les écrivent seules). Ignorés sans erreur : la page peut renvoyer le bloc entier.
         if key == "schemaVersion" || key == "activeProfile" {
@@ -860,7 +878,12 @@ fn merge_settings(before: &AppSettings, changes: &Value) -> Result<AppSettings, 
     if changes.get("llamaDevice").and_then(Value::as_str).is_some_and(|d| !is_device_name(d)) {
         return Err("appareil invalide".into());
     }
-    let merged = AppSettings::from_value(&merged).ok_or_else(|| "réglages illisibles".to_string())?;
+    let mut merged = AppSettings::from_value(&merged).ok_or_else(|| "réglages illisibles".to_string())?;
+    match consent {
+        Some(true) => merged.rewrite_consent = scriibe_core::rewrite::binding(&merged),
+        Some(false) => merged.rewrite_consent = None,
+        None => {}
+    }
     scriibe_platform::keys::validate(&merged.dictation_keys, &merged.translate_keys, &merged.command_keys)?;
     Ok(merged)
 }
@@ -1629,6 +1652,36 @@ mod tests {
         }));
         assert_eq!(cleaned.words, vec!["Scriibe", "Tauri"], "espaces retirés, mot vide et doublon (majuscules ignorées) écartés");
         assert_eq!(cleaned.corrections, vec![Correction { heard: "cri be".into(), written: "Scriibe".into() }]);
+    }
+
+    /// L'accord de la reformulation (chantier 6, étape 4) : la page n'envoie que `true` ou `false` ; le serveur le lie au moteur, au modèle
+    /// et à l'adresse choisis **après** les autres changements ; un accord fabriqué par la page (un objet) est refusé.
+    #[test]
+    fn the_rewrite_consent_is_given_only_for_the_engine_shown_and_falls_when_it_changes() {
+        let before = AppSettings::default();
+        let given = merge_settings(&before, &json!({"rewriteConsent": true})).unwrap();
+        assert_eq!(given.rewrite_consent, scriibe_core::rewrite::binding(&before));
+        assert!(scriibe_core::rewrite::consent_matches(&given));
+        let forged = json!({"rewriteConsent": {"engine": "lmStudio", "model": "x", "address": "http://evil.example"}});
+        assert!(merge_settings(&before, &forged).is_err());
+        assert!(merge_settings(&given, &json!({"rewriteConsent": "oui"})).is_err());
+        assert_eq!(merge_settings(&given, &json!({"rewriteConsent": false})).unwrap().rewrite_consent, None);
+        assert_eq!(merge_settings(&given, &json!({"rewriteConsent": null})).unwrap().rewrite_consent, None);
+        assert_eq!(merge_settings(&given, &json!({"cleanupModel": "autre/modele"})).unwrap().rewrite_consent, None, "tombe");
+        assert_eq!(merge_settings(&given, &json!({"pauseMedia": true})).unwrap().rewrite_consent, given.rewrite_consent, "gardé");
+        let both = merge_settings(
+            &before,
+            &json!({"cleanupEngine": "lmStudio", "lmStudioURL": "http://192.168.1.20:1234", "lmStudioModel": "g", "rewriteConsent": true}),
+        )
+        .unwrap();
+        let consent = both.rewrite_consent.unwrap();
+        assert_eq!(
+            (consent.address.as_str(), consent.model.as_str()),
+            ("http://192.168.1.20:1234", "g"),
+            "lié au moteur d'après les changements"
+        );
+        let llama = merge_settings(&before, &json!({"cleanupEngine": "llamaCpp", "rewriteConsent": true})).unwrap();
+        assert_eq!(llama.rewrite_consent, None, "llama.cpp est toujours sur cet ordinateur : pas d'accord");
     }
 
     #[test]

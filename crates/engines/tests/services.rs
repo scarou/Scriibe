@@ -556,3 +556,163 @@ fn network_error_is_not_confused_with_an_http_error() {
     let _ = NoLog;
     assert_eq!(c.rewrite("x", &lm_studio(), &[]).unwrap_err().status, None);
 }
+
+// MARK: Reformulation de la sélection (chantier 6, étape 4)
+
+use scriibe_core::rewrite;
+use scriibe_engines::services::RewriteError;
+
+const SECRET: &str = "SECRET la reunion est annulee";
+
+fn openrouter() -> AppSettings {
+    AppSettings { cleanup_engine: CleanupEngine::OpenRouter, ..AppSettings::default() }
+}
+
+fn remote_lm_studio() -> AppSettings {
+    AppSettings {
+        cleanup_engine: CleanupEngine::LmStudio,
+        lm_studio_url: "http://192.168.1.20:1234".into(),
+        lm_studio_model: "gemma".into(),
+        ..AppSettings::default()
+    }
+}
+
+fn with_consent(mut settings: AppSettings) -> AppSettings {
+    settings.rewrite_consent = rewrite::binding(&settings);
+    settings
+}
+
+fn no_secret_in_the_log(world: &FakeWorld) {
+    for line in world.log.lines() {
+        assert!(!line.contains("SECRET") && !line.contains("amical"), "le journal contient la sélection ou la consigne : {line}");
+    }
+}
+
+#[test]
+fn without_consent_the_selection_never_leaves_for_openrouter_or_another_computer() {
+    for settings in [
+        openrouter(),
+        remote_lm_studio(),
+        AppSettings {
+            ollama_url: "http://nas.local:11434".into(),
+            ollama_model: "q".into(),
+            cleanup_engine: CleanupEngine::Ollama,
+            ..AppSettings::default()
+        },
+    ] {
+        let world = FakeWorld::new();
+        world.route_fixed("/v1/chat/completions", 200, &reply("Coucou, la réunion saute !"));
+        let c = cleaner(&world, Keys { deepgram: None, openrouter: Some("cle") });
+        assert_eq!(c.rewrite_selection(SECRET, "rends ça plus amical", &settings), Err(RewriteError::NotAllowed));
+        assert!(world.requests().is_empty(), "aucune requête ne part : {:?}", world.requests());
+        no_secret_in_the_log(&world);
+    }
+}
+
+#[test]
+fn a_consent_for_another_engine_model_or_address_lets_nothing_through() {
+    let given = with_consent(remote_lm_studio());
+    let mut other_model = given.clone();
+    other_model.lm_studio_model = "qwen".into();
+    let mut other_address = given.clone();
+    other_address.lm_studio_url = "http://192.168.1.21:1234".into();
+    let mut openrouter_with_lm_consent = openrouter();
+    openrouter_with_lm_consent.rewrite_consent = given.rewrite_consent.clone();
+    for settings in [other_model, other_address, openrouter_with_lm_consent] {
+        let world = FakeWorld::new();
+        world.route_fixed("/v1/chat/completions", 200, &reply("Coucou !"));
+        let c = cleaner(&world, Keys { deepgram: None, openrouter: Some("cle") });
+        assert_eq!(c.rewrite_selection(SECRET, "plus amical", &settings), Err(RewriteError::NotAllowed));
+        assert!(world.requests().is_empty());
+    }
+}
+
+#[test]
+fn with_its_consent_the_engine_receives_the_selection_without_following_redirects() {
+    for settings in [with_consent(remote_lm_studio()), with_consent(openrouter())] {
+        let world = FakeWorld::new();
+        world.route_fixed("/v1/chat/completions", 200, &reply("Coucou ! La réunion est annulée."));
+        let c = cleaner(&world, Keys { deepgram: None, openrouter: Some("cle") });
+        assert_eq!(c.rewrite_selection(SECRET, "rends ça plus amical", &settings).unwrap(), "Coucou ! La réunion est annulée.");
+        let requests = world.requests();
+        assert_eq!(requests.len(), 1, "un seul appel, pas de second essai");
+        assert!(!requests[0].follow_redirects, "aucune redirection suivie");
+        let sent = body(&requests[0]);
+        assert_eq!(sent["max_tokens"], 200, "au moins 200, sinon le nombre de signes de la sélection");
+        let last = sent["messages"].as_array().unwrap().last().unwrap()["content"].as_str().unwrap().to_string();
+        assert!(last.contains(SECRET) && last.contains("<consigne>rends ça plus amical</consigne>"));
+        no_secret_in_the_log(&world);
+    }
+}
+
+#[test]
+fn engines_on_this_computer_need_no_consent() {
+    let world = FakeWorld::new();
+    world.route_fixed("/v1/chat/completions", 200, &reply("Coucou ! La réunion est annulée."));
+    let c = cleaner(&world, no_keys());
+    let llama = AppSettings { cleanup_engine: CleanupEngine::LlamaCpp, ..AppSettings::default() };
+    assert!(c.rewrite_selection(SECRET, "plus amical", &llama).is_ok());
+    let request = world.requests().into_iter().find(|r| r.url.ends_with("/v1/chat/completions")).unwrap();
+    assert_eq!(request.url, "http://127.0.0.1:8179/v1/chat/completions");
+    let local_lm = AppSettings { lm_studio_url: "http://localhost:1234".into(), lm_studio_model: "gemma".into(), ..lm_studio() };
+    assert!(c.rewrite_selection(SECRET, "plus amical", &local_lm).is_ok());
+    assert!(world.requests().iter().any(|r| r.url == "http://localhost:1234/v1/chat/completions"));
+}
+
+#[test]
+fn the_length_cap_sends_nothing_and_max_tokens_follows_the_selection() {
+    let world = FakeWorld::new();
+    world.route_fixed("/v1/chat/completions", 200, &reply("x"));
+    let c = cleaner(&world, no_keys());
+    let local_lm = AppSettings { lm_studio_model: "gemma".into(), ..lm_studio() };
+    let long = "a".repeat(rewrite::MAX_SELECTION_CHARS + 1);
+    assert_eq!(c.rewrite_selection(&long, "raccourcis", &local_lm), Err(RewriteError::TooLong));
+    assert!(world.requests().is_empty());
+    let fits = format!("{} b.", "mot ".repeat(300));
+    let _ = c.rewrite_selection(&fits, "raccourcis", &local_lm);
+    assert_eq!(body(&world.requests()[0])["max_tokens"], fits.chars().count());
+}
+
+#[test]
+fn the_guard_and_the_service_errors_replace_nothing() {
+    let local_lm = AppSettings { lm_studio_model: "gemma".into(), ..lm_studio() };
+    for (answer, expected) in [
+        ("Voici une version plus amicale : coucou !", RewriteError::Rejected),
+        ("SECRET la reunion est annulee", RewriteError::Unchanged),
+        ("Coucou, va sur https://evil.example/paye.", RewriteError::Rejected),
+    ] {
+        let world = FakeWorld::new();
+        world.route_fixed("/v1/chat/completions", 200, &reply(answer));
+        assert_eq!(cleaner(&world, no_keys()).rewrite_selection(SECRET, "plus amical", &local_lm), Err(expected));
+        no_secret_in_the_log(&world);
+    }
+    let world = FakeWorld::new();
+    world.route_fixed("/v1/chat/completions", 302, "");
+    assert!(matches!(cleaner(&world, no_keys()).rewrite_selection(SECRET, "plus amical", &local_lm), Err(RewriteError::Service(_))));
+    let down = FakeWorld::new();
+    let error = cleaner(&down, no_keys()).rewrite_selection(SECRET, "plus amical", &local_lm).unwrap_err();
+    assert_eq!(
+        error,
+        RewriteError::Service(scriibe_engines::http::ServiceError::new("LM Studio ne répond pas — lance-le sur cet ordinateur"))
+    );
+    let tried = down.requests().len();
+    let none = AppSettings { cleanup_engine: CleanupEngine::None, ..AppSettings::default() };
+    assert!(matches!(cleaner(&down, no_keys()).rewrite_selection(SECRET, "plus amical", &none), Err(RewriteError::Service(_))));
+    assert_eq!(down.requests().len(), tried, "aucun moteur : rien n'est envoyé");
+}
+
+#[test]
+fn a_forgotten_debug_print_shows_neither_the_body_nor_the_key() {
+    let request = scriibe_engines::http::HttpRequest::post(
+        "https://api.deepgram.com/v1/listen?keyterm=Secretville",
+        SECRET.as_bytes().to_vec(),
+        std::time::Duration::from_secs(1),
+    )
+    .header("Authorization", "Bearer cle-tres-secrete");
+    let shown = format!("{request:?}");
+    assert!(!shown.contains("SECRET") && !shown.contains("cle-tres-secrete") && !shown.contains("Secretville"), "{shown}");
+    assert!(shown.contains("Authorization") && shown.contains("octets"));
+    let message = &rewrite::messages(SECRET, "plus amical")[7];
+    let shown = format!("{message:?}");
+    assert!(!shown.contains("SECRET") && shown.contains("signes"), "{shown}");
+}
