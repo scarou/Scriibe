@@ -773,7 +773,7 @@ fn status(ctx: &Context) -> Value {
         "gnome_translate_shortcut": gnome_translate_shortcut(),
         "translate_label": if let Some(shortcut) = gnome_translate_shortcut() { shortcut } else if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
         "gnome_command_shortcut": gnome_command_shortcut(),
-        "command_label": if let Some(shortcut) = gnome_command_shortcut() { shortcut } else if settings.command_keys.is_empty() { scriibe_platform::keys::default_command_label().to_string() } else { scriibe_platform::keys::label(&settings.command_keys) },
+        "command_label": if let Some(shortcut) = gnome_command_shortcut() { shortcut } else { scriibe_platform::keys::command_label(&settings).unwrap_or_default() },
         "default_command_label": scriibe_platform::keys::default_command_label(),
         "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "default_dictation_label": scriibe_platform::keys::default_dictation_label(),

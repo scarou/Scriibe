@@ -377,7 +377,7 @@ impl Layout {
     /// traduction par défaut, et jamais une touche qui ouvre un menu (Alt gauche) ou sert à AltGr (Ctrl gauche sous Windows).
     /// - Mac : Maj gauche seule (⌘ traduit ; Ctrl + Option est le raccourci de VoiceOver ; décision de l'auteur à l'essai, 15/11 :
     ///   une combinaison « Option droite + Maj gauche », Maj droit reste libre pour taper) ;
-    /// - Windows : Windows droite (le crochet masque déjà son menu) ;
+    /// - Windows : Windows droite (le crochet ne masque son menu Démarrer que derrière une dictée tenue : `CommandMenuMask`) ;
     /// - Linux : Ctrl gauche (X11 ; sous Wayland c'est un troisième raccourci de GNOME).
     pub fn default_command(&self) -> Vec<Key> {
         if self.mac {
@@ -538,6 +538,12 @@ pub struct HookRules {
     /// Alt gauche ou Windows font partie des touches : un appui sans autre touche ouvrirait le menu de l'appli ou le menu Démarrer, et
     /// ferait perdre le focus au collage. Le crochet glisse alors une touche sans effet pendant l'appui, ce qui annule cette ouverture.
     pub mask_menu: bool,
+    /// Les touches de **commande** qui ouvrent un menu (Windows, Alt gauche). Elles ne sont pas dans `mask_menu` : la touche de commande par
+    /// défaut de Windows (Windows droite) masquerait le menu Démarrer pour tout le monde, tout le temps. Le crochet ne les masque que si la
+    /// dictée a été tenue pendant qu'elles l'étaient (voir `CommandMenuMask`).
+    pub command_menu: Vec<u32>,
+    /// Les touches de dictée (codes), pour savoir si la dictée est tenue.
+    pub dictation: Vec<u32>,
     /// Les touches ordinaires de la combinaison (F9, « < > »…) : le crochet les retient quand le reste de la combinaison est tenu, pour
     /// qu'elles n'écrivent rien dans l'appli.
     pub swallow: Vec<u32>,
@@ -549,15 +555,51 @@ pub struct HookRules {
 
 pub fn hook_rules(binding: &Binding) -> HookRules {
     let codes: Vec<u32> = binding.dictation.iter().filter_map(|k| vk_of(*k)).collect();
-    let translate: Vec<u32> = binding.translate.iter().chain(binding.command.iter()).filter_map(|k| vk_of(*k)).collect();
+    let translate: Vec<u32> = binding.translate.iter().filter_map(|k| vk_of(*k)).collect();
+    let command: Vec<u32> = binding.command.iter().filter_map(|k| vk_of(*k)).collect();
     let is_menu_key = |code: &u32| [VK_LMENU, VK_LWIN, VK_RWIN].contains(code);
     let is_plain = |code: &u32| find_by_vk(*code).is_some_and(|c| !c.modifier);
     let plain: Vec<u32> = codes.iter().copied().filter(is_plain).collect();
     HookRules {
         mask_menu: codes.iter().chain(translate.iter()).any(is_menu_key),
+        command_menu: command.iter().copied().filter(is_menu_key).filter(|c| !codes.contains(c) && !translate.contains(c)).collect(),
+        dictation: codes.clone(),
         needs: if plain.is_empty() { Vec::new() } else { codes.iter().copied().filter(|c| !plain.contains(c)).collect() },
         swallow: plain,
         binding: Some(binding.clone()),
+    }
+}
+
+/// Suit les touches de commande qui ouvrent un menu (Windows, Alt gauche) : le crochet glisse une touche sans effet au relâchement de la
+/// touche de commande **seulement si la dictée a été tenue pendant qu'elle l'était** (une commande donnée), jamais pour un appui seul sur
+/// Windows ou Alt (menu Démarrer, barre de menus).
+#[derive(Debug, Default)]
+pub struct CommandMenuMask {
+    /// Touches de commande de menu tenues, avec : la dictée a-t-elle été tenue pendant ce temps ?
+    held: Vec<(u32, bool)>,
+}
+
+impl CommandMenuMask {
+    /// À appeler à chaque événement, **après** la mise à jour des touches tenues (`held`). Vrai : glisser la touche sans effet maintenant.
+    pub fn event(&mut self, rules: &HookRules, held: &[Key], code: u32, down: bool) -> bool {
+        let dictation_held = !rules.dictation.is_empty() && rules.dictation.iter().all(|c| held.contains(&key_of(*c)));
+        if rules.command_menu.contains(&code) {
+            if down {
+                if !self.held.iter().any(|(c, _)| *c == code) {
+                    self.held.push((code, dictation_held));
+                }
+                return false;
+            }
+            let used = self.held.iter().find(|(c, _)| *c == code).is_some_and(|(_, used)| *used);
+            self.held.retain(|(c, _)| *c != code);
+            return used;
+        }
+        if down && dictation_held {
+            for entry in self.held.iter_mut() {
+                entry.1 = true;
+            }
+        }
+        false
     }
 }
 
@@ -632,6 +674,20 @@ pub fn default_command_label() -> &'static str {
     }
 }
 
+/// Le nom de la touche de commande **réellement en vigueur** (celle du réglage, sinon celle par défaut), ou `None` : aucune (la touche par
+/// défaut sert déjà à dicter ou à traduire, et la personne n'en a pas choisi d'autre). La page ne doit jamais afficher une touche qui ne
+/// commande pas.
+pub fn command_label(settings: &AppSettings) -> Option<String> {
+    let effective = binding(settings).command;
+    if effective.is_empty() {
+        None
+    } else if settings.command_keys.is_empty() || effective == layout().default_command() {
+        Some(default_command_label().to_string())
+    } else {
+        Some(label(&settings.command_keys))
+    }
+}
+
 /// La touche de traduction par défaut du système (Commande, à gauche ou à droite, sur Mac), pour l'affichage.
 pub fn default_translate_label() -> &'static str {
     if cfg!(target_os = "macos") {
@@ -658,9 +714,7 @@ mod tests {
     }
 
     fn custom_binding(dictation: &[String], translate: &[String]) -> Option<Binding> {
-        // Une touche de commande sans effet sur les menus (F12) : la touche par défaut de Windows (Windows droite) masquerait le menu
-        // Démarrer et fausserait les tests des règles du crochet, qui ne portent que sur la dictée et la traduction.
-        WINDOWS_LAYOUT.custom_binding(dictation, translate, &ids(&["f12"]))
+        WINDOWS_LAYOUT.custom_binding(dictation, translate, &[])
     }
 
     fn id_of(key: Key) -> Option<&'static str> {
@@ -806,7 +860,7 @@ mod tests {
     fn the_hook_masks_the_menu_keys_and_holds_back_ordinary_keys_of_the_combination() {
         let rules = |dictation: &[&str], translate: &[&str]| hook_rules(&custom_binding(&ids(dictation), &ids(translate)).unwrap());
         let plain = rules(&["right_control"], &[]);
-        assert_eq!(HookRules { binding: None, ..plain.clone() }, HookRules::default());
+        assert_eq!(HookRules { binding: None, dictation: Vec::new(), ..plain.clone() }, HookRules::default());
         assert_eq!(plain.binding.map(|b| b.dictation), Some(vec![Key::RightControl]), "les touches en vigueur suivent (Wayland)");
         assert!(rules(&["left_win"], &[]).mask_menu);
         assert!(rules(&["left_control", "f9"], &["left_alt"]).mask_menu, "Alt gauche pour traduire compte aussi");
@@ -1084,11 +1138,49 @@ mod tests {
     }
 
     #[test]
-    fn a_command_key_that_opens_a_menu_is_masked_by_the_hook() {
+    fn a_command_key_that_opens_a_menu_is_masked_only_when_a_command_was_given() {
         let binding = Binding { command: vec![Key::Vk(VK_RWIN)], ..Binding::from_hotkey(Hotkey::RightControl) };
-        assert!(hook_rules(&binding).mask_menu, "Windows droite ouvrirait le menu Démarrer");
+        let rules = hook_rules(&binding);
+        // Windows droite par défaut ne masque plus le menu Démarrer en permanence : seulement derrière une dictée tenue.
+        assert!(!rules.mask_menu, "un appui seul sur Windows doit rester libre");
+        assert_eq!(rules.command_menu, vec![VK_RWIN]);
+        let win = Key::Vk(VK_RWIN);
+        let dictation = Key::RightControl;
+        let mut mask = CommandMenuMask::default();
+        // Appui seul : le menu Démarrer s'ouvre.
+        assert!(!mask.event(&rules, &[win], VK_RWIN, true));
+        assert!(!mask.event(&rules, &[], VK_RWIN, false));
+        // Commande donnée (dictée tenue, puis Windows) : relâchement masqué.
+        assert!(!mask.event(&rules, &[dictation, win], VK_RWIN, true));
+        assert!(mask.event(&rules, &[dictation], VK_RWIN, false));
+        // Windows tenue d'abord, dictée ensuite : masqué aussi.
+        assert!(!mask.event(&rules, &[win], VK_RWIN, true));
+        assert!(!mask.event(&rules, &[win, dictation], vk::RCONTROL, true));
+        assert!(mask.event(&rules, &[dictation], VK_RWIN, false));
+        // Dictée relâchée avant Windows : masqué encore (la commande a été donnée).
+        assert!(!mask.event(&rules, &[dictation, win], VK_RWIN, true));
+        assert!(!mask.event(&rules, &[win], vk::RCONTROL, false));
+        assert!(mask.event(&rules, &[], VK_RWIN, false));
+        // L'état est remis à zéro : l'appui seul suivant n'est pas masqué.
+        assert!(!mask.event(&rules, &[win], VK_RWIN, true));
+        assert!(!mask.event(&rules, &[], VK_RWIN, false));
+        // Une touche de commande qui n'ouvre aucun menu n'est jamais suivie.
         let binding = Binding { command: vec![Key::LeftControl], ..Binding::from_hotkey(Hotkey::RightControl) };
         assert!(!hook_rules(&binding).mask_menu);
+        assert!(hook_rules(&binding).command_menu.is_empty());
         assert!(hook_rules(&binding).binding.is_some_and(|b| b.command == vec![Key::LeftControl]));
+    }
+
+    #[test]
+    fn the_displayed_command_key_is_the_one_in_force() {
+        let mut settings = AppSettings::default();
+        assert_eq!(command_label(&settings).as_deref(), Some(default_command_label()));
+        if cfg!(any(windows, target_os = "macos")) {
+            // La touche de commande par défaut sert à dicter : il n'y en a plus, et la page ne doit pas en afficher une.
+            let id = id_of(layout().default_command()[0]).unwrap();
+            settings.dictation_keys = ids(&[id]);
+            assert_eq!(binding(&settings).command, Vec::<Key>::new());
+            assert_eq!(command_label(&settings), None);
+        }
     }
 }

@@ -655,6 +655,7 @@ export const en: Record<string, string> = {
   'Changer…': 'Change…',
   'Touche tenue en plus pour traduire :': 'Key held in addition to translate:',
   'Touche tenue en plus pour dicter une commande :': 'Key held in addition to dictate a command:',
+  'aucune (à choisir)': 'none (to be chosen)',
   'Appuie sur la touche ou la combinaison voulue, puis relâche tout.': 'Press the key or combination you want, then release everything.',
   'Appuie sur la touche à tenir en plus, puis relâche tout.': 'Press the key to hold in addition, then release everything.',
   'Aucune touche reçue. Sur la plupart des portables, la touche Fn est gérée par le clavier lui-même : Windows ne la voit pas. Essaie une autre touche (Windows, Ctrl gauche, une touche de fonction…). Les touches Windows et Alt gauche se captent aussi depuis une autre fenêtre : passe dans le Bloc-notes, appuie sur la touche, puis reviens ici.':

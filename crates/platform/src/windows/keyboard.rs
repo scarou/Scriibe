@@ -2,7 +2,9 @@
 //! Le crochet ne retient jamais une touche (il rend toujours la main) et ignore les touches envoyées par programme
 //! (notre propre Ctrl+V). Windows retire un crochet trop lent : le rappel ne fait que poster l'événement.
 
-use crate::keys::{current_hook_rules, key_of, translate_vk, KeyEvent, KeyListener, Subscription, VK_LMENU, VK_LWIN, VK_RWIN};
+use crate::keys::{
+    current_hook_rules, key_of, translate_vk, CommandMenuMask, KeyEvent, KeyListener, Subscription, VK_LMENU, VK_LWIN, VK_RWIN,
+};
 use scriibe_core::hotkey::Key;
 use std::cell::RefCell;
 use std::sync::mpsc::{self, Sender};
@@ -24,6 +26,8 @@ thread_local! {
     static HELD: RefCell<Vec<Key>> = const { RefCell::new(Vec::new()) };
     /// Les touches ordinaires de la combinaison dont l'appui a été retenu (leur relâchement l'est aussi).
     static SWALLOWED: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+    /// Les touches de commande de menu (Windows, Alt gauche) tenues pendant la dictée : leur relâchement est masqué, pas un appui seul.
+    static COMMAND_MENU: RefCell<CommandMenuMask> = RefCell::new(CommandMenuMask::default());
 }
 
 /// Glisse une touche sans effet (code 0xE8, non attribué) entre l'appui et le relâchement d'Alt ou de Windows : sans autre touche entre les
@@ -55,6 +59,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                 let code = info.vkCode;
                 let rules = current_hook_rules();
                 let mut swallow = false;
+                let mut mask_command = false;
                 let event = HELD.with(|held| {
                     let mut held = held.borrow_mut();
                     if rules.swallow.contains(&code) {
@@ -73,9 +78,11 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                             }
                         });
                     }
-                    translate_vk(&mut held, code, down)
+                    let event = translate_vk(&mut held, code, down);
+                    mask_command = COMMAND_MENU.with(|mask| mask.borrow_mut().event(&rules, &held, code, down));
+                    event
                 });
-                if up && rules.mask_menu && [VK_LMENU, VK_LWIN, VK_RWIN].contains(&code) {
+                if up && (mask_command || rules.mask_menu) && [VK_LMENU, VK_LWIN, VK_RWIN].contains(&code) {
                     mask_menu_key();
                 }
                 if let Some(event) = event {

@@ -37,7 +37,7 @@
   );
   let dictate = $derived(s?.dictation_label ?? defaultDictate);
   let translate = $derived(s?.translate_label ?? defaultTranslate);
-  let command = $derived(s?.command_label ?? defaultCommand);
+  let command = $derived(s ? (s.command_label || 'une touche de commande (aucune n’est réglée : à choisir dans Réglages → Dictée)') : defaultCommand);
   let language = $derived(
     ({ en: 'anglais', es: 'espagnol', de: 'allemand', it: 'italien', pt: 'portugais (Brésil)' } as Record<string, string>)[v?.translationLanguage ?? 'en'] ?? 'anglais',
   );

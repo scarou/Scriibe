@@ -141,7 +141,7 @@
     <button onclick={() => begin('translate')} disabled={kind === 'translate'}>{t('Changer…')}</button>
   </div>
   <div class="row">
-    <span>{t('Touche tenue en plus pour dicter une commande :')} <b>{keyName(s.command_label)}</b></span>
+    <span>{t('Touche tenue en plus pour dicter une commande :')} <b>{s.command_label ? keyName(s.command_label) : t('aucune (à choisir)')}</b></span>
     <button onclick={() => begin('command')} disabled={kind === 'command'}>{t('Changer…')}</button>
   </div>
 
