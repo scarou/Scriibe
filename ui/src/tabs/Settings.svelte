@@ -12,8 +12,8 @@
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
-  /** Les cartes à montrer : chaque page du menu en prend ses cartes (Dicter, Style d'écriture, Moteurs, Profil, Apparence, Données et système). */
-  let { section }: { section: 'dictation' | 'style' | 'engines' | 'keys' | 'places' | 'appearance' } = $props();
+  /** Les cartes à montrer : chaque page du menu en prend ses cartes (Dicter, Moteurs, Profil, Apparence, Données et système). */
+  let { section }: { section: 'dictation' | 'identity' | 'engines' | 'keys' | 'places' | 'appearance' } = $props();
 
   let s = $derived(status.value);
   let osName = $derived(status.os);
@@ -271,22 +271,6 @@
       </label>
     </div>
     <div class="setting">
-      <label>{t('Prénom dans la salutation :')}
-        <input type="text" value={v.firstName ?? ''} placeholder={status.value?.first_name ?? ''} maxlength="40" onchange={(e) => settings.change({ firstName: e.currentTarget.value.trim() })} />
-      </label>
-      <p class="muted">{t('Le Tableau de bord vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.')}</p>
-    </div>
-    <div class="setting">
-      <label>{t('Genre de la personne qui dicte :')}
-        <select value={v.speakerGender ?? 'unspecified'} onchange={(e) => settings.change({ speakerGender: e.currentTarget.value as never })}>
-          <option value="unspecified">{t('Non précisé')}</option>
-          <option value="masculine">{t('Masculin')}</option>
-          <option value="feminine">{t('Féminin')}</option>
-        </select>
-      </label>
-      <p class="muted">{t('Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui vous concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.')}</p>
-    </div>
-    <div class="setting">
       <label>{t('Traduire vers :')}
         <select value={v.translationLanguage} onchange={(e) => settings.change({ translationLanguage: e.currentTarget.value as never })}>
           {#each translations as l (l.id)}<option value={l.id}>{t(l.label)}</option>{/each}
@@ -332,15 +316,6 @@
   </Card>
   {/if}
 
-  {#if section === 'style'}
-  <Card help="modes" id="texte" title={t('Ce que devient ton texte')} intro={t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (plus bas, sur cette page). Le moteur de cette mise au propre se choisit dans Moteurs et modèles.')}>
-    <div class="row">
-      <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
-        {t('Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)')}</label>
-    </div>
-  </Card>
-  {/if}
-
   {#if section === 'appearance'}
   <Card id="indicateur" title={t('Apparence de l’indicateur')} help="indicator" intro={osName === 'macos' ? t('L’icône de la barre des menus change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : osName === 'linux' ? t('Il n’y a pas encore d’icône sous Linux. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}>
     <div class="row">
@@ -374,8 +349,29 @@
   </Card>
   {/if}
 
+  {#if section === 'identity'}
+  <Card id="profil-personne" title={t('Prénom et genre')} help="start" intro={t('Ce que Scriibe sait de la personne qui dicte : son prénom pour la salutation, son genre pour accorder les textes réécrits.')}>
+    <div class="setting">
+      <label>{t('Prénom dans la salutation :')}
+        <input type="text" value={v.firstName ?? ''} placeholder={status.value?.first_name ?? ''} maxlength="40" onchange={(e) => settings.change({ firstName: e.currentTarget.value.trim() })} />
+      </label>
+      <p class="muted">{t('L’Accueil vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.')}</p>
+    </div>
+    <div class="setting">
+      <label>{t('Genre de la personne qui dicte :')}
+        <select value={v.speakerGender ?? 'unspecified'} onchange={(e) => settings.change({ speakerGender: e.currentTarget.value as never })}>
+          <option value="unspecified">{t('Non précisé')}</option>
+          <option value="masculine">{t('Masculin')}</option>
+          <option value="feminine">{t('Féminin')}</option>
+        </select>
+      </label>
+      <p class="muted">{t('Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui vous concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.')}</p>
+    </div>
+  </Card>
+  {/if}
+
   {#if section === 'keys'}
-  <Card id="cles" title={t('Clés du cloud (dépannage)')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
+  <Card id="cles" title={t('Comptes en ligne')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
     <p class="muted">{osName === 'macos' ? t('Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.') : osName === 'linux' ? t('Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.') : t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}

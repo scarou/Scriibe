@@ -183,7 +183,7 @@
   {/if}
 
   {#each modes.groups as group, i (group.join())}
-    <Card id={'modes-groupe-' + i} title={i === 0 ? t('Modes de base') : t('Modes professionnels')} help="modes">
+    <Card id={'modes-groupe-' + i} title={i === 0 ? t('Modes de base') : t('Modes professionnels')} help="modes" intro={i === 0 ? t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi. Le moteur de cette mise au propre se choisit dans Moteurs et modèles.') : undefined}>
       {#each group as id (id)}
         {@const m = modes.built_in.find((x) => x.id === id)!}
         <div class="mode">
@@ -208,6 +208,12 @@
           {/if}
         </div>
       {/each}
+      {#if i === 0}
+        <div class="row">
+          <label><input type="checkbox" checked={v?.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
+            {t('Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)')}</label>
+        </div>
+      {/if}
     </Card>
   {/each}
 

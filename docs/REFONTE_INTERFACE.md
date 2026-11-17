@@ -876,3 +876,15 @@ Fait le 2026-11-17. La page Commandes vocales a ses 7 sections, chacune dans son
 - Tests : 4 nouveaux dans `tabs.test.ts` (ordre des 7 sections, le Dictionnaire sans commandes, touche et accord rapatriés, avertissement). `svelte-check` sans erreur, Vitest 117 tests verts, `npm run build` passe.
 - Vérifié à l'écran sur la page construite, sans serveur Scriibe : les 7 cartes s'affichent avec leurs titres et l'avertissement. Pas vu : le contenu qui dépend de l'API (listes de phrases, ajout, export, consentement, touche), à voir à l'essai sur le Mac (tâche 5).
 - À savoir : le réglage « Rétablir » de la touche de commande n'a pas été essayé sur machine ; il n'écrit que les touches de sa page.
+
+## Dicter, Profil, Style (tâche 3)
+
+Fait le 2026-11-17. Les cartes de l'ancienne carte Dictée sont réparties ; contenu et comportement des réglages inchangés.
+
+- **Dicter** : une carte « Dictée » (touches de dictée et de traduction, langue dictée, traduire vers, sons début et fin, volume, micro, pause des médias, presse-papiers). Le prénom et le genre en sont sortis (la touche de commande l'était depuis la tâche 2).
+- **Profil** : `Users` (Utilisateurs), puis nouvelle carte « Prénom et genre » (`profil-personne`, section `identity` de `Settings.svelte`), puis « Comptes en ligne » (l'ancienne carte « Clés du cloud (dépannage) », id `cles` conservé, clés Deepgram et OpenRouter).
+- **Style d'écriture** : plus de `Settings` sur cette page. Choix : la case « Sauter la mise au propre… » était seule dans sa carte ; elle est passée dans la carte « Modes de base » (avec Simple, sur lequel elle porte), qui reprend l'introduction de l'ancienne carte « Ce que devient ton texte » (carte supprimée). La fidélité était déjà dans Modes de base (mode Simple). L'ancre `texte` mène toujours à la page.
+- **Lien « changer » de l'Accueil** : vérifié, il mène à Profil (ancre `utilisateurs`, `goto('profile', 'utilisateurs')`), rien à changer.
+- Textes : Aide FR et EN (« Prénom dans la salutation » dans Dicter → Profil, carte « Prénom et genre ») ; en.ts : « Comptes en ligne », « Prénom et genre », intro de la carte, « Accueil vous salue », retrait des orphelines.
+- Tests : 5 nouveaux dans `tabs.test.ts`. `svelte-check` sans erreur, Vitest 122 verts, `npm run build` passe, `cargo test --workspace` tous verts.
+- Non vu à l'écran (API absente) : contenu des cartes, à voir à l'essai (tâche 5).

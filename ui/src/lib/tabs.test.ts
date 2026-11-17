@@ -9,6 +9,10 @@ import settingsTab from '../tabs/Settings.svelte?raw';
 import keyPicker from '../components/KeyPicker.svelte?raw';
 import activation from '../components/commands/ActivationCommands.svelte?raw';
 import rewrite from '../components/commands/RewriteCommands.svelte?raw';
+import profilePage from '../tabs/Profile.svelte?raw';
+import stylePage from '../tabs/StylePage.svelte?raw';
+import modesTab from '../tabs/Modes.svelte?raw';
+import dashboard from '../tabs/Dashboard.svelte?raw';
 import help from '../tabs/Help.svelte?raw';
 import helpEn from '../tabs/HelpEn.svelte?raw';
 
@@ -105,4 +109,41 @@ describe('Aide : sommaire fixe', () => {
       expect(narrow![2]).toMatch(/overflow-x:\s*auto/);
     });
   }
+});
+
+describe('pages Dicter, Profil et Style d’écriture (tâche 3)', () => {
+  const between = (src: string, from: string, to: string) => src.slice(src.indexOf(from), src.indexOf(to, src.indexOf(from)));
+  const dictation = between(settingsTab, "section === 'dictation'", "section === 'identity'");
+
+  it('Dicter garde touches de dictée et de traduction, langue, traduction, sons, volume, micro, médias, presse-papiers', () => {
+    for (const k of ["kinds={['dictation', 'translate']}", 'Langue dictée', 'Traduire vers', 'Son au début', 'Volume des sons', 'Micro :', 'pauseMedia', 'restoreClipboard'])
+      expect(dictation, k).toContain(k);
+    expect(dictation).not.toContain('firstName');
+    expect(dictation).not.toContain('speakerGender');
+  });
+
+  it('Profil : utilisateurs, puis prénom et genre, puis « Comptes en ligne » (clés Deepgram et OpenRouter)', () => {
+    const order = [...profilePage.matchAll(/<Users \/>|section="(\w+)"/g)].map((m) => m[1] ?? 'users');
+    expect(order).toEqual(['users', 'identity', 'keys']);
+    const identity = between(settingsTab, "section === 'identity'", "section === 'keys'");
+    expect(identity).toContain('firstName');
+    expect(identity).toContain('speakerGender');
+    expect(settingsTab).toContain("title={t('Comptes en ligne')}");
+  });
+
+  it('Style d’écriture : modes, case « Sauter la mise au propre » et fidélité sont dans les cartes de Modes, plus dans Settings', () => {
+    expect(stylePage).not.toContain('Settings');
+    expect(settingsTab).not.toContain('skipWhenClean');
+    expect(modesTab).toContain('skipWhenClean');
+    expect(modesTab).toContain('Fidélité');
+  });
+
+  it('les cartes de Dicter et de Profil ont plusieurs réglages (pas de carte d’une seule case)', () => {
+    const identity = between(settingsTab, "section === 'identity'", "section === 'keys'");
+    for (const c of [dictation, identity]) expect((c.match(/<input|<select|<KeyPicker/g) ?? []).length).toBeGreaterThan(1);
+  });
+
+  it('le lien « changer » de l’Accueil mène à Profil', () => {
+    expect(dashboard).toContain("goto('profile', 'utilisateurs')");
+  });
 });

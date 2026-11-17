@@ -46,8 +46,7 @@ export const en: Record<string, string> = {
   'Où je dicte': 'Where I dictate',
   'Part des mots par appli': 'Share of words by app',
   'Les cinq dernières, sur cet ordinateur.': 'The last five, on this computer.',
-  'Ce que devient ton texte': 'What your text becomes',
-  'Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (plus bas, sur cette page). Le moteur de cette mise au propre se choisit dans Moteurs et modèles.': 'After transcription, an AI model removes the “uh”s and adds punctuation, according to the chosen mode (further down on this page). The engine for this cleanup is chosen in Engines and models.',
+  'Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi. Le moteur de cette mise au propre se choisit dans Moteurs et modèles.': 'After transcription, an AI model removes the “uh”s and adds punctuation, according to the chosen mode. The engine for this cleanup is chosen in Engines and models.',
   // Barre latérale et fenêtre
   'Accueil': 'Home',
   'Ma dictée': 'My dictation',
@@ -551,7 +550,7 @@ export const en: Record<string, string> = {
   // Réglages : dictée
   'Langue dictée :': 'Dictation language:',
   'Prénom dans la salutation :': 'First name in the greeting:',
-  'Le Tableau de bord vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.': 'The Dashboard greets you by this name. Left empty, Scriibe uses the name of the computer account.',
+  'L’Accueil vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.': 'Home greets you by this name. Left empty, Scriibe uses the name of the computer account.',
   'Genre de la personne qui dicte :': 'Gender of the person dictating:',
   'Non précisé': 'Not specified',
   'Masculin': 'Masculine',
@@ -595,7 +594,9 @@ export const en: Record<string, string> = {
   'Rouge': 'Red',
   'Bleu': 'Blue',
   'Noir': 'Black',
-  'Clés du cloud (dépannage)': 'Cloud keys (fallback)',
+  'Comptes en ligne': 'Online accounts',
+  'Prénom et genre': 'First name and gender',
+  'Ce que Scriibe sait de la personne qui dicte : son prénom pour la salutation, son genre pour accorder les textes réécrits.': 'What Scriibe knows about the person dictating: their first name for the greeting, their gender to agree reworded texts.',
   'Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.': 'The keys are kept in the Mac’s keychain and are never displayed or written to the log.',
   'Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.':
     'On Linux, Scriibe does not store the keys: you give them through environment variables, before launching Scriibe. They are never displayed or written to the log.',

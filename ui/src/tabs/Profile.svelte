@@ -9,4 +9,5 @@
 <PageHeader title={t('Profil')}>{t(tabDescription('profile'))}</PageHeader>
 
 <Users />
+<Settings section="identity" />
 <Settings section="keys" />
