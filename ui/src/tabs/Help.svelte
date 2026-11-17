@@ -114,9 +114,9 @@
         <li><b>Dicte.</b> Clique dans un document, maintiens <b>{dictate}</b>, dis une phrase, relâche : elle s’écrit.</li>
       </ol>
       <div class="links">
-        {@render go('Installer les programmes et modèles', 'install')}
-        {@render go('Les moteurs', 'settings', 'moteurs')}
-        {@render go('La touche et le micro', 'settings', 'dictee')}
+        {@render go('Installer les programmes et modèles', 'engines', 'install-les-programmes')}
+        {@render go('Les moteurs', 'engines', 'moteurs')}
+        {@render go('La touche et le micro', 'dictate', 'dictee')}
         {@render go('Accueil', 'dashboard')}
       </div>
       <p>La fenêtre a onze pages, rangées en quatre groupes dans le menu de gauche : <b>Utiliser</b> (Accueil, Historique), <b>Ma dictée</b> (Dicter, Style d’écriture, Dictionnaire, Commandes vocales), <b>Configurer</b> (Moteurs et modèles, Profil, Apparence, Données et système) et <b>Avancé</b> (Mesures et essais) ; l’<b>Aide</b> est en bas. Chaque carte se replie d’un clic sur son titre (le pli est retenu) et son bouton « ? » ouvre la section de l’Aide qui la concerne. Apparence : thème clair, sombre ou automatique (celui du système), langue de l’interface, et case « Logo animé » (le curseur du logo clignote lentement ; décochée, ou si le système réduit les animations, il reste fixe). L’Accueil te salue par ton prénom : par défaut celui du compte de l’ordinateur (sous Windows, le nom de connexion), modifiable dans Profil, carte « Prénom et genre » (laisse vide pour reprendre celui du compte).</p>
@@ -141,7 +141,7 @@
         <li><b>Deux fenêtres, ou l’icône pendant que la page est ouverte.</b> Si l’utilisateur change pendant que la page est ouverte, elle s’en aperçoit en quelques secondes et se recharge. Si tu enregistres juste avant, Scriibe refuse d’écrire chez l’autre utilisateur, recharge la page et te le dit : rien n’est mélangé, mais ce que tu venais de faire est à refaire.</li>
       </ul>
       <p>La sauvegarde complète (Données et système) contient l’utilisateur actif et les réglages de l’ordinateur : pour sauvegarder tout le monde, fais-la pour chaque utilisateur, en passant de l’un à l’autre.</p>
-      <div class="links">{@render go('Gérer les utilisateurs', 'settings', 'utilisateurs')}</div>
+      <div class="links">{@render go('Gérer les utilisateurs', 'profile', 'utilisateurs')}</div>
 
       <h3>Exporter et importer un utilisateur</h3>
       <p>Pour reprendre sa configuration sur un autre ordinateur, la sauvegarder ou la donner à quelqu’un : Profil, carte « Utilisateurs », « Exporter… » sur la ligne de l’utilisateur (l’actif ou un autre : on peut ainsi exporter avant de mettre un utilisateur de côté). Scriibe montre ce qui va partir, par catégorie, avec une case chacune et la liste en un clic, puis ouvre la boîte « Enregistrer sous » du système (sous Linux, où elle n’existe pas encore, le fichier est placé dans le dossier Documents, et un fichier qui existe déjà n’est jamais écrasé). Le fichier <b>.scriibe.json</b> n’est pas chiffré : relis-le avant de le partager.</p>
@@ -181,9 +181,9 @@
       </ul>
       <p>Sans idée précise, laisse l’assistant choisir : il mesure ton ordinateur et propose la combinaison qui convient, avec les temps qu’on a vraiment mesurés. Tu peux le <b>relancer quand tu veux</b> (bouton ci-dessus, ou Moteurs et modèles) si tu changes d’ordinateur, de carte graphique ou d’avis.</p>
       <div class="links">
-        {@render go('Choisir les moteurs', 'settings', 'moteurs')}
-        {@render go('Installer un modèle', 'install')}
-        {@render go('Comparer avec le banc de dictée', 'bench')}
+        {@render go('Choisir les moteurs', 'engines', 'moteurs')}
+        {@render go('Installer un modèle', 'engines', 'install-modeles-recommandes')}
+        {@render go('Comparer avec le banc de dictée', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}
       </div>
 
     {:else if open === 'dictate'}
@@ -214,7 +214,7 @@
         <li>{#if linux}Sous Linux, il n’y a pas encore d’icône : la page de Scriibe s’ouvre dans le navigateur, et « Quitter Scriibe » (dans la page) arrête le programme.{:else}Le <b>menu de l’icône</b>, {trayNear}, ouvre la fenêtre, le dossier des données et le journal, ou quitte Scriibe.{/if}</li>
         <li><b>Une sélection</b> est remplacée par la dictée : si un mot ou un groupe de mots est sélectionné quand tu relâches la touche, le texte dicté prend sa place <b>sans majuscule au début ni point, virgule ou point-virgule à la fin</b>, puisqu’il s’insère au milieu d’une phrase (le « ? », le « ! » et les points de suspension restent ; les noms de ton dictionnaire et les sigles gardent leur majuscule). <i>Pourquoi :</i> Whisper met une majuscule et un point à chaque dictée, ce qui ne va pas au milieu d’une phrase. {#if mac}Scriibe envoie un ⌘C pour savoir si un texte est sélectionné et remet aussitôt ton presse-papiers.{:else}Cela ne marche pour le moment que sur Mac.{/if}</li>
       </ul>
-      <div class="links">{@render go('Réglages de la dictée', 'settings', 'dictee')}</div>
+      <div class="links">{@render go('Dicter', 'dictate', 'dictee')}</div>
 
     {:else if open === 'modes'}
       <h2>Les modes</h2>
@@ -254,7 +254,7 @@
       {@render tip('La consigne d’un mode importé n’est qu’un texte donné au modèle : elle n’exécute rien. Mais si le fichier vient de quelqu’un d’autre, relis la consigne et les exemples avant de t’en servir.')}
       <h3>Choisir les modes du menu de l’icône</h3>
       <p>Dans Style d’écriture, chaque mode a une case « Afficher dans le menu de l’icône ». Au départ, tous sont cochés. Décoche un mode pour le retirer du menu de l’icône, y compris s’il est en cours : il reste alors le mode utilisé, sans coche dans le menu, jusqu’à ce que tu en choisisses un autre. Le mode n’est ni supprimé ni caché ailleurs : tu le retrouves dans cette page et tu peux le choisir ici. Au moins un mode reste toujours affiché (la dernière case ne se décoche pas). Ce choix est gardé quand tu quittes Scriibe.</p>
-      <div class="links">{@render go('Les modes', 'modes')}</div>
+      <div class="links">{@render go('Les modes', 'style', 'modes-groupe-0')}</div>
 
     {:else if open === 'dictionary'}
       <h2>Dictionnaire et signes</h2>
@@ -310,7 +310,7 @@
         <li>{#if linux}Sous Linux, il n’y a pas encore d’icône : l’état se lit dans la barre latérale de la page.{:else}<b>{trayIcon}</b> change toujours de couleur : <b>gris</b> au repos, <b>rouge</b> pendant l’écoute, <b>orange</b> pendant le traitement, <b>vert</b> une fois le texte collé, <b>bleu</b> pour un message. Elle sert quand la pastille est coupée.{/if}</li>
         <li>Trois styles (pastille, point sobre, vumètre), trois positions, cinq couleurs et une transparence réglable. La pastille est active par défaut ; elle se coupe dans les réglages. L’apparence de la fenêtre (claire, sombre ou celle du système) se règle au même endroit, dans Apparence.</li>
       </ul>
-      <div class="links">{@render go('Régler l’indicateur', 'settings', 'indicateur')}</div>
+      <div class="links">{@render go('Régler l’indicateur', 'appearance', 'indicateur')}</div>
 
     {:else if open === 'measures'}
       <h2>Mesurer et comparer</h2>
@@ -324,7 +324,7 @@
       {@render question('Comment est calculé le temps gagné de l’Accueil ?', `Pour chaque dictée, Scriibe compare le temps passé à parler au temps qu’il t’aurait fallu pour taper le même texte, à ta vitesse au clavier (réglée à ${v?.typingWPM ?? 40} mots par minute dans « Ma vitesse au clavier », pour tout l’historique, jours purgés compris : il n’en reste que les totaux du jour).`)}
       {@render question('Quelle est ma vraie vitesse de frappe ?', 'Dans Mesures et essais, « Ma vitesse au clavier » : tu recopies un texte de quelques lignes, le chrono part à ta première lettre, les fautes passent en rouge, et l’essai s’arrête quand le texte est identique (ou avec « Terminer »). Le résultat est net (mots du texte × part de lettres justes ÷ minutes). Ne sont pas retenus : un essai sous 90 % de lettres justes, plus court que 12 s, plus long que 10 min ou au-delà de 200 mots/min. « Utiliser » reporte la moyenne des essais retenus dans ta vitesse au clavier ; le temps gagné est alors recalculé pour tout l’historique.')}
       {@render question('Le rapport, à quoi sert-il ?', 'Mesures et essais → « Rapport à me coller » → « Copier le rapport » met dans le presse-papiers l’état de l’installation, le dernier passage du banc et les dernières lignes du journal : c’est ce qu’il faut coller pour qu’on t’aide à comprendre un problème.')}
-      <div class="links">{@render go('Mesures et essais', 'bench')}{@render go('Rapport et journal', 'journal')}</div>
+      <div class="links">{@render go('Mesures et essais', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}{@render go('Rapport et journal', 'measures', 'journal-rapport-a-me-coller')}</div>
 
     {:else if open === 'privacy'}
       <h2>Sur cet ordinateur ou en ligne</h2>
@@ -340,7 +340,7 @@
         <li>Historique, carte « Confidentialité de l’historique » : décoche « Garder le texte des dictées » pour ne garder que les statistiques (date, appli, mots, durée, temps), ou « Ne garder que les derniers jours » : les dictées plus anciennes sont supprimées, il n’en reste que des totaux par jour, sans texte, pour l’Accueil. Un aperçu du nombre de dictées touchées s’affiche avant toute suppression. Cela ne change pas ce que reçoivent Deepgram ou OpenRouter pendant la dictée.</li>
         <li>Les clés de Deepgram et d’OpenRouter ne sont jamais affichées ni écrites dans le journal ; {#if mac}elles sont rangées dans le trousseau du Mac.{:else if linux}sous Linux, Scriibe ne les range pas : tu les donnes par des variables d’environnement, avant de lancer Scriibe.{:else}elles sont rangées dans le Gestionnaire d’identifiants de Windows.{/if}</li>
       </ul>
-      <div class="links">{@render go('Les moteurs', 'settings', 'moteurs')}{@render go('Confidentialité de l’historique', 'history', 'conservation')}</div>
+      <div class="links">{@render go('Les moteurs', 'engines', 'moteurs')}{@render go('Confidentialité de l’historique', 'history', 'conservation')}</div>
 
     {:else}
       <h2>Problèmes fréquents</h2>
@@ -358,7 +358,7 @@
       {@render question('La musique ou la vidéo ne s’arrête pas.', `Vérifie que « Mettre en pause la musique ou la vidéo » est cochée (Dicter). Le journal dit ce que Scriibe voit : « rien ne joue » liste les applis audio et leur niveau, « pause demandée » dit à qui la commande est partie. Pendant un appel, rien n’est mis en pause, exprès.`)}
       {@render question('La fenêtre est vide ou ne s’ouvre pas.', mac ? 'Clique sur l’icône dans la barre des menus → « Ouvrir Scriibe ». Fermer la fenêtre ne quitte pas Scriibe : pour l’arrêter, « Quitter Scriibe ».' : linux ? 'Cherche « Scriibe » dans la liste des applications, ou clique sur son icône en haut à droite → « Ouvrir Scriibe ». Fermer la fenêtre ne quitte pas Scriibe : pour l’arrêter, « Quitter Scriibe ».' : 'Clic droit sur l’icône près de l’horloge → « Ouvrir Scriibe ». Si WebView2 manque, la même interface s’ouvre dans ton navigateur. Fermer la fenêtre ne quitte pas Scriibe : pour l’arrêter, « Quitter Scriibe ».')}
       {@render question('Comment mettre à jour ?', `Données et système : « Chercher une nouvelle version » dit si une version plus récente que la vôtre est publiée (version, date, source) ; aucun compte ni jeton n’est nécessaire. ${mac ? '« Installer et redémarrer » demande confirmation, télécharge la nouvelle version, remplace l’application Scriibe.app et la relance, en gardant l’ancienne à côté.' : linux ? '« Installer et redémarrer » demande confirmation, télécharge la nouvelle version, remplace le programme scriibe et relance Scriibe, en gardant l’ancien à côté (scriibe.old).' : '« Installer et redémarrer » demande confirmation, télécharge la nouvelle version, remplace scriibe.exe et relance Scriibe, en gardant l’ancien à côté (scriibe.exe.old).'} La recherche automatique (toutes les 6 heures) est décochée au départ. Cette page explique aussi ce qui part sur Internet, c’est-à-dire rien de personnel.`)}
-      <div class="links">{@render go('Installation', 'install')}{@render go('Rapport et journal', 'journal')}{@render go('Mise à jour', 'update')}</div>
+      <div class="links">{@render go('Installation', 'engines', 'install-etat-de-linstallation')}{@render go('Rapport et journal', 'measures', 'journal-rapport-a-me-coller')}{@render go('Mise à jour', 'data', 'update-version')}</div>
     {/if}
   </section>
 </div>

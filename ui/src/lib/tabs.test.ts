@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultHelpSection, helpSections } from './help';
-import { resolveTab, tabGroups, tabs, type TabId } from './tabs';
+import { tabGroups, tabs } from './tabs';
 import pageHeader from '../components/PageHeader.svelte?raw';
 import app from '../App.svelte?raw';
 import commandsPage from '../tabs/Commands.svelte?raw';
@@ -48,17 +48,6 @@ describe('menu de gauche en quatre groupes (refonte de l’interface)', () => {
 
   it('chaque page du menu s’ouvre dans App.svelte', () => {
     for (const tab of tabs) expect(app, tab.id).toContain(`nav.tab === '${tab.id}'`);
-  });
-
-  it('les anciens identifiants de page et d’ancre des Réglages mènent à la page qui a pris leur place', () => {
-    const cases: [TabId, string | undefined, string][] = [
-      ['settings', 'dictee', 'dictate'], ['settings', 'texte', 'style'], ['settings', 'utilisateurs', 'profile'], ['settings', 'cles', 'profile'],
-      ['settings', 'moteurs', 'engines'], ['settings', 'indicateur', 'appearance'], ['settings', 'langue', 'appearance'],
-      ['settings', 'sauvegarde', 'data'], ['settings', 'demarrage', 'data'], ['settings', undefined, 'dictate'],
-      ['modes', undefined, 'style'], ['install', undefined, 'engines'], ['bench', undefined, 'measures'], ['journal', undefined, 'measures'], ['update', undefined, 'data'],
-      ['history', 'conservation', 'history'], ['dictionary', undefined, 'dictionary'],
-    ];
-    for (const [id, anchor, page] of cases) expect(resolveTab(id, anchor), `${id} ${anchor ?? ''}`).toBe(page);
   });
 });
 

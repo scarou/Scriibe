@@ -8,7 +8,7 @@
   import { t } from '../lib/i18n.svelte';
   import Card from './Card.svelte';
 
-  let { onclose, ongoto }: { onclose: () => void; ongoto: (tab: 'install' | 'settings', anchor?: string) => void } = $props();
+  let { onclose, ongoto }: { onclose: () => void; ongoto: (tab: 'engines' | 'profile', anchor?: string) => void } = $props();
 
   let data = $state<Assistant | null>(null);
   let choice = $state('');
@@ -72,11 +72,11 @@
         <p>{t('Il reste à faire :')}</p>
         <ul>
           {#each lacks.items as id (id)}<li>{t('installer {item}', { item: t(needLabels[id] ?? id) })}</li>{/each}
-          {#if lacks.key}<li>{t('enregistrer votre clé OpenRouter (onglet Réglages)')}</li>{/if}
+          {#if lacks.key}<li>{t('enregistrer votre clé OpenRouter (page Profil)')}</li>{/if}
         </ul>
         <div class="row">
-          {#if lacks.items.length}<button class="primary" onclick={() => ongoto('install')}>{t('Aller à l’installation')}</button>{/if}
-          {#if lacks.key}<button onclick={() => ongoto('settings', 'cles')}>{t('Aller au Profil')}</button>{/if}
+          {#if lacks.items.length}<button class="primary" onclick={() => ongoto('engines', 'install-etat-de-linstallation')}>{t('Aller à l’installation')}</button>{/if}
+          {#if lacks.key}<button onclick={() => ongoto('profile', 'cles')}>{t('Aller au Profil')}</button>{/if}
           <button onclick={onclose}>{t('Fermer')}</button>
         </div>
       {:else}

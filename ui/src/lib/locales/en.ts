@@ -697,7 +697,7 @@ export const en: Record<string, string> = {
   '✔ Réglages appliqués : « {title} ».': '✔ Settings applied: “{title}”.',
   'Il reste à faire :': 'Still to do:',
   'installer {item}': 'install {item}',
-  'enregistrer votre clé OpenRouter (onglet Réglages)': 'save your OpenRouter key (Settings tab)',
+  'enregistrer votre clé OpenRouter (page Profil)': 'save your OpenRouter key (Profile page)',
   'Aller à l’installation': 'Go to Installation',
   'Fermer': 'Close',
   'Tout est en place : maintenez Ctrl droit, parlez, relâchez.': 'Everything is in place: hold right Ctrl, speak, release.',

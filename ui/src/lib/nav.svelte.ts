@@ -1,6 +1,6 @@
 import { tick } from 'svelte';
 import { defaultHelpSection, type HelpId } from './help';
-import { resolveTab, tabs, type MainTab, type TabId } from './tabs';
+import { tabs, type MainTab, type TabId } from './tabs';
 
 function saved<T extends string>(key: string, allowed: readonly { id: T }[], fallback: T): T {
   try {
@@ -19,9 +19,9 @@ class Nav {
   /** Texte sélectionné envoyé par la commande vocale « ajouter au dictionnaire » : le Dictionnaire le met dans « Entendu » puis l'oublie. Jamais gardé ailleurs qu'en mémoire. */
   dictionaryPrefill = $state<string | null>(null);
 
-  /** Ouvre une page (un ancien identifiant mène à la page qui a pris sa place) ; `anchor` : l'identifiant de la carte à montrer. */
+  /** Ouvre une page du menu ; `anchor` : l'identifiant de la carte à montrer. */
   async go(id: TabId, anchor?: string): Promise<void> {
-    const tab = resolveTab(id, anchor);
+    const tab: MainTab = id;
     this.tab = tab;
     try {
       sessionStorage.setItem('tab', tab);

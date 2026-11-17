@@ -126,9 +126,9 @@
         <li><b>Dictate.</b> Click in a document, hold <b>{dictate}</b>, say a sentence, release: it is written.</li>
       </ol>
       <div class="links">
-        {@render go('Install programs and models', 'install')}
-        {@render go('The engines', 'settings', 'moteurs')}
-        {@render go('The key and the microphone', 'settings', 'dictee')}
+        {@render go('Install programs and models', 'engines', 'install-les-programmes')}
+        {@render go('The engines', 'engines', 'moteurs')}
+        {@render go('The key and the microphone', 'dictate', 'dictee')}
         {@render go('Home', 'dashboard')}
       </div>
       <p>The window has eleven pages, arranged in four groups in the left menu: <b>Use</b> (Home, History), <b>My dictation</b> (Dictate, Writing style, Dictionary, Voice commands), <b>Configure</b> (Engines and models, Profile, Appearance, Data and system) and <b>Advanced</b> (Measurements and trials); <b>Help</b> is at the bottom. Each card folds with a click on its title (the fold is remembered), and its “?” button opens the Help section that covers it. Appearance: light, dark or automatic (the system’s) theme, the interface language, and the “Animated logo” box (the logo’s cursor blinks slowly; unticked, or when the system reduces animations, it stays still). Home greets you by your first name: by default the one of the computer account (on Windows, the login name), which you can change in Profile, “First name and gender” card (leave it empty to use the account’s).</p>
@@ -153,7 +153,7 @@
         <li><b>Two windows, or the icon while the page is open.</b> If the user changes while the page is open, it notices within a few seconds and reloads. If you save just before, Scriibe refuses to write to the other user, reloads the page and tells you: nothing is mixed up, but what you had just done has to be redone.</li>
       </ul>
       <p>The full backup (Data and system) contains the active user and the computer’s settings: to back up everyone, make one for each user, switching from one to the other.</p>
-      <div class="links">{@render go('Manage users', 'settings', 'utilisateurs')}</div>
+      <div class="links">{@render go('Manage users', 'profile', 'utilisateurs')}</div>
 
       <h3>Exporting and importing a user</h3>
       <p>To take your setup to another computer, back it up or give it to someone: Profile, “Users” card, “Export…” on the user’s row (the active user or another: so you can export before setting a user aside). Scriibe shows what will leave, by category, with a box each and the list one click away, then opens the system’s “Save as” box (on Linux, where it does not exist yet, the file is placed in the Documents folder, and an existing file is never overwritten). The <b>.scriibe.json</b> file is not encrypted: read it before sharing it.</p>
@@ -193,9 +193,9 @@
       </ul>
       <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, or Engines and models) if you change computer, graphics card or mind.</p>
       <div class="links">
-        {@render go('Choose the engines', 'settings', 'moteurs')}
-        {@render go('Install a model', 'install')}
-        {@render go('Compare with the dictation bench', 'bench')}
+        {@render go('Choose the engines', 'engines', 'moteurs')}
+        {@render go('Install a model', 'engines', 'install-modeles-recommandes')}
+        {@render go('Compare with the dictation bench', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}
       </div>
 
     {:else if open === 'dictate'}
@@ -226,7 +226,7 @@
         <li>{#if linux}There is no icon on Linux yet: Scriibe’s page opens in the browser, and “Quit Scriibe” (in the page) stops the program.{:else}The <b>icon menu</b>, {trayNear}, opens the window, the data folder and the log, or quits Scriibe.{/if}</li>
         <li><b>A selection</b> is replaced by the dictation: if a word or a group of words is selected when you release the key, the dictated text takes its place <b>without a capital letter at the start nor a period, comma or semicolon at the end</b>, since it fits in the middle of a sentence (the “?”, the “!” and ellipses stay; names from your dictionary and acronyms keep their capital). <i>Why:</i> Whisper puts a capital and a period on every dictation, which does not fit in the middle of a sentence. {#if mac}Scriibe sends a ⌘C to find out whether a text is selected and puts your clipboard back right away.{:else}This only works on a Mac for now.{/if}</li>
       </ul>
-      <div class="links">{@render go('Dictation settings', 'settings', 'dictee')}</div>
+      <div class="links">{@render go('Dictate', 'dictate', 'dictee')}</div>
 
     {:else if open === 'modes'}
       <h2>Modes</h2>
@@ -266,7 +266,7 @@
       {@render tip('The instruction of an imported mode is only text given to the model: it runs nothing. But if the file comes from someone else, read the instruction and the examples before using it.')}
       <h3>Choosing the modes in the icon menu</h3>
       <p>In Writing style, each mode has a “Show in the icon menu” box. At the start, all of them are ticked. Untick a mode to remove it from the icon menu, even if it is the current one: it then stays the mode in use, with no tick in the menu, until you choose another. The mode is neither deleted nor hidden elsewhere: you find it on this page and can choose it here. At least one mode always stays shown (the last box cannot be unticked). This choice is kept when you quit Scriibe.</p>
-      <div class="links">{@render go('The modes', 'modes')}</div>
+      <div class="links">{@render go('The modes', 'style', 'modes-groupe-0')}</div>
 
     {:else if open === 'dictionary'}
       <h2>Dictionary and signs</h2>
@@ -322,7 +322,7 @@
         <li>{#if linux}There is no icon on Linux yet: the state can be read in the page’s sidebar.{:else}<b>{trayIcon}</b> always changes colour: <b>grey</b> at rest, <b>red</b> while listening, <b>orange</b> while processing, <b>green</b> once the text is pasted, <b>blue</b> for a message. It is useful when the pill is turned off.{/if}</li>
         <li>Three styles (pill, plain dot, level meter), three positions, five colours and an adjustable transparency. The pill is on by default; it is turned off in the settings. The window appearance (light, dark or the system one) is set in the same place, Appearance.</li>
       </ul>
-      <div class="links">{@render go('Adjust the indicator', 'settings', 'indicateur')}</div>
+      <div class="links">{@render go('Adjust the indicator', 'appearance', 'indicateur')}</div>
 
     {:else if open === 'measures'}
       <h2>Measuring and comparing</h2>
@@ -336,7 +336,7 @@
       {@render question('How is the time saved shown on Home calculated?', `For each dictation, Scriibe compares the time spent speaking with the time it would have taken you to type the same text, at your typing speed (set to ${v?.typingWPM ?? 40} words per minute in “My typing speed”, for the whole history, purged days included: only the day’s totals remain).`)}
       {@render question('What is my real typing speed?', 'In Measurements and trials, “My typing speed”: you copy out a text of a few lines, the timer starts at your first letter, mistakes turn red, and the attempt stops when the text is identical (or with “Finish”). The result is net (words of the text × share of correct letters ÷ minutes). Not kept: an attempt under 90% correct letters, shorter than 12 s, longer than 10 min or above 200 words/min. “Use” carries the average of the attempts kept over to your typing speed; the time saved is then recalculated for the whole history.')}
       {@render question('What is the report for?', 'Measurements and trials → “Report to paste to me” → “Copy the report” puts the installation state, the last bench run and the last lines of the log on the clipboard: that is what to paste so that you can be helped with a problem.')}
-      <div class="links">{@render go('Measurements and trials', 'bench')}{@render go('Report and log', 'journal')}</div>
+      <div class="links">{@render go('Measurements and trials', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}{@render go('Report and log', 'measures', 'journal-rapport-a-me-coller')}</div>
 
     {:else if open === 'privacy'}
       <h2>On this computer or online</h2>
@@ -352,7 +352,7 @@
         <li>History, “History privacy” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for Home. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
         <li>The Deepgram and OpenRouter keys are never displayed or written to the log; {#if mac}they are stored in the Mac’s keychain.{:else if linux}on Linux, Scriibe does not store them: you give them through environment variables, before launching Scriibe.{:else}they are stored in the Windows Credential Manager.{/if}</li>
       </ul>
-      <div class="links">{@render go('The engines', 'settings', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
+      <div class="links">{@render go('The engines', 'engines', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
 
     {:else}
       <h2>Common problems</h2>
@@ -370,7 +370,7 @@
       {@render question('The music or video does not stop.', `Check that “Pause music or video” is ticked (Dictate). The log says what Scriibe sees: “rien ne joue” lists the audio apps and their level, “pause demandée” says who the command went to. During a call, nothing is paused, on purpose.`)}
       {@render question('The window is empty or does not open.', mac ? 'Click the icon in the menu bar → “Open Scriibe”. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.' : linux ? 'Search for “Scriibe” in the application list, or click its icon at the top right → “Open Scriibe”. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.' : 'Right-click the icon near the clock → “Open Scriibe”. If WebView2 is missing, the same interface opens in your browser. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.')}
       {@render question('How do I update?', `Data and system: “Check for a new version” tells you whether a version newer than yours is published (version, date, source); no account or token is needed. ${mac ? '“Install and restart” asks for confirmation, downloads the new version, replaces the Scriibe.app application and restarts it, keeping the old one alongside.' : linux ? '“Install and restart” asks for confirmation, downloads the new version, replaces the scriibe program and restarts Scriibe, keeping the old one alongside (scriibe.old).' : '“Install and restart” asks for confirmation, downloads the new version, replaces scriibe.exe and restarts Scriibe, keeping the old one alongside (scriibe.exe.old).'} The automatic search (every 6 hours) is unticked at first. That page also explains what goes out on the Internet, which is nothing personal.`)}
-      <div class="links">{@render go('Installation', 'install')}{@render go('Report and log', 'journal')}{@render go('Update', 'update')}</div>
+      <div class="links">{@render go('Installation', 'engines', 'install-etat-de-linstallation')}{@render go('Report and log', 'measures', 'journal-rapport-a-me-coller')}{@render go('Update', 'data', 'update-version')}</div>
     {/if}
   </section>
 </div>

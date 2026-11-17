@@ -52,40 +52,5 @@ export function tabDescription(id: MainTab): string {
   return (tabs.find((x) => x.id === id) as { description?: string } | undefined)?.description ?? '';
 }
 
-/**
- * Les identifiants de page : les pages du menu, et les anciens identifiants (l'ancienne page Réglages et ses onglets),
- * que les liens des cartes, de l'assistant et de l'Aide connaissent encore (la tâche 5 de la refonte les remplace).
- */
-export type TabId = MainTab | 'settings' | 'modes' | 'install' | 'bench' | 'journal' | 'update';
-
-const oldPages: Record<string, MainTab> = {
-  settings: 'dictate',
-  modes: 'style',
-  install: 'engines',
-  bench: 'measures',
-  journal: 'measures',
-  update: 'data',
-};
-
-/** La page où se trouve une carte de l'ancienne page Réglages (les liens visent une carte par son ancre). */
-const settingsAnchors: Record<string, MainTab> = {
-  dictee: 'dictate',
-  texte: 'style',
-  utilisateurs: 'profile',
-  cles: 'profile',
-  moteurs: 'engines',
-  theme: 'appearance',
-  'logo-anime': 'appearance',
-  langue: 'appearance',
-  indicateur: 'appearance',
-  demarrage: 'data',
-  sauvegarde: 'data',
-  desinstaller: 'data',
-  'reglages-emplacements': 'data',
-};
-
-/** La page du menu qui s'ouvre pour un identifiant (ancien ou nouveau) et, pour l'ancien « settings », l'ancre de la carte visée. */
-export function resolveTab(id: TabId, anchor?: string): MainTab {
-  if (id === 'settings') return (anchor && settingsAnchors[anchor]) || 'dictate';
-  return oldPages[id] ?? (id as MainTab);
-}
+/** Les identifiants de page : ceux du menu. Les liens (cartes, assistant, Aide) visent une page et, au besoin, l'id d'une carte. */
+export type TabId = MainTab;

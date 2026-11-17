@@ -899,3 +899,22 @@ Fait le 2026-11-17. Cartes déplacées telles quelles ; seuls l'ordre, deux comp
 - Textes : renvoi de la carte « Ce passage » (« onglet Journal et rapport ») → carte « Rapport à me coller », anglais à jour ; l'Aide décrivait déjà les bonnes pages.
 - Tests : 3 nouveaux dans `tabs.test.ts` (ordre des parties et des cartes des 3 pages). `svelte-check` sans erreur, Vitest 125 verts, build passe, `cargo test --workspace` tous verts.
 - Non vu à l'écran (pas d'API) : à la tâche 5.
+
+## Liens (tâche 5)
+
+Fait le 2026-11-17. Tous les liens de l'interface visent maintenant une page du menu et l'id réel d'une carte ; les anciens identifiants (`settings`, `modes`, `install`, `bench`, `journal`, `update`) n'existent plus.
+
+- `tabs.ts` : `TabId = MainTab`, `resolveTab`, `oldPages` et `settingsAnchors` supprimés ; `nav.go` ouvre la page demandée telle quelle.
+- Boutons « → » de l'Aide (FR et EN) : « Installer les programmes et modèles » → Moteurs et modèles › Les programmes ; « Installer un modèle » → Modèles recommandés ; « Installation » → État de l'installation ; « Les moteurs » → Transcription et mise au propre ; « Comparer avec le banc… » / « Mesures et essais » → Banc de dictée ; « Rapport et journal » → Rapport à me coller ; « Mise à jour » → Version de Scriibe ; « Les modes » → Modes de base ; « Réglages de la dictée » devient « Dicter » (EN : « Dictate »).
+- Assistant : « Aller à l'installation » → Moteurs et modèles › État de l'installation ; « Aller au Profil » → Profil › Clés (carte « Comptes en ligne ») ; texte « (onglet Réglages) » → « (page Profil) », anglais à jour.
+- Déjà bons : bouton « changer » de l'Accueil (Profil › Utilisateurs), « Tout voir » (Historique), accord de reformulation (Commandes vocales), banc → Dicter, ajout au dictionnaire (Corrections).
+- **Test** `ui/src/lib/links.test.ts` : lit tous les fichiers de l'interface ; échoue si un lien (`nav.go`, `goto`, `ongoto`, bouton « → » de l'Aide) vise une page qui n'est pas dans le menu, une carte dont l'id n'existe pas, ou une carte posée sur une autre page ; et si un bouton « ? » ou `openHelp` vise une section de l'Aide absente.
+- **Hors périmètre, laissé** : messages du programme Rust qui disent « Réglages » (tâche 9), menu de l'icône (ouvre toujours l'adresse de base, aucun lien de page).
+
+### Vérification à l'écran (Mac)
+
+Copie d'essai `Scriibe-essai.app` (compilée de cette version, `SCRIIBE_INSTALL`) lancée par `open -n --env SCRIIBE_DATA=…` sur une copie des réglages (modèles liés), son adresse locale ouverte dans le navigateur intégré ; copie arrêtée ensuite. `Scriibe.app` habituelle non touchée.
+
+- **Français** : les 12 pages s'ouvrent ; titres de cartes et de parties conformes aux tâches 1 à 4 (Dicter 1 carte ; Style : Modes de base, professionnels, Mes modes ; Moteurs et modèles : parties Moteurs puis Modèles ; Profil : Utilisateurs, Prénom et genre, Comptes en ligne ; Données : démarrage, sauvegarde, version, emplacements, Désinstallation ; Mesures : bancs, temps, vitesse, journal, rapport). Les 18 boutons « → » de l'Aide ouvrent la bonne page ; les 18 ids de carte visés existent dans la page. Copies d'écran vues : Moteurs et modèles, Profil (avec le prénom et le genre lus des vraies données), Données et système.
+- **Anglais** (langue changée dans la copie) : menu et titres des 12 pages traduits ; aucun texte français résiduel, hors l'exemple volontaire « je me sens délaissé » du genre.
+- **Pas vu** : mode sombre, fenêtre étroite sous 400 px, défilement exact jusqu'à la carte visée (ses ids existent, le scroll animé n'a pas été mesuré), dictée à la touche.
