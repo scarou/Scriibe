@@ -64,7 +64,7 @@
   onMount(() => void loadInstalled());
 </script>
 
-<Card id="commandes-applications" title={t('Mes applications')} help="dictionary">
+<Card id="commandes-applications" title={t('Mes applications')} help="commands">
 <div class="vc">
     <p class="muted">{t('Choisis une application installée sur cet ordinateur et une phrase : dite sous la touche de commande, elle ouvre l’application. Seules les applications de cette liste peuvent s’ouvrir, sans rien d’autre (ni commande, ni option). Cette liste reste sur cet ordinateur : elle n’est pas exportée avec l’utilisateur.')}</p>
     {#each voiceApps as a (a.id)}

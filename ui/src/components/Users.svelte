@@ -100,7 +100,7 @@
   });
 </script>
 
-<Card id="utilisateurs" title={t('Utilisateurs')} help="start" intro={t('Chaque utilisateur a son dictionnaire, ses modes personnels, ses commandes, son historique et ses statistiques, et ses réglages de personne (prénom, langue, mode choisi). Les touches, le micro, les moteurs et les clés restent ceux de l’ordinateur. Avec deux utilisateurs ou plus, le menu de l’icône propose aussi de passer de l’un à l’autre.')}>
+<Card id="utilisateurs" title={t('Utilisateurs')} help="profile" intro={t('Chaque utilisateur a son dictionnaire, ses modes personnels, ses commandes, son historique et ses statistiques, et ses réglages de personne (prénom, langue, mode choisi). Les touches, le micro, les moteurs et les clés restent ceux de l’ordinateur. Avec deux utilisateurs ou plus, le menu de l’icône propose aussi de passer de l’un à l’autre.')}>
   {#if !list}
     <p class="muted">{t('Chargement…')}</p>
   {:else if !list.ok}

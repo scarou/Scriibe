@@ -34,7 +34,7 @@
   });
 </script>
 
-<Card id="modeles-installes" title={t('Modèles installés')} help="start">
+<Card id="modeles-installes" title={t('Modèles installés')} help="engines">
   {#if models.length}
     <table>
       <tbody>

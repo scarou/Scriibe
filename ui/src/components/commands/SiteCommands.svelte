@@ -72,7 +72,7 @@
   });
 </script>
 
-<Card id="commandes-sites" title={t('Mes sites de recherche')} help="dictionary">
+<Card id="commandes-sites" title={t('Mes sites de recherche')} help="commands">
 <div class="vc">
     <p class="muted">{t('Ajoute un site de recherche : dis ta phrase suivie de ce que tu cherches, et l’adresse s’ouvre dans ton navigateur, avec ce texte à la place de {q}. L’adresse doit commencer par https:// et le nom du site doit être fixe : {q} ne peut pas être avant le premier /. Ça ne marche que sous la touche de commande.', { q: '{q}' })}</p>
     {#each sites as s (s.id)}

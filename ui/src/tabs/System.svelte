@@ -117,7 +117,7 @@
 </script>
 
 {#if part === 'main'}
-<Card help="start" id="demarrage" title={t('Lancer au démarrage')} intro={t('Scriibe se lance à l’ouverture de ta session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que tu ne le coches pas.')}>
+<Card help="data" id="demarrage" title={t('Lancer au démarrage')} intro={t('Scriibe se lance à l’ouverture de ta session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que tu ne le coches pas.')}>
   {#if autostart}
     <div class="row">
       <label><input type="checkbox" checked={autostart.enabled} disabled={!autostart.supported} onchange={(e) => setAutostart(e.currentTarget.checked)} />
@@ -133,7 +133,7 @@
 </Card>
 
 {:else}
-<Card help="start" id="desinstaller" title={t('Désinstaller Scriibe')} intro={t('Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que tu ne la vides pas), après une sauvegarde proposée et une dernière confirmation.')}>
+<Card help="data" id="desinstaller" title={t('Désinstaller Scriibe')} intro={t('Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que tu ne la vides pas), après une sauvegarde proposée et une dernière confirmation.')}>
   {#if !removal}
     <button class="danger" onclick={openRemoval}>{t('Désinstaller Scriibe…')}</button>
   {:else if !removal.plan}

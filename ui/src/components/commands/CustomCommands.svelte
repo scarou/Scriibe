@@ -156,7 +156,7 @@
   });
 </script>
 
-<Card id="commandes-perso" title={t('Mes commandes')} help="dictionary">
+<Card id="commandes-perso" title={t('Mes commandes')} help="commands">
 <div class="vc">
     <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>
     {#each customs as c (c.id)}

@@ -952,6 +952,21 @@ export const en: Record<string, string> = {
     'Each user has their own dictionary, custom modes, commands, history and statistics, and their personal settings (first name, language, chosen mode). The keys, microphone, engines and API keys stay those of the computer. With two or more users, the icon menu also lets you switch between them.',
   'Impossible de faire cela.':
     'That could not be done.',
+  'Chercher dans l’Aide…': 'Search the Help…',
+  'Chercher dans l’Aide': 'Search the Help',
+  '{n} résultat(s) dans {m} rubrique(s)': '{n} result(s) in {m} section(s)',
+  'Aucun résultat pour « {q} »': 'No result for “{q}”',
+  'Adresse copiée.': 'Address copied.',
+  'Copie refusée : sélectionne l’adresse ci-dessous.': 'Copy refused: select the address below.',
+  'À propos': 'About',
+  'dictée vocale pour Windows, macOS et Linux : tu maintiens une touche, tu parles, tu relâches, et le texte transcrit, mis au propre, se colle dans l’appli ouverte. Scriibe est la suite de Scribe, l’appli de dictée du Mac.': 'voice dictation for Windows, macOS and Linux: you hold a key, speak, release, and the transcribed, cleaned-up text is pasted into the open app. Scriibe is the successor of Scribe, the Mac dictation app.',
+  'Version': 'Version',
+  'Créé par': 'Created by',
+  'Avec l’aide de': 'With the help of',
+  'Licence': 'License',
+  'Tu peux utiliser, copier, modifier et partager Scriibe, à condition de garder la mention de droits d’auteur.': 'You may use, copy, modify and share Scriibe, as long as you keep the copyright notice.',
+  'Code source': 'Source code',
+  'Copier l’adresse': 'Copy the address',
   'Mettre de côté':
     'Set aside',
   '« {name} » est mis de côté dans {folder}.':

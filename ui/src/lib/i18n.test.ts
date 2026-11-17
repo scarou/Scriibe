@@ -50,7 +50,7 @@ describe('langue de l’interface', () => {
       const text = Object.entries(files).find(([file]) => file.endsWith('/tabs/' + name))?.[1] ?? '';
       const count = (pattern: RegExp) => (text.match(pattern) ?? []).length;
       return {
-        sections: [...text.matchAll(/\{(?:#|:else )if open === '(\w+)'\}/g)].map((m) => m[1]),
+        sections: [...text.matchAll(/data-help="(\w+)"/g)].map((m) => m[1]),
         h2: count(/<h2>/g),
         h3: count(/<h3>/g),
         links: count(/\{@render go\(/g),
@@ -61,7 +61,7 @@ describe('langue de l’interface', () => {
       };
     };
     const french = shape('Help.svelte');
-    expect(french.sections.length, 'les sections de l’Aide française').toBe(7);
+    expect(french.sections.length, 'les rubriques de l’Aide française (« À propos » est un composant)').toBe(13);
     expect(shape('HelpEn.svelte')).toEqual(french);
   });
 

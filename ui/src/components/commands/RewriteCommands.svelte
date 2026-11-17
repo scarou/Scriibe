@@ -10,7 +10,7 @@
 <Card
   id="commandes-reformulation"
   title={t('Reformulation de la sélection')}
-  help="dictionary"
+  help="commands"
   intro={t('Sous la touche de commande, sélectionne un texte puis dis en quelques mots (25 au plus) ce que tu veux en faire : « cherche les fautes », « rends ça plus amical », « raccourcis ». Le texte reformulé remplace la sélection, et un seul « annuler » rend l’original.')}
 >
   {#if s?.rewrite?.available && s.rewrite.needsConsent}

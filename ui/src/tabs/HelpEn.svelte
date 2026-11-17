@@ -5,6 +5,9 @@
   import { onMount } from 'svelte';
   import OverlayView, { type View } from '../overlay/OverlayView.svelte';
   import { helpSections } from '../lib/help';
+  import HelpAbout from '../components/HelpAbout.svelte';
+  import HelpSearchBox from '../components/HelpSearchBox.svelte';
+  import { helpSearch } from '../lib/helpSearch.svelte';
   import { nav } from '../lib/nav.svelte';
   import { settings } from '../lib/settings.svelte';
   import { keyName } from '../lib/i18n.svelte';
@@ -17,8 +20,13 @@
   /** Un clic sur une section : on repart du haut (sinon une section courte s'ouvre avec son titre hors de vue). */
   function pick(id: typeof nav.helpSection) {
     nav.helpSection = id;
-    window.scrollTo(0, 0);
+    // En cours de recherche, toutes les rubriques trouvées sont affichées : on va à celle choisie.
+    if (helpSearch.active) document.querySelector(`[data-help="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    else window.scrollTo(0, 0);
   }
+  /** Une rubrique est posée dans la page si elle est ouverte, ou pendant une recherche (qui lit le texte de toutes) ; elle est cachée si elle ne contient pas le mot. */
+  const show = (id: string) => helpSearch.active || open === id;
+  const hideSec = (id: string) => helpSearch.active && !helpSearch.matches.includes(id);
   /** Les touches en vigueur (réglables dans Réglages → Dictée). */
   /** The system Scriibe runs on: the Help only talks about that one (keys, icon, permissions, keychain). */
   let os = $derived(status.os);
@@ -46,13 +54,18 @@
   );
   const titles: Record<string, string> = {
     start: 'Getting started',
-    dictate: 'Dictating and translating',
-    modes: 'Modes',
-    dictionary: 'Dictionary and signs',
-    indicator: 'The indicator',
-    measures: 'Measuring and comparing',
+    dictate: 'Dictate',
+    modes: 'Writing style',
+    dictionary: 'Dictionary',
+    commands: 'Voice commands',
+    engines: 'Engines and models',
     privacy: 'On this computer or online',
+    profile: 'Profile',
+    indicator: 'Appearance',
+    data: 'Data and system',
+    measures: 'Measurements and trials',
     problems: 'Common problems',
+    about: 'About',
   };
 
   onMount(() => void settings.load());
@@ -109,15 +122,18 @@
 
 <PageHeader title="Help">How to use Scriibe, and what each thing is for. The <b>→</b> buttons open the right setting; the <b>?</b> on each card opens the explanation that concerns it.</PageHeader>
 
+<HelpSearchBox />
+
 <div class="layout">
   <ul class="toc">
     {#each helpSections as sec (sec.id)}
-      <li><button class:active={open === sec.id} onclick={() => pick(sec.id)}>{titles[sec.id]}</button></li>
+      <li hidden={hideSec(sec.id)}><button class:active={open === sec.id} onclick={() => pick(sec.id)}>{titles[sec.id]}</button></li>
     {/each}
   </ul>
 
-  <section class="card body">
-    {#if open === 'start'}
+  <section class="card body" data-help-root>
+    {#if show('start')}
+    <div class="sec" data-help="start" hidden={hideSec('start')}>
       <h2>Getting started</h2>
       <p>Scriibe writes for you in any app: you hold a key, you speak, you release, and the text, clean and punctuated, is pasted where your cursor is.</p>
       <ol class="steps">
@@ -134,73 +150,11 @@
       <p>The window has eleven pages, arranged in four groups in the left menu: <b>Use</b> (Home, History), <b>My dictation</b> (Dictate, Writing style, Dictionary, Voice commands), <b>Configure</b> (Engines and models, Profile, Appearance, Data and system) and <b>Advanced</b> (Measurements and trials); <b>Help</b> is at the bottom. Each card folds with a click on its title (the fold is remembered), and its “?” button opens the Help section that covers it. Appearance: light, dark or automatic (the system’s) theme, the interface language, and the “Animated logo” box (the logo’s cursor blinks slowly; unticked, or when the system reduces animations, it stays still). Home greets you by your first name: by default the one of the computer account (on Windows, the login name), which you can change in Profile, “First name and gender” card (leave it empty to use the account’s).</p>
       {@render tip('To check the microphone and see what Whisper hears, read a phrase of the dictation bench (Measurements and trials): it shows the microphone level before you go and dictate in a real app.')}
       <div class="links"><button class="go" onclick={() => nav.openAssistant()} title="Open the assistant on Home">→ Run the first-launch assistant again</button></div>
-
-      <h3>Launching Scriibe when you log in</h3>
-      <p>Data and system, “Launch at startup” card: tick the box and Scriibe starts by itself when you log in, <b>without a window</b>: the icon {trayNear} is there and the dictation key is ready. It is off by default; unticking removes the entry. {#if mac}The entry is shown in System Settings → General → Login Items (macOS may show a “background item added” notification, that is normal). If you move Scriibe.app, start it once by hand: the entry updates itself. If you turned it off in System Settings, the box is unticked; ticking it again turns it back on.{:else if linux}The entry is a file in ~/.config/autostart, shown in your desktop environment’s “Startup Applications”. If you move Scriibe, start it once by hand: the entry updates itself.{:else}The entry is shown in Task Manager, “Startup apps” tab; if you turn it off there, the box is unticked, and ticking it again turns it back on. If you move scriibe.exe, start it once by hand: the entry updates itself. No black window opens at startup.{/if}</p>
-
-      <h3>Backing up and restoring your data</h3>
-      <p>Data and system, “Back up and transfer” card, at the top (full backup): “Save a backup” writes a single file (.scriibe.json) with your settings and modes, your dictionary, your history and your statistics. Scriibe reads it back before saying “done”. The file is unencrypted and the history contains the texts you dictated: keep it wherever you like, but not inside Scriibe’s folder. API keys, downloaded models, trial benches and logs are not part of it. “Restore a backup” first shows what will be replaced, asks for your agreement, keeps a copy of the current state in the data folder (avant-import-…) and then restarts Scriibe. If the backup comes from another system, this computer’s keys, microphone, sounds and model paths are kept. Further down, the same card has one line per export and import of a part (user, dictionary, modes, voice commands): each button opens, on its own page, the export or import card you can also find there; history retention is a link to its card.</p>
-
-      <h3>Uninstalling Scriibe</h3>
-      <p>Data and system, “Uninstall Scriibe” card (or, for troubleshooting, the “scriibe desinstaller” command, which shows the exact list with “--liste” without touching anything). Scriibe first shows <b>the exact list</b> of what goes, with sizes, and of what stays; offers a <b>backup</b> (ticked); then asks for a last confirmation. If the backup fails or is cancelled, nothing is removed. Everything goes <b>to the Trash</b> ({mac ? 'the Mac’s' : linux ? 'your desktop’s' : 'Windows’'}), so it is recoverable until you empty it: your settings, your dictionary, your history, the downloaded engines, the window caches and the program itself. The “Keep my downloaded models” box leaves the models folder in place for a reinstall. Models stored elsewhere (LM Studio, for example) are never touched; a link to a model is removed without touching the model. API keys are erased {mac ? 'from the keychain (macOS may ask for access again, up to once per key; otherwise: Keychain Access, search “Scriibe”)' : linux ? '— on Linux Scriibe does not store them: remove DEEPGRAM_API_KEY and OPENROUTER_API_KEY from your shell profile' : 'from Credential Manager (Windows Credentials, “Scriibe”)'}, and the startup entry is removed. {#if mac}Scriibe’s permissions are removed too (if needed: System Settings → Privacy & Security): after a reinstall, macOS asks for them again, Input Monitoring (the key), Accessibility (pasting) and Microphone, and Scriibe must be relaunched after each. If you remove Scriibe from one of these lists with the “−”, the “+” finds it again with ⌘ + Shift + G, typing ~/Applications. {/if}Finally Scriibe closes, a helper does the work and a last message says what was removed and what remains. The button is greyed out if the SCRIIBE_DATA variable is set (trials), and a compiled or shared program is not removed.</p>
-
-      <h3>Several users</h3>
-      <p>If several people dictate on the same computer (or if you want to keep two uses apart), each has their own <b>user</b>: their dictionary, custom modes, commands, history and statistics, and their personal settings (first name, gender, languages, chosen mode, history retention). The keys, microphone, sounds, engines, appearance and API keys stay those of the computer, shared by everyone. Everything is stored in the data folder, under “utilisateurs”. A person on their own has a single user (“Principal”) and sees almost nothing of this chapter.</p>
-      <ul>
-        <li><b>Managing users.</b> Profile, “Users” card: “Create a user” (empty, or copied from the active user: their personal settings and dictionary, never the history or the statistics), “Rename”, “Use” to switch to another, “Delete”.</li>
-        <li><b>Switching between them.</b> From the “Users” card or, as soon as there are two users, from the “User” submenu of the icon {trayNear}, which ticks the active user. There is no keyboard shortcut, so you never switch without noticing. Switching is refused during a dictation. The page reloads; Home greets you with the active user’s name (if your first name is empty) and shows their statistics. The start of the model’s instruction changes (words, mode, gender): the model is preloaded again and the first dictation after that may be a little slower.</li>
-        <li><b>Setting aside.</b> (The button replaces “Delete”: nothing is erased.) After confirmation, the user’s folder is moved to “utilisateurs-supprimes”, in the data folder: Scriibe never erases it. To take it back, put its folder back in “utilisateurs” by hand, then relaunch Scriibe. The active user cannot be deleted: switch to another one first.</li>
-        <li><b>Two windows, or the icon while the page is open.</b> If the user changes while the page is open, it notices within a few seconds and reloads. If you save just before, Scriibe refuses to write to the other user, reloads the page and tells you: nothing is mixed up, but what you had just done has to be redone.</li>
-      </ul>
-      <p>The full backup (Data and system) contains the active user and the computer’s settings: to back up everyone, make one for each user, switching from one to the other.</p>
-      <div class="links">{@render go('Manage users', 'profile', 'utilisateurs')}</div>
-
-      <h3>Exporting and importing a user</h3>
-      <p>To take your setup to another computer, back it up or give it to someone: Profile, “Users” card, “Export…” on the user’s row (the active user or another: so you can export before setting a user aside). Scriibe shows what will leave, by category, with a box each and the list one click away, then opens the system’s “Save as” box (on Linux, where it does not exist yet, the file is placed in the Documents folder, and an existing file is never overwritten). The <b>.scriibe.json</b> file is not encrypted: read it before sharing it.</p>
-      <ul>
-        <li><b>What leaves.</b> Personal settings (languages, gender, chosen mode, Simple’s fidelity, modes hidden from the menu, list bullet, voice commands and their phrases), words, corrections, custom modes (with or without their examples), the edited instructions of the built-in modes, custom commands and their phrases. The <b>first name and display name</b> are unticked by default.</li>
-        <li><b>What never leaves.</b> API keys, history, statistics (and the settings that control how long they are kept), the trial bench and the computer’s settings (keys, microphone, sounds, engines, appearance). To save everything, there is the full backup.</li>
-        <li><b>Importing.</b> “Import a user…”, then choose the file (on Linux, type its path). Scriibe refuses anything that is not a user file or is too big, then shows a preview: a name to give and a box per category. <b>An import always creates a new user</b>, which does not become active by itself, and touches none of the existing ones; a name already taken gets a number. Same limits and rules as the dictionary and command imports: new identifiers, numbered titles, unreadable shortcuts set aside. Read a file that comes from someone else: a correction replaces a word in all your dictations, an instruction is given to the model, a command presses a shortcut in the app.</li>
-      </ul>
-
-      <h3>Users and earlier versions of Scriibe</h3>
-      <p>On the first launch that stores the data per user, Scriibe first makes a <b>backup</b> of your files in “sauvegarde-avant-utilisateurs-<i>date</i>” (in the data folder), then creates the user “Principal” with your first name, dictionary, history and statistics. Scriibe never erases this folder: delete it yourself once you are sure you will not go back. It keeps your history as it was, dictated texts included, even if you later set “Keep the text” to off; uninstalling sends it to the Trash with the rest.</p>
-      <ul>
-        <li><b>Going back to an earlier version of Scriibe.</b> It does not know about users: it reads the data folder without error, but your dictionary, modes and history will look empty. To get them back, quit Scriibe, then put the files of the backup folder (settings.json, dictionary.json, history.json, history-totals.json) back by hand at the root of the data folder. If you later relaunch the new version, it picks up the existing user instead of making a new one.</li>
-        <li><b>Copying Scribe’s folder over it.</b> If you copy Scribe’s data folder into a folder already organised by user, Scriibe keeps your user as it is and merges nothing: the copied files are set aside in a new backup. To bring in Scribe’s data, copy its folder before the first launch of this version of Scriibe.</li>
-        <li><b>If the storage change fails.</b> Scriibe keeps the old layout for that launch and tries again at the next one; the log gives the reason, and the “Users” card warns that users are not available.</li>
-      </ul>
-
-      <h3>What happens between your voice and the text</h3>
-      <p>When you release the key, your sentence goes through several steps, each done by someone (or something) different:</p>
-      <ol class="steps">
-        <li><b>The microphone</b> records what you say while you hold the key. Nothing else: it is a plain sound file.</li>
-        <li><b>The transcription</b> (Whisper, or Deepgram online) listens to this sound and writes the words. It is like a subtitler: it hears, it does not interpret. It writes what it thinks it hears, with approximate punctuation, and it can get a proper name or a rare word wrong.</li>
-        <li><b>The text corrections</b> apply fixed rules, with no model and no waiting: dictated signs (“point à la ligne”, “ouvrez la parenthèse”), lists, and your dictionary (“cloud code” → “Claude Code”).</li>
-        <li><b>The cleanup</b> is done by a <b>language model</b> (llama.cpp on this computer, or OpenRouter online). It understands the meaning: it removes the “uh”s and false starts, fixes the punctuation, rephrases if the mode asks for it, and translates if you hold the translation key. It follows the instruction of the chosen mode, and a safeguard checks that it has not answered in your place or invented text.</li>
-        <li><b>The French typography</b> puts the spaces before “?” or “:”, the « » and the apostrophes right, then Scriibe <b>pastes</b> the result where your cursor is.</li>
-      </ol>
-      {@render tip('So two different models work one after the other: the one that listens (Whisper) and the one that writes (the cleanup model). They do not do the same job, and you can choose one locally and the other online.')}
-      {@render tip('Two words not to mix up: the “cleanup” (“mise au propre”) is the automatic tidying that follows every dictation (the step above, with the chosen mode); the “rephrasing” (“reformulation”) is the voice command on a selection, under the command key (“reformule en plus court”). They are two different functions.')}
-
-      <h3>A program, a model: what is the choice for?</h3>
-      <p>Each step has two parts. The <b>program</b> (<i>whisper-server</i>, <i>llama-server</i>) is the engine: small, it knows how to run a model. The <b>model</b> is a big file that holds everything the artificial intelligence has learned: it is what makes the quality. The same program can run very different models, hence the choice.</p>
-      <p>Choosing a model means choosing a compromise between four things:</p>
-      <ul>
-        <li><b>Quality.</b> A big model hears better (Whisper “small” more than “base”) or writes better (a 3-billion-parameter model more than a 0.5-billion one). A small model makes more mistakes: a misheard word, a badly rephrased sentence, a false start (“no, sorry”) left uncorrected.</li>
-        <li><b>Speed.</b> A big model does more calculations, so it takes longer. On a laptop without a real graphics card, Whisper “small” takes several times longer than “base”, and a 3-billion-parameter writing model takes about ten seconds per sentence. An online service answers in about two seconds, because it runs on powerful machines.</li>
-        <li><b>Space and memory.</b> A model takes from a few hundred MB to several GB on disk, and as much in memory while it works. A 2 GB graphics card cannot hold a 2 GB model: Scriibe then switches to the processor by itself.</li>
-        <li><b>Privacy and cost.</b> Locally, your voice and text stay on the computer, and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
-      </ul>
-      <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, or Engines and models) if you change computer, graphics card or mind.</p>
-      <div class="links">
-        {@render go('Choose the engines', 'engines', 'moteurs')}
-        {@render go('Install a model', 'engines', 'install-modeles-recommandes')}
-        {@render go('Compare with the dictation bench', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}
-      </div>
-
-    {:else if open === 'dictate'}
-      <h2>Dictating and translating</h2>
+    </div>
+    {/if}
+    {#if show('dictate')}
+    <div class="sec" data-help="dictate" hidden={hideSec('dictate')}>
+      <h2>Dictate</h2>
       <p>Hold <b>{dictate}</b> all the time you speak; when you release, Scriibe transcribes, cleans up and pastes. Speak naturally: the “uh”s, false starts and repetitions are removed for you (except in Literal mode, or if the cleanup engine is “None”).</p>
       {@render example('euh, le rendez-vous est à dix heures, non pardon, à onze heures', 'Le rendez-vous est à 11 h.', 'A false start (“non pardon”, “enfin”) keeps only the corrected version.')}
       {@render example('est-ce que tu peux m’envoyer le devis avant vendredi midi', 'Est-ce que tu peux m’envoyer le devis avant vendredi midi ?', 'A question or a request stays a question: Scriibe writes it, it does not answer it (see “Common problems” if that happens).')}
@@ -228,9 +182,11 @@
         <li><b>A selection</b> is replaced by the dictation: if a word or a group of words is selected when you release the key, the dictated text takes its place <b>without a capital letter at the start nor a period, comma or semicolon at the end</b>, since it fits in the middle of a sentence (the “?”, the “!” and ellipses stay; names from your dictionary and acronyms keep their capital). <i>Why:</i> Whisper puts a capital and a period on every dictation, which does not fit in the middle of a sentence. {#if mac}Scriibe sends a ⌘C to find out whether a text is selected and puts your clipboard back right away.{:else}This only works on a Mac for now.{/if}</li>
       </ul>
       <div class="links">{@render go('Dictate', 'dictate', 'dictee')}</div>
-
-    {:else if open === 'modes'}
-      <h2>Modes</h2>
+    </div>
+    {/if}
+    {#if show('modes')}
+    <div class="sec" data-help="modes" hidden={hideSec('modes')}>
+      <h2>Writing style</h2>
       <p>The mode decides what your text becomes. All of them keep your information and your questions, and must never answer what you dictate (a safeguard watches over this); the modes that rephrase change the tone, and Letter addresses the recipient formally (“vous”).</p>
       {@render example('bon ben j’ai regardé le devis que tu m’as envoyé et franchement ça me va sauf le prix de la livraison', 'J’ai regardé le devis que tu m’as envoyé et franchement ça me va, sauf le prix de la livraison.', 'Simple: removes the “uh”s, punctuates, keeps your words.')}
       {@render example('bon ben j’ai regardé le devis que tu m’as envoyé et franchement ça me va sauf le prix de la livraison', 'J’ai examiné le devis que tu m’as adressé et, franchement, cela me convient, à l’exception du coût de la livraison.', 'Formal: rephrases in careful French.')}
@@ -268,9 +224,11 @@
       <h3>Choosing the modes in the icon menu</h3>
       <p>In Writing style, each mode has a “Show in the icon menu” box. At the start, all of them are ticked. Untick a mode to remove it from the icon menu, even if it is the current one: it then stays the mode in use, with no tick in the menu, until you choose another. The mode is neither deleted nor hidden elsewhere: you find it on this page and can choose it here. At least one mode always stays shown (the last box cannot be unticked). This choice is kept when you quit Scriibe.</p>
       <div class="links">{@render go('The modes', 'style', 'modes-groupe-0')}</div>
-
-    {:else if open === 'dictionary'}
-      <h2>Dictionary and signs</h2>
+    </div>
+    {/if}
+    {#if show('dictionary')}
+    <div class="sec" data-help="dictionary" hidden={hideSec('dictionary')}>
+      <h2>Dictionary</h2>
       <p>The dictionary teaches Scriibe your own words, and the signs are dictated out loud.</p>
       <h3>Dictated signs</h3>
       {@render example('le colis ouvrez la parenthèse le gros fermez la parenthèse est arrivé point à la ligne merci encore', 'Le colis (le gros) est arrivé.\nMerci encore.', 'The variants are recognised: “ouvre” or “ouvrez”, “ferme” or “fermez”, “retour à la ligne”, “nouveau paragraphe”… (when dictating in French).')}
@@ -288,7 +246,12 @@
       <p>To bring a file in: “Import…”, then pick it in the dialog that opens (on Linux, type its path). Scriibe refuses anything that is not a Scriibe dictionary or that is too big, then shows a preview: what is new (ticked), what is already in your dictionary, and the corrections whose “heard” already exists with a different “written”. <b>An import adds and never replaces</b>: your words and corrections already in place stay as they are, and nothing changes until you click “Import”. Read over the corrections of a file that comes from someone else: a correction replaces one word with another in all your dictations.</p>
       <h3>E-mail addresses: tune your dictionary</h3>
       <p>Whisper mishears addresses: it often drops “arobase” and “gmail”, or writes your name differently (“john dot smith dot com”). The signs cannot guess that. Dictate with each word clearly separated (“jean at sign gmail dot com”), and for <b>your own address</b>, add a correction: “Heard” what Whisper writes (read it in the history), “Written” your full address. Likewise add several “Heard” entries for “@” (“at sign”, “at”, “arobase”…) and, if Whisper spells your name differently, a correction for your name: the dictionary is tuned over time, with your own listening mistakes.</p>
-      <h3>Voice commands</h3>
+      <div class="links">{@render go('Open the dictionary', 'dictionary')}</div>
+    </div>
+    {/if}
+    {#if show('commands')}
+    <div class="sec" data-help="commands" hidden={hideSec('commands')}>
+      <h2>Voice commands</h2>
       <p>When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words around it, the phrase stays ordinary text. Neither the selected text nor the command is kept in the history.</p>
       <p><b>The command key.</b> Hold <b>{command}</b> in addition to the dictation key: what you say is then a command, <b>never pasted text</b>. It works even if the commands switch is off, and the commands below also work under this key. If what you say is not a command, Scriibe says so on the indicator and <b>pastes nothing</b>: “Unknown command”, “Command not recognised” (the phrase looks like a command: try saying it again), “Command too long” (more than 25 words) or “No selection”. A dictation made by mistake under this key therefore disappears without a trace, and nothing goes into the history. The command wins over translation. To change the key: Voice commands, “Key held in addition to dictate a command”.{#if linux} On GNOME (Wayland), it is a third GNOME shortcut, in the same place as the other two.{/if} <i>Why:</i> a separate key stops a phrase dictated normally from triggering an action by mistake.</p>
       <ul>
@@ -303,10 +266,93 @@
         <li><b>Rewrite the selection</b>: <b>under the command key only</b>, select some text, then say in a few words (25 at most) what you want done with it: “look for mistakes”, “make it friendlier”, “shorten it”, “translate into French”. A phrase that is neither a command nor close to one becomes the <b>instruction</b>: the rewritten text replaces the selection, and a single {mac ? '⌘Z' : 'Ctrl+Z'} brings the original back (it is pasted, never typed). The selection <b>only goes to a cleanup engine on this computer</b>: llama.cpp, or LM Studio and Ollama at the address 127.0.0.1, localhost or [::1]. For an online engine (OpenRouter) or one on another machine (an LM Studio elsewhere in the house), tick “Allow sending the selection to this engine” in Voice commands, “Rewriting the selection” card: this consent covers this engine, this model and this address, and <b>falls as soon as any of the three changes</b>. Without consent, nothing is sent or replaced, and the indicator points you to the setting. If you switch to another application before Scriibe has read the selection, nothing is read or sent. If you switch while the model is working, the text is not pasted into the new one: it is only copied (without entering the clipboard history), and the indicator says so. Stay in the same window until it is pasted: Scriibe checks the application, not the tab or the document. If the model answers instead of rewriting (“Here is…”, “No mistakes found”, or a web address, an email address or a number that was not in your selection), nothing is replaced: “Rewrite not possible”. “Nothing to change”: the model gave the text back as it was. The selection is at most 3,000 characters. Neither the selection, nor the instruction, nor the rewritten text goes into the history or the log (only the lengths, the engine and the duration), and your previous clipboard is put back, as for a snippet. Without a selection, the instruction gives “Unknown command”. <i>Limit:</i> in a code editor, copying with nothing selected takes the whole line; Scriibe then believes it is selected and replaces it.{#if linux} <b>Not available on Linux</b>: Scriibe cannot read the selection there yet (the indicator says so).{/if}</li>
       </ul>
       {@render tip('The phrases are changed in the “Voice commands” page: at least two words, and a phrase cannot serve two commands. A switch turns all the commands off. For now they only work on Mac.')}
-      <div class="links">{@render go('Open the dictionary', 'dictionary')}</div>
+      <div class="links">{@render go('Open the voice commands', 'commands')}</div>
+    </div>
+    {/if}
+    {#if show('engines')}
+    <div class="sec" data-help="engines" hidden={hideSec('engines')}>
+      <h2>Engines and models</h2>
+      <h3>What happens between your voice and the text</h3>
+      <p>When you release the key, your sentence goes through several steps, each done by someone (or something) different:</p>
+      <ol class="steps">
+        <li><b>The microphone</b> records what you say while you hold the key. Nothing else: it is a plain sound file.</li>
+        <li><b>The transcription</b> (Whisper, or Deepgram online) listens to this sound and writes the words. It is like a subtitler: it hears, it does not interpret. It writes what it thinks it hears, with approximate punctuation, and it can get a proper name or a rare word wrong.</li>
+        <li><b>The text corrections</b> apply fixed rules, with no model and no waiting: dictated signs (“point à la ligne”, “ouvrez la parenthèse”), lists, and your dictionary (“cloud code” → “Claude Code”).</li>
+        <li><b>The cleanup</b> is done by a <b>language model</b> (llama.cpp on this computer, or OpenRouter online). It understands the meaning: it removes the “uh”s and false starts, fixes the punctuation, rephrases if the mode asks for it, and translates if you hold the translation key. It follows the instruction of the chosen mode, and a safeguard checks that it has not answered in your place or invented text.</li>
+        <li><b>The French typography</b> puts the spaces before “?” or “:”, the « » and the apostrophes right, then Scriibe <b>pastes</b> the result where your cursor is.</li>
+      </ol>
+      {@render tip('So two different models work one after the other: the one that listens (Whisper) and the one that writes (the cleanup model). They do not do the same job, and you can choose one locally and the other online.')}
+      {@render tip('Two words not to mix up: the “cleanup” (“mise au propre”) is the automatic tidying that follows every dictation (the step above, with the chosen mode); the “rephrasing” (“reformulation”) is the voice command on a selection, under the command key (“reformule en plus court”). They are two different functions.')}
 
-    {:else if open === 'indicator'}
-      <h2>The indicator</h2>
+      <h3>A program, a model: what is the choice for?</h3>
+      <p>Each step has two parts. The <b>program</b> (<i>whisper-server</i>, <i>llama-server</i>) is the engine: small, it knows how to run a model. The <b>model</b> is a big file that holds everything the artificial intelligence has learned: it is what makes the quality. The same program can run very different models, hence the choice.</p>
+      <p>Choosing a model means choosing a compromise between four things:</p>
+      <ul>
+        <li><b>Quality.</b> A big model hears better (Whisper “small” more than “base”) or writes better (a 3-billion-parameter model more than a 0.5-billion one). A small model makes more mistakes: a misheard word, a badly rephrased sentence, a false start (“no, sorry”) left uncorrected.</li>
+        <li><b>Speed.</b> A big model does more calculations, so it takes longer. On a laptop without a real graphics card, Whisper “small” takes several times longer than “base”, and a 3-billion-parameter writing model takes about ten seconds per sentence. An online service answers in about two seconds, because it runs on powerful machines.</li>
+        <li><b>Space and memory.</b> A model takes from a few hundred MB to several GB on disk, and as much in memory while it works. A 2 GB graphics card cannot hold a 2 GB model: Scriibe then switches to the processor by itself.</li>
+        <li><b>Privacy and cost.</b> Locally, your voice and text stay on the computer, and it is free. Online (Deepgram, OpenRouter), it is fast, but your voice or your text goes to the service, and you need a key (often paid).</li>
+      </ul>
+      <p>If you have no precise idea, let the assistant choose: it measures your computer and suggests the combination that suits it, with the times that were really measured. You can <b>run it again whenever you want</b> (button above, or Engines and models) if you change computer, graphics card or mind.</p>
+      <div class="links">
+        {@render go('Choose the engines', 'engines', 'moteurs')}
+        {@render go('Install a model', 'engines', 'install-modeles-recommandes')}
+        {@render go('Compare with the dictation bench', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}
+      </div>
+    </div>
+    {/if}
+    {#if show('privacy')}
+    <div class="sec" data-help="privacy" hidden={hideSec('privacy')}>
+      <h2>On this computer or online</h2>
+      <p>{privacySummary}</p>
+      <ul>
+        <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: your voice and text stay on the computer.</li>
+        <li><b>Deepgram</b> receives the recording of each dictation, once the key is released (nothing outside your dictations); <b>OpenRouter</b> receives the transcribed text to clean it up.</li>
+        <li><b>Memory</b>: Whisper stops after 10 minutes without dictation and comes back when you press the key, while you speak; llama.cpp’s cleanup model is freed after 30 minutes by default (adjustable: 2 h, 8 h or “as long as Scriibe is running”). <i>Why:</i> they take several GB of memory. After a release, the first dictation is slower: on a computer without a graphics card, count 15 to 45 s for the local model; preloading at launch avoids it for the first one.</li>
+        <li>The words in “Words to write exactly” go along with the dictation: to Deepgram and OpenRouter if you use them.</li>
+        <li>Translation always goes through the cleanup engine, even in Literal mode.</li>
+        <li>Choose “None” as the cleanup to load no model at all: the text is transcribed as is (dictated signs, dictionary, typography). The modes and translation are then unavailable.</li>
+        <li>The history, the dictionary, the settings and the bench runs stay on this computer, in the data folder (Data and system).</li>
+        <li>History, “History privacy” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for Home. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
+        <li>The Deepgram and OpenRouter keys are never displayed or written to the log; {#if mac}they are stored in the Mac’s keychain.{:else if linux}on Linux, Scriibe does not store them: you give them through environment variables, before launching Scriibe.{:else}they are stored in the Windows Credential Manager.{/if}</li>
+      </ul>
+      <div class="links">{@render go('The engines', 'engines', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
+    </div>
+    {/if}
+    {#if show('profile')}
+    <div class="sec" data-help="profile" hidden={hideSec('profile')}>
+      <h2>Profile</h2>
+      <h3>Several users</h3>
+      <p>If several people dictate on the same computer (or if you want to keep two uses apart), each has their own <b>user</b>: their dictionary, custom modes, commands, history and statistics, and their personal settings (first name, gender, languages, chosen mode, history retention). The keys, microphone, sounds, engines, appearance and API keys stay those of the computer, shared by everyone. Everything is stored in the data folder, under “utilisateurs”. A person on their own has a single user (“Principal”) and sees almost nothing of this chapter.</p>
+      <ul>
+        <li><b>Managing users.</b> Profile, “Users” card: “Create a user” (empty, or copied from the active user: their personal settings and dictionary, never the history or the statistics), “Rename”, “Use” to switch to another, “Delete”.</li>
+        <li><b>Switching between them.</b> From the “Users” card or, as soon as there are two users, from the “User” submenu of the icon {trayNear}, which ticks the active user. There is no keyboard shortcut, so you never switch without noticing. Switching is refused during a dictation. The page reloads; Home greets you with the active user’s name (if your first name is empty) and shows their statistics. The start of the model’s instruction changes (words, mode, gender): the model is preloaded again and the first dictation after that may be a little slower.</li>
+        <li><b>Setting aside.</b> (The button replaces “Delete”: nothing is erased.) After confirmation, the user’s folder is moved to “utilisateurs-supprimes”, in the data folder: Scriibe never erases it. To take it back, put its folder back in “utilisateurs” by hand, then relaunch Scriibe. The active user cannot be deleted: switch to another one first.</li>
+        <li><b>Two windows, or the icon while the page is open.</b> If the user changes while the page is open, it notices within a few seconds and reloads. If you save just before, Scriibe refuses to write to the other user, reloads the page and tells you: nothing is mixed up, but what you had just done has to be redone.</li>
+      </ul>
+      <p>The full backup (Data and system) contains the active user and the computer’s settings: to back up everyone, make one for each user, switching from one to the other.</p>
+      <div class="links">{@render go('Manage users', 'profile', 'utilisateurs')}</div>
+
+      <h3>Exporting and importing a user</h3>
+      <p>To take your setup to another computer, back it up or give it to someone: Profile, “Users” card, “Export…” on the user’s row (the active user or another: so you can export before setting a user aside). Scriibe shows what will leave, by category, with a box each and the list one click away, then opens the system’s “Save as” box (on Linux, where it does not exist yet, the file is placed in the Documents folder, and an existing file is never overwritten). The <b>.scriibe.json</b> file is not encrypted: read it before sharing it.</p>
+      <ul>
+        <li><b>What leaves.</b> Personal settings (languages, gender, chosen mode, Simple’s fidelity, modes hidden from the menu, list bullet, voice commands and their phrases), words, corrections, custom modes (with or without their examples), the edited instructions of the built-in modes, custom commands and their phrases. The <b>first name and display name</b> are unticked by default.</li>
+        <li><b>What never leaves.</b> API keys, history, statistics (and the settings that control how long they are kept), the trial bench and the computer’s settings (keys, microphone, sounds, engines, appearance). To save everything, there is the full backup.</li>
+        <li><b>Importing.</b> “Import a user…”, then choose the file (on Linux, type its path). Scriibe refuses anything that is not a user file or is too big, then shows a preview: a name to give and a box per category. <b>An import always creates a new user</b>, which does not become active by itself, and touches none of the existing ones; a name already taken gets a number. Same limits and rules as the dictionary and command imports: new identifiers, numbered titles, unreadable shortcuts set aside. Read a file that comes from someone else: a correction replaces a word in all your dictations, an instruction is given to the model, a command presses a shortcut in the app.</li>
+      </ul>
+
+      <h3>Users and earlier versions of Scriibe</h3>
+      <p>On the first launch that stores the data per user, Scriibe first makes a <b>backup</b> of your files in “sauvegarde-avant-utilisateurs-<i>date</i>” (in the data folder), then creates the user “Principal” with your first name, dictionary, history and statistics. Scriibe never erases this folder: delete it yourself once you are sure you will not go back. It keeps your history as it was, dictated texts included, even if you later set “Keep the text” to off; uninstalling sends it to the Trash with the rest.</p>
+      <ul>
+        <li><b>Going back to an earlier version of Scriibe.</b> It does not know about users: it reads the data folder without error, but your dictionary, modes and history will look empty. To get them back, quit Scriibe, then put the files of the backup folder (settings.json, dictionary.json, history.json, history-totals.json) back by hand at the root of the data folder. If you later relaunch the new version, it picks up the existing user instead of making a new one.</li>
+        <li><b>Copying Scribe’s folder over it.</b> If you copy Scribe’s data folder into a folder already organised by user, Scriibe keeps your user as it is and merges nothing: the copied files are set aside in a new backup. To bring in Scribe’s data, copy its folder before the first launch of this version of Scriibe.</li>
+        <li><b>If the storage change fails.</b> Scriibe keeps the old layout for that launch and tries again at the next one; the log gives the reason, and the “Users” card warns that users are not available.</li>
+      </ul>
+    </div>
+    {/if}
+    {#if show('indicator')}
+    <div class="sec" data-help="indicator" hidden={hideSec('indicator')}>
+      <h2>Appearance</h2>
       <p>During the dictation, a small pill at the bottom of the screen shows where Scriibe is, without you having to look elsewhere. It never takes the focus: what you type keeps going into your app. <i>Why:</i> without it, you would not know whether Scriibe hears you until you had spoken into the void.</p>
       <div class="samples">
         {#each [['Listening', 'listening'], ['Cleaning up', 'working'], ['Pasted', 'done']] as [name, state] (state)}
@@ -324,9 +370,24 @@
         <li>Three styles (pill, plain dot, level meter), three positions, five colours and an adjustable transparency. The pill is on by default; it is turned off in the settings. The window appearance (light, dark or the system one) is set in the same place, Appearance.</li>
       </ul>
       <div class="links">{@render go('Adjust the indicator', 'appearance', 'indicateur')}</div>
+    </div>
+    {/if}
+    {#if show('data')}
+    <div class="sec" data-help="data" hidden={hideSec('data')}>
+      <h2>Data and system</h2>
+      <h3>Launching Scriibe when you log in</h3>
+      <p>Data and system, “Launch at startup” card: tick the box and Scriibe starts by itself when you log in, <b>without a window</b>: the icon {trayNear} is there and the dictation key is ready. It is off by default; unticking removes the entry. {#if mac}The entry is shown in System Settings → General → Login Items (macOS may show a “background item added” notification, that is normal). If you move Scriibe.app, start it once by hand: the entry updates itself. If you turned it off in System Settings, the box is unticked; ticking it again turns it back on.{:else if linux}The entry is a file in ~/.config/autostart, shown in your desktop environment’s “Startup Applications”. If you move Scriibe, start it once by hand: the entry updates itself.{:else}The entry is shown in Task Manager, “Startup apps” tab; if you turn it off there, the box is unticked, and ticking it again turns it back on. If you move scriibe.exe, start it once by hand: the entry updates itself. No black window opens at startup.{/if}</p>
 
-    {:else if open === 'measures'}
-      <h2>Measuring and comparing</h2>
+      <h3>Backing up and restoring your data</h3>
+      <p>Data and system, “Back up and transfer” card, at the top (full backup): “Save a backup” writes a single file (.scriibe.json) with your settings and modes, your dictionary, your history and your statistics. Scriibe reads it back before saying “done”. The file is unencrypted and the history contains the texts you dictated: keep it wherever you like, but not inside Scriibe’s folder. API keys, downloaded models, trial benches and logs are not part of it. “Restore a backup” first shows what will be replaced, asks for your agreement, keeps a copy of the current state in the data folder (avant-import-…) and then restarts Scriibe. If the backup comes from another system, this computer’s keys, microphone, sounds and model paths are kept. Further down, the same card has one line per export and import of a part (user, dictionary, modes, voice commands): each button opens, on its own page, the export or import card you can also find there; history retention is a link to its card.</p>
+
+      <h3>Uninstalling Scriibe</h3>
+      <p>Data and system, “Uninstall Scriibe” card (or, for troubleshooting, the “scriibe desinstaller” command, which shows the exact list with “--liste” without touching anything). Scriibe first shows <b>the exact list</b> of what goes, with sizes, and of what stays; offers a <b>backup</b> (ticked); then asks for a last confirmation. If the backup fails or is cancelled, nothing is removed. Everything goes <b>to the Trash</b> ({mac ? 'the Mac’s' : linux ? 'your desktop’s' : 'Windows’'}), so it is recoverable until you empty it: your settings, your dictionary, your history, the downloaded engines, the window caches and the program itself. The “Keep my downloaded models” box leaves the models folder in place for a reinstall. Models stored elsewhere (LM Studio, for example) are never touched; a link to a model is removed without touching the model. API keys are erased {mac ? 'from the keychain (macOS may ask for access again, up to once per key; otherwise: Keychain Access, search “Scriibe”)' : linux ? '— on Linux Scriibe does not store them: remove DEEPGRAM_API_KEY and OPENROUTER_API_KEY from your shell profile' : 'from Credential Manager (Windows Credentials, “Scriibe”)'}, and the startup entry is removed. {#if mac}Scriibe’s permissions are removed too (if needed: System Settings → Privacy & Security): after a reinstall, macOS asks for them again, Input Monitoring (the key), Accessibility (pasting) and Microphone, and Scriibe must be relaunched after each. If you remove Scriibe from one of these lists with the “−”, the “+” finds it again with ⌘ + Shift + G, typing ~/Applications. {/if}Finally Scriibe closes, a helper does the work and a last message says what was removed and what remains. The button is greyed out if the SCRIIBE_DATA variable is set (trials), and a compiled or shared program is not removed.</p>
+    </div>
+    {/if}
+    {#if show('measures')}
+    <div class="sec" data-help="measures" hidden={hideSec('measures')}>
+      <h2>Measurements and trials</h2>
       <p>These tools are not for everyday use: they answer a precise question. Choose them according to what you want to know.</p>
       {@render question('Does Scriibe work well for me, for real?', 'The Test bench (Measurements and trials): you read 17 tricky phrases (hesitations, false starts, questions, dictated signs), and each one is checked automatically. It shows what Whisper heard, what would be pasted, the time of each step, and the microphone level.')}
       {@render question('The bench phrases are not in the right language.', 'They follow the dictation language (Dictate → “Dictation language”), not the interface language: Whisper transcribes in the language chosen, so you read phrases in that language. To read the 17 phrases in English, choose “English”, then put “French” back when you have finished. The typing test, on the other hand, follows the interface language.')}
@@ -338,24 +399,10 @@
       {@render question('What is my real typing speed?', 'In Measurements and trials, “My typing speed”: you copy out a text of a few lines, the timer starts at your first letter, mistakes turn red, and the attempt stops when the text is identical (or with “Finish”). The result is net (words of the text × share of correct letters ÷ minutes). Not kept: an attempt under 90% correct letters, shorter than 12 s, longer than 10 min or above 200 words/min. “Use” carries the average of the attempts kept over to your typing speed; the time saved is then recalculated for the whole history.')}
       {@render question('What is the report for?', 'Measurements and trials → “Report to paste to me” → “Copy the report” puts the installation state, the last bench run and the last lines of the log on the clipboard: that is what to paste so that you can be helped with a problem.')}
       <div class="links">{@render go('Measurements and trials', 'measures', 'bench-banc-de-dictee-les-17-phrases-de-scribe')}{@render go('Report and log', 'measures', 'journal-rapport-a-me-coller')}</div>
-
-    {:else if open === 'privacy'}
-      <h2>On this computer or online</h2>
-      <p>{privacySummary}</p>
-      <ul>
-        <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: your voice and text stay on the computer.</li>
-        <li><b>Deepgram</b> receives the recording of each dictation, once the key is released (nothing outside your dictations); <b>OpenRouter</b> receives the transcribed text to clean it up.</li>
-        <li><b>Memory</b>: Whisper stops after 10 minutes without dictation and comes back when you press the key, while you speak; llama.cpp’s cleanup model is freed after 30 minutes by default (adjustable: 2 h, 8 h or “as long as Scriibe is running”). <i>Why:</i> they take several GB of memory. After a release, the first dictation is slower: on a computer without a graphics card, count 15 to 45 s for the local model; preloading at launch avoids it for the first one.</li>
-        <li>The words in “Words to write exactly” go along with the dictation: to Deepgram and OpenRouter if you use them.</li>
-        <li>Translation always goes through the cleanup engine, even in Literal mode.</li>
-        <li>Choose “None” as the cleanup to load no model at all: the text is transcribed as is (dictated signs, dictionary, typography). The modes and translation are then unavailable.</li>
-        <li>The history, the dictionary, the settings and the bench runs stay on this computer, in the data folder (Data and system).</li>
-        <li>History, “History privacy” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for Home. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
-        <li>The Deepgram and OpenRouter keys are never displayed or written to the log; {#if mac}they are stored in the Mac’s keychain.{:else if linux}on Linux, Scriibe does not store them: you give them through environment variables, before launching Scriibe.{:else}they are stored in the Windows Credential Manager.{/if}</li>
-      </ul>
-      <div class="links">{@render go('The engines', 'engines', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
-
-    {:else}
+    </div>
+    {/if}
+    {#if show('problems')}
+    <div class="sec" data-help="problems" hidden={hideSec('problems')}>
       <h2>Common problems</h2>
       {@render question('Scriibe hears nothing.', `The microphone level shows in the Test bench (Measurements and trials). ${mac ? 'On Mac, check “Microphone” in System Settings → Privacy & Security: Scriibe’s switch must be on; then quit Scriibe and restart it.' : linux ? 'Check the input volume in the system’s sound settings.' : 'On Windows, check Settings → Privacy → Microphone: microphone access must be allowed.'} Also check the chosen microphone (Dictate → Microphone).`)}
       {@render question('Nothing is pasted, or a phrase is missing.', `Look at the log (Measurements and trials, at the bottom of the page): each dictation leaves a line there, “collage: … signes envoyés à …”. If the line says “copié seulement”, the text is on the clipboard: ${pasteKey} pastes it. ${pasteNote} If the line says the text was sent but nothing appears, the app did not read the clipboard: try in ${editor} to see whether the problem comes from the app, and copy the report.`)}
@@ -372,6 +419,12 @@
       {@render question('The window is empty or does not open.', mac ? 'Click the icon in the menu bar → “Open Scriibe”. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.' : linux ? 'Search for “Scriibe” in the application list, or click its icon at the top right → “Open Scriibe”. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.' : 'Right-click the icon near the clock → “Open Scriibe”. If WebView2 is missing, the same interface opens in your browser. Closing the window does not quit Scriibe: to stop it, “Quit Scriibe”.')}
       {@render question('How do I update?', `Data and system: “Check for a new version” tells you whether a version newer than yours is published (version, date, source); no account or token is needed. ${mac ? '“Install and restart” asks for confirmation, downloads the new version, replaces the Scriibe.app application and restarts it, keeping the old one alongside.' : linux ? '“Install and restart” asks for confirmation, downloads the new version, replaces the scriibe program and restarts Scriibe, keeping the old one alongside (scriibe.old).' : '“Install and restart” asks for confirmation, downloads the new version, replaces scriibe.exe and restarts Scriibe, keeping the old one alongside (scriibe.exe.old).'} The automatic search (every 6 hours) is unticked at first. That page also explains what goes out on the Internet, which is nothing personal.`)}
       <div class="links">{@render go('Installation', 'engines', 'install-etat-de-linstallation')}{@render go('Report and log', 'measures', 'journal-rapport-a-me-coller')}{@render go('Update', 'data', 'update-version')}</div>
+    </div>
+    {/if}
+    {#if show('about')}
+    <div class="sec" data-help="about" hidden={hideSec('about')}>
+      <HelpAbout />
+    </div>
     {/if}
   </section>
 </div>

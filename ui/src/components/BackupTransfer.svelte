@@ -63,7 +63,7 @@
   }
 </script>
 
-<Card help="start" id="sauvegarde" title={t('Sauvegarder et transférer')} intro={t('Tout sauvegarder d’un coup, ou n’exporter qu’une partie (un utilisateur, le dictionnaire, les modes, les commandes) pour la reprendre sur un autre ordinateur.')}>
+<Card help="data" id="sauvegarde" title={t('Sauvegarder et transférer')} intro={t('Tout sauvegarder d’un coup, ou n’exporter qu’une partie (un utilisateur, le dictionnaire, les modes, les commandes) pour la reprendre sur un autre ordinateur.')}>
   <h3 class="sub">{t('Sauvegarde complète')}</h3>
   <p class="muted">{t('Un seul fichier (.scriibe.json) avec tes réglages et modes, ton dictionnaire, ton historique et tes statistiques. Les clés d’API, les modèles téléchargés, les bancs d’essai et les journaux n’y sont pas.')}</p>
   <p class="muted">{t('L’historique contient les textes que tu as dictés : le fichier reste là où tu le ranges, en clair.')}</p>

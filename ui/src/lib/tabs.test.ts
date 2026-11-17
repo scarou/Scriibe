@@ -21,9 +21,12 @@ import help from '../tabs/Help.svelte?raw';
 import helpEn from '../tabs/HelpEn.svelte?raw';
 
 describe('structure de l’interface', () => {
-  it('ui_logic-014 Aide : huit sections aux titres distincts, dernière page de la barre latérale, ouverte sur « Premiers pas »', () => {
-    expect(helpSections.length).toBe(8);
-    expect(new Set(helpSections.map((s) => s.title)).size).toBe(8);
+  it('ui_logic-014 Aide : treize rubriques (une par page du menu, plus Premiers pas, Sur cet ordinateur ou en ligne, Problèmes fréquents, À propos) aux titres distincts, dernière page de la barre latérale, ouverte sur « Premiers pas »', () => {
+    expect(helpSections.length).toBe(13);
+    expect(new Set(helpSections.map((s) => s.title)).size).toBe(13);
+    // Les rubriques de l'Aide suivent les pages du menu, dans le même ordre.
+    const pageTitles = tabGroups.flatMap((g) => g.tabs.map((x) => x.label)).filter((l) => ['Dicter', 'Style d’écriture', 'Dictionnaire', 'Commandes vocales', 'Moteurs et modèles', 'Profil', 'Apparence', 'Données et système', 'Mesures et essais'].includes(l));
+    expect(helpSections.map((s) => s.title as string).filter((t) => (pageTitles as string[]).includes(t))).toEqual(pageTitles);
     expect(tabs.at(-1)?.id).toBe('help');
     expect(helpSections.find((s) => s.id === defaultHelpSection)?.title).toBe('Premiers pas');
   });
@@ -94,7 +97,7 @@ describe('Aide : sommaire fixe', () => {
     });
 
     it(`${f} : un clic sur une section remonte en haut de la page, et en fenêtre étroite le sommaire devient une bande fixe en haut`, () => {
-      expect(src).toMatch(/helpSection = [^;]+;\s*window\.scrollTo\(0, 0\)/);
+      expect(src).toMatch(/helpSection = [^;]+;[\s\S]*?window\.scrollTo\(0, 0\)/);
       const narrow = /@media \(max-width: (\d+)px\) \{([\s\S]*?)\n  \}/.exec(src);
       expect(narrow, 'media query de la fenêtre étroite').not.toBeNull();
       expect(Number(narrow![1])).toBeGreaterThanOrEqual(800);

@@ -94,7 +94,7 @@
   );
 </script>
 
-<Card id="install-etat-de-linstallation" title={t('État de l’installation')} help="start">
+<Card id="install-etat-de-linstallation" title={t('État de l’installation')} help="engines">
   <table>
     <tbody>
       {#each rows as r (r.label)}
@@ -126,13 +126,13 @@
   </div>
 {/snippet}
 
-<Card help="start" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans ton accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
+<Card help="engines" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans ton accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
   {#each items.filter((i) => i.kind === 'program') as it (it.id)}{@render offer(it)}{/each}
 </Card>
 
 <InstalledModels />
 
-<Card help="start" id="install-modeles-recommandes" title={t('Modèles recommandés')} intro={t('Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.')}>
+<Card help="engines" id="install-modeles-recommandes" title={t('Modèles recommandés')} intro={t('Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.')}>
   {#each items.filter((i) => i.kind !== 'program') as it (it.id)}{@render offer(it)}{/each}
 </Card>
 

@@ -8,7 +8,7 @@ Dictée vocale multiplateforme (Windows, macOS, Linux), suite de Scribe (macOS, 
 - En cas de doute sur un comportement, lire le code Swift de Scribe, ne pas l'inventer. Les écarts voulus se notent dans `docs/ECARTS.md`.
 - Ne jamais lire ni commiter de `.env` ni de clé d'API. Ne jamais lire non plus le jeton GitHub rangé dans le Gestionnaire d'identifiants de l'auteur (il n'est plus utilisé).
 - Rien n'est téléchargé (modèle, binaire) sans l'accord de l'auteur : taille et source annoncées d'abord.
-- Ne jamais écrire le nom ni l'adresse courriel de l'auteur dans les fichiers du dépôt (code, documentation, journal, tests, interface) : dire « l'auteur ». Seuls `LICENSE`, `Cargo.toml` (champ auteur) et `fixtures/media_pause.json` (identifiant réel de Scribe) les contiennent, voulu.
+- Ne jamais écrire le nom ni l'adresse courriel de l'auteur dans les fichiers du dépôt (code, documentation, journal, tests, interface) : dire « l'auteur ». Seuls `LICENSE`, `Cargo.toml` (champ auteur), `fixtures/media_pause.json` (identifiant réel de Scribe) et `ui/src/lib/about.ts` (rubrique « À propos » de l'Aide, accord de l'auteur du 17/11/2026) les contiennent, voulu.
 
 ## Stack visée
 

@@ -1,13 +1,18 @@
-/** Les huit sections de l'Aide (mêmes titres que Scribe) ; la première est ouverte par défaut. */
+/** Les rubriques de l'Aide, dans l'ordre du menu de gauche (une par page, sauf « Premiers pas », « Sur cet ordinateur ou en ligne », « Problèmes fréquents » et « À propos ») ; la première est ouverte par défaut. */
 export const helpSections = [
   { id: 'start', title: 'Premiers pas' },
-  { id: 'dictate', title: 'Dicter et traduire' },
-  { id: 'modes', title: 'Les modes' },
-  { id: 'dictionary', title: 'Dictionnaire et signes' },
-  { id: 'indicator', title: 'L’indicateur' },
-  { id: 'measures', title: 'Mesurer et comparer' },
+  { id: 'dictate', title: 'Dicter' },
+  { id: 'modes', title: 'Style d’écriture' },
+  { id: 'dictionary', title: 'Dictionnaire' },
+  { id: 'commands', title: 'Commandes vocales' },
+  { id: 'engines', title: 'Moteurs et modèles' },
   { id: 'privacy', title: 'Sur cet ordinateur ou en ligne' },
+  { id: 'profile', title: 'Profil' },
+  { id: 'indicator', title: 'Apparence' },
+  { id: 'data', title: 'Données et système' },
+  { id: 'measures', title: 'Mesures et essais' },
   { id: 'problems', title: 'Problèmes fréquents' },
+  { id: 'about', title: 'À propos' },
 ] as const;
 
 export type HelpId = (typeof helpSections)[number]['id'];

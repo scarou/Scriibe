@@ -107,7 +107,7 @@
 
 {#if s && v}
   {#if section === 'appearance'}
-  <Card help="start" id="theme" title={t('Apparence de la fenêtre')} intro={t('Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.')}>
+  <Card help="indicator" id="theme" title={t('Apparence de la fenêtre')} intro={t('Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.')}>
     <label>{t('Apparence :')}
       <select value={v.theme} onchange={(e) => settings.change({ theme: e.currentTarget.value as never })}>
         <option value="auto">{t('Automatique (apparence du système)')}</option>
@@ -117,7 +117,7 @@
     </label>
   </Card>
 
-  <Card help="start" id="logo-anime" title={t('Logo animé')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement. Décoche pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.')}>
+  <Card help="indicator" id="logo-anime" title={t('Logo animé')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement. Décoche pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.')}>
     <label><input type="checkbox" checked={v.animatedLogo !== false} onchange={(e) => settings.change({ animatedLogo: e.currentTarget.checked })} />
       {t('Logo animé')}</label>
   </Card>
@@ -350,7 +350,7 @@
   {/if}
 
   {#if section === 'identity'}
-  <Card id="profil-personne" title={t('Prénom et genre')} help="start" intro={t('Ce que Scriibe sait de la personne qui dicte : son prénom pour la salutation, son genre pour accorder les textes réécrits.')}>
+  <Card id="profil-personne" title={t('Prénom et genre')} help="profile" intro={t('Ce que Scriibe sait de la personne qui dicte : son prénom pour la salutation, son genre pour accorder les textes réécrits.')}>
     <div class="setting">
       <label>{t('Prénom dans la salutation :')}
         <input type="text" value={v.firstName ?? ''} placeholder={status.value?.first_name ?? ''} maxlength="40" onchange={(e) => settings.change({ firstName: e.currentTarget.value.trim() })} />

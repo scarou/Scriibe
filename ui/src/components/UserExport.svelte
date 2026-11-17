@@ -78,7 +78,7 @@
   }
 </script>
 
-<Card id="utilisateur-export" accent title={preview ? t('Exporter l’utilisateur « {name} »', { name: preview.name }) : t('Exporter un utilisateur')} help="start">
+<Card id="utilisateur-export" accent title={preview ? t('Exporter l’utilisateur « {name} »', { name: preview.name }) : t('Exporter un utilisateur')} help="profile">
   {#if failed}
     <p class="warn">{failed}</p>
   {:else if !preview}

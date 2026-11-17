@@ -101,7 +101,7 @@
   });
 </script>
 
-<Card id="commandes-integrees" title={t('Commandes intégrées')} help="dictionary" intro={t('Ajouter au dictionnaire, entourer la sélection, gras, italique, souligné, recherches sur internet, nouveau mail : les phrases par défaut, que tu peux changer.')}>
+<Card id="commandes-integrees" title={t('Commandes intégrées')} help="commands" intro={t('Ajouter au dictionnaire, entourer la sélection, gras, italique, souligné, recherches sur internet, nouveau mail : les phrases par défaut, que tu peux changer.')}>
 <div class="vc">
     {#each groups as group (group.title)}
       {#if group.commands.length > 1}<h3>{t(group.title)}</h3>{/if}

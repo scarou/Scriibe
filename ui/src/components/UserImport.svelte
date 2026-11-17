@@ -95,7 +95,7 @@
   });
 </script>
 
-<Card id="utilisateur-import" accent title={t('Importer un utilisateur')} help="start">
+<Card id="utilisateur-import" accent title={t('Importer un utilisateur')} help="profile">
   {#if askPath}
     <p>{t('Sur ce système, indique le chemin du fichier .scriibe.json à importer :')}</p>
     <div class="row"><input type="text" class="grow" bind:value={path} placeholder="/home/…/scriibe-utilisateur.scriibe.json" disabled={busy} />

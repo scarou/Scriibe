@@ -71,7 +71,7 @@
   }
 </script>
 
-<Card id="commandes-extraits" title={t('Mes extraits')} help="dictionary">
+<Card id="commandes-extraits" title={t('Mes extraits')} help="commands">
 <div class="vc">
     <p class="muted">{t('Un extrait est un texte que tu colles en disant une phrase : « insérer mon adresse email » colle ton adresse. Il est collé tel quel (plusieurs lignes permises, 5 000 signes au plus), jamais gardé dans l’historique, et le presse-papiers d’avant est remis. Ça ne marche que sous la touche de commande ; dite sans elle, la phrase reste du texte. Un extrait peut contenir une adresse ou un IBAN : il n’est exporté que si tu le coches.')}</p>
     {#each snippets as s (s.id)}

@@ -60,3 +60,6 @@ audio { width: 100%; margin-top: 6px; }
 /* Titre d'une partie de page (Moteurs / Modèles, Désinstallation) : sépare des groupes de cartes. */
 .part-title { font-size: 1.2rem; margin: 28px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); }
 .part-title:first-of-type { margin-top: 8px; border-top: 0; padding-top: 0; }
+
+/* La recherche de l'Aide surligne le mot trouvé (voir HelpSearchBox). */
+::highlight(help-search) { background-color: color-mix(in srgb, var(--accent) 40%, transparent); color: inherit; }

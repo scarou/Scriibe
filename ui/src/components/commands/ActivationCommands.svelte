@@ -12,7 +12,7 @@
 <Card
   id="commandes-activation"
   title={t('Activer les commandes vocales')}
-  help="dictionary"
+  help="commands"
   intro={t('Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Les phrases affichées sont celles de la langue de l’interface (page Apparence).')}
 >
   <p class="warn">{t('Les commandes vocales ne marchent pas encore partout : celles qui agissent sur du texte sélectionné ne fonctionnent que sur Mac pour l’instant.')}</p>
