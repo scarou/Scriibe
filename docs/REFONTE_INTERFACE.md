@@ -918,3 +918,36 @@ Copie d'essai `Scriibe-essai.app` (compilée de cette version, `SCRIIBE_INSTALL`
 - **Français** : les 12 pages s'ouvrent ; titres de cartes et de parties conformes aux tâches 1 à 4 (Dicter 1 carte ; Style : Modes de base, professionnels, Mes modes ; Moteurs et modèles : parties Moteurs puis Modèles ; Profil : Utilisateurs, Prénom et genre, Comptes en ligne ; Données : démarrage, sauvegarde, version, emplacements, Désinstallation ; Mesures : bancs, temps, vitesse, journal, rapport). Les 18 boutons « → » de l'Aide ouvrent la bonne page ; les 18 ids de carte visés existent dans la page. Copies d'écran vues : Moteurs et modèles, Profil (avec le prénom et le genre lus des vraies données), Données et système.
 - **Anglais** (langue changée dans la copie) : menu et titres des 12 pages traduits ; aucun texte français résiduel, hors l'exemple volontaire « je me sens délaissé » du genre.
 - **Pas vu** : mode sombre, fenêtre étroite sous 400 px, défilement exact jusqu'à la carte visée (ses ids existent, le scroll animé n'a pas été mesuré), dictée à la touche.
+
+## Essai lot 1 (tâche 6)
+
+Essai réel du 17/11/2026, code au commit `2d6f2de` (les 8 commits de la refonte, poussés sur `main` pour l'occasion, accord de l'auteur). Mac : `Scriibe.app` recompilée et installée. Linux (HP ProBook) et Windows : `pilote maj` puis `pilote compiler --mode release`, lancement de `target/release/scriibe` (Linux relancé par SSH avec l'environnement graphique du processus précédent ; Windows lancé à la main par l'auteur). Réglages relus sur disque après chaque geste.
+
+| Contrôle | Mac | Linux | Windows |
+|---|---|---|---|
+| Les 4 groupes et chaque page s'ouvrent, aucune page vide | ✔ | ✔ | ✔ |
+| Apparence (thème), Dicter (pause des médias), Style (sauter la mise au propre) : gardés après redémarrage | ✔ | ✔ | ✔ |
+| Moteurs (délai de veille de Whisper), Commandes vocales (activer), Profil (nom, prénom) : écrits sur disque | ✔ | ✔ (gardés après redémarrage) | ✔ (gardés après redémarrage) |
+| Données et système : lancer à l'ouverture de session | ✔ (LaunchAgent créé) | refus voulu : programme dans `target/` | non essayé |
+| Case « Comparer avec le modèle » du banc gardée après redémarrage | **✘** | **✘** | **✘** |
+| En-tête fixe en bas de page (Moteurs et modèles, Données et système) | ✔ | ✔ | ✔ |
+| Boutons « ? » (Dicter, Moteurs et modèles) | ✔ | ✔ | ✔ |
+| Assistant : relancer depuis l'Aide, boutons « Aller au Profil » / « Aller à l'installation » | ✔ | ✔ (« Aller au Profil ») | ✔ relance ; boutons non affichés (« Tout est en place », clé déjà rangée) |
+| Dictée | ✔ (TextEdit) | ✔ | ✔ (Bloc-notes) |
+
+Réglages et profils d'essai remis par l'auteur sur le Mac ; l'assistant a été essayé avec une sauvegarde de `settings.json` restaurée ensuite (Mac, Linux, Windows). Restes d'essai sur Linux et Windows : thème sombre, pause des médias et « sauter la mise au propre » désactivés, délai de Whisper 30, commandes vocales désactivées ; nom d'utilisateur Linux « Chris ».
+
+### Constats
+
+- **Défaut (avant la refonte, non corrigé) : ce que la page garde dans le navigateur de la fenêtre est perdu à chaque lancement.** Le serveur local écoute sur un port libre qui change à chaque démarrage (`Server::http("127.0.0.1:0")`, `crates/cli/src/web/mod.rs:97`), donc l'origine change et `localStorage` repart vide. Touche : case du banc (`scriibe.bench.compare`), cartes repliées (`fold:<id>`), hauteur des cartes du Dictionnaire (`dictionary:height`), langue de l'interface si seul `localStorage` la porte. Vu sur les trois systèmes pour la case du banc. Correctif possible : ranger ces états dans `settings.json` (ou un fichier d'interface), ou fixer le port ; choix de conception, hors tâche.
+- Linux : la case « Lancer à l'ouverture de session » est grisée tant que Scriibe tourne depuis `target/` (garde-fou voulu, `launch_location_problem`) ; la raison est écrite en gris sous la case.
+- Linux : la clé OpenRouter ne s'enregistre pas par la page (« pas encore pris en charge ici : définis la variable d'environnement OPENROUTER_API_KEY ») ; manque connu du gestionnaire de secrets Linux (`docs/ECARTS.md`, clés d'API).
+- Un renommage de profil sur Linux « perdu » était un renommage non validé : refait, gardé après redémarrage.
+
+### Ajouts
+
+Demandes de l'auteur pendant l'essai :
+
+1. **Choix de durées de veille plus fins** (Moteurs : seulement 10 ou 30 minutes dans la liste). Proposé en ligne du carnet.
+2. **Désactiver une commande vocale en particulier** (aujourd'hui seulement « Activer les commandes vocales » pour toutes). Proposé en ligne du carnet.
+3. **Garder les états de la page malgré le changement de port** (voir le défaut ci-dessus). Proposé en ligne du carnet.
