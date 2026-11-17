@@ -971,3 +971,17 @@ Fait le 2026-11-17. La carte « Sauvegarder et transférer » (id `sauvegarde`, 
   - **Lignes de la carte** : « Exporter… » ouvre bien la carte d'export du dictionnaire, de l'utilisateur actif (« Exporter l'utilisateur « Principal » »), du mode (un seul) et des commandes ; « Importer… » du dictionnaire ouvre la boîte de fichier de macOS (annulée).
 - **Non vu** : les trois autres « Importer… » à l'écran (même chemin de code, couverts par le test de liens), l'écriture d'un export de partie, la carte en anglais, les systèmes Linux et Windows.
 - Piège : les boîtes de fichier de macOS (osascript) ne se pilotent pas depuis une session ; l'auteur a dû les valider. Un fichier d'état modifié est apparu dans Téléchargements pendant l'essai (rangé dans `Scriibe-essai-t8-sorties`).
+
+## Textes (tâche 9)
+
+Fait le 2026-11-17, d'après la liste du § Constat (Textes).
+
+- **Tutoiement** : tous les « vous / votre / vos » et les impératifs au vous de l'interface passent au « tu » (une soixantaine de textes : arrêt de Scriibe, historique, système, sauvegarde, Réglages, Mises à jour, banc, journal, Hugging Face, assistant…), y compris les messages Rust affichés (`uninstall.rs`, `assistant.rs`, `web/mod.rs`) et la phrase « que la vôtre » de l'Aide. Les clés de `en.ts` et `en-server.ts` suivent (la clé française est le texte). Laissés volontairement : « Vouvoie le destinataire » (le mode Courrier vouvoie), les phrases dictées en exemple, « rendez-vous », et « Dites sans la touche » (participe, pas impératif).
+- **Touches citées, lues dans les touches réellement réglées** (`status.dictation_label` / `translate_label`, jamais « Ctrl droit » écrit en dur) : banc « Traduire (comme {keys} ) », journal en direct (« Ouvre {app}, maintiens {key}… » avec TextEdit / un éditeur de texte / le Bloc-notes selon le système), assistant (« Tout est en place : maintiens {key}… »), ligne « Touche globale » de l'état d'installation.
+- **Utilisateur** : le bouton « Supprimer » devient « Mettre de côté » (le dialogue et l'Aide le disaient déjà ; rien n'est effacé) ; Aide FR/EN à jour.
+- **« (bêta) »** retiré de « Afficher la pastille à l'écran » et des trois introductions de la carte « Apparence de l'indicateur » (français et anglais).
+- **Carte et page de même nom** : la carte « Commandes vocales » (activation) devient « Activer les commandes vocales » ; c'était le seul doublon exact page / carte. L'assistant renvoyait déjà à la page Profil pour les clés (tâche 5).
+- **Aide** : une astuce, dans « Ce qui se passe entre ta voix et le texte » (FR et EN), distingue la **mise au propre** (nettoyage automatique après chaque dictée) de la **reformulation** (commande vocale sur une sélection) ; les deux mots sont gardés, chacun pour sa fonction.
+- **Test** (`i18n.test.ts`, « tutoiement ») : échoue si un texte français de l'interface (appels `t`/`tx`, clés de `en.ts` et `en-server.ts`, Aide française) contient « vous », « votre », « vos » ou « vôtre » (hors « rendez-vous »).
+- **Tests** : svelte-check sans erreur, Vitest 132 verts, `cargo fmt`, `clippy -D warnings`, `cargo test --workspace` verts (un échec isolé de `instance::a_second_instance_is_refused_until_the_first_ends` sous charge, vert seul et à la relance : à surveiller).
+- **Non vu à l'écran** : les nouveaux textes du banc, du journal et de l'assistant (non recompilés sur le Mac) ; Linux et Windows. Restent hors tâche : les textes de touches sans condition de `KeyPicker`, `ShortcutField`, `VoiceCommands` (Constat, tableau b) et les libellés « (Windows) » des programmes sur Mac.

@@ -10,7 +10,7 @@ export const enServer: Record<string, string> = {
   'Un dossier de Scriibe n\'a pas la structure attendue (moteurs absents) : il est laissé en place.': 'A Scriibe folder does not have the expected structure (engines missing): it is left in place.',
   'Scriibe est lancée depuis un dossier de développement (target/ ou dépôt git) : seules les données partent, le programme reste.': 'Scriibe is running from a development folder (target/ or git repository): only the data goes, the program stays.',
   'Le programme porte un autre nom que celui de Scriibe : il n\'est pas supprimé, à retirer à la main.': 'The program has a different name than Scriibe’s: it is not removed, remove it by hand.',
-  'Le programme (ou son dossier) n\'est pas modifiable par votre compte : seules vos données partent.': 'The program (or its folder) cannot be changed by your account: only your data goes.',
+  'Le programme (ou son dossier) n\'est pas modifiable par ton compte : seules tes données partent.': 'The program (or its folder) cannot be changed by your account: only your data goes.',
   'Le programme de Scriibe n\'a pas été retrouvé : seules les données partent.': 'Scriibe’s program was not found: only the data goes.',
   'la désinstallation n\'a pas été confirmée': 'the uninstall was not confirmed',
   'fais d\'abord la sauvegarde : aucune sauvegarde relue avec succès n\'a été trouvée': 'make the backup first: no successfully read-back backup was found',
@@ -142,11 +142,11 @@ export const enServer: Record<string, string> = {
   '3,2 à 3,9 s après le relâchement (mesuré sur un portable à 4 cœurs sans carte graphique)':
     '3.2 to 3.9 s after release (measured on a 4-core laptop with no graphics card)',
   'Tout sur cet ordinateur, sans mise au propre': 'Everything on this computer, without cleanup',
-  'Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte ; votre voix et votre texte restent sur l\'ordinateur.':
+  'Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte ; ta voix et ton texte restent sur l\'ordinateur.':
     'Whisper alone: the text is pasted as transcribed (dictated signs, dictionary and typography applied). No account; your voice and text stay on the computer.',
   '2,3 à 3,1 s (mesuré sur un portable à 4 cœurs sans carte graphique)': '2.3 to 3.1 s (measured on a 4-core laptop with no graphics card)',
   'Tout sur cet ordinateur, avec un petit modèle de mise au propre': 'Everything on this computer, with a small cleanup model',
-  'Whisper + Qwen 2.5 1,5 B (llama.cpp). Votre voix et votre texte restent sur l\'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.':
+  'Whisper + Qwen 2.5 1,5 B (llama.cpp). Ta voix et ton texte restent sur l\'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.':
     'Whisper + Qwen 2.5 1.5 B (llama.cpp). Your voice and text stay on the computer, but a small model sometimes keeps the “uh”s and may change a word.',
   '4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle':
     '4 to 6 s (measured on a 4-core laptop with no graphics card); 15 to 45 s for the first dictation after the model has been released',

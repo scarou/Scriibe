@@ -37,7 +37,7 @@ const CHAINS: [Chain; 4] = [
     Chain {
         id: "local-raw",
         title: "Tout sur cet ordinateur, sans mise au propre",
-        detail: "Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte ; votre voix et votre texte restent sur l'ordinateur.",
+        detail: "Whisper seul : le texte est collé tel que transcrit (signes dictés, dictionnaire et typographie appliqués). Aucun compte ; ta voix et ton texte restent sur l'ordinateur.",
         timing: "2,3 à 3,1 s (mesuré sur un portable à 4 cœurs sans carte graphique)",
         measured: true,
         transcription: TranscriptionEngine::Whisper,
@@ -48,7 +48,7 @@ const CHAINS: [Chain; 4] = [
     Chain {
         id: "local-small-model",
         title: "Tout sur cet ordinateur, avec un petit modèle de mise au propre",
-        detail: "Whisper + Qwen 2.5 1,5 B (llama.cpp). Votre voix et votre texte restent sur l'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.",
+        detail: "Whisper + Qwen 2.5 1,5 B (llama.cpp). Ta voix et ton texte restent sur l'ordinateur, mais un petit modèle garde parfois les « euh » et peut changer un mot.",
         timing: "4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle",
         measured: true,
         transcription: TranscriptionEngine::Whisper,

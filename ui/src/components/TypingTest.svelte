@@ -57,7 +57,7 @@
   spellcheck="false"
   autocomplete="off"
   autocapitalize="off"
-  placeholder={t('Recopiez le texte ci-dessus ; le chrono part à la première lettre.')}
+  placeholder={t('Recopie le texte ci-dessus ; le chrono part à la première lettre.')}
 ></textarea>
 <div class="row">
   {#if !result}

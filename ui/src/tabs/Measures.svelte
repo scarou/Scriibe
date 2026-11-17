@@ -14,7 +14,7 @@
 <Bench />
 <TimingsCard />
 
-<Card id="dashboard-vitesse-clavier" folded title={t('Ma vitesse au clavier')} help="measures" intro={t('Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.')}>
+<Card id="dashboard-vitesse-clavier" folded title={t('Ma vitesse au clavier')} help="measures" intro={t('Sert au calcul du temps gagné. Recopie le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.')}>
   <TypingTest />
 </Card>
 

@@ -83,7 +83,7 @@
 <Dialog />
 
 {#if stopped}
-  <main class="stopped"><p>{t('Scriibe est arrêté. Vous pouvez fermer cette page.')}</p></main>
+  <main class="stopped"><p>{t('Scriibe est arrêté. Tu peux fermer cette page.')}</p></main>
 {:else}
   <div class="shell">
     <nav>
@@ -111,7 +111,7 @@
     </nav>
     <main>
       {#if status.failed}
-        <div class="card bad">{status.os === 'macos' ? t('Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.') : status.value?.os === 'linux' ? t('Scriibe ne répond plus. Relancez-le depuis la liste des applications.') : t('Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.')}</div>
+        <div class="card bad">{status.os === 'macos' ? t('Scriibe ne répond plus. Relance-le depuis l’icône de la barre des menus.') : status.value?.os === 'linux' ? t('Scriibe ne répond plus. Relance-le depuis la liste des applications.') : t('Scriibe ne répond plus. Relance-le depuis l’icône de la zone de notification.')}</div>
       {/if}
       {#each status.value?.config_problems ?? [] as problem (problem.file)}
         <div class="card bad">

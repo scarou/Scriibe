@@ -87,7 +87,7 @@
 
   async function removeScriibe() {
     if (!removal?.plan) return;
-    const ok = await dialog.confirm(t('Dernière confirmation : Scriibe va se fermer, puis tout ce qui est listé part à la Corbeille. C’est récupérable tant que vous ne la videz pas.'), { confirm: t('Oui, désinstaller'), danger: true });
+    const ok = await dialog.confirm(t('Dernière confirmation : Scriibe va se fermer, puis tout ce qui est listé part à la Corbeille. C’est récupérable tant que tu ne la vides pas.'), { confirm: t('Oui, désinstaller'), danger: true });
     if (!ok) return;
     removal.busy = true;
     removal.message = '';
@@ -117,7 +117,7 @@
 </script>
 
 {#if part === 'main'}
-<Card help="start" id="demarrage" title={t('Lancer au démarrage')} intro={t('Scriibe se lance à l’ouverture de votre session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que vous ne le cochez pas.')}>
+<Card help="start" id="demarrage" title={t('Lancer au démarrage')} intro={t('Scriibe se lance à l’ouverture de ta session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que tu ne le coches pas.')}>
   {#if autostart}
     <div class="row">
       <label><input type="checkbox" checked={autostart.enabled} disabled={!autostart.supported} onchange={(e) => setAutostart(e.currentTarget.checked)} />
@@ -126,14 +126,14 @@
     {#if !autostart.supported}
       <p class="muted">{autostart.reason ? t(autostart.reason) : ''}</p>
     {:else if autostart.disabledBySystem}
-      <p class="muted">{t('Cet élément est désactivé dans les réglages du système : cochez la case pour le réactiver.')}</p>
+      <p class="muted">{t('Cet élément est désactivé dans les réglages du système : coche la case pour le réactiver.')}</p>
     {/if}
-    <p class="muted">{osName === 'macos' ? t('Visible dans Réglages Système → Général → Ouverture.') : osName === 'linux' ? t('Visible dans « Applications au démarrage » de votre environnement de bureau.') : t('Visible dans le Gestionnaire des tâches, onglet « Applications de démarrage ».')}</p>
+    <p class="muted">{osName === 'macos' ? t('Visible dans Réglages Système → Général → Ouverture.') : osName === 'linux' ? t('Visible dans « Applications au démarrage » de ton environnement de bureau.') : t('Visible dans le Gestionnaire des tâches, onglet « Applications de démarrage ».')}</p>
   {/if}
 </Card>
 
 {:else}
-<Card help="start" id="desinstaller" title={t('Désinstaller Scriibe')} intro={t('Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que vous ne la videz pas), après une sauvegarde proposée et une dernière confirmation.')}>
+<Card help="start" id="desinstaller" title={t('Désinstaller Scriibe')} intro={t('Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que tu ne la vides pas), après une sauvegarde proposée et une dernière confirmation.')}>
   {#if !removal}
     <button class="danger" onclick={openRemoval}>{t('Désinstaller Scriibe…')}</button>
   {:else if !removal.plan}
@@ -150,14 +150,14 @@
             <li><b>{t(removalLabels[it.kind] ?? it.kind)}</b> — <code>{it.path}</code> ({human(it.size)}){#if it.count > 1} · {t('{n} fichiers', { n: it.count })}{/if}{#if it.link} · {t('lien : sa cible reste en place')}{/if}</li>
           {/each}
           {#if plan.startup}<li>{t('L’entrée de démarrage est retirée.')}</li>{/if}
-          <li>{plan.keys === 'keychain' ? t('Clés d’API effacées du trousseau (deepgram, openrouter, et l’ancien compte github s’il existe). macOS peut redemander l’accès au trousseau, jusqu’à une fois par clé.') : plan.keys === 'credman' ? t('Clés d’API effacées du Gestionnaire d’identifiants (deepgram, openrouter, ancien github).') : t('Linux : Scriibe ne range pas les clés. Retirez DEEPGRAM_API_KEY et OPENROUTER_API_KEY de votre profil de shell si vous les y aviez mises.')}</li>
+          <li>{plan.keys === 'keychain' ? t('Clés d’API effacées du trousseau (deepgram, openrouter, et l’ancien compte github s’il existe). macOS peut redemander l’accès au trousseau, jusqu’à une fois par clé.') : plan.keys === 'credman' ? t('Clés d’API effacées du Gestionnaire d’identifiants (deepgram, openrouter, ancien github).') : t('Linux : Scriibe ne range pas les clés. Retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y avais mises.')}</li>
           {#if osName === 'macos'}<li>{t('Les autorisations de Scriibe (micro, accessibilité, surveillance de l’entrée) sont retirées ; une réinstallation les redemandera.')}</li>{/if}
         </ul>
         {#if plan.kept.length}
           <p><b>{t('Reste en place :')}</b></p>
           <ul>
             {#each plan.kept as k (k.path)}
-              <li>{k.kind === 'models' ? t('Vos modèles téléchargés') : t('Modèle hors de Scriibe')} — <code>{k.path}</code>{#if k.size} ({human(k.size)}){/if}</li>
+              <li>{k.kind === 'models' ? t('Tes modèles téléchargés') : t('Modèle hors de Scriibe')} — <code>{k.path}</code>{#if k.size} ({human(k.size)}){/if}</li>
             {/each}
           </ul>
         {/if}

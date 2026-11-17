@@ -11,7 +11,7 @@
 
 <Card
   id="commandes-activation"
-  title={t('Commandes vocales')}
+  title={t('Activer les commandes vocales')}
   help="dictionary"
   intro={t('Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Les phrases affichées sont celles de la langue de l’interface (page Apparence).')}
 >
@@ -25,7 +25,7 @@
     </div>
   {/if}
   {#if s?.gnome_shortcut}
-    <p class="muted">{s.gnome_command_shortcut ? t('Pour dicter une commande : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_command_shortcut) }) : t('Pas encore de raccourci de commande : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
+    <p class="muted">{s.gnome_command_shortcut ? t('Pour dicter une commande : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_command_shortcut) }) : t('Pas encore de raccourci de commande : relance Scriibe, GNOME t’en fera choisir un.')}</p>
   {:else}
     <KeyPicker kinds={['command']} />
   {/if}

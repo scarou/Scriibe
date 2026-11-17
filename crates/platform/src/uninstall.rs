@@ -414,7 +414,7 @@ pub fn build_plan(env: &Env, external_models: &[String], startup_present: bool) 
                     .push("Le programme porte un autre nom que celui de Scriibe : il n'est pas supprimé, à retirer à la main.".into());
             } else if !program_removable(&program) {
                 plan.warnings
-                    .push("Le programme (ou son dossier) n'est pas modifiable par votre compte : seules vos données partent.".into());
+                    .push("Le programme (ou son dossier) n'est pas modifiable par ton compte : seules tes données partent.".into());
             } else {
                 for left in leftovers(env, &program) {
                     plan.items.push(item(Kind::Leftover, left));

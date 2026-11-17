@@ -140,7 +140,7 @@
 </PageHeader>
 
 <div class="sticky-top">
-<Card id="conservation" title={t('Confidentialité de l’historique')} help="privacy" intro={t('Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}>
+<Card id="conservation" title={t('Confidentialité de l’historique')} help="privacy" intro={t('Pour que ce que tu dictes ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Tu peux ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}>
   <div class="row"><label><input type="checkbox" bind:checked={keepText} onchange={previewChange} /> {t('Garder le texte des dictées (sinon seule la fiche chiffrée reste)')}</label></div>
   <div class="row">
     <label>{t('Garder l’historique :')}

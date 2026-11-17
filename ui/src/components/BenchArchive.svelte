@@ -67,7 +67,7 @@
       <button onclick={() => remove(r)}>{t('Supprimer')}</button>
     </div>
   {:else}
-    <p class="muted">{t('Aucun passage gardé : lisez quelques phrases ci-dessus.')}</p>
+    <p class="muted">{t('Aucun passage gardé : lis quelques phrases ci-dessus.')}</p>
   {/each}
 </Card>
 

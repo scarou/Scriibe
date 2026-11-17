@@ -149,7 +149,7 @@
       <ul>
         <li><b>Managing users.</b> Profile, “Users” card: “Create a user” (empty, or copied from the active user: their personal settings and dictionary, never the history or the statistics), “Rename”, “Use” to switch to another, “Delete”.</li>
         <li><b>Switching between them.</b> From the “Users” card or, as soon as there are two users, from the “User” submenu of the icon {trayNear}, which ticks the active user. There is no keyboard shortcut, so you never switch without noticing. Switching is refused during a dictation. The page reloads; Home greets you with the active user’s name (if your first name is empty) and shows their statistics. The start of the model’s instruction changes (words, mode, gender): the model is preloaded again and the first dictation after that may be a little slower.</li>
-        <li><b>Deleting.</b> After confirmation, the user’s folder is moved to “utilisateurs-supprimes”, in the data folder: Scriibe never erases it. To take it back, put its folder back in “utilisateurs” by hand, then relaunch Scriibe. The active user cannot be deleted: switch to another one first.</li>
+        <li><b>Setting aside.</b> (The button replaces “Delete”: nothing is erased.) After confirmation, the user’s folder is moved to “utilisateurs-supprimes”, in the data folder: Scriibe never erases it. To take it back, put its folder back in “utilisateurs” by hand, then relaunch Scriibe. The active user cannot be deleted: switch to another one first.</li>
         <li><b>Two windows, or the icon while the page is open.</b> If the user changes while the page is open, it notices within a few seconds and reloads. If you save just before, Scriibe refuses to write to the other user, reloads the page and tells you: nothing is mixed up, but what you had just done has to be redone.</li>
       </ul>
       <p>The full backup (Data and system) contains the active user and the computer’s settings: to back up everyone, make one for each user, switching from one to the other.</p>
@@ -181,6 +181,7 @@
         <li><b>The French typography</b> puts the spaces before “?” or “:”, the « » and the apostrophes right, then Scriibe <b>pastes</b> the result where your cursor is.</li>
       </ol>
       {@render tip('So two different models work one after the other: the one that listens (Whisper) and the one that writes (the cleanup model). They do not do the same job, and you can choose one locally and the other online.')}
+      {@render tip('Two words not to mix up: the “cleanup” (“mise au propre”) is the automatic tidying that follows every dictation (the step above, with the chosen mode); the “rephrasing” (“reformulation”) is the voice command on a selection, under the command key (“reformule en plus court”). They are two different functions.')}
 
       <h3>A program, a model: what is the choice for?</h3>
       <p>Each step has two parts. The <b>program</b> (<i>whisper-server</i>, <i>llama-server</i>) is the engine: small, it knows how to run a model. The <b>model</b> is a big file that holds everything the artificial intelligence has learned: it is what makes the quality. The same program can run very different models, hence the choice.</p>

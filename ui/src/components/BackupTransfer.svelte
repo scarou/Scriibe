@@ -47,7 +47,7 @@
 
   async function applyBackup() {
     if (!restoring?.preview) return;
-    const ok = await dialog.confirm(t('Remplacer vos réglages, votre dictionnaire et votre historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (avant-import-…), puis Scriibe redémarre.'), { confirm: t('Remplacer'), danger: true });
+    const ok = await dialog.confirm(t('Remplacer tes réglages, ton dictionnaire et ton historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (avant-import-…), puis Scriibe redémarre.'), { confirm: t('Remplacer'), danger: true });
     if (!ok) return;
     restoring.busy = true;
     const out = await api<{ ok: boolean; error?: string }>('backup/import/apply', { token: restoring.preview.token });
@@ -65,8 +65,8 @@
 
 <Card help="start" id="sauvegarde" title={t('Sauvegarder et transférer')} intro={t('Tout sauvegarder d’un coup, ou n’exporter qu’une partie (un utilisateur, le dictionnaire, les modes, les commandes) pour la reprendre sur un autre ordinateur.')}>
   <h3 class="sub">{t('Sauvegarde complète')}</h3>
-  <p class="muted">{t('Un seul fichier (.scriibe.json) avec vos réglages et modes, votre dictionnaire, votre historique et vos statistiques. Les clés d’API, les modèles téléchargés, les bancs d’essai et les journaux n’y sont pas.')}</p>
-  <p class="muted">{t('L’historique contient les textes que vous avez dictés : le fichier reste là où vous le rangez, en clair.')}</p>
+  <p class="muted">{t('Un seul fichier (.scriibe.json) avec tes réglages et modes, ton dictionnaire, ton historique et tes statistiques. Les clés d’API, les modèles téléchargés, les bancs d’essai et les journaux n’y sont pas.')}</p>
+  <p class="muted">{t('L’historique contient les textes que tu as dictés : le fichier reste là où tu le ranges, en clair.')}</p>
   <div class="row">
     <button onclick={saveBackup} disabled={saving}>{saving ? t('Enregistrement…') : t('Enregistrer une sauvegarde…')}</button>
     <button onclick={() => readBackup()} disabled={restoring?.busy}>{t('Restaurer une sauvegarde…')}</button>
@@ -86,9 +86,9 @@
         {@const p = restoring.preview}
         <p><b>{t('Cette sauvegarde remplacera :')}</b></p>
         <ul>
-          <li>{t('vos réglages et {n} mode(s) personnel(s)', { n: p.modes })}</li>
-          <li>{t('votre dictionnaire : {words} mot(s), {corrections} correction(s)', { words: p.words, corrections: p.corrections })}</li>
-          <li>{t('votre historique : {n} dictée(s) et les statistiques de {days} jour(s)', { n: p.dictations, days: p.days })}</li>
+          <li>{t('tes réglages et {n} mode(s) personnel(s)', { n: p.modes })}</li>
+          <li>{t('ton dictionnaire : {words} mot(s), {corrections} correction(s)', { words: p.words, corrections: p.corrections })}</li>
+          <li>{t('ton historique : {n} dictée(s) et les statistiques de {days} jour(s)', { n: p.dictations, days: p.days })}</li>
         </ul>
         {#if !p.sameOs}<p class="muted">{t('Elle vient d’un autre système : les touches, le micro, les sons et les chemins de modèles de cet ordinateur sont gardés.')}</p>{/if}
         <p class="muted">{p.app} · {p.exportedAt}</p>

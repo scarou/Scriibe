@@ -228,7 +228,7 @@
     </Card>
   {/each}
 
-  <Card id="modes-mes-modes" title={t('Mes modes')} help="modes" intro={t('Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), créez votre mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.')}>
+  <Card id="modes-mes-modes" title={t('Mes modes')} help="modes" intro={t('Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), crée ton mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.')}>
     {#each custom as m (m.id)}
       <div class="mode">
         <label class="pick">

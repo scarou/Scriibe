@@ -89,13 +89,13 @@
           {t('Source : {source}', { source: found.source })}
         </div>
         {#if found.up_to_date}
-          <div class="ok">{t('✔ Vous avez déjà cette version.')}</div>
+          <div class="ok">{t('✔ Tu as déjà cette version.')}</div>
         {:else if found.installable}
           <div class="row"><button class="primary" onclick={install}>{t('Installer et redémarrer')}</button></div>
         {:else if u.installs}
-          <div class="warn">{t('Une version plus récente existe, mais elle ne contient pas encore de fichier pour ce système : réessayez plus tard.')}</div>
+          <div class="warn">{t('Une version plus récente existe, mais elle ne contient pas encore de fichier pour ce système : réessaie plus tard.')}</div>
         {:else}
-          <div class="warn">{t('Une version plus récente existe. Mettez à jour à la main en suivant les étapes ci-dessous.')}</div>
+          <div class="warn">{t('Une version plus récente existe. Mets à jour à la main en suivant les étapes ci-dessous.')}</div>
         {/if}
       {/if}
     {/if}
@@ -128,7 +128,7 @@
     {#if u.installs}
       <ol>
         <li>{t('Clique sur « Chercher une nouvelle version » (en haut de cette page).')}</li>
-        <li>{t('Si la page écrit « Vous avez déjà cette version », c’est terminé. Sinon, elle montre la version trouvée, sa date et sa taille.')}</li>
+        <li>{t('Si la page écrit « Tu as déjà cette version », c’est terminé. Sinon, elle montre la version trouvée, sa date et sa taille.')}</li>
         <li>{t('Clique sur « Installer et redémarrer » et lis la fenêtre de confirmation : elle donne la taille et la source du téléchargement.')}</li>
         <li>{t('Confirme, puis attends : une barre montre le téléchargement. Scriibe remplace son programme et redémarre tout seul ; une nouvelle fenêtre s’ouvre au bout de quelques secondes, tu peux fermer l’ancienne.')}</li>
         <li>{t('Si quelque chose ne va pas, l’ancien programme est gardé à côté du nouveau, et le message d’échec dit pourquoi.')}</li>

@@ -122,7 +122,7 @@
             {#if !active}<button onclick={() => use(p.id)} disabled={busy}>{t('Utiliser')}</button>{/if}
             <button onclick={() => openExport(p.id)} disabled={busy}>{t('Exporter…')}</button>
             <button onclick={() => (renaming = { id: p.id, name: p.name })} disabled={busy}>{t('Renommer')}</button>
-            <button onclick={() => remove(p.id, p.name)} disabled={busy || active} title={active ? t('Passe d’abord à un autre utilisateur.') : ''}>{t('Supprimer')}</button>
+            <button onclick={() => remove(p.id, p.name)} disabled={busy || active} title={active ? t('Passe d’abord à un autre utilisateur.') : ''}>{t('Mettre de côté')}</button>
           {/if}
         </li>
       {/each}

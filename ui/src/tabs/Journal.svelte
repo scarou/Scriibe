@@ -6,7 +6,7 @@
   import { bench } from '../lib/bench.svelte';
   import { buildReport } from '../lib/report';
   import { status } from '../lib/status.svelte';
-  import { t } from '../lib/i18n.svelte';
+  import { keyName, t, tx } from '../lib/i18n.svelte';
 
   /** `live` : le journal en direct ; `report` : le rapport à coller (la page Mesures les sépare par d'autres cartes). */
   let { part }: { part: 'live' | 'report' } = $props();
@@ -32,9 +32,9 @@
     report = buildReport(s, bench.results, devices, log);
     try {
       await navigator.clipboard.writeText(report);
-      copied = t('Copié : collez-le dans la conversation.');
+      copied = t('Copié : colle-le dans la conversation.');
     } catch {
-      copied = t('Copie refusée : sélectionnez le texte ci-dessous.');
+      copied = t('Copie refusée : sélectionne le texte ci-dessous.');
     }
   }
 
@@ -48,13 +48,13 @@
 
 {#if part === 'live'}
 <Card help="problems" id="journal-dictee-avec-la-touche-dans-une-vraie-app" title={t('Dictée avec la touche, dans une vraie appli')}>
-  <p>{t('Ouvrez le Bloc-notes, maintenez Ctrl droit, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.')}</p>
+  <p>{t('Ouvre {app}, maintiens {key}, parle, relâche. {translate} en plus : traduction. Toute autre touche pendant l’appui : annulation.', { app: t(status.os === 'macos' ? tx('TextEdit') : status.os === 'linux' ? tx('un éditeur de texte') : tx('le Bloc-notes')), key: keyName(status.value?.dictation_label ?? ''), translate: keyName(status.value?.translate_label ?? '') })}</p>
   <div class="muted">{t('Journal en direct (une ligne par étape, jamais le texte dicté) :')}</div>
   <pre bind:this={logBox}>{lines.join('\n') || t('(vide)')}</pre>
 </Card>
 {:else}
 <Card id="journal-rapport-a-me-coller" title={t('Rapport à me coller')} help="measures">
   <div class="row"><button class="primary" onclick={copy}>{t('Copier le rapport')}</button><span class="muted">{copied}</span></div>
-  <pre>{report || t('Faites quelques essais, puis cliquez sur « Copier le rapport ».')}</pre>
+  <pre>{report || t('Fais quelques essais, puis clique sur « Copier le rapport ».')}</pre>
 </Card>
 {/if}

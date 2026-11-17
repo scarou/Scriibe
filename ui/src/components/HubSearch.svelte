@@ -38,7 +38,7 @@
   }
 </script>
 
-<Card id="ajout-hugging-face" title={t('Ajouter un modèle depuis Hugging Face')} help="start" intro={t('Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Moteurs et modèles.')}>
+<Card id="ajout-hugging-face" title={t('Ajouter un modèle depuis Hugging Face')} help="start" intro={t('Pour essayer un modèle récent : tape des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant ta confirmation. Pour la mise au propre, choisis un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Moteurs et modèles.')}>
   <div class="row">
     <select bind:value={kind} aria-label={t('Genre de modèle')}>
       <option value="llama">{t('Mise au propre (GGUF)')}</option>
@@ -66,9 +66,9 @@
           {/each}
         </tbody>
       </table>
-      <p class="muted">{t('Cliquez sur un dépôt pour voir ses fichiers.')}</p>
+      <p class="muted">{t('Clique sur un dépôt pour voir ses fichiers.')}</p>
     {:else}
-      <p class="muted">{t('Aucun résultat : essayez d’autres mots.')}</p>
+      <p class="muted">{t('Aucun résultat : essaie d’autres mots.')}</p>
     {/if}
   {:else if answer?.mode === 'files'}
     <h3>{answer.repo}</h3>
@@ -92,7 +92,7 @@
         </div>
       {/each}
     {:else}
-      <p class="muted">{kind === 'llama' ? t('Aucun fichier de ce genre dans ce dépôt (cherchez un dépôt « …-GGUF »).') : t('Aucun fichier de ce genre dans ce dépôt.')}</p>
+      <p class="muted">{kind === 'llama' ? t('Aucun fichier de ce genre dans ce dépôt (cherche un dépôt « …-GGUF »).') : t('Aucun fichier de ce genre dans ce dépôt.')}</p>
     {/if}
   {/if}
 </Card>

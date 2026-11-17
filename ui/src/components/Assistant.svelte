@@ -5,7 +5,7 @@
   import { missing, needLabels, type Assistant } from '../lib/assistant';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
-  import { t } from '../lib/i18n.svelte';
+  import { keyName, t } from '../lib/i18n.svelte';
   import Card from './Card.svelte';
 
   let { onclose, ongoto }: { onclose: () => void; ongoto: (tab: 'engines' | 'profile', anchor?: string) => void } = $props();
@@ -44,7 +44,7 @@
     <p class="muted">{t('Mesure de l’ordinateur…')}</p>
   {:else}
     <p>
-      {t('Votre ordinateur :')} <b>{t('{n} cœurs', { n: data.machine.physical_cores })}</b>, <b>{t('{n} Go', { n: data.machine.ram_gb })}</b> {t('de mémoire')}{#if data.machine.gpus.length},
+      {t('Ton ordinateur :')} <b>{t('{n} cœurs', { n: data.machine.physical_cores })}</b>, <b>{t('{n} Go', { n: data.machine.ram_gb })}</b> {t('de mémoire')}{#if data.machine.gpus.length},
         {#each data.machine.gpus as g, i (g.name)}{i ? ' + ' : ''}{g.name}{g.vram_gb ? ` (${t('{n} Go', { n: g.vram_gb })})` : ''}{/each}{:else if !data.machine.gpus_known}
         ; {t('cartes graphiques non détectées')}{/if}.
       {#if data.machine.capable_gpu}{t('Une vraie carte graphique est présente.')}{:else}{t('Pas de carte graphique assez puissante : on calcule sur le processeur.')}{/if}
@@ -72,7 +72,7 @@
         <p>{t('Il reste à faire :')}</p>
         <ul>
           {#each lacks.items as id (id)}<li>{t('installer {item}', { item: t(needLabels[id] ?? id) })}</li>{/each}
-          {#if lacks.key}<li>{t('enregistrer votre clé OpenRouter (page Profil)')}</li>{/if}
+          {#if lacks.key}<li>{t('enregistrer ta clé OpenRouter (page Profil)')}</li>{/if}
         </ul>
         <div class="row">
           {#if lacks.items.length}<button class="primary" onclick={() => ongoto('engines', 'install-etat-de-linstallation')}>{t('Aller à l’installation')}</button>{/if}
@@ -80,7 +80,7 @@
           <button onclick={onclose}>{t('Fermer')}</button>
         </div>
       {:else}
-        <p>{t('Tout est en place : maintenez Ctrl droit, parlez, relâchez.')}</p>
+        <p>{t('Tout est en place : maintiens {key}, parle, relâche.', { key: keyName(status.value?.dictation_label ?? '') })}</p>
         <div class="row"><button class="primary" onclick={onclose}>{t('Fermer')}</button></div>
       {/if}
     {/if}

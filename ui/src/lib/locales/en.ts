@@ -12,7 +12,7 @@ export const en: Record<string, string> = {
   'Claire, sombre, ou celle du système (Automatique). Elle ne change que la fenêtre de Scriibe.': 'Light, dark, or the system one (Automatic). It only changes the Scriibe window.',
   'Apparence :': 'Appearance:',
   'Logo animé': 'Animated logo',
-  'Le curseur du logo, en haut de la barre latérale, clignote lentement. Décochez pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.': 'The logo’s cursor, at the top of the sidebar, blinks slowly. Untick to keep it still. It also stays still when the system asks to reduce animations.',
+  'Le curseur du logo, en haut de la barre latérale, clignote lentement. Décoche pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.': 'The logo’s cursor, at the top of the sidebar, blinks slowly. Untick to keep it still. It also stays still when the system asks to reduce animations.',
   'Automatique (apparence du système)': 'Automatic (the system appearance)',
   'Claire': 'Light',
   'Sombre': 'Dark',
@@ -68,7 +68,7 @@ export const en: Record<string, string> = {
   'Quitter Scriibe ?': 'Quit Scriibe?',
   'Quitter': 'Quit',
   'version {version}': 'version {version}',
-  'Scriibe est arrêté. Vous pouvez fermer cette page.': 'Scriibe has stopped. You can close this page.',
+  'Scriibe est arrêté. Tu peux fermer cette page.': 'Scriibe has stopped. You can close this page.',
   'Exporter et importer le dictionnaire': 'Export and import the dictionary',
   'Sauvegarder ton vocabulaire dans un fichier, le reprendre sur un autre ordinateur ou le partager.': 'Save your vocabulary to a file, reuse it on another computer or share it.',
   'Exporter…': 'Export…',
@@ -104,9 +104,9 @@ export const en: Record<string, string> = {
   'Le fichier {file} vient d’une version plus récente de Scriibe : Scriibe n’y écrit rien pour ne pas l’abîmer. Mets Scriibe à jour.': 'The {file} file comes from a newer version of Scriibe: Scriibe writes nothing to it so as not to damage it. Please update Scriibe.',
   'Le fichier {file} est illisible : Scriibe n’y écrit plus rien (tes changements ne sont pas enregistrés) tant qu’il n’est pas réparé ou supprimé.': 'The {file} file is unreadable: Scriibe no longer writes to it (your changes are not saved) until it is repaired or deleted.',
   'Une copie a été mise de côté : {backup}.': 'A copy was set aside: {backup}.',
-  'Scriibe ne répond plus. Relancez-le depuis l’icône de la zone de notification.': 'Scriibe is not responding. Start it again from the notification area icon.',
-  'Scriibe ne répond plus. Relancez-le depuis l’icône de la barre des menus.': 'Scriibe is not responding. Start it again from the menu bar icon.',
-  'Scriibe ne répond plus. Relancez-le depuis la liste des applications.': 'Scriibe is not responding. Start it again from the application list.',
+  'Scriibe ne répond plus. Relance-le depuis l’icône de la zone de notification.': 'Scriibe is not responding. Start it again from the notification area icon.',
+  'Scriibe ne répond plus. Relance-le depuis l’icône de la barre des menus.': 'Scriibe is not responding. Start it again from the menu bar icon.',
+  'Scriibe ne répond plus. Relance-le depuis la liste des applications.': 'Scriibe is not responding. Start it again from the application list.',
 
   // Tableau de bord
   'Mesure l’ordinateur et propose les moteurs qui lui conviennent': 'Measures this computer and suggests the engines that suit it',
@@ -120,13 +120,13 @@ export const en: Record<string, string> = {
   'Maintiens {key} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.': 'Hold {key} in any app and speak: your first dictation will appear here.',
   'Pas encore de dictée.': 'No dictation yet.',
   'Ma vitesse au clavier': 'My typing speed',
-  'Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.':
+  'Sert au calcul du temps gagné. Recopie le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.':
     'Used to work out the time saved. Copy the text out: only complete attempts with more than 90% correct letters count.',
   'Chargement…': 'Loading…',
 
   // Réglages
   'Langue de l’interface': 'Interface language',
-  'Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.':
+  'Celle des menus et des textes de Scriibe. Elle ne change ni la langue que tu dictes ni la langue de traduction.':
     'The language of Scriibe’s menus and texts. It changes neither the language you dictate in nor the translation language.',
   'Langue :': 'Language:',
   'Automatique (celle du système)': 'Automatic (the system language)',
@@ -395,7 +395,7 @@ export const en: Record<string, string> = {
   'Micro': 'Microphone',
   'aucun micro détecté': 'no microphone detected',
   'Touche globale': 'Global key',
-  'Ctrl droit (Maj : traduire)': 'Right Ctrl (Shift: translate)',
+  '{key} ({translate} : traduire)': '{key} ({translate}: translate)',
   'État de l’installation': 'Installation status',
   '✔ installé': '✔ installed',
   'Source : {url}': 'Source: {url}',
@@ -405,7 +405,7 @@ export const en: Record<string, string> = {
   'Voir la taille et la source': 'See the size and source',
   'Échec : {error}': 'Failed: {error}',
   'Les programmes': 'Programs',
-  'Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.':
+  'Rien n’est téléchargé sans ton accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.':
     'Nothing is downloaded without your consent: “See the size and source” shows the name, the real size and the source, then you have to confirm.',
   'Modèles recommandés': 'Recommended models',
   'Une courte liste pour démarrer, choisie lors des premiers essais. D’autres modèles se trouvent dans la carte suivante.':
@@ -421,10 +421,10 @@ export const en: Record<string, string> = {
   'Dernière version :': 'Latest version:',
   'Publiée le {date} ·': 'Published on {date} ·',
   'Publiée le {date}': 'Published on {date}',
-  'Une version plus récente existe, mais elle ne contient pas encore de fichier pour ce système : réessayez plus tard.': 'A newer version exists, but it does not contain a file for this system yet: try again later.',
+  'Une version plus récente existe, mais elle ne contient pas encore de fichier pour ce système : réessaie plus tard.': 'A newer version exists, but it does not contain a file for this system yet: try again later.',
   'Sur Mac, les autorisations de macOS (Microphone, Surveillance de l’entrée, Contrôle de l’appareil et accès aux données) restent normalement acquises. Si macOS en redemande une, active-la de nouveau dans Réglages Système → Confidentialité et sécurité, puis relance Scriibe.': 'On a Mac, the macOS permissions (Microphone, Input Monitoring, Control of the device and access to data) normally stay granted. If macOS asks for one again, turn it on again in System Settings → Privacy & Security, then restart Scriibe.',
   'Sur ce système, Scriibe prévient mais n’installe pas encore à ta place : cherche la dernière version sur https://github.com/scarou/Scriibe/releases.': 'On this system, Scriibe warns you but does not install for you yet: look for the latest version at https://github.com/scarou/Scriibe/releases.',
-  'Une version plus récente existe. Mettez à jour à la main en suivant les étapes ci-dessous.': 'A newer version exists. Update by hand by following the steps below.',
+  'Une version plus récente existe. Mets à jour à la main en suivant les étapes ci-dessous.': 'A newer version exists. Update by hand by following the steps below.',
   'Comment ça marche ?': 'How does it work?',
   'Scriibe est amélioré de temps en temps. Cette page dit si une version plus récente que la tienne existe. Rien n’est jamais changé sans que tu le demandes.': 'Scriibe is improved from time to time. This page tells you whether a version newer than yours exists. Nothing is ever changed unless you ask for it.',
   'Version installée': 'Installed version',
@@ -434,7 +434,7 @@ export const en: Record<string, string> = {
   'la case est décochée au départ : Scriibe ne cherche alors que lorsque tu cliques. Cochée, il cherche tout seul au démarrage puis toutes les 6 heures. Quand une version plus récente existe, le bouton « Nouvelle version disponible » apparaît dans la barre latérale, et une ligne en haut du menu de l’icône.': 'the box is unticked at first: Scriibe then only looks when you click. Ticked, it looks by itself at startup and then every 6 hours. When a newer version exists, the “New version available” button appears in the sidebar, and a line at the top of the icon menu.',
   'Mettre à jour, pas à pas': 'Updating, step by step',
   'Clique sur « Chercher une nouvelle version » (en haut de cette page).': 'Click “Check for a new version” (at the top of this page).',
-  'Si la page écrit « Vous avez déjà cette version », c’est terminé. Sinon, elle montre la version trouvée, sa date et sa taille.': 'If the page says “You already have this version”, you are done. Otherwise it shows the version found, its date and its size.',
+  'Si la page écrit « Tu as déjà cette version », c’est terminé. Sinon, elle montre la version trouvée, sa date et sa taille.': 'If the page says “You already have this version”, you are done. Otherwise it shows the version found, its date and its size.',
   'Clique sur « Installer et redémarrer » et lis la fenêtre de confirmation : elle donne la taille et la source du téléchargement.': 'Click “Install and restart” and read the confirmation window: it gives the size and the source of the download.',
   'Confirme, puis attends : une barre montre le téléchargement. Scriibe remplace son programme et redémarre tout seul ; une nouvelle fenêtre s’ouvre au bout de quelques secondes, tu peux fermer l’ancienne.': 'Confirm, then wait: a bar shows the download. Scriibe replaces its program and restarts by itself; a new window opens after a few seconds, and you can close the old one.',
   'Si quelque chose ne va pas, l’ancien programme est gardé à côté du nouveau, et le message d’échec dit pourquoi.': 'If something goes wrong, the old program is kept alongside the new one, and the failure message says why.',
@@ -443,22 +443,25 @@ export const en: Record<string, string> = {
   'l’historique, le dictionnaire, les modes et les réglages sont rangés à part, dans le dossier de données : une mise à jour n’y touche pas.': 'the history, the dictionary, the modes and the settings are stored separately, in the data folder: an update does not touch them.',
   'Si la recherche échoue, le message dit pourquoi (pas de connexion, GitHub qui limite les demandes…). Le Journal note les vérifications qui échouent ou qui trouvent une version.': 'If the search fails, the message says why (no connection, GitHub limiting requests…). The Journal records the checks that fail or that find a version.',
   'Source : {source}': 'Source: {source}',
-  '✔ Vous avez déjà cette version.': '✔ You already have this version.',
+  '✔ Tu as déjà cette version.': '✔ You already have this version.',
   'Téléchargement {done} / {total} ({percent} %)': 'Downloading {done} / {total} ({percent}%)',
   '✔ Nouvelle version installée. Scriibe redémarre : une nouvelle fenêtre s’ouvre dans quelques secondes (celle-ci peut être fermée).':
     '✔ New version installed. Scriibe is restarting: a new window opens in a few seconds (you can close this one).',
 
   // Journal et rapport
-  'Copié : collez-le dans la conversation.': 'Copied: paste it into the conversation.',
-  'Copie refusée : sélectionnez le texte ci-dessous.': 'Copy refused: select the text below.',
+  'Copié : colle-le dans la conversation.': 'Copied: paste it into the conversation.',
+  'Copie refusée : sélectionne le texte ci-dessous.': 'Copy refused: select the text below.',
   'Dictée avec la touche, dans une vraie appli': 'Dictating with the key, in a real app',
-  'Ouvrez le Bloc-notes, maintenez Ctrl droit, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.':
-    'Open Notepad, hold right Ctrl, speak, release. Add Shift: translation. Any other key during the press: cancel.',
+  'Ouvre {app}, maintiens {key}, parle, relâche. {translate} en plus : traduction. Toute autre touche pendant l’appui : annulation.':
+    'Open {app}, hold {key}, speak, release. Add {translate}: translation. Any other key during the press: cancel.',
+  'TextEdit': 'TextEdit',
+  'un éditeur de texte': 'a text editor',
+  'le Bloc-notes': 'Notepad',
   'Journal en direct (une ligne par étape, jamais le texte dicté) :': 'Live log (one line per step, never the dictated text):',
   '(vide)': '(empty)',
   'Rapport à me coller': 'Report to paste to me',
   'Copier le rapport': 'Copy the report',
-  'Faites quelques essais, puis cliquez sur « Copier le rapport ».': 'Try a few dictations, then click “Copy the report”.',
+  'Fais quelques essais, puis clique sur « Copier le rapport ».': 'Try a few dictations, then click “Copy the report”.',
 
   // Modèles installés
   'mise au propre': 'cleanup',
@@ -475,7 +478,7 @@ export const en: Record<string, string> = {
 
   // Recherche sur Hugging Face
   'Ajouter un modèle depuis Hugging Face': 'Add a model from Hugging Face',
-  'Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Moteurs et modèles.':
+  'Pour essayer un modèle récent : tape des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant ta confirmation. Pour la mise au propre, choisis un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Moteurs et modèles.':
     'To try a recent model: type words to search for (“qwen3 instruct”, “gemma”), or the name of a repository (“owner/name”) or its address. Scriibe then lists its files with their real size; nothing is downloaded before you confirm. For cleanup, choose a GGUF file; the “Q4_K_M” quantisation is a good size / quality compromise. Once installed, the model is chosen in Engines and models.',
   'Genre de modèle': 'Model type',
   'Mise au propre (GGUF)': 'Cleanup (GGUF)',
@@ -487,9 +490,9 @@ export const en: Record<string, string> = {
   'tendance': 'trending',
   'les plus récents': 'most recent',
   '{n} téléchargements · {likes} ♥': '{n} downloads · {likes} ♥',
-  'Cliquez sur un dépôt pour voir ses fichiers.': 'Click a repository to see its files.',
-  'Aucun résultat : essayez d’autres mots.': 'No result: try other words.',
-  'Aucun fichier de ce genre dans ce dépôt (cherchez un dépôt « …-GGUF »).':
+  'Clique sur un dépôt pour voir ses fichiers.': 'Click a repository to see its files.',
+  'Aucun résultat : essaie d’autres mots.': 'No result: try other words.',
+  'Aucun fichier de ce genre dans ce dépôt (cherche un dépôt « …-GGUF »).':
     'No file of this kind in this repository (look for a “…-GGUF” repository).',
   'Aucun fichier de ce genre dans ce dépôt.': 'No file of this kind in this repository.',
 
@@ -553,12 +556,12 @@ export const en: Record<string, string> = {
   // Réglages : dictée
   'Langue dictée :': 'Dictation language:',
   'Prénom dans la salutation :': 'First name in the greeting:',
-  'L’Accueil vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.': 'Home greets you by this name. Left empty, Scriibe uses the name of the computer account.',
+  'L’Accueil te salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.': 'Home greets you by this name. Left empty, Scriibe uses the name of the computer account.',
   'Genre de la personne qui dicte :': 'Gender of the person dictating:',
   'Non précisé': 'Not specified',
   'Masculin': 'Masculine',
   'Féminin': 'Feminine',
-  'Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui vous concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.': 'Used by the modes that rewrite (Calmed, Formal, professional modes) to match what concerns you: “je me sens délaissé” or “délaissée”. No effect on Simple and Literal.',
+  'Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui te concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.': 'Used by the modes that rewrite (Calmed, Formal, professional modes) to match what concerns you: “je me sens délaissé” or “délaissée”. No effect on Simple and Literal.',
   'Traduire vers :': 'Translate into:',
   'Son au début': 'Start sound',
   'Son à la fin': 'End sound',
@@ -574,13 +577,13 @@ export const en: Record<string, string> = {
 
   // Réglages : indicateur, clés, emplacements
   'Apparence de l’indicateur': 'Indicator appearance',
-  'L’icône de la barre des menus change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
-    'The menu bar icon always changes colour. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
-  'Il n’y a pas encore d’icône sous Linux. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
-    'There is no icon on Linux yet. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
-  'L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
-    'The icon near the clock always changes colour. The on-screen pill (beta) adds the dictation state, the microphone level and alerts, and never takes the focus.',
-  'Afficher la pastille à l’écran (bêta)': 'Show the on-screen pill (beta)',
+  'L’icône de la barre des menus change toujours de couleur. La pastille à l’écran ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'The menu bar icon always changes colour. The on-screen pill adds the dictation state, the microphone level and alerts, and never takes the focus.',
+  'Il n’y a pas encore d’icône sous Linux. La pastille à l’écran ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'There is no icon on Linux yet. The on-screen pill adds the dictation state, the microphone level and alerts, and never takes the focus.',
+  'L’icône près de l’horloge change toujours de couleur. La pastille à l’écran ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.':
+    'The icon near the clock always changes colour. The on-screen pill adds the dictation state, the microphone level and alerts, and never takes the focus.',
+  'Afficher la pastille à l’écran': 'Show the on-screen pill',
   'Style :': 'Style:',
   'Position :': 'Position:',
   'Couleur :': 'Colour:',
@@ -614,7 +617,7 @@ export const en: Record<string, string> = {
   'Mo': 'MB',
   'Go': 'GB',
   'Désinstaller Scriibe': 'Uninstall Scriibe',
-  'Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que vous ne la videz pas), après une sauvegarde proposée et une dernière confirmation.': 'Removes Scriibe from this computer: everything goes to the Trash (recoverable until you empty it), after a backup is offered and a last confirmation.',
+  'Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que tu ne la vides pas), après une sauvegarde proposée et une dernière confirmation.': 'Removes Scriibe from this computer: everything goes to the Trash (recoverable until you empty it), after a backup is offered and a last confirmation.',
   'Désinstaller Scriibe…': 'Uninstall Scriibe…',
   'Part à la Corbeille ({size}) :': 'Goes to the Trash ({size}):',
   'lien : sa cible reste en place': 'link: its target stays in place',
@@ -629,10 +632,10 @@ export const en: Record<string, string> = {
   'L’entrée de démarrage est retirée.': 'The startup entry is removed.',
   'Clés d’API effacées du trousseau (deepgram, openrouter, et l’ancien compte github s’il existe). macOS peut redemander l’accès au trousseau, jusqu’à une fois par clé.': 'API keys erased from the keychain (deepgram, openrouter, and the old github account if present). macOS may ask again for keychain access, up to once per key.',
   'Clés d’API effacées du Gestionnaire d’identifiants (deepgram, openrouter, ancien github).': 'API keys erased from Credential Manager (deepgram, openrouter, old github).',
-  'Linux : Scriibe ne range pas les clés. Retirez DEEPGRAM_API_KEY et OPENROUTER_API_KEY de votre profil de shell si vous les y aviez mises.': 'Linux: Scriibe does not store keys. Remove DEEPGRAM_API_KEY and OPENROUTER_API_KEY from your shell profile if you put them there.',
+  'Linux : Scriibe ne range pas les clés. Retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y avais mises.': 'Linux: Scriibe does not store keys. Remove DEEPGRAM_API_KEY and OPENROUTER_API_KEY from your shell profile if you put them there.',
   'Les autorisations de Scriibe (micro, accessibilité, surveillance de l’entrée) sont retirées ; une réinstallation les redemandera.': 'Scriibe’s permissions (microphone, accessibility, input monitoring) are removed; a reinstall will ask for them again.',
   'Reste en place :': 'Stays in place:',
-  'Vos modèles téléchargés': 'Your downloaded models',
+  'Tes modèles téléchargés': 'Your downloaded models',
   'Modèle hors de Scriibe': 'Model outside Scriibe',
   'Non sauvegardé :': 'Not backed up:',
   'modèles téléchargés': 'downloaded models',
@@ -644,7 +647,7 @@ export const en: Record<string, string> = {
   'Faire d’abord une sauvegarde (recommandé)': 'Make a backup first (recommended)',
   'Si la sauvegarde échoue ou est annulée, rien n’est supprimé.': 'If the backup fails or is cancelled, nothing is removed.',
   'Désinstaller': 'Uninstall',
-  'Dernière confirmation : Scriibe va se fermer, puis tout ce qui est listé part à la Corbeille. C’est récupérable tant que vous ne la videz pas.': 'Last confirmation: Scriibe will close, then everything listed goes to the Trash. It is recoverable until you empty it.',
+  'Dernière confirmation : Scriibe va se fermer, puis tout ce qui est listé part à la Corbeille. C’est récupérable tant que tu ne la vides pas.': 'Last confirmation: Scriibe will close, then everything listed goes to the Trash. It is recoverable until you empty it.',
   'Oui, désinstaller': 'Yes, uninstall',
   'Sauvegarde annulée : rien n’est supprimé.': 'Backup cancelled: nothing is removed.',
   'Rien n’est supprimé.': 'Nothing is removed.',
@@ -659,8 +662,8 @@ export const en: Record<string, string> = {
   'Conservation de l’historique': 'History retention',
   'Régler la conservation →': 'Set retention →',
   'L’historique et les statistiques ne partent que dans la sauvegarde complète.': 'History and statistics only go in the full backup.',
-  'Un seul fichier (.scriibe.json) avec vos réglages et modes, votre dictionnaire, votre historique et vos statistiques. Les clés d’API, les modèles téléchargés, les bancs d’essai et les journaux n’y sont pas.': 'A single file (.scriibe.json) with your settings and modes, your dictionary, your history and your statistics. API keys, downloaded models, trial benches and logs are not in it.',
-  'L’historique contient les textes que vous avez dictés : le fichier reste là où vous le rangez, en clair.': 'The history contains the texts you dictated: the file stays wherever you put it, unencrypted.',
+  'Un seul fichier (.scriibe.json) avec tes réglages et modes, ton dictionnaire, ton historique et tes statistiques. Les clés d’API, les modèles téléchargés, les bancs d’essai et les journaux n’y sont pas.': 'A single file (.scriibe.json) with your settings and modes, your dictionary, your history and your statistics. API keys, downloaded models, trial benches and logs are not in it.',
+  'L’historique contient les textes que tu as dictés : le fichier reste là où tu le ranges, en clair.': 'The history contains the texts you dictated: the file stays wherever you put it, unencrypted.',
   'Enregistrement…': 'Saving…',
   'Enregistrer une sauvegarde…': 'Save a backup…',
   'Restaurer une sauvegarde…': 'Restore a backup…',
@@ -668,21 +671,21 @@ export const en: Record<string, string> = {
   'Chemin du fichier de sauvegarde :': 'Path of the backup file:',
   'Lire': 'Read',
   'Cette sauvegarde remplacera :': 'This backup will replace:',
-  'vos réglages et {n} mode(s) personnel(s)': 'your settings and {n} custom mode(s)',
-  'votre dictionnaire : {words} mot(s), {corrections} correction(s)': 'your dictionary: {words} word(s), {corrections} correction(s)',
-  'votre historique : {n} dictée(s) et les statistiques de {days} jour(s)': 'your history: {n} dictation(s) and the statistics of {days} day(s)',
+  'tes réglages et {n} mode(s) personnel(s)': 'your settings and {n} custom mode(s)',
+  'ton dictionnaire : {words} mot(s), {corrections} correction(s)': 'your dictionary: {words} word(s), {corrections} correction(s)',
+  'ton historique : {n} dictée(s) et les statistiques de {days} jour(s)': 'your history: {n} dictation(s) and the statistics of {days} day(s)',
   'Elle vient d’un autre système : les touches, le micro, les sons et les chemins de modèles de cet ordinateur sont gardés.': 'It comes from another system: this computer’s keys, microphone, sounds and model paths are kept.',
   'Restaurer': 'Restore',
   'Lecture…': 'Reading…',
-  'Remplacer vos réglages, votre dictionnaire et votre historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (avant-import-…), puis Scriibe redémarre.': 'Replace your settings, dictionary and history with those of this backup? A copy of the current state is kept in the data folder (avant-import-…), then Scriibe restarts.',
+  'Remplacer tes réglages, ton dictionnaire et ton historique par ceux de cette sauvegarde ? Une copie de l’état actuel est gardée dans le dossier de données (avant-import-…), puis Scriibe redémarre.': 'Replace your settings, dictionary and history with those of this backup? A copy of the current state is kept in the data folder (avant-import-…), then Scriibe restarts.',
   'Remplacer': 'Replace',
   'Restauration préparée : Scriibe redémarre, cette fenêtre va se fermer et se rouvrir.': 'Restore prepared: Scriibe is restarting, this window will close and reopen.',
   'Lancer au démarrage': 'Launch at startup',
-  'Scriibe se lance à l’ouverture de votre session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que vous ne le cochez pas.': 'Scriibe starts when you log in, without a window: the icon is there and the dictation key is ready. Off until you tick it.',
+  'Scriibe se lance à l’ouverture de ta session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que tu ne le coches pas.': 'Scriibe starts when you log in, without a window: the icon is there and the dictation key is ready. Off until you tick it.',
   'Lancer Scriibe à l’ouverture de session': 'Launch Scriibe when I log in',
-  'Cet élément est désactivé dans les réglages du système : cochez la case pour le réactiver.': 'This item is turned off in the system settings: tick the box to turn it back on.',
+  'Cet élément est désactivé dans les réglages du système : coche la case pour le réactiver.': 'This item is turned off in the system settings: tick the box to turn it back on.',
   'Visible dans Réglages Système → Général → Ouverture.': 'Shown in System Settings → General → Login Items.',
-  'Visible dans « Applications au démarrage » de votre environnement de bureau.': 'Shown in “Startup Applications” of your desktop environment.',
+  'Visible dans « Applications au démarrage » de ton environnement de bureau.': 'Shown in “Startup Applications” of your desktop environment.',
   'Visible dans le Gestionnaire des tâches, onglet « Applications de démarrage ».': 'Shown in Task Manager, “Startup apps” tab.',
   'Réglages : {path}': 'Settings: {path}',
   'Modèles : {path}': 'Models: {path}',
@@ -691,7 +694,7 @@ export const en: Record<string, string> = {
   // Assistant de premier lancement
   'Assistant de premier lancement': 'First-launch assistant',
   'Mesure de l’ordinateur…': 'Measuring the computer…',
-  'Votre ordinateur :': 'Your computer:',
+  'Ton ordinateur :': 'Your computer:',
   '{n} cœurs': '{n} cores',
   '{n} Go': '{n} GB',
   'de mémoire': 'of memory',
@@ -706,10 +709,10 @@ export const en: Record<string, string> = {
   '✔ Réglages appliqués : « {title} ».': '✔ Settings applied: “{title}”.',
   'Il reste à faire :': 'Still to do:',
   'installer {item}': 'install {item}',
-  'enregistrer votre clé OpenRouter (page Profil)': 'save your OpenRouter key (Profile page)',
+  'enregistrer ta clé OpenRouter (page Profil)': 'save your OpenRouter key (Profile page)',
   'Aller à l’installation': 'Go to Installation',
   'Fermer': 'Close',
-  'Tout est en place : maintenez Ctrl droit, parlez, relâchez.': 'Everything is in place: hold right Ctrl, speak, release.',
+  'Tout est en place : maintiens {key}, parle, relâche.': 'Everything is in place: hold {key}, speak, release.',
   'Modèle Qwen 2.5 0,5 B': 'Qwen 2.5 0.5 B model',
   'Modèle Qwen 2.5 1,5 B': 'Qwen 2.5 1.5 B model',
   'Modèle Qwen 2.5 3 B': 'Qwen 2.5 3 B model',
@@ -755,7 +758,7 @@ export const en: Record<string, string> = {
   '{s} s avec modèle': '{s} s with model',
   'Total moyen du relâchement au collage : {totals}.': 'Average total from release to paste: {totals}.',
   'Banc de dictée (les 17 phrases de Scribe)': 'Dictation bench (the 17 Scribe phrases)',
-  'Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.':
+  'Lis chaque phrase à voix haute, à 20–30 cm de l’écran, puis clique sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.':
     'Read each phrase aloud, 20–30 cm from the screen, then click “Finish”. The result appears immediately with its checks and timings; nothing is pasted or kept in the history. The run is kept with its settings so it can be compared later.',
   'Comparer avec le modèle les phrases sautées (plus long : la phrase suivante attend la réponse du modèle)':
     'Compare the skipped phrases with the model (longer: the next phrase waits for the model’s answer)',
@@ -766,7 +769,7 @@ export const en: Record<string, string> = {
   'Traitement…': 'Processing…',
   '■ Terminer': '■ Finish',
   '● Enregistrer': '● Record',
-  'Traduire (comme Ctrl + Maj)': 'Translate (like Ctrl + Shift)',
+  'Traduire (comme {keys})': 'Translate (like {keys})',
   'Passer': 'Skip',
   'Relire la dernière': 'Read the last one again',
   'Arrêter': 'Stop',
@@ -814,7 +817,7 @@ export const en: Record<string, string> = {
   'contrôles {passed}/{total}': 'checks {passed}/{total}',
   '{s} s en moyenne': '{s} s on average',
   'réglages changés pendant le passage': 'settings changed during the run',
-  'Aucun passage gardé : lisez quelques phrases ci-dessus.': 'No saved run: read a few phrases above.',
+  'Aucun passage gardé : lis quelques phrases ci-dessus.': 'No saved run: read a few phrases above.',
   'Comparer deux passages': 'Compare two runs',
   'Ancien :': 'Older:',
   'Récent :': 'Newer:',
@@ -867,7 +870,7 @@ export const en: Record<string, string> = {
 
   // Test de frappe
   'Texte à recopier': 'Text to copy',
-  'Recopiez le texte ci-dessus ; le chrono part à la première lettre.': 'Copy the text above; the timer starts at the first letter.',
+  'Recopie le texte ci-dessus ; le chrono part à la première lettre.': 'Copy the text above; the timer starts at the first letter.',
   'Terminer': 'Finish',
   'Nouvel essai': 'New attempt',
   '{wpm} mots par minute': '{wpm} words per minute',
@@ -922,25 +925,25 @@ export const en: Record<string, string> = {
   'Effacer ce jour': 'Delete this day',
   'les {n} dictée(s) de ce jour': 'the {n} dictation(s) of this day',
   'Cocher cette dictée': 'Tick this dictation',
-  'Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.': 'So that what you dictate does not stay on the disk: for example a code or an address dictated in a message. You can keep only the statistics (word count, duration, app), or only the last few days. The dashboard stays accurate either way.',
-  'Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.': 'Where your voice and your text go: “Local” means on this computer, without the Internet; “Cloud” means at an online service. Local comes first; the cloud is a fallback when the computer is too slow.',
-  'Ce qui tourne quand vous dictez :': 'What runs when you dictate:',
+  'Pour que ce que tu dictes ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Tu peux ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.': 'So that what you dictate does not stay on the disk: for example a code or an address dictated in a message. You can keep only the statistics (word count, duration, app), or only the last few days. The dashboard stays accurate either way.',
+  'Où passent ta voix et ton texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.': 'Where your voice and your text go: “Local” means on this computer, without the Internet; “Cloud” means at an online service. Local comes first; the cloud is a fallback when the computer is too slow.',
+  'Ce qui tourne quand tu dictes :': 'What runs when you dictate:',
   'Local': 'Local',
   'Cloud': 'Cloud',
   'aucune': 'none',
-  'La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (votre voix reste sur cet ordinateur) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.': 'Transcription is the engine that turns your voice into text. Whisper runs on this computer (your voice stays on it); Deepgram is an online service, useful on a computer that is not powerful.',
+  'La transcription est le moteur qui transforme ta voix en texte. Whisper tourne sur cet ordinateur (ta voix reste sur cet ordinateur) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.': 'Transcription is the engine that turns your voice into text. Whisper runs on this computer (your voice stays on it); Deepgram is an online service, useful on a computer that is not powerful.',
   'La mise au propre est le modèle d’IA qui applique le mode choisi : il retire les « euh » et ponctue (voir la page Style d’écriture). llama.cpp, LM Studio ou Ollama le font tourner sur cet ordinateur ; OpenRouter donne accès en ligne à de plus gros modèles.': 'Cleanup is the AI model that applies the chosen mode: it removes the “um”s and adds punctuation (see the Writing style page). llama.cpp, LM Studio or Ollama run it on this computer; OpenRouter gives online access to larger models.',
-  'Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.': 'How you dictate: you hold the key, you speak, you release, and the text is pasted where your cursor is. The sounds confirm the start and the end, without looking at the screen.',
-  'Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.': 'Only for online services: a key is your identifier at Deepgram or OpenRouter. With Whisper and a local model, everything stays on this computer and no key is needed.',
+  'Comment tu dictes : tu maintiens la touche, tu parles, tu relâches, et le texte se colle là où est ton curseur. Les sons confirment le début et la fin, sans regarder l’écran.': 'How you dictate: you hold the key, you speak, you release, and the text is pasted where your cursor is. The sounds confirm the start and the end, without looking at the screen.',
+  'Seulement pour les services en ligne : une clé est ton identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.': 'Only for online services: a key is your identifier at Deepgram or OpenRouter. With Whisper and a local model, everything stays on this computer and no key is needed.',
   'Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode (en Littéral, sans modèle : seulement les signes dictés et le dictionnaire). En Simple, « euh, je pense qu’on pourrait, euh, décaler à jeudi » devient « Je pense qu’on pourrait décaler à jeudi. » ; en Soutenu, la phrase est en plus reformulée dans un français soigné.': 'After transcription, an AI model removes the “um”s and adds punctuation, depending on the mode (in Literal, with no model: only the dictated signs and the dictionary). In Simple, “um, I think we could, um, move it to Thursday” becomes “I think we could move it to Thursday.”; in Formal, the sentence is also reworded in polished language.',
-  'Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), créez votre mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.': 'A mode is an instruction and a few examples given to the model. For a specific use (text messages, session reports…), create your own mode with two or three examples dictation → expected text: they set the style.',
+  'Un mode, c’est une consigne et quelques exemples donnés au modèle. Pour un usage précis (des SMS, des comptes rendus de séance…), crée ton mode avec deux ou trois exemples dictée → texte attendu : ce sont eux qui donnent le style.': 'A mode is an instruction and a few examples given to the model. For a specific use (text messages, session reports…), create your own mode with two or three examples dictation → expected text: they set the style.',
   'Pour dicter et traduire : {shortcut} (même endroit pour le changer).': 'To dictate and translate: {shortcut} (change it in the same place).',
-  'Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.':
+  'Pas encore de raccourci de traduction : relance Scriibe, GNOME t’en fera choisir un.':
     'No translation shortcut yet: restart Scriibe, and GNOME will ask you to choose one.',
   'Pour dicter une commande : {shortcut} (même endroit pour le changer).': 'To dictate a command: {shortcut} (change it in the same place).',
-  'Pas encore de raccourci de commande : relancez Scriibe, GNOME vous en fera choisir un.':
+  'Pas encore de raccourci de commande : relance Scriibe, GNOME t’en fera choisir un.':
     'No command shortcut yet: restart Scriibe, and GNOME will ask you to choose one.',
-  'Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.':
+  'Sous GNOME (Wayland), tu dictes avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relance Scriibe.':
     'On GNOME (Wayland), you dictate with a GNOME shortcut: {shortcut}. GNOME does not accept a single key such as Right Ctrl: it needs a combination with an ordinary key (a letter, an arrow, Space). To change it: GNOME Settings → Apps → Scriibe → Global Shortcuts, then restart Scriibe.',
   // Utilisateurs (étape 4c)
   'Utilisateurs':

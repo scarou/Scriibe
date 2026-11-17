@@ -7,7 +7,8 @@
   import { bench } from '../lib/bench.svelte';
   import { cleanButChanged, normalizedText, versions } from '../lib/benchflow';
   import { fmt } from '../lib/display.svelte';
-  import { t } from '../lib/i18n.svelte';
+  import { keyName, t } from '../lib/i18n.svelte';
+  import { status } from '../lib/status.svelte';
   import BenchArchive from '../components/BenchArchive.svelte';
   import TrialBench from '../components/TrialBench.svelte';
   import ProfileBars from '../components/ProfileBars.svelte';
@@ -139,7 +140,7 @@
 
 <Card id="bench-banc-de-dictee-les-17-phrases-de-scribe" title={t('Banc de dictée (les 17 phrases de Scribe)')} help="measures">
   <p class="muted">
-    {t('Lisez chaque phrase à voix haute, à 20–30 cm de l’écran, puis cliquez sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.')}
+    {t('Lis chaque phrase à voix haute, à 20–30 cm de l’écran, puis clique sur « Terminer ». Le résultat s’affiche tout de suite avec ses contrôles et ses temps ; rien n’est collé ni gardé dans l’historique. Le passage est gardé avec ses réglages pour être comparé plus tard.')}
   </p>
 
   <div class="row">
@@ -172,7 +173,7 @@
       <span class="muted">{fmt(seconds)} s</span>
     </div>
     <div class="row">
-      <label><input type="checkbox" bind:checked={translate} /> {t('Traduire (comme Ctrl + Maj)')}</label>
+      <label><input type="checkbox" bind:checked={translate} /> {t('Traduire (comme {keys})', { keys: keyName(status.value?.dictation_label ?? '') + ' + ' + keyName(status.value?.translate_label ?? '') })}</label>
       <button onclick={skip} disabled={recording || working}>{t('Passer')}</button>
       <button onclick={redo} disabled={recording || working || !bench.results.length}>{t('Relire la dernière')}</button>
       <button onclick={() => { clearTake(); bench.stop(); }} disabled={recording || working}>{t('Arrêter')}</button>

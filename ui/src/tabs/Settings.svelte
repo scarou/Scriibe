@@ -117,12 +117,12 @@
     </label>
   </Card>
 
-  <Card help="start" id="logo-anime" title={t('Logo animé')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement. Décochez pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.')}>
+  <Card help="start" id="logo-anime" title={t('Logo animé')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement. Décoche pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.')}>
     <label><input type="checkbox" checked={v.animatedLogo !== false} onchange={(e) => settings.change({ animatedLogo: e.currentTarget.checked })} />
       {t('Logo animé')}</label>
   </Card>
 
-  <Card help="dictate" id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que vous dictez ni la langue de traduction.')}>
+  <Card help="dictate" id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que tu dictes ni la langue de traduction.')}>
     <label>{t('Langue :')}
       <select value={v.uiLanguage} onchange={(e) => settings.change({ uiLanguage: e.currentTarget.value as never })}>
         <option value="auto">{t('Automatique (celle du système)')}</option>
@@ -134,15 +134,15 @@
   {/if}
 
   {#if section === 'engines'}
-  <Card id="moteurs" title={t('Transcription et mise au propre')} help="privacy" intro={t('Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}>
-    <p class="summary"><b>{t('Ce qui tourne quand vous dictez :')}</b>
+  <Card id="moteurs" title={t('Transcription et mise au propre')} help="privacy" intro={t('Où passent ta voix et ton texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}>
+    <p class="summary"><b>{t('Ce qui tourne quand tu dictes :')}</b>
       {t('transcription')} {v.transcriptionEngine === 'whisper' ? t('Local') : t('Cloud')}
       · {t('mise au propre')} {v.cleanupEngine === 'none' ? t('aucune') : v.cleanupEngine === 'openRouter' ? t('Cloud') : t('Local')}</p>
     <div class="row">
       <button onclick={() => nav.openAssistant()} title={t('Mesure l’ordinateur et propose les moteurs qui lui conviennent')}>{t('Relancer l’assistant')}</button>
       <button onclick={() => nav.openHelp('start')}>{t('À quoi servent ces choix ?')}</button>
     </div>
-    <p class="muted">{t('La transcription est le moteur qui transforme votre voix en texte. Whisper tourne sur cet ordinateur (votre voix reste sur cet ordinateur) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.')}</p>
+    <p class="muted">{t('La transcription est le moteur qui transforme ta voix en texte. Whisper tourne sur cet ordinateur (ta voix reste sur cet ordinateur) ; Deepgram est un service en ligne, utile sur un ordinateur peu puissant.')}</p>
     <div class="row">
       <label>{t('Transcription :')}
         <select value={v.transcriptionEngine} onchange={(e) => settings.change({ transcriptionEngine: e.currentTarget.value as never })}>
@@ -256,10 +256,10 @@
   {/if}
 
   {#if section === 'dictation'}
-  <Card id="dictee" title={t('Dictée')} help="dictate" intro={t('Comment vous dictez : vous maintenez la touche, vous parlez, vous relâchez, et le texte se colle là où est votre curseur. Les sons confirment le début et la fin, sans regarder l’écran.')}>
+  <Card id="dictee" title={t('Dictée')} help="dictate" intro={t('Comment tu dictes : tu maintiens la touche, tu parles, tu relâches, et le texte se colle là où est ton curseur. Les sons confirment le début et la fin, sans regarder l’écran.')}>
     {#if s?.gnome_shortcut}
-      <p class="muted">{t('Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.', { shortcut: keyName(s.gnome_shortcut) })}</p>
-      <p class="muted">{s.gnome_translate_shortcut ? t('Pour dicter et traduire : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_translate_shortcut) }) : t('Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
+      <p class="muted">{t('Sous GNOME (Wayland), tu dictes avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relance Scriibe.', { shortcut: keyName(s.gnome_shortcut) })}</p>
+      <p class="muted">{s.gnome_translate_shortcut ? t('Pour dicter et traduire : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_translate_shortcut) }) : t('Pas encore de raccourci de traduction : relance Scriibe, GNOME t’en fera choisir un.')}</p>
     {:else}
       <KeyPicker kinds={['dictation', 'translate']} />
     {/if}
@@ -317,10 +317,10 @@
   {/if}
 
   {#if section === 'appearance'}
-  <Card id="indicateur" title={t('Apparence de l’indicateur')} help="indicator" intro={osName === 'macos' ? t('L’icône de la barre des menus change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : osName === 'linux' ? t('Il n’y a pas encore d’icône sous Linux. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran (bêta) ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}>
+  <Card id="indicateur" title={t('Apparence de l’indicateur')} help="indicator" intro={osName === 'macos' ? t('L’icône de la barre des menus change toujours de couleur. La pastille à l’écran ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : osName === 'linux' ? t('Il n’y a pas encore d’icône sous Linux. La pastille à l’écran ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.') : t('L’icône près de l’horloge change toujours de couleur. La pastille à l’écran ajoute l’état de la dictée, le niveau du micro et les alertes, sans jamais prendre le focus.')}>
     <div class="row">
       <label><input type="checkbox" checked={v.overlayEnabled} onchange={(e) => settings.change({ overlayEnabled: e.currentTarget.checked })} />
-        {t('Afficher la pastille à l’écran (bêta)')}</label>
+        {t('Afficher la pastille à l’écran')}</label>
     </div>
     <div class="row">
       <label>{t('Style :')}
@@ -355,7 +355,7 @@
       <label>{t('Prénom dans la salutation :')}
         <input type="text" value={v.firstName ?? ''} placeholder={status.value?.first_name ?? ''} maxlength="40" onchange={(e) => settings.change({ firstName: e.currentTarget.value.trim() })} />
       </label>
-      <p class="muted">{t('L’Accueil vous salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.')}</p>
+      <p class="muted">{t('L’Accueil te salue par ce prénom. Laissé vide, Scriibe prend celui du compte de l’ordinateur.')}</p>
     </div>
     <div class="setting">
       <label>{t('Genre de la personne qui dicte :')}
@@ -365,13 +365,13 @@
           <option value="feminine">{t('Féminin')}</option>
         </select>
       </label>
-      <p class="muted">{t('Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui vous concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.')}</p>
+      <p class="muted">{t('Sert aux modes qui réécrivent (Apaisé, Soutenu, modes professionnels) pour accorder ce qui te concerne : « je me sens délaissé » ou « délaissée ». Sans effet sur Simple et Littéral.')}</p>
     </div>
   </Card>
   {/if}
 
   {#if section === 'keys'}
-  <Card id="cles" title={t('Comptes en ligne')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
+  <Card id="cles" title={t('Comptes en ligne')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est ton identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
     <p class="muted">{osName === 'macos' ? t('Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.') : osName === 'linux' ? t('Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.') : t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}

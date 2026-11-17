@@ -1193,7 +1193,7 @@ fn hub_look(input: &Value) -> Result<Value, String> {
     let sort = input["sort"].as_str().unwrap_or("popular");
     let text = input["query"].as_str().unwrap_or("").trim();
     if text.is_empty() {
-        return Err("tapez un nom de dépôt (propriétaire/nom), une adresse Hugging Face ou des mots à chercher".into());
+        return Err("tape un nom de dépôt (propriétaire/nom), une adresse Hugging Face ou des mots à chercher".into());
     }
     match hub::parse_query(text) {
         hub::Query::Repo { repo, file } => {

@@ -8,7 +8,7 @@
   import InstalledModels from '../components/InstalledModels.svelte';
   import { base, percent } from '../lib/format';
   import { mo } from '../lib/display.svelte';
-  import { t } from '../lib/i18n.svelte';
+  import { keyName, t } from '../lib/i18n.svelte';
   import { status } from '../lib/status.svelte';
 
   interface Item {
@@ -88,7 +88,7 @@
           { label: 'llama-server', ok: !!s.llama.binary, detail: s.llama.binary ?? t('à installer ci-dessous — seulement si la mise au propre est activée') },
           { label: t('Modèle de mise au propre (GGUF)'), ok: s.llama.models.length > 0, detail: s.llama.models.map(base).join(', ') || t('à installer ci-dessous') },
           { label: t('Micro'), ok: s.microphones.length > 0, detail: s.microphones.join(' | ') || t('aucun micro détecté') },
-          { label: t('Touche globale'), ok: !s.keys_error, detail: s.keys_error ?? t('Ctrl droit (Maj : traduire)') },
+          { label: t('Touche globale'), ok: !s.keys_error, detail: s.keys_error ?? t('{key} ({translate} : traduire)', { key: keyName(s.dictation_label), translate: keyName(s.translate_label) }) },
         ]
       : [],
   );
@@ -126,7 +126,7 @@
   </div>
 {/snippet}
 
-<Card help="start" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans votre accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
+<Card help="start" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans ton accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
   {#each items.filter((i) => i.kind === 'program') as it (it.id)}{@render offer(it)}{/each}
 </Card>
 

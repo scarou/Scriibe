@@ -81,3 +81,21 @@ describe('langue de l’interface', () => {
     expect(orphans, 'traductions que la page n’utilise plus').toEqual([]);
   });
 });
+
+describe('tutoiement (tâche 9)', () => {
+  const vous = /\b(vous|votre|vos|vôtres?)\b/i;
+  const clean = (text: string) => text.replace(/rendez-vous/gi, '');
+
+  it('aucun texte français de l’interface ne contient « vous », « votre » ou « vos »', () => {
+    const found: string[] = [];
+    for (const key of usedKeys()) if (vous.test(clean(key))) found.push(key.slice(0, 80));
+    for (const key of [...Object.keys(en), ...Object.keys(enServer)]) if (vous.test(clean(key))) found.push(key.slice(0, 80));
+    expect(found).toEqual([]);
+  });
+
+  it('l’Aide française est au tutoiement', () => {
+    const help = Object.entries(files).find(([f]) => f.endsWith('/tabs/Help.svelte'))![1];
+    const lines = help.split('\n').filter((l) => vous.test(clean(l)));
+    expect(lines.map((l) => l.trim().slice(0, 80))).toEqual([]);
+  });
+});
