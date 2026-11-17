@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { i18n, t } from '../lib/i18n.svelte';
   import { findMatches } from '../lib/helpsearch';
   import { helpSearch } from '../lib/helpSearch.svelte';
@@ -58,10 +59,11 @@
     }
     let frame = 0;
     let observer: MutationObserver | null = null;
-    const run = (root: HTMLElement) => {
+    const run = async (root: HTMLElement) => {
       const first = scan(root, needle);
       if (first && scrolledFor !== needle) {
         scrolledFor = needle;
+        await tick(); // les rubriques sans résultat sont encore cachées : attendre que Svelte les ait montrées
         first.startContainer.parentElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       }
     };

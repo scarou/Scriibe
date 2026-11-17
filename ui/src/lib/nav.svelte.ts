@@ -1,6 +1,7 @@
 import { tick } from 'svelte';
 import { defaultHelpSection, type HelpId } from './help';
 import { tabs, type MainTab, type TabId } from './tabs';
+import { helpSearch } from './helpSearch.svelte';
 
 function saved<T extends string>(key: string, allowed: readonly { id: T }[], fallback: T): T {
   try {
@@ -81,6 +82,7 @@ class Nav {
 
   /** Ouvre une section de l'Aide (bouton « ? » d'une carte). */
   openHelp(section: HelpId): void {
+    helpSearch.clear(); // une recherche restée active cacherait la rubrique demandée
     this.helpSection = section;
     void this.go('help');
   }

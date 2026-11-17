@@ -10,7 +10,9 @@ export function fold(text: string): { text: string; map: number[] } {
       .replace(/[̀-ͯ]/g, '')
       .replace(/[’‘ʼ]/g, "'")
       .replace(/[  ]/g, ' ')
-      .toLowerCase();
+      .toLowerCase()
+      .replace(/œ/g, 'oe')
+      .replace(/æ/g, 'ae');
     for (const c of base) {
       out += c;
       map.push(i);

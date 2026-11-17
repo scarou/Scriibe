@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { findMatches, foldQuery } from './helpsearch';
 
 describe('recherche dans l’Aide', () => {
@@ -12,6 +12,23 @@ describe('recherche dans l’Aide', () => {
     expect(findMatches('l’Aide', foldQuery("l'aide"))).toEqual([[0, 6]]);
     expect(findMatches('« Terminer »', foldQuery('« terminer'))).toEqual([[0, 10]]);
     expect(findMatches('Ctrl droit', foldQuery('ctrl droit'))).toEqual([[0, 10]]);
+  });
+
+  it('trouve « cœur » en tapant « coeur », et l’inverse', () => {
+    expect(findMatches('Le cœur et la sœur', foldQuery('coeur'))).toEqual([[3, 7]]);
+    expect(findMatches('Le coeur', foldQuery('CŒUR'))).toEqual([[3, 8]]);
+    expect(findMatches('Œuvre', foldQuery('oeuvre'))).toEqual([[0, 5]]);
+  });
+
+  it('une recherche restée active est effacée par l’ouverture d’une rubrique depuis un « ? »', async () => {
+    const { helpSearch } = await import('./helpSearch.svelte');
+    const { nav } = await import('./nav.svelte');
+    vi.stubGlobal('window', { scrollTo: () => {} }); // pas de page dans ce test : go() défile en haut
+    helpSearch.query = 'clé';
+    nav.openHelp('modes');
+    expect(helpSearch.query).toBe('');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    vi.unstubAllGlobals();
   });
 
   it('ne cherche pas avec moins de deux lettres, et ne trouve rien d’absent', () => {

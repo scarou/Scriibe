@@ -444,4 +444,6 @@ export const enServer: Record<string, string> = {
     'the list of commands in the file is malformed',
   'rien à importer : coche au moins une catégorie':
     'nothing to import: tick at least one category',
+  'tape un nom de dépôt (propriétaire/nom), une adresse Hugging Face ou des mots à chercher':
+    'type a repository name (owner/name), a Hugging Face address or words to search for',
 };
