@@ -165,3 +165,13 @@ describe('pages Moteurs et modèles, Données et système, Mesures et essais (t�
     expect(benchTab).not.toContain('Journal et rapport');
   });
 });
+
+describe('sélecteurs de touches : aucun vide (correctif de la touche de commande)', () => {
+  it('chacune des trois touches (dictée, traduction, commande) est montrée sur une page, et la commande accepte une combinaison', () => {
+    for (const row of ["kinds.includes('dictation')", "kinds.includes('translate')", "kinds.includes('command')"]) expect(keyPicker).toContain(row);
+    expect(settingsTab).toContain("kinds={['dictation', 'translate']}");
+    expect(activation).toContain("kinds={['command']}");
+    // La capture de la commande parle d'une combinaison, pas d'une seule touche.
+    expect(keyPicker).toContain("kind === 'command' ? t('Appuie sur la touche ou la combinaison à tenir en plus");
+  });
+});

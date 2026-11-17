@@ -160,7 +160,7 @@
   {#if kind}
     <div class="capture" role="status">
       {#if !capture.finished}
-        <b>{kind === 'dictation' ? t('Appuie sur la touche ou la combinaison voulue, puis relâche tout.') : t('Appuie sur la touche à tenir en plus, puis relâche tout.')}</b>
+        <b>{kind === 'dictation' ? t('Appuie sur la touche ou la combinaison voulue, puis relâche tout.') : kind === 'command' ? t('Appuie sur la touche ou la combinaison à tenir en plus, puis relâche tout.') : t('Appuie sur la touche à tenir en plus, puis relâche tout.')}</b>
         {#if capture.labels?.length}<div class="live">{capture.labels.map(keyName).join(' + ')}</div>
         {:else if waited > 6}
           <div class="warn">
@@ -195,7 +195,7 @@
     {#if mac}
       {t('Une combinaison se tient en entier (par exemple Option gauche + F9) : l’une des touches seule ne fait rien. Les touches Option, Commande (⌘), Fn, Ctrl, Maj, les touches de fonction (F1 à F20), Début, Fin, Page préc. et Page suiv. sont possibles ; les lettres, chiffres, Espace, Entrée et les flèches ne le sont pas. Sur la plupart des Mac, F1 à F12 demandent Fn en plus, sauf si les « touches de fonction standard » sont activées. Une touche ordinaire de la combinaison (F9…) n’est pas retenue : l’appli active la reçoit aussi.')}
     {:else}
-      {t('Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace, Entrée et AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) ne le sont pas. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.')}
+      {t('Une combinaison se tient en entier (par exemple Ctrl gauche + F9) : l’une des touches seule ne fait rien. Les touches Windows, Alt gauche, Maj gauche, Ctrl, les touches de fonction, « < > » (à gauche de W), Pause, Inser… sont possibles ; les lettres, chiffres, Espace et Entrée ne le sont pas. AltGr (nécessaire à « @ » et « € » sur un clavier AZERTY) n’est possible que pour la touche de commande, qui n’est tenue que pendant une dictée. Une touche ordinaire de la combinaison (F9, « < > ») n’écrit rien dans l’appli pendant la dictée.')}
     {/if}
   </details>
 {/if}

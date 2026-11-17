@@ -117,9 +117,10 @@ impl Binding {
         self.translate.iter().any(|key| held.contains(key))
     }
 
-    /// Une touche de commande tenue en plus de la touche de dictée : sous cette touche, la dictée est une commande, jamais du texte.
+    /// Une touche de commande tenue en plus de la touche de dictée : sous cette touche, la dictée est une commande, jamais du texte. Si la
+    /// touche de commande est une combinaison, toutes ses touches doivent être tenues.
     pub fn command_key_held(&self, held: &[Key]) -> bool {
-        self.command.iter().any(|key| held.contains(key))
+        !self.command.is_empty() && self.command.iter().all(|key| held.contains(key))
     }
 }
 

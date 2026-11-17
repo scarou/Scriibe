@@ -241,7 +241,8 @@ export const enServer: Record<string, string> = {
   '{label} sert déjà à dicter': '{label} is already used to dictate',
   'une seule touche pour traduire': 'only one key to translate',
   '{label} sert déjà à traduire': '{label} is already used to translate',
-  'une seule touche pour les commandes': 'only one key for commands',
+  'trois touches au plus pour les commandes': 'three keys at most for commands',
+  "{label} ne peut servir qu'à dicter une commande : elle sert à taper": '{label} can only be used to dictate a command: it is used for typing',
 
   // Messages fixes de la pastille sous la touche de commande (jamais les mots dits)
   'Aucune sélection': 'No selection',

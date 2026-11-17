@@ -91,13 +91,23 @@ const fn named(id: &'static str, label: &'static str, key: Key) -> KeyChoice {
 pub const VK_LMENU: u32 = 0xA4;
 pub const VK_LWIN: u32 = 0x5B;
 pub const VK_RWIN: u32 = 0x5C;
+/// Alt droit (AltGr sur un clavier AZERTY).
+pub const VK_RMENU: u32 = 0xA5;
 
-/// Les touches qu'on peut utiliser (Windows). Ni lettres, chiffres, Espace, Entrée ou flèches (elles servent à taper), ni AltGr (Alt droit :
-/// nécessaire à « @ » et « € » sur un clavier AZERTY).
+/// Les touches réservées à la touche de commande : AltGr sert à taper (« @ », « € »), donc, seule, elle ne peut pas dicter ni traduire ;
+/// tenue **pendant** une dictée (la touche de commande), elle ne gêne rien.
+/// Une touche de commande est une touche ou une combinaison de trois touches au plus, toutes à tenir.
+pub const MAX_COMMAND_KEYS: usize = 3;
+
+pub const COMMAND_ONLY: &[&str] = &["right_alt"];
+
+/// Les touches qu'on peut utiliser (Windows). Ni lettres, chiffres, Espace, Entrée ou flèches (elles servent à taper). AltGr (Alt droit :
+/// nécessaire à « @ » et « € » sur un clavier AZERTY) n'est permise que pour la touche de commande (`COMMAND_ONLY`).
 pub const CHOICES: &[KeyChoice] = &[
     choice("right_control", "Ctrl droit", vk::RCONTROL, true),
     choice("left_control", "Ctrl gauche", vk::LCONTROL, true),
     choice("left_alt", "Alt gauche", VK_LMENU, true),
+    choice("right_alt", "AltGr (Alt droit)", VK_RMENU, true),
     choice("left_shift", "Maj gauche", vk::LSHIFT, true),
     choice("right_shift", "Maj droit", vk::RSHIFT, true),
     choice("left_win", "Windows gauche", VK_LWIN, true),
@@ -260,7 +270,6 @@ impl Layout {
             Some(code @ (0x30..=0x39 | 0x41..=0x5A)) => format!("la touche {}", char::from(code as u8)),
             Some(0x20) => "Espace".to_string(),
             Some(0x0D) => "Entrée".to_string(),
-            Some(0xA5) => "AltGr (Alt droit)".to_string(),
             Some(code) => format!("la touche de code {code:#04x}"),
             None => "une touche inconnue".to_string(),
         }
@@ -303,6 +312,9 @@ impl Layout {
         let mut chosen = Vec::new();
         for id in dictation {
             let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
+            if COMMAND_ONLY.contains(&choice.id) {
+                return Err(format!("{} ne peut servir qu'à dicter une commande : elle sert à taper", choice.label));
+            }
             if chosen.iter().any(|c: &&KeyChoice| c.id == choice.id) {
                 return Err(format!("{} choisie deux fois", choice.label));
             }
@@ -335,6 +347,9 @@ impl Layout {
             [id] if id == BOTH_SHIFTS => self.validate_translate(dictation, &[]),
             [id] => {
                 let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
+                if COMMAND_ONLY.contains(&choice.id) {
+                    return Err(format!("{} ne peut servir qu'à dicter une commande : elle sert à taper", choice.label));
+                }
                 if dictation.iter().any(|c| c.id == choice.id) {
                     return Err(format!("{} sert déjà à dicter", choice.label));
                 }
@@ -368,7 +383,7 @@ impl Layout {
     fn command_keys(&self, dictation: &[Key], translate: &[Key], command: &[String]) -> Option<Vec<Key>> {
         match command {
             [] => Some(self.default_command().iter().copied().filter(|k| !dictation.contains(k) && !translate.contains(k)).collect()),
-            [id] => Some(vec![self.find(id)?.key]),
+            ids if ids.len() <= MAX_COMMAND_KEYS => ids.iter().map(|id| self.find(id).map(|c| c.key)).collect(),
             _ => None,
         }
     }
@@ -377,34 +392,47 @@ impl Layout {
     /// traduction par défaut, et jamais une touche qui ouvre un menu (Alt gauche) ou sert à AltGr (Ctrl gauche sous Windows).
     /// - Mac : Maj gauche seule (⌘ traduit ; Ctrl + Option est le raccourci de VoiceOver ; décision de l'auteur à l'essai, 15/11 :
     ///   une combinaison « Option droite + Maj gauche », Maj droit reste libre pour taper) ;
-    /// - Windows : Windows droite (le crochet ne masque son menu Démarrer que derrière une dictée tenue : `CommandMenuMask`) ;
+    /// - Windows : Alt gauche, présente sur tous les claviers (Windows droite manque à beaucoup de portables ; le crochet ne masque le menu
+    ///   de l'appli que derrière une dictée tenue : `CommandMenuMask`) ;
     /// - Linux : Ctrl gauche (X11 ; sous Wayland c'est un troisième raccourci de GNOME).
     pub fn default_command(&self) -> Vec<Key> {
         if self.mac {
             vec![Key::LeftShift]
         } else if cfg!(windows) {
-            vec![Key::Vk(VK_RWIN)]
+            vec![Key::Vk(VK_LMENU)]
         } else {
             vec![Key::LeftControl]
         }
     }
 
     fn validate_command(&self, dictation: &[String], translate: &[String], command: &[String]) -> Result<(), String> {
-        let id = match command {
-            [] => return Ok(()),
-            [id] => id,
-            _ => return Err("une seule touche pour les commandes".into()),
-        };
-        let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
+        if command.is_empty() {
+            return Ok(());
+        }
+        if command.len() > MAX_COMMAND_KEYS {
+            return Err("trois touches au plus pour les commandes".into());
+        }
         // Les touches de dictée : celles réglées, sinon celle par défaut du système.
         let dictation_ids: Vec<String> =
             if dictation.is_empty() { vec![self.default_dictation_id(&AppSettings::default()).to_string()] } else { dictation.to_vec() };
         let dictation_keys = dictation_ids.iter().map(|d| self.find(d).map(|c| c.key)).collect::<Option<Vec<_>>>().unwrap_or_default();
-        if dictation_keys.contains(&choice.key) {
-            return Err(format!("{} sert déjà à dicter", choice.label));
+        let translate_keys = self.translate_keys(&dictation_keys, translate);
+        let mut chosen: Vec<&KeyChoice> = Vec::new();
+        for id in command {
+            let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
+            if chosen.iter().any(|c| c.id == choice.id) {
+                return Err(format!("{} choisie deux fois", choice.label));
+            }
+            if dictation_keys.contains(&choice.key) {
+                return Err(format!("{} sert déjà à dicter", choice.label));
+            }
+            if translate_keys.as_ref().is_some_and(|t| t.contains(&choice.key)) {
+                return Err(format!("{} sert déjà à traduire", choice.label));
+            }
+            chosen.push(choice);
         }
-        if self.translate_keys(&dictation_keys, translate).is_some_and(|t| t.contains(&choice.key)) {
-            return Err(format!("{} sert déjà à traduire", choice.label));
+        if chosen.iter().filter(|c| !c.modifier).count() > 1 {
+            return Err("une seule touche autre que Ctrl, Alt, Maj ou Windows dans la combinaison".into());
         }
         Ok(())
     }
@@ -451,7 +479,7 @@ pub fn vk_of_web_code(code: &str) -> Option<u32> {
         "ShiftLeft" => vk::LSHIFT,
         "ShiftRight" => vk::RSHIFT,
         "AltLeft" => VK_LMENU,
-        "AltRight" => 0xA5,
+        "AltRight" => VK_RMENU,
         "MetaLeft" => VK_LWIN,
         "MetaRight" => VK_RWIN,
         "IntlBackslash" => 0xE2,
@@ -634,6 +662,7 @@ pub fn english_label(french: &str) -> String {
             "Commande gauche (⌘)" => "Left Command (⌘)",
             "Ctrl gauche" => "Left Ctrl",
             "Alt gauche" => "Left Alt",
+            "AltGr (Alt droit)" => "AltGr (right Alt)",
             "Maj gauche" => "Left Shift",
             "Maj droit" => "Right Shift",
             "Maj" => "Shift",
@@ -668,7 +697,7 @@ pub fn default_command_label() -> &'static str {
     if cfg!(target_os = "macos") {
         "Maj gauche"
     } else if cfg!(windows) {
-        "Windows droite"
+        "Alt gauche"
     } else {
         "Ctrl gauche"
     }
@@ -876,7 +905,11 @@ mod tests {
         assert_eq!(id_of(Key::Vk(0x78)), Some("f9"));
         assert_eq!(id_of(Key::LeftControl), Some("left_control"));
         assert_eq!(id_of(Key::Vk(0x41)), None, "une lettre ne peut pas dicter");
-        assert_eq!(id_of(Key::Vk(0xA5)), None, "AltGr non plus");
+        // AltGr est dans la liste, mais réservée à la touche de commande : ni dictée ni traduction.
+        assert_eq!(id_of(Key::Vk(0xA5)), Some("right_alt"));
+        assert!(validate(&["right_alt".to_string()], &[]).is_err(), "AltGr seule ne peut pas dicter");
+        assert!(WINDOWS_LAYOUT.validate(&[], &["right_alt".to_string()], &[]).is_err(), "ni traduire");
+        assert!(WINDOWS_LAYOUT.validate(&["f9".to_string()], &[], &["right_alt".to_string()]).is_ok());
         assert_eq!(id_of(Key::Fn), None);
     }
 
@@ -1093,7 +1126,7 @@ mod tests {
         // Windows et Linux : ni Maj (traduction) ni Ctrl droit (dictée).
         let default = WINDOWS_LAYOUT.default_command();
         assert!(default.iter().all(|k| ![Key::RightControl, Key::LeftShift, Key::RightShift].contains(k)));
-        assert_eq!(default, if cfg!(windows) { vec![Key::Vk(VK_RWIN)] } else { vec![Key::LeftControl] });
+        assert_eq!(default, if cfg!(windows) { vec![Key::Vk(VK_LMENU)] } else { vec![Key::LeftControl] });
         // Sans réglage, le réglage système par défaut a la touche de commande, pas `from_hotkey` seul.
         assert!(binding(&AppSettings::default()).command.len() == layout().default_command().len());
         assert!(Binding::from_hotkey(Hotkey::RightControl).command.is_empty());
@@ -1192,6 +1225,7 @@ mod tests {
     #[test]
     fn the_default_command_key_exists_on_every_windows_keyboard() {
         assert_ne!(WINDOWS_LAYOUT.default_command(), vec![Key::Vk(VK_RWIN)], "Windows droite n'existe pas sur tous les claviers");
+        assert_eq!(default_command_label(), "Alt gauche");
     }
 
     /// La touche de commande n'est tenue que pendant une dictée : AltGr (qui sert à taper « @ » et « € ») peut donc la servir.
@@ -1206,5 +1240,32 @@ mod tests {
     fn a_command_key_may_be_a_combination() {
         let command = ["left_control".to_string(), "right_alt".to_string()];
         assert_eq!(WINDOWS_LAYOUT.validate(&[], &[], &command), Ok(()));
+    }
+
+    /// Aucun choix de touche n'est vide, sur aucun système : chacune des trois touches a un nom par défaut, et la touche de commande par
+    /// défaut est donnée avec la dictée par défaut (Windows, Mac et Linux).
+    #[test]
+    fn no_key_choice_is_empty_on_any_system() {
+        assert!(!default_dictation_label().is_empty() && !default_translate_label().is_empty() && !default_command_label().is_empty());
+        assert!(!layout().default_command().is_empty());
+        assert_eq!(command_label(&AppSettings::default()).as_deref(), Some(default_command_label()));
+        for layout in [&WINDOWS_LAYOUT, &MAC_LAYOUT] {
+            assert!(!layout.choices().is_empty());
+            let dictation = layout.default_dictation_id(&AppSettings::default()).to_string();
+            let b = command_binding(layout, &[dictation.as_str()], &[], &[]).unwrap();
+            assert!(!b.command.is_empty(), "la touche de commande par défaut est donnée avec la dictée par défaut");
+            assert!(!b.dictation.is_empty() && !b.translate.is_empty());
+        }
+    }
+
+    /// Ctrl gauche + AltGr (ce que Windows envoie pour AltGr) est une touche de commande valide : Ctrl droit dicte, Maj traduit.
+    #[test]
+    fn ctrl_left_plus_altgr_is_a_valid_command_combination() {
+        let b = command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["left_control", "right_alt"]).unwrap();
+        assert_eq!(b.command, vec![Key::LeftControl, Key::Vk(VK_RMENU)]);
+        // Mais trois touches au plus, sans doublon, et jamais celle de la dictée.
+        assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["f1", "f2", "f3", "f4"]).is_err());
+        assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["left_alt", "left_alt"]).is_err());
+        assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["right_control", "right_alt"]).is_err());
     }
 }

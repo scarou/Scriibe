@@ -31,7 +31,7 @@
   let linux = $derived(os === 'linux');
   let defaultDictate = $derived(mac ? 'Option droite' : 'Ctrl droit');
   let defaultTranslate = $derived(mac ? '⌘' : 'Maj');
-  let defaultCommand = $derived(mac ? 'Maj gauche' : linux ? 'Ctrl gauche' : 'Windows droite');
+  let defaultCommand = $derived(mac ? 'Maj gauche' : linux ? 'Ctrl gauche' : 'Alt gauche');
   let copyKey = $derived(mac ? '⌘C' : 'Ctrl+C');
   let pasteKey = $derived(mac ? '⌘V' : 'Ctrl+V');
   let trayNear = $derived(mac ? 'dans la barre des menus' : 'près de l’horloge');
@@ -149,7 +149,7 @@
       <h3>Choisir ses touches</h3>
       <p>Par défaut : <b>{defaultDictate}</b> pour dicter, <b>{defaultTranslate}</b> en plus pour traduire. Pour changer : Dicter → « Changer… », puis <b>appuie directement</b> sur la touche ou la combinaison voulue (par exemple {mac ? 'Option gauche + F9' : 'Ctrl gauche + F9, ou la touche Windows'}) et relâche tout : Scriibe la retient, et « Tester ma touche » vérifie qu’elle est bien reconnue.</p>
       <ul>
-        <li>{#if mac}Possibles : Option, Commande (⌘), Fn, Ctrl, Maj, les touches de fonction (F1 à F20), Début, Fin, Page préc. et Page suiv. Pas possibles : les lettres, les chiffres, Espace, Entrée et les flèches. Sur la plupart des Mac, F1 à F12 demandent Fn en plus, sauf si les « touches de fonction standard » sont activées.{:else}Possibles : Ctrl, Alt gauche, Maj, la touche Windows, les touches de fonction, « &lt; &gt; » (à gauche de W), Pause, Inser… Pas possibles : les lettres, les chiffres, Espace, Entrée, et AltGr (il sert à taper « @ » ou « € » sur un clavier AZERTY).{/if}</li>
+        <li>{#if mac}Possibles : Option, Commande (⌘), Fn, Ctrl, Maj, les touches de fonction (F1 à F20), Début, Fin, Page préc. et Page suiv. Pas possibles : les lettres, les chiffres, Espace, Entrée et les flèches. Sur la plupart des Mac, F1 à F12 demandent Fn en plus, sauf si les « touches de fonction standard » sont activées.{:else}Possibles : Ctrl, Alt gauche, Maj, la touche Windows, les touches de fonction, « &lt; &gt; » (à gauche de W), Pause, Inser… Pas possibles : les lettres, les chiffres, Espace et Entrée. AltGr (il sert à taper « @ » ou « € » sur un clavier AZERTY) n’est possible que comme touche de commande, qui peut aussi être une combinaison de trois touches au plus (par exemple Ctrl gauche + AltGr).{/if}</li>
         <li>{#if mac}<b>Des touches de modification seules</b> : Ctrl et Maj demandent de les tenir une fraction de seconde (0,3 s) avant que l’écoute commence ; Option, ⌘ et Fn écoutent tout de suite. <i>Pourquoi :</i> les raccourcis clavier (⌘C, Maj+lettre) appuient aussi sur Ctrl et Maj, et ne doivent pas ouvrir le micro.{:else}<b>Des touches de modification seules</b> (Maj gauche, Windows, Ctrl + Alt…) : il faut les tenir une fraction de seconde (0,3 s) avant que l’écoute commence. <i>Pourquoi :</i> les raccourcis clavier (Ctrl+C, Maj+lettre, Windows+E) les appuient aussi, et ne doivent pas ouvrir le micro.{/if}</li>
         {#if !mac}<li><b>Alt gauche et Windows</b> ouvriraient d’ordinaire le menu de l’appli ou le menu Démarrer au relâchement, et le collage perdrait le focus : Scriibe glisse une touche sans effet pendant l’appui pour l’éviter.</li>{/if}
         <li>Une touche ordinaire de la combinaison (F9, « &lt; &gt; ») n’écrit rien dans l’appli pendant la dictée.</li>

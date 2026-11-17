@@ -933,15 +933,15 @@ fn capture_view(ctx: &Context) -> Value {
     if capture.finished {
         let settings = ctx.app.config.settings();
         error = match &ids {
+            None if kind == "command" => {
+                Some(format!("{} ne peut pas servir de touche de commande : elle sert à taper.", labels.join(" + ")))
+            }
             None => Some(format!("{} ne peut pas servir de touche de dictée : elle sert à taper (ou à AltGr).", labels.join(" + "))),
             Some(ids) if kind == "translate" => match ids.as_slice() {
                 [one] => keys::validate(&settings.dictation_keys, std::slice::from_ref(one), &settings.command_keys).err(),
                 _ => Some("une seule touche pour traduire".into()),
             },
-            Some(ids) if kind == "command" => match ids.as_slice() {
-                [one] => keys::validate(&settings.dictation_keys, &settings.translate_keys, std::slice::from_ref(one)).err(),
-                _ => Some("une seule touche pour les commandes".into()),
-            },
+            Some(ids) if kind == "command" => keys::validate(&settings.dictation_keys, &settings.translate_keys, ids).err(),
             Some(ids) => keys::validate(ids, &settings.translate_keys, &settings.command_keys).err(),
         };
     }
