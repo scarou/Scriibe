@@ -2,6 +2,7 @@
   import Card from '../Card.svelte';
   import { api } from '../../lib/api';
   import { settings } from '../../lib/settings.svelte';
+  import { nav } from '../../lib/nav.svelte';
   import { i18n, t } from '../../lib/i18n.svelte';
   import '../commands/commands.css';
   import ShortcutField from '../ShortcutField.svelte';
@@ -142,6 +143,16 @@
       customShortcutDrafts[c.id] ??= c.shortcut;
       void shortcutLabel(c.shortcut).then((r) => (customLabels[c.id] = r.label ?? ''));
     }
+  });
+
+  /** Demande de la carte « Sauvegarder et transférer » : la même carte d'export ou d'import que les boutons de la carte. */
+  $effect(() => {
+    const kind = nav.transferRequest;
+    if (kind !== 'commands-export' && kind !== 'commands-import') return;
+    if (!v) return;
+    nav.transferRequest = null;
+    if (kind === 'commands-import') void openTransfer('import');
+    else if (customs.length > 0) void openTransfer('export');
   });
 </script>
 

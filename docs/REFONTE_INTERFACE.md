@@ -951,3 +951,23 @@ Demandes de l'auteur pendant l'essai :
 1. **Choix de durées de veille plus fins** (Moteurs : seulement 10 ou 30 minutes dans la liste). Proposé en ligne du carnet.
 2. **Désactiver une commande vocale en particulier** (aujourd'hui seulement « Activer les commandes vocales » pour toutes). Proposé en ligne du carnet.
 3. **Garder les états de la page malgré le changement de port** (voir le défaut ci-dessus). Proposé en ligne du carnet.
+
+## Sauvegarder et transférer (tâche 8)
+
+Fait le 2026-11-17. La carte « Sauvegarder et transférer » (id `sauvegarde`, composant `ui/src/components/BackupTransfer.svelte`) remplace « Sauvegarde de vos données » dans Données et système, entre « Lancer au démarrage » et « Version de Scriibe ».
+
+- **En haut** : la sauvegarde complète et sa restauration, déplacées telles quelles (mêmes appels `backup/export`, `backup/import/*`) ; la désinstallation garde son propre appel à `backup/export` dans `System.svelte`.
+- **Une ligne par partie** (utilisateur, dictionnaire, modes personnels, commandes vocales personnelles), avec « Exporter… » et « Importer… » : le bouton appelle `nav.transfer(kind)` (`nav.svelte.ts`), qui ouvre la page et la carte, puis y dépose une demande (`nav.transferRequest`) que la page prend dès qu'elle est prête (`$effect` dans `Users`, `Dictionary`, `Modes`, `CustomCommands`) pour ouvrir **la même carte secondaire** que ses propres boutons. Aucun format de fichier nouveau ; les boutons des pages restent.
+- **Conservation de l'historique** : lien « Régler la conservation → » vers la carte `conservation` de l'Historique.
+- **Choix** : l'export « Utilisateur » vise l'utilisateur actif (un autre : liste de la page Profil) ; l'export des modes s'ouvre d'emblée s'il n'y a qu'un mode personnel, sinon la page se place sur « Mes modes » où chaque mode a son « Exporter » ; rien à exporter → la page se place sur la carte sans rien ouvrir ; une demande non prise est effacée après 4 s. `Dictionary.loaded` devient réactif pour que la demande attende la lecture.
+- **Textes** : Aide FR/EN et `en.ts` à jour ; textes nouveaux au tutoiement.
+
+### Tests
+
+- `svelte-check` sans erreur ; Vitest 130 verts (nouveau test dans `links.test.ts` : les 8 demandes visent une page et une carte existantes, ont une ligne dans la carte et une page qui les prend ; `tabs.test.ts` : nouvel ordre de la page Données) ; `cargo fmt`, `clippy -D warnings` et `cargo test --workspace` verts.
+- **Essai sur le Mac** : copie `~/Applications/Scriibe-essai.app` lancée avec `SCRIIBE_DATA=~/Library/Application Support/Scriibe-essai-t8` (données fictives : 2 mots, 1 correction, 1 mode, 1 commande, 3 dictées). Les données de l'auteur ont d'abord été copiées (sans les modèles) dans `~/Library/Application Support/Scriibe-sauvegardes/avant-tache8-20261117-132536`, hors iCloud ; son dossier n'a pas été touché.
+  - **Sauvegarde** : enregistrée et relue (« ✔ … relue »).
+  - **Restauration** : après avoir ajouté un mot et vidé modes et commandes, l'aperçu annonce 1 mode, 2 mots, 1 correction, 3 dictées ; après « Remplacer » et relance, les fichiers contiennent de nouveau 2 mots, 1 correction, 3 dictées, 1 mode, 1 commande, et la copie `avant-import-…` existe.
+  - **Lignes de la carte** : « Exporter… » ouvre bien la carte d'export du dictionnaire, de l'utilisateur actif (« Exporter l'utilisateur « Principal » »), du mode (un seul) et des commandes ; « Importer… » du dictionnaire ouvre la boîte de fichier de macOS (annulée).
+- **Non vu** : les trois autres « Importer… » à l'écran (même chemin de code, couverts par le test de liens), l'écriture d'un export de partie, la carte en anglais, les systèmes Linux et Windows.
+- Piège : les boîtes de fichier de macOS (osascript) ne se pilotent pas depuis une session ; l'auteur a dû les valider. Un fichier d'état modifié est apparu dans Téléchargements pendant l'essai (rangé dans `Scriibe-essai-t8-sorties`).

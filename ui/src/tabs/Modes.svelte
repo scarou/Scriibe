@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import { api, type CustomMode, type Modes } from '../lib/api';
   import { settings } from '../lib/settings.svelte';
+  import { nav } from '../lib/nav.svelte';
   import { t } from '../lib/i18n.svelte';
   import ModeTrial from '../components/ModeTrial.svelte';
   import { watchModes } from '../lib/modesSync';
@@ -169,6 +170,16 @@
       () => modes?.choice ?? '',
     );
     return stop;
+  });
+
+  /** Demande de la carte « Sauvegarder et transférer » : l'import, ou l'export (d'emblée s'il n'y a qu'un mode personnel, sinon à choisir dans la liste). */
+  $effect(() => {
+    const kind = nav.transferRequest;
+    if (kind !== 'modes-export' && kind !== 'modes-import') return;
+    if (!modes || !v) return;
+    nav.transferRequest = null;
+    if (kind === 'modes-import') void readImport();
+    else if (custom.length === 1) exporting = { mode: structuredClone($state.snapshot(custom[0])), examples: true, busy: false, result: '' };
   });
 </script>
 

@@ -6,6 +6,7 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import { t } from '../lib/i18n.svelte';
+  import { nav } from '../lib/nav.svelte';
 
   /** Les utilisateurs (étape 4c) : une personne = un dictionnaire, des modes, des commandes, un historique et des statistiques. */
   interface Listed {
@@ -86,6 +87,16 @@
 
   onMount(() => {
     void load();
+  });
+
+  /** Demande de la carte « Sauvegarder et transférer » : l'export de l'utilisateur actif, ou l'import. */
+  $effect(() => {
+    const kind = nav.transferRequest;
+    if (kind !== 'user-export' && kind !== 'user-import') return;
+    if (!list) return;
+    nav.transferRequest = null;
+    if (kind === 'user-import') openImport();
+    else if (list.ok && list.active) openExport(list.active);
   });
 </script>
 

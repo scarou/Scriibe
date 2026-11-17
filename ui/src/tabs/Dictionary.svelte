@@ -16,7 +16,7 @@
   let written = $state('');
   let writtenInput = $state<HTMLInputElement>();
   let saved = $state('');
-  let loaded = false;
+  let loaded = $state(false);
   let allSigns = $state<{ said: string; written: string; langs: 'fr' | 'en' | 'both' }[]>([]);
   /** Seuls les signes de la langue de l'interface (et les symboles communs) s'affichent ; les autres restent actifs en dictée dans leur langue. */
   let signs = $derived(allSigns.filter((s) => s.langs === 'both' || s.langs === i18n.lang));
@@ -259,6 +259,16 @@
       loaded = true;
     });
     return () => clearTimeout(timer);
+  });
+
+  /** Demande de la carte « Sauvegarder et transférer » : la même carte d'export ou d'import que les boutons de la page. */
+  $effect(() => {
+    const kind = nav.transferRequest;
+    if (kind !== 'dictionary-export' && kind !== 'dictionary-import') return;
+    if (!loaded) return;
+    nav.transferRequest = null;
+    if (kind === 'dictionary-import') void readImport();
+    else if (words.length > 0 || corrections.length > 0) void openExport();
   });
 </script>
 

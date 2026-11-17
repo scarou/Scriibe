@@ -12,6 +12,20 @@ function saved<T extends string>(key: string, allowed: readonly { id: T }[], fal
   return fallback;
 }
 
+/** Les cartes d'export et d'import que la carte « Sauvegarder et transférer » ouvre sur leur page. */
+export type TransferKind = 'user-export' | 'user-import' | 'dictionary-export' | 'dictionary-import' | 'modes-export' | 'modes-import' | 'commands-export' | 'commands-import';
+
+const transferTargets: Record<TransferKind, { tab: MainTab; anchor: string }> = {
+  'user-export': { tab: 'profile', anchor: 'utilisateurs' },
+  'user-import': { tab: 'profile', anchor: 'utilisateurs' },
+  'dictionary-export': { tab: 'dictionary', anchor: 'dictionary-export-import' },
+  'dictionary-import': { tab: 'dictionary', anchor: 'dictionary-export-import' },
+  'modes-export': { tab: 'style', anchor: 'modes-mes-modes' },
+  'modes-import': { tab: 'style', anchor: 'modes-mes-modes' },
+  'commands-export': { tab: 'commands', anchor: 'commandes-perso' },
+  'commands-import': { tab: 'commands', anchor: 'commandes-perso' },
+};
+
 /** L'onglet affiché et la section ouverte de l'Aide ; l'Aide et les boutons « ? » des cartes y passent pour ouvrir le bon endroit. */
 class Nav {
   tab = $state<MainTab>(saved('tab', tabs, 'dashboard'));
@@ -40,6 +54,20 @@ class Nav {
       if (target.dataset.folded === 'true') target.querySelector<HTMLButtonElement>('button.fold')?.click();
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else window.scrollTo(0, 0);
+  }
+
+  /** Demande d'ouverture d'une carte d'export ou d'import ; la page visée la prend dès qu'elle est prête, puis l'efface. */
+  transferRequest = $state<TransferKind | null>(null);
+
+  /** Ouvre la page concernée et y demande la même carte secondaire que ses propres boutons. */
+  async transfer(kind: TransferKind): Promise<void> {
+    this.transferRequest = kind;
+    const { tab, anchor } = transferTargets[kind];
+    await this.go(tab, anchor);
+    // Une demande que la page n'a pas pu prendre (rien à exporter, données pas lues) ne doit pas rester pour une visite ultérieure.
+    setTimeout(() => {
+      if (this.transferRequest === kind) this.transferRequest = null;
+    }, 4000);
   }
 
   /** Demande l'ouverture de l'assistant de premier lancement ; l'Accueil la prend en compte à son affichage. */

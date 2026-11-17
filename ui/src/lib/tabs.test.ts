@@ -149,9 +149,9 @@ describe('pages Moteurs et modèles, Données et système, Mesures et essais (t�
       .toEqual(['Moteurs', 'Settings section="engines"', 'Modèles', 'Install']);
   });
 
-  it('Données et système : démarrage et sauvegarde, mise à jour, emplacements, puis la désinstallation en dernier, à part', () => {
-    expect(order(dataPage, /<(System part="\w+"|Update|Settings section="places") \/>/g))
-      .toEqual(['System part="main"', 'Update', 'Settings section="places"', 'System part="uninstall"']);
+  it('Données et système : démarrage, sauvegarder et transférer, mise à jour, emplacements, puis la désinstallation en dernier, à part', () => {
+    expect(order(dataPage, /<(System part="\w+"|BackupTransfer|Update|Settings section="places") \/>/g))
+      .toEqual(['System part="main"', 'BackupTransfer', 'Update', 'Settings section="places"', 'System part="uninstall"']);
     expect(dataPage).toContain("t('Désinstallation')");
   });
 

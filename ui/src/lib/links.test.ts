@@ -45,13 +45,27 @@ describe('liens vers une page ou une carte', () => {
     const pageFile: Record<string, string[]> = {
       dictate: ['Settings.svelte', 'KeyPicker.svelte'], profile: ['Users.svelte', 'Settings.svelte'], style: ['Modes.svelte'],
       engines: ['Settings.svelte', 'Install.svelte', 'InstalledModels.svelte', 'HubSearch.svelte'], appearance: ['Settings.svelte'],
-      data: ['System.svelte', 'Update.svelte', 'Settings.svelte'], measures: ['Bench.svelte', 'Journal.svelte', 'Dashboard.svelte', 'TimingsCard.svelte', 'Measures.svelte', 'BenchArchive.svelte', 'TrialBench.svelte'],
+      data: ['System.svelte', 'BackupTransfer.svelte', 'Update.svelte', 'Settings.svelte'], measures: ['Bench.svelte', 'Journal.svelte', 'Dashboard.svelte', 'TimingsCard.svelte', 'Measures.svelte', 'BenchArchive.svelte', 'TrialBench.svelte'],
       commands: ['commands/'], dictionary: ['Dictionary.svelte'], history: ['History.svelte'], dashboard: ['Dashboard.svelte'],
     };
     for (const l of links.filter((x) => x.anchor && owner.has(x.anchor) && pageFile[x.page])) {
       const f = owner.get(l.anchor!)!;
       expect(pageFile[l.page].some((p) => f.includes(p)), `${l.file} → ${l.page} #${l.anchor} (carte dans ${f})`).toBe(true);
     }
+  });
+
+  it('chaque ligne de la carte « Sauvegarder et transférer » vise une page et une carte qui existent, et une page qui la prend en charge', () => {
+    const nav = sources['./nav.svelte.ts'];
+    const targets = [...nav.matchAll(/'([a-z]+-(?:export|import))': \{ tab: '([a-z]+)', anchor: '([^']+)' \}/g)];
+    expect(targets.length).toBe(8);
+    for (const [, kind, tab, anchor] of targets) {
+      expect(pages.has(tab), kind).toBe(true);
+      expect(anchorExists(anchor), `${kind} → #${anchor}`).toBe(true);
+      const consumers = files.filter(([, src]) => src.includes(`'${kind}'`) && /nav\.transferRequest/.test(src) && !/nav\.svelte\.ts|BackupTransfer/.test(src));
+      expect(consumers.length, `${kind} : aucune page ne prend cette demande`).toBeGreaterThan(0);
+    }
+    const card = sources['../components/BackupTransfer.svelte'];
+    for (const [, kind] of targets) expect(card.includes(`'${kind}'`), `${kind} : aucune ligne`).toBe(true);
   });
 
   it('chaque bouton « ? » (help="…") et chaque openHelp(…) ouvre une section de l\'Aide qui existe', () => {
