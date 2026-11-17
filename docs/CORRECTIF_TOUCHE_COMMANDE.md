@@ -38,3 +38,13 @@ Capture (`crates/cli/src/web/mod.rs`, `capture_view`) : la combinaison est valid
 - Rouges avant, verts après : `a_command_key_may_be_altgr_since_it_is_only_held_during_a_dictation`, `a_command_key_may_be_a_combination` (platform), `a_combined_command_key_needs_all_its_keys` (core). `the_default_command_key_exists_on_every_windows_keyboard` (`#[cfg(windows)]`) : à exécuter par la CI Windows.
 - Nouveaux : `no_key_choice_is_empty_on_any_system` (noms par défaut non vides, touche de commande donnée avec la dictée par défaut, Windows et Mac ; Linux par la disposition de Windows), `ctrl_left_plus_altgr_is_a_valid_command_combination`, test d'interface « aucun sélecteur vide » (`tabs.test.ts`).
 - Autres sélecteurs déplacés par la refonte : dictée et traduction restent sur Dicter, commande sur Commandes vocales ; aucun autre choix de touche (reformulation : pas de touche propre, elle passe par la touche de commande) n'existe.
+
+## Essai
+
+Tâche 2 (17/11). PC Windows et PC Linux à jour par bundle git (le correctif n'est pas poussé, `pilote maj` ne tire que de GitHub) et compilés en release : succès sur les deux. Essai à la main sur Windows en cours (voir Ajouts).
+
+## Ajouts
+
+1. **AltGr s'affiche « Ctrl gauche + AltGr » à la capture (Windows).** Windows envoie un Ctrl gauche fictif avec AltGr ; la capture le garde. À corriger : ignorer ce Ctrl gauche fictif, afficher « AltGr » seule. Remarque de l'auteur : la touche de dictée est Ctrl droit, pas Ctrl gauche.
+2. **Restrictions sur le choix de la touche de commande.** L'auteur demande pourquoi on ne peut pas choisir « Ctrl droit + AltGr » ni la flèche gauche (à côté de Ctrl droit), alors qu'elles ne servent à rien pendant une dictée. Réponse : aucune impossibilité technique, restrictions de prudence du code (`validate_command` refuse la touche de dictée ; `CHOICES` exclut les flèches « parce qu'elles servent à taper », raison qui ne vaut que pour la dictée, comme pour AltGr). À lever pour la commande seulement.
+3. **Libellé de la touche de traduction** : l'auteur emploie Maj droit ; par défaut la touche est « Maj, l'une ou l'autre ». À vérifier que l'interface le dit clairement.
