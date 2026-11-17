@@ -852,3 +852,27 @@ Fait le 2026-11-17. Résultat : le menu de gauche a quatre groupes (**Utiliser**
 | ✔ | C49 | Désinstaller Scriibe | Données et système |
 | ✔ | C50 | Version de Scriibe | Données et système |
 | ✔ | C51 | Comment ça marche ? (repliée par défaut) | Données et système |
+
+## Commandes vocales (tâche 2)
+
+Fait le 2026-11-17. La page Commandes vocales a ses 7 sections, chacune dans son composant (`ui/src/components/commands/`), assemblées par `ui/src/tabs/Commands.svelte`. `VoiceCommands.svelte` (746 lignes) est supprimé ; le Dictionnaire ne garde que mots exacts, corrections, signes dictés et l'export du dictionnaire.
+
+| Section (carte) | Composant | Id de la carte |
+|---|---|---|
+| Activation (interrupteur, touche de commande, avertissement) | `ActivationCommands` | `commandes-activation` |
+| Commandes intégrées (dictionnaire, entourer, gras/italique/souligné, recherches, nouveau mail) | `BuiltinCommands` | `commandes-integrees` |
+| Mes sites de recherche | `SiteCommands` | `commandes-sites` |
+| Mes extraits | `SnippetCommands` | `commandes-extraits` |
+| Mes applications | `AppCommands` | `commandes-applications` |
+| Mes commandes (avec export et import) | `CustomCommands` | `commandes-perso` |
+| Reformulation de la sélection | `RewriteCommands` | `commandes-reformulation` |
+
+- Ce qui est partagé (types, libellés des commandes, messages d'erreur communs, recherche du nom d'une commande qui prend déjà une phrase, lecture d'un raccourci) est dans `commands/shared.ts` ; les styles dans `commands/commands.css` (préfixés `.vc`, chaque section est enveloppée dans `<div class="vc">`). Le code des sections est repris tel quel de l'ancien composant.
+- L'interrupteur d'activation grise et bloque les six autres sections, comme avant.
+- **Touche de commande** : `KeyPicker` prend une propriété `kinds`. Dicter montre dictée et traduction, Commandes vocales montre la commande. Le bouton « Rétablir » ne remet plus que les touches de sa page, et « Tester ma touche » reste sur Dicter (décision T3 du Constat). Sous GNOME, la ligne du raccourci de commande est aussi passée sur Commandes vocales.
+- **Accord d'envoi de la sélection** : la case « Autoriser l'envoi de la sélection à ce moteur » est maintenant dans la carte « Reformulation de la sélection » (écriture de `rewriteConsent` inchangée). Choix : l'accord reste lié au moteur de mise au propre (il vaut pour ce moteur, ce modèle et cette adresse), mais se donne ici ; la carte Moteurs et modèles garde une ligne qui le dit, avec un bouton « Voir » vers la carte. Si le moteur est sur l'ordinateur, la carte dit qu'il n'y a rien à accorder.
+- **Avertissement** : la carte d'activation dit, sans le cacher, que les commandes qui agissent sur du texte sélectionné ne marchent que sur Mac pour l'instant (la phrase « Sur Mac pour l'instant » a quitté le texte d'introduction pour ne pas être dite deux fois).
+- Textes : l'introduction ne renvoie plus à « Réglages, onglet Apparence » mais à la page Apparence ; l'Aide (FR et EN) nomme maintenant la page et la carte de chaque commande ; traductions anglaises ajoutées, anciennes retirées.
+- Tests : 4 nouveaux dans `tabs.test.ts` (ordre des 7 sections, le Dictionnaire sans commandes, touche et accord rapatriés, avertissement). `svelte-check` sans erreur, Vitest 117 tests verts, `npm run build` passe.
+- Vérifié à l'écran sur la page construite, sans serveur Scriibe : les 7 cartes s'affichent avec leurs titres et l'avertissement. Pas vu : le contenu qui dépend de l'API (listes de phrases, ajout, export, consentement, touche), à voir à l'essai sur le Mac (tâche 5).
+- À savoir : le réglage « Rétablir » de la touche de commande n'a pas été essayé sur machine ; il n'écrit que les touches de sa page.

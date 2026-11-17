@@ -206,8 +206,6 @@ export const en: Record<string, string> = {
 
   // Commandes vocales (carte du Dictionnaire)
   'Commandes vocales': 'Voice commands',
-  'Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Sur Mac pour l’instant. Les phrases affichées sont celles de la langue de l’interface (Réglages, onglet Apparence).':
-    'When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. With no selection, or with other words, it stays text. On Mac for now. The phrases shown are those of the interface language (Settings, Appearance tab).',
   'Activer les commandes vocales': 'Turn voice commands on',
   'Ajouter au dictionnaire': 'Add to dictionary',
   'Entourer la sélection': 'Wrap the selection',
@@ -220,6 +218,16 @@ export const en: Record<string, string> = {
   'Italique': 'Italic',
   'Souligné': 'Underlined',
   'Phrases': 'Phrases',
+  'Quand du texte est sélectionné, une phrase dite seule (rien d’autre dans la dictée) agit sur lui au lieu d’être collée. Sans sélection, ou avec d’autres mots, elle reste du texte. Les phrases affichées sont celles de la langue de l’interface (page Apparence).': 'When text is selected, a phrase said on its own (nothing else in the dictation) acts on it instead of being pasted. Without a selection, or with other words, it stays text. The phrases shown are those of the interface language (Appearance page).',
+  'Les commandes vocales ne marchent pas encore partout : celles qui agissent sur du texte sélectionné ne fonctionnent que sur Mac pour l’instant.': 'Voice commands do not work everywhere yet: those that act on selected text only work on Mac for now.',
+  'Commandes intégrées': 'Built-in commands',
+  'Ajouter au dictionnaire, entourer la sélection, gras, italique, souligné, recherches sur internet, nouveau mail : les phrases par défaut, que tu peux changer.': 'Add to dictionary, wrap the selection, bold, italic, underline, web searches, new mail: the default phrases, which you can change.',
+  'Reformulation de la sélection': 'Rewriting the selection',
+  'Sous la touche de commande, sélectionne un texte puis dis en quelques mots (25 au plus) ce que tu veux en faire : « cherche les fautes », « rends ça plus amical », « raccourcis ». Le texte reformulé remplace la sélection, et un seul « annuler » rend l’original.': 'Under the command key, select some text then say in a few words (25 at most) what you want done with it: “check for mistakes”, “make it friendlier”, “shorten it”. The rewritten text replaces the selection, and a single “undo” brings back the original.',
+  'Le moteur de mise au propre est sur cet ordinateur : la sélection n’en sort jamais, aucun accord à donner.': 'The cleanup engine is on this computer: the selection never leaves it, no consent to give.',
+  'La reformulation n’est pas disponible avec les réglages actuels : il lui faut un moteur de mise au propre.': 'Rewriting is not available with the current settings: it needs a cleanup engine.',
+  'L’accord pour envoyer une sélection à ce moteur (reformulation) se donne dans Commandes vocales.': 'The consent to send a selection to this engine (rewriting) is given in Voice commands.',
+  'Voir': 'See',
   'Mes commandes': 'My commands',
   'Recherches sur internet': 'Web searches',
   'Ces phrases ne marchent que sous la touche de commande : « nouvelle recherche YouTube chats rigolos » ouvre la recherche dans ton navigateur. Dites sans la touche, elles restent du texte.':

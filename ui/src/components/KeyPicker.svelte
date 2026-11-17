@@ -5,6 +5,10 @@
   import { status } from '../lib/status.svelte';
   import { keyName, t } from '../lib/i18n.svelte';
 
+  type Kind = 'dictation' | 'translate' | 'command';
+  /** Les touches que ce sélecteur montre : Dicter montre la dictée et la traduction, Commandes vocales la touche de commande. */
+  let { kinds = ['dictation', 'translate', 'command'] }: { kinds?: Kind[] } = $props();
+
   interface Capture {
     active: boolean;
     kind?: 'dictation' | 'translate' | 'command';
@@ -25,6 +29,9 @@
   let detected = $state(false);
 
   let mac = $derived(status.os === 'macos');
+  let defaultKeys = $derived(
+    [kinds.includes('dictation') && s?.default_dictation_label, kinds.includes('translate') && s?.default_translate_label, kinds.includes('command') && s?.default_command_label].filter(Boolean).join(' + '),
+  );
   /** La touche de dictée par défaut du système (Ctrl droit sous Windows, Option droite sur Mac) : on la rétablit en vidant la liste. */
   let defaultId = $derived(s?.default_dictation_id ?? 'right_control');
 
@@ -106,7 +113,12 @@
 
   async function reset() {
     stop();
-    await settings.change({ dictationKeys: [], translateKeys: [], commandKeys: [] });
+    // Seulement les touches montrées ici : chaque page rétablit les siennes.
+    await settings.change({
+      ...(kinds.includes('dictation') ? { dictationKeys: [] } : {}),
+      ...(kinds.includes('translate') ? { translateKeys: [] } : {}),
+      ...(kinds.includes('command') ? { commandKeys: [] } : {}),
+    });
   }
 
   /** Quinze secondes pendant lesquelles on relit l'état toutes les 0,3 s : la touche maintenue doit faire passer Scriibe en écoute. */
@@ -132,18 +144,18 @@
 <svelte:window onkeydown={onKeyDown} onkeyup={onKeyUp} onblur={onBlur} />
 
 {#if s && v}
-  <div class="row">
+  {#if kinds.includes('dictation')}<div class="row">
     <span>{t('Touche de dictée :')} <b>{keyName(s.dictation_label)}</b></span>
     <button onclick={() => begin('dictation')} disabled={kind === 'dictation'}>{t('Changer…')}</button>
-  </div>
-  <div class="row">
+  </div>{/if}
+  {#if kinds.includes('translate')}<div class="row">
     <span>{t('Touche tenue en plus pour traduire :')} <b>{keyName(s.translate_label)}</b></span>
     <button onclick={() => begin('translate')} disabled={kind === 'translate'}>{t('Changer…')}</button>
-  </div>
-  <div class="row">
+  </div>{/if}
+  {#if kinds.includes('command')}<div class="row">
     <span>{t('Touche tenue en plus pour dicter une commande :')} <b>{s.command_label ? keyName(s.command_label) : t('aucune (à choisir)')}</b></span>
     <button onclick={() => begin('command')} disabled={kind === 'command'}>{t('Changer…')}</button>
-  </div>
+  </div>{/if}
 
   {#if kind}
     <div class="capture" role="status">
@@ -174,8 +186,8 @@
   {/if}
 
   <div class="row">
-    <button onclick={test} disabled={testing || !!kind}>{testing ? t('Maintiens ta touche…') : t('Tester ma touche')}</button>
-    <button onclick={reset} disabled={!v.dictationKeys.length && !v.translateKeys.length && !v.commandKeys.length}>{t('Rétablir {keys}', { keys: keyName(`${s.default_dictation_label} + ${s.default_translate_label} + ${s.default_command_label}`) })}</button>
+    {#if kinds.includes('dictation')}<button onclick={test} disabled={testing || !!kind}>{testing ? t('Maintiens ta touche…') : t('Tester ma touche')}</button>{/if}
+    <button onclick={reset} disabled={!(kinds.includes('dictation') && v.dictationKeys.length) && !(kinds.includes('translate') && v.translateKeys.length) && !(kinds.includes('command') && v.commandKeys.length)}>{t('Rétablir {keys}', { keys: keyName(defaultKeys) })}</button>
     {#if detected}<span class="ok">{t('✔ Touche reconnue : Scriibe écoute ({key}).', { key: keyName(s.dictation_label) })}</span>{:else if testing}<span class="muted">{mac ? t('Passe dans TextEdit (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) }) : t('Passe dans le Bloc-notes (ou une autre appli), puis maintiens {key}…', { key: keyName(s.dictation_label) })}</span>{/if}
   </div>
   <details class="muted">

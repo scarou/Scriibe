@@ -1,0 +1,20 @@
+/* Styles des sections de la page Commandes vocales (chaque section est enveloppée dans .vc). */
+.vc h3 { margin: 14px 0 4px; font-size: 1rem; }
+.vc .snippettext { width: 100%; box-sizing: border-box; margin-top: 6px; font: inherit; resize: vertical; }
+.vc .command { border-top: 1px solid var(--line); padding: 8px 0; }
+.vc .head { display: flex; align-items: center; gap: 12px; }
+.vc .langrow { display: flex; gap: 10px; align-items: flex-start; margin-top: 6px; }
+.vc .lang { min-width: 5.5rem; padding-top: 4px; }
+.vc .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; }
+.vc .chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 12px; }
+.vc .x { border: 0; background: transparent; padding: 0 8px; font-size: 1.1rem; color: var(--muted); }
+.vc .x:hover:not(:disabled) { color: var(--bad); }
+.vc .x:disabled { opacity: 0.35; cursor: not-allowed; }
+.vc .phrase { min-width: 12rem; }
+.vc .link { border: 0; background: transparent; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; }
+.vc .error { color: var(--bad); margin: 4px 0 0 5.5rem; }
+.vc .pickrow { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; cursor: pointer; }
+.vc .warn { color: var(--warn); }
+.vc .inline { display: inline-flex; align-items: center; gap: 6px; }
+.vc .error.nomargin { margin-left: 0; }
+.vc .newcommand { margin-top: 10px; }

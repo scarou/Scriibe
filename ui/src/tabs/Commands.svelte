@@ -1,10 +1,30 @@
 <script lang="ts">
   import PageHeader from '../components/PageHeader.svelte';
+  import ActivationCommands from '../components/commands/ActivationCommands.svelte';
+  import BuiltinCommands from '../components/commands/BuiltinCommands.svelte';
+  import SiteCommands from '../components/commands/SiteCommands.svelte';
+  import SnippetCommands from '../components/commands/SnippetCommands.svelte';
+  import AppCommands from '../components/commands/AppCommands.svelte';
+  import CustomCommands from '../components/commands/CustomCommands.svelte';
+  import RewriteCommands from '../components/commands/RewriteCommands.svelte';
+  import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n.svelte';
   import { tabDescription } from '../lib/tabs';
-  import VoiceCommands from '../components/VoiceCommands.svelte';
 </script>
 
 <PageHeader title={t('Commandes vocales')}>{t(tabDescription('commands'))}</PageHeader>
 
-<VoiceCommands />
+<ActivationCommands />
+<!-- Interrupteur coupé : le reste est grisé et ne répond plus. -->
+<div class:off={settings.value?.voiceCommandsEnabled === false}>
+  <BuiltinCommands />
+  <SiteCommands />
+  <SnippetCommands />
+  <AppCommands />
+  <CustomCommands />
+  <RewriteCommands />
+</div>
+
+<style>
+  .off { opacity: 0.5; pointer-events: none; }
+</style>

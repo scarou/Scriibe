@@ -3,6 +3,12 @@ import { defaultHelpSection, helpSections } from './help';
 import { resolveTab, tabGroups, tabs, type TabId } from './tabs';
 import pageHeader from '../components/PageHeader.svelte?raw';
 import app from '../App.svelte?raw';
+import commandsPage from '../tabs/Commands.svelte?raw';
+import dictionary from '../tabs/Dictionary.svelte?raw';
+import settingsTab from '../tabs/Settings.svelte?raw';
+import keyPicker from '../components/KeyPicker.svelte?raw';
+import activation from '../components/commands/ActivationCommands.svelte?raw';
+import rewrite from '../components/commands/RewriteCommands.svelte?raw';
 import help from '../tabs/Help.svelte?raw';
 import helpEn from '../tabs/HelpEn.svelte?raw';
 
@@ -45,6 +51,30 @@ describe('menu de gauche en quatre groupes (refonte de l’interface)', () => {
       ['history', 'conservation', 'history'], ['dictionary', undefined, 'dictionary'],
     ];
     for (const [id, anchor, page] of cases) expect(resolveTab(id, anchor), `${id} ${anchor ?? ''}`).toBe(page);
+  });
+});
+
+describe('page Commandes vocales (tâche 2)', () => {
+  it('sept sections dans l’ordre : activation, intégrées, sites, extraits, applications, commandes, reformulation', () => {
+    const order = [...commandsPage.matchAll(/<(\w+Commands) \/>/g)].map((m) => m[1]);
+    expect(order).toEqual(['ActivationCommands', 'BuiltinCommands', 'SiteCommands', 'SnippetCommands', 'AppCommands', 'CustomCommands', 'RewriteCommands']);
+  });
+
+  it('le Dictionnaire ne garde plus les commandes vocales', () => {
+    expect(dictionary).not.toMatch(/VoiceCommands|commandes-vocales/);
+  });
+
+  it('la touche de commande et l’accord de reformulation sont sur la page Commandes vocales, plus dans Dicter ni Moteurs', () => {
+    expect(activation).toContain("kinds={['command']}");
+    expect(activation).toContain('voiceCommandsEnabled');
+    expect(rewrite).toContain('rewriteConsent');
+    expect(settingsTab).not.toContain('rewriteConsent');
+    expect(settingsTab).toContain("kinds={['dictation', 'translate']}");
+    expect(keyPicker).toMatch(/kinds\.includes\('command'\)/);
+  });
+
+  it('la page dit que les commandes ne marchent pas encore partout', () => {
+    expect(activation).toMatch(/ne marchent pas encore partout/);
   });
 });
 

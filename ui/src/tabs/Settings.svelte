@@ -230,11 +230,7 @@
       </div>
     {/if}
     {#if s.rewrite?.available && s.rewrite.needsConsent}
-      <div class="row">
-        <label><input type="checkbox" checked={s.rewrite.given} onchange={(e) => settings.change({ rewriteConsent: e.currentTarget.checked })} />
-          {t('Autoriser l’envoi de la sélection à ce moteur')}</label>
-      </div>
-      <p class="muted">{t('Pour reformuler une sélection sous la touche de commande. Ce moteur n’est pas sur cet ordinateur : sans cette case, la sélection ne lui est jamais envoyée. L’accord vaut pour ce moteur, ce modèle et cette adresse, et tombe dès que l’un des trois change.')}</p>
+      <p class="muted">{t('L’accord pour envoyer une sélection à ce moteur (reformulation) se donne dans Commandes vocales.')} <button onclick={() => nav.go('commands', 'commandes-reformulation')}>{t('Voir')}</button></p>
     {/if}
     {#if v.cleanupEngine === 'llamaCpp'}
       <div class="row">
@@ -264,9 +260,8 @@
     {#if s?.gnome_shortcut}
       <p class="muted">{t('Sous GNOME (Wayland), vous dictez avec un raccourci de GNOME : {shortcut}. GNOME n’accepte pas une touche seule comme Ctrl droit : il faut une combinaison avec une touche ordinaire (une lettre, une flèche, Espace). Pour le changer : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier, puis relancez Scriibe.', { shortcut: keyName(s.gnome_shortcut) })}</p>
       <p class="muted">{s.gnome_translate_shortcut ? t('Pour dicter et traduire : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_translate_shortcut) }) : t('Pas encore de raccourci de traduction : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
-      <p class="muted">{s.gnome_command_shortcut ? t('Pour dicter une commande : {shortcut} (même endroit pour le changer).', { shortcut: keyName(s.gnome_command_shortcut) }) : t('Pas encore de raccourci de commande : relancez Scriibe, GNOME vous en fera choisir un.')}</p>
     {:else}
-      <KeyPicker />
+      <KeyPicker kinds={['dictation', 'translate']} />
     {/if}
     <div class="setting">
       <label>{t('Langue dictée :')}
