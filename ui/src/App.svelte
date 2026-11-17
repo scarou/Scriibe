@@ -7,8 +7,15 @@
   import { nav } from './lib/nav.svelte';
   import { i18n, keyName, t } from './lib/i18n.svelte';
   import { settings } from './lib/settings.svelte';
-  import { tabs, type TabId } from './lib/tabs';
-  import SettingsPage from './tabs/SettingsPage.svelte';
+  import { helpTab, tabGroups, type TabId } from './lib/tabs';
+  import Dictate from './tabs/Dictate.svelte';
+  import StylePage from './tabs/StylePage.svelte';
+  import Commands from './tabs/Commands.svelte';
+  import EnginesPage from './tabs/EnginesPage.svelte';
+  import Profile from './tabs/Profile.svelte';
+  import AppearancePage from './tabs/AppearancePage.svelte';
+  import Data from './tabs/Data.svelte';
+  import Measures from './tabs/Measures.svelte';
   import Dictionary from './tabs/Dictionary.svelte';
   import History from './tabs/History.svelte';
   import Dashboard from './tabs/Dashboard.svelte';
@@ -81,10 +88,14 @@
   <div class="shell">
     <nav>
       <div class="brand"><img src={dark ? logo.dark : logo.light} alt="Scriibe" /></div>
-      {#each tabs as tab (tab.id)}
-        <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}</button>
+      {#each tabGroups as group (group.label)}
+        <div class="group">{t(group.label)}</div>
+        {#each group.tabs as tab (tab.id)}
+          <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}{#if tab.id === 'data' && status.value?.update}<span class="new" title={t('Nouvelle version disponible')}>●</span>{/if}</button>
+        {/each}
       {/each}
       <div class="spacer"></div>
+      <button class="nav" class:active={nav.tab === helpTab.id} onclick={() => choose(helpTab.id)}><span class="icon">{helpTab.icon}</span>{t(helpTab.label)}</button>
       {#if status.value}
         {@const a = status.activity}
         <div class="state" title={status.value.keys_error ?? ''}>
@@ -93,7 +104,7 @@
         </div>
       {/if}
       {#if status.value?.update}
-        <button class="nav news" onclick={() => choose('update')} title={status.value.update.title}>↑ {t('Nouvelle version disponible')}</button>
+        <button class="nav news" onclick={() => choose('data', 'update-version')} title={status.value.update.title}>↑ {t('Nouvelle version disponible')}</button>
       {/if}
       <div class="muted version">{status.value ? t('version {version}', { version: status.value.version }) : ''}</div>
       <button class="nav" onclick={quit}>{t('Quitter Scriibe')}</button>
@@ -112,9 +123,17 @@
       {/each}
       {#if nav.tab === 'dashboard'}<Dashboard goto={choose} />
       {:else if nav.tab === 'history'}<History />
+      {:else if nav.tab === 'dictate'}<Dictate />
+      {:else if nav.tab === 'style'}<StylePage />
       {:else if nav.tab === 'dictionary'}<Dictionary />
+      {:else if nav.tab === 'commands'}<Commands />
+      {:else if nav.tab === 'engines'}<EnginesPage />
+      {:else if nav.tab === 'profile'}<Profile />
+      {:else if nav.tab === 'appearance'}<AppearancePage />
+      {:else if nav.tab === 'data'}<Data />
+      {:else if nav.tab === 'measures'}<Measures />
       {:else if nav.tab === 'help'}{#if i18n.lang === 'en'}<HelpEn />{:else}<Help />{/if}
-      {:else}<SettingsPage />{/if}
+      {/if}
     </main>
   </div>
 {/if}
@@ -128,6 +147,8 @@
   .nav:hover { background: var(--line); }
   .nav.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .icon { display: inline-block; width: 1.6em; }
+  .group { padding: 10px 10px 2px; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .new { color: var(--warn); margin-left: 6px; font-size: .7rem; }
   .spacer { flex: 1; }
   .state { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: .82rem; color: var(--muted); }
   .dot { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--ok); opacity: .55; }
@@ -142,6 +163,6 @@
   @media (max-width: 640px) {
     .shell { flex-direction: column; }
     nav { width: auto; height: auto; position: static; flex-direction: row; flex-wrap: wrap; }
-    .spacer, .version, .state, .brand { display: none; }
+    .spacer, .version, .state, .brand, .group { display: none; }
   }
 </style>

@@ -53,3 +53,6 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; 
 .bar > div { height: 100%; background: var(--accent); }
 .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: .8rem; }
 audio { width: 100%; margin-top: 6px; }
+
+/* Une carte montrée par un lien (ancre) s'arrête sous l'en-tête fixe de la page. */
+[id] { scroll-margin-top: calc(var(--page-head, 0px) + 8px); }

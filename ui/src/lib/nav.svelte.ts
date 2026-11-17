@@ -1,6 +1,6 @@
 import { tick } from 'svelte';
 import { defaultHelpSection, type HelpId } from './help';
-import { resolveTab, settingsTabOfAnchor, settingsTabs, tabs, type MainTab, type SettingsTabId, type TabId } from './tabs';
+import { resolveTab, tabs, type MainTab, type TabId } from './tabs';
 
 function saved<T extends string>(key: string, allowed: readonly { id: T }[], fallback: T): T {
   try {
@@ -15,21 +15,16 @@ function saved<T extends string>(key: string, allowed: readonly { id: T }[], fal
 /** L'onglet affiché et la section ouverte de l'Aide ; l'Aide et les boutons « ? » des cartes y passent pour ouvrir le bon endroit. */
 class Nav {
   tab = $state<MainTab>(saved('tab', tabs, 'dashboard'));
-  /** L'onglet ouvert dans les Réglages. */
-  settingsTab = $state<SettingsTabId>(saved('settingsTab', settingsTabs, 'dictation'));
   helpSection = $state<HelpId>(defaultHelpSection);
   /** Texte sélectionné envoyé par la commande vocale « ajouter au dictionnaire » : le Dictionnaire le met dans « Entendu » puis l'oublie. Jamais gardé ailleurs qu'en mémoire. */
   dictionaryPrefill = $state<string | null>(null);
 
-  /** Ouvre une page (ou l'onglet des Réglages qui a pris la place d'une ancienne page) ; `anchor` : l'identifiant de la carte à montrer. */
+  /** Ouvre une page (un ancien identifiant mène à la page qui a pris sa place) ; `anchor` : l'identifiant de la carte à montrer. */
   async go(id: TabId, anchor?: string): Promise<void> {
-    const { tab, settingsTab } = resolveTab(id);
+    const tab = resolveTab(id, anchor);
     this.tab = tab;
-    const inSettings = settingsTab ?? (tab === 'settings' ? settingsTabOfAnchor(anchor) : undefined);
-    if (inSettings) this.settingsTab = inSettings;
     try {
       sessionStorage.setItem('tab', tab);
-      sessionStorage.setItem('settingsTab', this.settingsTab);
     } catch {
       /* sans importance */
     }
@@ -42,21 +37,10 @@ class Nav {
     } else window.scrollTo(0, 0);
   }
 
-  /** Change d'onglet dans les Réglages. */
-  chooseSettingsTab(id: SettingsTabId): void {
-    void this.go('settings');
-    this.settingsTab = id;
-    try {
-      sessionStorage.setItem('settingsTab', id);
-    } catch {
-      /* sans importance */
-    }
-  }
-
-  /** Demande l'ouverture de l'assistant de premier lancement ; le Tableau de bord la prend en compte à son affichage. */
+  /** Demande l'ouverture de l'assistant de premier lancement ; l'Accueil la prend en compte à son affichage. */
   assistantRequested = $state(false);
 
-  /** Relance l'assistant de premier lancement (bouton du Tableau de bord, des Réglages et de l'Aide). */
+  /** Relance l'assistant de premier lancement (boutons de l'Accueil, de Moteurs et modèles et de l'Aide). */
   openAssistant(): void {
     this.assistantRequested = true;
     void this.go('dashboard');

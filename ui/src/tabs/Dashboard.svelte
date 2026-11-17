@@ -8,7 +8,6 @@
   import { settings } from '../lib/settings.svelte';
   import { i18n, keyName, t } from '../lib/i18n.svelte';
   import Assistant from '../components/Assistant.svelte';
-  import TypingTest from '../components/TypingTest.svelte';
   import type { TabId } from '../lib/tabs';
 
   let { goto }: { goto: (tab: TabId, anchor?: string) => void } = $props();
@@ -53,7 +52,7 @@
     <h1>{status.value?.first_name ? t('Salut {name}', { name: status.value.first_name }) : t('Salut')}</h1>
     <p>{t('Maintiens la touche, parle, relâche : ton texte s’écrit tout seul là où tu es.')}</p>
     {#if status.value?.profile && status.value.profile_count >= 2}
-      <p class="user">{t('Utilisateur : {name}', { name: status.value.profile.name })} · <button class="link" onclick={() => goto('settings', 'utilisateurs')}>{t('changer')}</button></p>
+      <p class="user">{t('Utilisateur : {name}', { name: status.value.profile.name })} · <button class="link" onclick={() => goto('profile', 'utilisateurs')}>{t('changer')}</button></p>
     {/if}
     <div class="hint">
       <span class="key">{keyName(status.value?.dictation_label ?? 'Ctrl droit')}</span>
@@ -67,7 +66,7 @@
 
 {#if showAssistant || (settings.value && !settings.value.setupDone)}
   <div id="assistant">
-    <Assistant onclose={() => { showAssistant = false; void settings.load(); }} ongoto={(tab) => goto(tab)} />
+    <Assistant onclose={() => { showAssistant = false; void settings.load(); }} ongoto={(tab, anchor) => goto(tab, anchor)} />
   </div>
 {/if}
 
@@ -114,10 +113,6 @@
     {:else}
       <p class="muted">{t('Maintiens {key} dans n’importe quelle appli et parle : ta première dictée apparaîtra ici.', { key: keyName(status.value?.dictation_label ?? 'Ctrl droit') })}</p>
     {/each}
-  </Card>
-
-  <Card id="dashboard-vitesse-clavier" folded title={t('Ma vitesse au clavier')} help="measures" intro={t('Sert au calcul du temps gagné. Recopiez le texte : seuls les essais complets, à plus de 90 % de lettres justes, comptent.')}>
-    <TypingTest />
   </Card>
 {:else}
   <p class="muted">{t('Chargement…')}</p>

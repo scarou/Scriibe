@@ -772,3 +772,83 @@ Aucun doublon d'`id` de carte ni de titre de carte entre deux `<Card>` (contrôl
 | Messages Rust affichés au « vous » | 3 (`uninstall.rs:417`, `assistant.rs:40`, `assistant.rs:51`) |
 | Textes propres à Windows, tableau 3b | 29 lignes ; 5 sans condition de système dans l'interface ; 3 libellés Rust à vérifier sur Mac ; 13 déjà adaptés |
 | Libellés en doublon (3c) | 15 groupes |
+
+
+## Menu et pages (tâche 1)
+
+Fait le 2026-11-17. Résultat : le menu de gauche a quatre groupes (**Utiliser** : Accueil, Historique · **Ma dictée** : Dicter, Style d'écriture, Dictionnaire, Commandes vocales · **Configurer** : Moteurs et modèles, Profil, Apparence, Données et système · **Avancé** : Mesures et essais), plus l'Aide en bas. La page Réglages, ses 7 onglets et `SettingsPage.svelte` n'existent plus.
+
+### Ce qui a été fait
+
+- `ui/src/lib/tabs.ts` : `tabGroups` (groupes, pages, icônes, phrase sous le titre), `helpTab`, `tabs` (liste à plat, Aide en dernier), `resolveTab`.
+- Une page par fichier dans `ui/src/tabs/` : `Dictate`, `StylePage`, `Commands`, `EnginesPage`, `Profile`, `AppearancePage`, `Data`, `Measures` (les autres pages gardent leur fichier). Chacune pose ses cartes existantes, inchangées. `Settings.svelte` prend un paramètre `section` étendu (`dictation`, `style`, `engines`, `keys`, `places`, `appearance`) et ne montre que les cartes de la page qui l'appelle.
+- Le point « nouvelle version » (●) est sur l'entrée Données et système ; le bouton « Nouvelle version disponible » de la barre mène à la carte « Version de Scriibe » de cette page.
+- En-têtes fixes : nouveau composant `ui/src/components/PageHeader.svelte` (titre, phrase, boutons ; `position: sticky; top: 0`), utilisé par toutes les pages sauf l'Accueil. Il publie sa hauteur dans `--page-head`, que lisent le sommaire de l'Aide, le bloc de filtres de l'Historique et les ancres (`scroll-margin-top` dans `app.css`).
+- Les anciens identifiants (`settings` + ancre, `modes`, `install`, `bench`, `journal`, `update`) mènent encore à la bonne page par `resolveTab` : les liens existants (boutons « ? », « → » de l'Aide, assistant) marchent sans être touchés. La tâche 5 les remplacera.
+- Cartes déplacées : « Ma vitesse au clavier » de l'Accueil vers Mesures et essais ; « Commandes vocales » du Dictionnaire vers sa page ; utilisateurs et clés du cloud vers Profil ; « Ce que devient ton texte » et les modes vers Style d'écriture ; « Emplacements » vers Données et système ; « Mise à jour » dans Données et système.
+- Textes : phrases de l'Aide (FR et EN) et des cartes qui décrivaient l'ancien emplacement (« Réglages → Dictée », « onglet Modes », « Tableau de bord »…) remises sur les nouvelles pages ; bouton de l'assistant « Aller aux Réglages » devenu « Aller au Profil » (il ouvre la carte des clés) ; traductions anglaises à jour, orphelines retirées.
+- Tests : `tabs.test.ts` vérifie les 4 groupes et leur ordre, que chaque page est branchée dans `App.svelte`, la résolution des anciens identifiants, et l'en-tête fixe. `svelte-check` sans erreur, Vitest 113 tests verts, `npm run build` passe.
+
+### Choix et écarts
+
+- **Identifiant `dashboard` conservé** pour l'Accueil (seul le libellé change) : il est cité par l'assistant, l'Aide et la mémoire de session ; le renommer n'apporte rien.
+- **L'Accueil n'a pas d'en-tête fixe** : son bandeau d'accueil (salutation, touche, onde) est grand ; le laisser collé en haut mangerait l'écran. À reprendre si l'auteur veut quand même un titre fixe.
+- **Id de la carte « Ma vitesse au clavier » inchangé** (`dashboard-vitesse-clavier`) pour garder son état replié ; à renommer avec la tâche 5 si besoin.
+- Cartes à découper laissées entières, comme la consigne le permet : Dictée (Dicter), Moteurs (Moteurs et modèles), Commandes vocales (une seule carte, découpée à la tâche 2).
+- **Vérification à l'écran limitée** : la page construite a été ouverte dans le navigateur intégré, sans serveur Scriibe (pas d'API). Vu : les 11 pages et l'Aide s'ouvrent avec leur titre, les groupes du menu s'affichent, l'en-tête et le sommaire de l'Aide restent en haut au défilement. Pas vu : le contenu des cartes qui dépend de l'API, ni l'anglais, ni le mode sombre, ni la fenêtre étroite ; la tâche 5 les voit sur le Mac.
+- Restent à reprendre ailleurs : les libellés des boutons « → » de l'Aide (« Réglages de la dictée »…, tâche 5), les messages du programme qui disent « Réglages » (tâche 9), les cartes qui déplacent des réglages (tâches 3 et 4).
+
+### Cartes (cochées : chacune existe sur la page indiquée)
+
+| Fait | N° | Carte | Page |
+|---|---|---|---|
+| ✔ | C01 | Assistant de premier lancement | Accueil |
+| ✔ | C02 | Mots dictés par jour | Accueil |
+| ✔ | C03 | Où je dicte | Accueil |
+| ✔ | C04 | Dernières dictées | Accueil |
+| ✔ | C05 | Ma vitesse au clavier (repliée par défaut) | Mesures et essais |
+| ✔ | C06 | Confidentialité de l'historique | Historique |
+| ✔ | C07 | Jour d'historique (une carte par jour, id `historique-<jour>`, sans `?`) | Historique |
+| ✔ | C08 | Mots à écrire exactement | Dictionnaire |
+| ✔ | C09 | Corrections « entendu → écrit » | Dictionnaire |
+| ✔ | C10 | Exporter et importer le dictionnaire | Dictionnaire |
+| ✔ | C11 | Exporter le dictionnaire (carte transitoire) | Dictionnaire |
+| ✔ | C12 | Importer un dictionnaire (carte transitoire) | Dictionnaire |
+| ✔ | C13 | Signes dictés | Dictionnaire |
+| ✔ | C14 | Commandes vocales | Commandes vocales |
+| ✔ | C15 | Utilisateurs | Profil |
+| ✔ | C16 | Exporter un utilisateur (transitoire) | Profil |
+| ✔ | C17 | Importer un utilisateur (transitoire) | Profil |
+| ✔ | C18 | Dictée (13 réglages) | Dicter (carte entière : tâches 2 et 3 en retirent la touche de commande, le prénom et le genre) |
+| ✔ | C19 | Ce que devient ton texte | Style d'écriture |
+| ✔ | C20 | Moteurs | Moteurs et modèles (carte entière : la case « Autoriser l’envoi de la sélection » part à la tâche 2) |
+| ✔ | C21 | Clés du cloud (dépannage) | Profil |
+| ✔ | C22 | Emplacements | Données et système |
+| ✔ | C23 | Apparence de la fenêtre | Apparence |
+| ✔ | C24 | Logo animé | Apparence |
+| ✔ | C25 | Langue de l'interface | Apparence |
+| ✔ | C26 | Apparence de l'indicateur | Apparence |
+| ✔ | C27 | État de l'installation | Moteurs et modèles |
+| ✔ | C28 | Les programmes | Moteurs et modèles |
+| ✔ | C29 | Modèles installés | Moteurs et modèles |
+| ✔ | C30 | Modèles recommandés | Moteurs et modèles |
+| ✔ | C31 | Ajouter un modèle depuis Hugging Face | Moteurs et modèles |
+| ✔ | C32 | Modes de base / Modes professionnels (une `<Card>` en boucle, 2 occurrences à l'exécution) | Style d'écriture |
+| ✔ | C34 | Mes modes | Style d'écriture |
+| ✔ | C35 | Importer des modes (transitoire) | Style d'écriture |
+| ✔ | C36 | Exporter le mode (transitoire) | Style d'écriture |
+| ✔ | C37 | Nouveau mode / Modifier le mode (transitoire) | Style d'écriture |
+| ✔ | C38 | Essai : {mode} (transitoire) | Style d'écriture |
+| ✔ | C39 | Banc de dictée (17 phrases) | Mesures et essais |
+| ✔ | C40 | Ce passage | Mesures et essais |
+| ✔ | C41 | Passages gardés | Mesures et essais |
+| ✔ | C42 | Comparer deux passages | Mesures et essais |
+| ✔ | C43 | Temps des dictées | Mesures et essais |
+| ✔ | C44 | Banc d'essai de la mise au propre | Mesures et essais |
+| ✔ | C45 | Dictée avec la touche, dans une vraie appli | Mesures et essais |
+| ✔ | C46 | Rapport à me coller | Mesures et essais |
+| ✔ | C47 | Lancer au démarrage | Données et système |
+| ✔ | C48 | Sauvegarde de vos données | Données et système |
+| ✔ | C49 | Désinstaller Scriibe | Données et système |
+| ✔ | C50 | Version de Scriibe | Données et système |
+| ✔ | C51 | Comment ça marche ? (repliée par défaut) | Données et système |

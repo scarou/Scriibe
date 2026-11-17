@@ -12,8 +12,8 @@
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
-  /** L'onglet des Réglages dont cette page montre les cartes (SettingsPage choisit). */
-  let { section }: { section: 'dictation' | 'engines' | 'appearance' } = $props();
+  /** Les cartes à montrer : chaque page du menu en prend ses cartes (Dicter, Style d'écriture, Moteurs, Profil, Apparence, Données et système). */
+  let { section }: { section: 'dictation' | 'style' | 'engines' | 'keys' | 'places' | 'appearance' } = $props();
 
   let s = $derived(status.value);
   let osName = $derived(status.os);
@@ -182,7 +182,7 @@
           : t('Sans dictée pendant {n} min, Whisper s’arrête et rend sa mémoire ; il revient à l’appui de la touche (environ 1 s, pendant que tu parles).', { n: v.whisperIdleMinutes })}
       </p>
     {/if}
-    <p class="muted">{t('La mise au propre est le modèle d’IA qui applique le mode choisi : il retire les « euh » et ponctue (voir l’onglet Modes). llama.cpp, LM Studio ou Ollama le font tourner sur cet ordinateur ; OpenRouter donne accès en ligne à de plus gros modèles.')}</p>
+    <p class="muted">{t('La mise au propre est le modèle d’IA qui applique le mode choisi : il retire les « euh » et ponctue (voir la page Style d’écriture). llama.cpp, LM Studio ou Ollama le font tourner sur cet ordinateur ; OpenRouter donne accès en ligne à de plus gros modèles.')}</p>
     <div class="row">
       <label>{t('Mise au propre :')}
         <select value={v.cleanupEngine} onchange={(e) => settings.change({ cleanupEngine: e.currentTarget.value as never })}>
@@ -337,8 +337,8 @@
   </Card>
   {/if}
 
-  {#if section === 'dictation'}
-  <Card help="modes" id="texte" title={t('Ce que devient ton texte')} intro={t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (onglet Modes). Le moteur de cette mise au propre se choisit dans l’onglet Moteurs.')}>
+  {#if section === 'style'}
+  <Card help="modes" id="texte" title={t('Ce que devient ton texte')} intro={t('Après la transcription, un modèle d’IA retire les « euh » et ponctue, selon le mode choisi (plus bas, sur cette page). Le moteur de cette mise au propre se choisit dans Moteurs et modèles.')}>
     <div class="row">
       <label><input type="checkbox" checked={v.skipWhenClean} onchange={(e) => settings.change({ skipWhenClean: e.currentTarget.checked })} />
         {t('Sauter la mise au propre quand Whisper rend déjà un texte propre (mode Simple)')}</label>
@@ -379,7 +379,7 @@
   </Card>
   {/if}
 
-  {#if section === 'engines'}
+  {#if section === 'keys'}
   <Card id="cles" title={t('Clés du cloud (dépannage)')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est votre identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
     <p class="muted">{osName === 'macos' ? t('Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.') : osName === 'linux' ? t('Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.') : t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
@@ -394,7 +394,7 @@
   </Card>
   {/if}
 
-  {#if section === 'engines'}
+  {#if section === 'places'}
   <Card help="privacy" id="reglages-emplacements" title={t('Emplacements')}>
     <div class="muted">{t('Réglages : {path}', { path: s.paths.settings })}<br />{t('Modèles : {path}', { path: s.paths.models })}<br />{t('Journal : {path}', { path: s.paths.log })}</div>
   </Card>

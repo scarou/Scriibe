@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PageHeader from '../components/PageHeader.svelte';
   import Card from '../components/Card.svelte';
   import { confirmBox } from '../lib/dialog.svelte';
   import { onMount } from 'svelte';
@@ -133,13 +134,10 @@
   });
 </script>
 
-<div class="page-head">
-  <div>
-    <h1>{t('Historique')}</h1>
-    <p class="muted">{t('Gardé sur cet ordinateur seulement.')} {copied}</p>
-  </div>
-  <button class="danger" onclick={clearAll} disabled={!items.length}>🗑 {t('Tout effacer')}</button>
-</div>
+<PageHeader title={t('Historique')}>
+  {t('Gardé sur cet ordinateur seulement.')} {copied}
+  {#snippet actions()}<button class="danger" onclick={clearAll} disabled={!items.length}>🗑 {t('Tout effacer')}</button>{/snippet}
+</PageHeader>
 
 <div class="sticky-top">
 <Card id="conservation" title={t('Confidentialité de l’historique')} help="privacy" intro={t('Pour que ce que vous dictez ne reste pas sur le disque : par exemple un code ou une adresse dictés dans un message. Vous pouvez ne garder que les statistiques (nombre de mots, durée, appli), ou n’avoir que les derniers jours. Le tableau de bord reste juste dans les deux cas.')}>
@@ -239,11 +237,9 @@
 {/each}
 
 <style>
-  .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-  .page-head p { margin: 0 0 12px; }
   .danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
   /* Confidentialité et filtres restent en haut pendant le défilement des tuiles ; si la fenêtre est basse, ce bloc défile lui-même. */
-  .sticky-top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 4px; max-height: 70vh; overflow-y: auto; }
+  .sticky-top { position: sticky; top: var(--page-head, 0px); z-index: 5; background: var(--bg); padding-top: 4px; max-height: calc(70vh - var(--page-head, 0px)); overflow-y: auto; }
   .filters { padding: 12px 14px; }
   .filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .search { flex: 1 1 140px; min-width: 0; }

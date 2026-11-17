@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { defaultHelpSection, helpSections } from './help';
-import { tabs } from './tabs';
+import { resolveTab, tabGroups, tabs, type TabId } from './tabs';
+import pageHeader from '../components/PageHeader.svelte?raw';
+import app from '../App.svelte?raw';
 import help from '../tabs/Help.svelte?raw';
 import helpEn from '../tabs/HelpEn.svelte?raw';
 
@@ -15,6 +17,41 @@ describe('structure de l’interface', () => {
   it('les pages ont des identifiants et des titres distincts', () => {
     expect(new Set(tabs.map((t) => t.id)).size).toBe(tabs.length);
     expect(new Set(tabs.map((t) => t.label)).size).toBe(tabs.length);
+  });
+});
+
+describe('menu de gauche en quatre groupes (refonte de l’interface)', () => {
+  it('Utiliser, Ma dictée, Configurer, Avancé, avec leurs pages dans l’ordre voulu, puis l’Aide', () => {
+    expect(tabGroups.map((g) => [g.label, g.tabs.map((x) => x.label)])).toEqual([
+      ['Utiliser', ['Accueil', 'Historique']],
+      ['Ma dictée', ['Dicter', 'Style d’écriture', 'Dictionnaire', 'Commandes vocales']],
+      ['Configurer', ['Moteurs et modèles', 'Profil', 'Apparence', 'Données et système']],
+      ['Avancé', ['Mesures et essais']],
+    ]);
+    expect(tabs.length).toBe(12);
+    expect(tabs.some((x) => x.label === 'Réglages')).toBe(false);
+  });
+
+  it('chaque page du menu s’ouvre dans App.svelte', () => {
+    for (const tab of tabs) expect(app, tab.id).toContain(`nav.tab === '${tab.id}'`);
+  });
+
+  it('les anciens identifiants de page et d’ancre des Réglages mènent à la page qui a pris leur place', () => {
+    const cases: [TabId, string | undefined, string][] = [
+      ['settings', 'dictee', 'dictate'], ['settings', 'texte', 'style'], ['settings', 'utilisateurs', 'profile'], ['settings', 'cles', 'profile'],
+      ['settings', 'moteurs', 'engines'], ['settings', 'indicateur', 'appearance'], ['settings', 'langue', 'appearance'],
+      ['settings', 'sauvegarde', 'data'], ['settings', 'demarrage', 'data'], ['settings', undefined, 'dictate'],
+      ['modes', undefined, 'style'], ['install', undefined, 'engines'], ['bench', undefined, 'measures'], ['journal', undefined, 'measures'], ['update', undefined, 'data'],
+      ['history', 'conservation', 'history'], ['dictionary', undefined, 'dictionary'],
+    ];
+    for (const [id, anchor, page] of cases) expect(resolveTab(id, anchor), `${id} ${anchor ?? ''}`).toBe(page);
+  });
+});
+
+describe('en-tête de page fixe', () => {
+  it('l’en-tête reste en haut de la fenêtre quand on fait défiler, sur toutes les pages qui en ont un', () => {
+    expect(pageHeader).toMatch(/\.page-header \{[^}]*position:\s*sticky[^}]*top:\s*0/);
+    expect(pageHeader).toMatch(/--page-head/);
   });
 });
 

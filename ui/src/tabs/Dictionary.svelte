@@ -1,7 +1,7 @@
 <script lang="ts">
   import Card from '../components/Card.svelte';
   import HelpButton from '../components/HelpButton.svelte';
-  import VoiceCommands from '../components/VoiceCommands.svelte';
+  import PageHeader from '../components/PageHeader.svelte';
   import { onMount, tick } from 'svelte';
   import { nav } from '../lib/nav.svelte';
   import { api, type Dictionary, type Stats } from '../lib/api';
@@ -262,8 +262,7 @@
   });
 </script>
 
-<h1>{t('Dictionnaire')}</h1>
-<p class="muted">{t('Ce que Scriibe écrit exactement, même quand Whisper l’entend autrement.')} {saved}</p>
+<PageHeader title={t('Dictionnaire')}>{t('Ce que Scriibe écrit exactement, même quand Whisper l’entend autrement.')} {saved}</PageHeader>
 
 <div class="card figures">
   <div><b>{words.length}</b> <span class="muted">{t('mots dans ton dictionnaire')}</span></div>
@@ -426,7 +425,6 @@
   {/if}
 </Card>
 
-<VoiceCommands />
 
 <style>
   .figures { display: flex; gap: 32px; flex-wrap: wrap; padding: 12px 18px; }

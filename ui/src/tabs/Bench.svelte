@@ -145,7 +145,7 @@
 
   <div class="row">
     <span class="muted">{t('Les phrases à lire suivent la langue dictée : {language}.', { language: t(({ fr: 'Français', en: 'Anglais', multi: 'Plusieurs langues' } as Record<string, string>)[settings.value?.language ?? 'fr'] ?? 'Français') })}</span>
-    <button onclick={() => nav.go('settings', 'dictee')} disabled={bench.running}>{t('Changer la langue dictée')}</button>
+    <button onclick={() => nav.go('dictate', 'dictee')} disabled={bench.running}>{t('Changer la langue dictée')}</button>
   </div>
 
   <div class="row">
