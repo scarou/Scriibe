@@ -62,11 +62,14 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                 let mut mask_command = false;
                 let event = HELD.with(|held| {
                     let mut held = held.borrow_mut();
+                    // Un appui qui n'est qu'une répétition automatique (touche déjà tenue avant la dictée) n'est jamais retenu : sinon
+                    // le relâchement le serait aussi et Windows garderait la touche « enfoncée ».
+                    let first_press = !held.contains(&key_of(code));
                     if rules.swallow.contains(&code) {
                         SWALLOWED.with(|taken| {
                             let mut taken = taken.borrow_mut();
                             if down {
-                                if taken.contains(&code) || rules.needs.iter().all(|need| held.contains(&key_of(*need))) {
+                                if taken.contains(&code) || (first_press && rules.needs.iter().all(|need| held.contains(&key_of(*need)))) {
                                     if !taken.contains(&code) {
                                         taken.push(code);
                                     }
@@ -84,7 +87,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                         SWALLOWED.with(|taken| {
                             let mut taken = taken.borrow_mut();
                             if down {
-                                if taken.contains(&code) || dictation_held {
+                                if taken.contains(&code) || (first_press && dictation_held) {
                                     if !taken.contains(&code) {
                                         taken.push(code);
                                     }

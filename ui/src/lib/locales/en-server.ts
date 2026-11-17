@@ -243,6 +243,10 @@ export const enServer: Record<string, string> = {
   '{label} sert déjà à traduire': '{label} is already used to translate',
   'trois touches au plus pour les commandes': 'three keys at most for commands',
   "{label} ne peut pas lancer la dictée : elle sert à taper": '{label} cannot start the dictation: it is used for typing',
+  "{label} ne peut pas servir de touche de dictée : elle sert à taper.": '{label} cannot be the dictation key: it is used for typing.',
+  "{label} ne peut pas servir de touche de commande : elle n'est pas dans la liste.": '{label} cannot be the command key: it is not in the list.',
+  "{label} ne peut pas servir de touche de traduction : elle n'est pas dans la liste.": '{label} cannot be the translation key: it is not in the list.',
+  "ces touches servent déjà à dicter": 'these keys are already used to dictate',
 
   // Messages fixes de la pastille sous la touche de commande (jamais les mots dits)
   'Aucune sélection': 'No selection',

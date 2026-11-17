@@ -940,7 +940,7 @@ fn capture_view(ctx: &Context) -> Value {
             None if kind == "translate" => {
                 Some(format!("{} ne peut pas servir de touche de traduction : elle n'est pas dans la liste.", labels.join(" + ")))
             }
-            None => Some(format!("{} ne peut pas servir de touche de dictée : elle sert à taper (ou à AltGr).", labels.join(" + "))),
+            None => Some(format!("{} ne peut pas servir de touche de dictée : elle sert à taper.", labels.join(" + "))),
             Some(ids) if kind == "translate" => match ids.as_slice() {
                 [one] => keys::validate(&settings.dictation_keys, std::slice::from_ref(one), &settings.command_keys).err(),
                 _ => Some("une seule touche pour traduire".into()),

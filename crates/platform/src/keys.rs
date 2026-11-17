@@ -97,10 +97,10 @@ pub const VK_RMENU: u32 = 0xA5;
 /// Les touches qui ne peuvent pas **lancer** la dictée : AltGr sert à taper (« @ », « € »), les flèches déplacent le curseur ; seules, elles
 /// déclencheraient l'écoute à chaque frappe. Tenues **pendant** une dictée (touche de traduction ou de commande), personne ne tape : elles
 /// ne gênent rien (le crochet retient les flèches pour qu'elles ne bougent pas le curseur : `HookRules::swallow_in_dictation`).
+pub const NOT_FOR_DICTATION: &[&str] = &["right_alt", "arrow_left", "arrow_up", "arrow_right", "arrow_down"];
+
 /// Une touche de commande est une touche ou une combinaison de trois touches au plus, toutes à tenir.
 pub const MAX_COMMAND_KEYS: usize = 3;
-
-pub const NOT_FOR_DICTATION: &[&str] = &["right_alt", "arrow_left", "arrow_up", "arrow_right", "arrow_down"];
 
 /// Les touches qu'on peut utiliser (Windows). Ni lettres, chiffres, Espace ni Entrée. AltGr et les flèches ne sont permises que pour traduire
 /// ou commander, pas pour lancer la dictée (`NOT_FOR_DICTATION`).
@@ -281,7 +281,8 @@ impl Layout {
 
     /// Le nom d'une touche appuyée pendant la capture : celui de la liste, sinon la lettre ou le code (« touche 0x41 »).
     pub fn label_of(&self, key: Key) -> String {
-        if let Some(choice) = self.find_by_key(key) {
+        // Le nom d'une touche vient de toute la liste, même d'une flèche non proposée ici (Linux, Mac) : on la nomme, sans la proposer.
+        if let Some(choice) = self.choices.iter().find(|c| c.key == key) {
             return choice.label.to_string();
         }
         match vk_of(key) {
@@ -401,7 +402,7 @@ impl Layout {
             ids if ids.len() <= MAX_COMMAND_KEYS => {
                 let keys = ids.iter().map(|id| self.find(id).map(|c| c.key)).collect::<Option<Vec<_>>>()?;
                 // La touche de dictée dans la combinaison (« Ctrl droit + AltGr ») est déjà tenue : elle n'ajoute rien.
-                Some(if keys.len() > 1 { keys.into_iter().filter(|k| !dictation.contains(k)).collect() } else { keys })
+                Some(keys.into_iter().filter(|k| !dictation.contains(k)).collect())
             }
             _ => None,
         }
@@ -453,6 +454,9 @@ impl Layout {
                 return Err(format!("{} sert déjà à traduire", choice.label));
             }
             chosen.push(choice);
+        }
+        if chosen.is_empty() {
+            return Err("ces touches servent déjà à dicter".into());
         }
         if chosen.iter().filter(|c| !c.modifier).count() > 1 {
             return Err("une seule touche autre que Ctrl, Alt, Maj ou Windows dans la combinaison".into());
@@ -677,10 +681,10 @@ pub fn label_of(key: Key) -> String {
 }
 
 /// Les touches vues pendant une capture, sans le Ctrl gauche fictif que Windows envoie avec AltGr (Ctrl gauche + Alt droit) : la personne
-/// n'a appuyé que sur AltGr. Sur Mac, rien n'est changé.
+/// n'a appuyé que sur AltGr. Sur Mac et Linux, rien n'est changé (pas de Ctrl fictif).
 pub fn without_altgr_ctrl(keys: &[Key]) -> Vec<Key> {
     let altgr = key_of(VK_RMENU);
-    if layout().mac || !keys.contains(&altgr) {
+    if !cfg!(windows) || !keys.contains(&altgr) {
         return keys.to_vec();
     }
     keys.iter().copied().filter(|k| *k != Key::LeftControl).collect()
@@ -1341,13 +1345,37 @@ mod tests {
         assert!(rules.swallow.is_empty());
     }
 
+    /// Une combinaison de commande faite seulement de touches de dictée n'est pas une commande : refusée, pas silencieusement inactive.
+    #[test]
+    fn a_command_made_only_of_dictation_keys_is_refused() {
+        let dictation = ["right_control", "f9"];
+        assert!(command_binding(&WINDOWS_LAYOUT, &dictation, &[], &["right_control", "f9"]).is_err());
+        assert!(command_binding(&WINDOWS_LAYOUT, &dictation, &[], &["f9", "left_alt"]).is_ok());
+    }
+
+    /// Une flèche vue à la capture est nommée même là où elle n'est pas proposée (Linux, Mac).
+    #[test]
+    fn an_arrow_is_named_even_where_it_is_not_offered() {
+        assert_eq!(LINUX_LAYOUT.label_of(Key::Vk(0x25)), "Flèche gauche");
+        assert_eq!(LINUX_LAYOUT.id_of(Key::Vk(0x25)), None, "mais elle n'est pas choisissable");
+    }
+
+    /// Un réglage édité à la main, avec la même touche pour la dictée et la commande, ne fait pas de chaque dictée une commande.
+    #[test]
+    fn a_hand_edited_command_key_equal_to_the_dictation_key_gives_no_command() {
+        let keys = [Key::RightControl];
+        assert!(WINDOWS_LAYOUT.command_keys(&keys, &[], &["right_control".to_string()]).unwrap().is_empty());
+    }
+
     /// Capture d'AltGr : Windows ajoute un Ctrl gauche fictif, la personne n'a appuyé que sur AltGr.
     #[test]
     fn the_fake_left_control_of_altgr_is_dropped_from_a_capture() {
-        if layout().mac {
+        let altgr = Key::Vk(VK_RMENU);
+        if !cfg!(windows) {
+            // Sur Mac et Linux il n'y a pas de Ctrl fictif : rien n'est retiré.
+            assert_eq!(without_altgr_ctrl(&[Key::LeftControl, altgr]), vec![Key::LeftControl, altgr]);
             return;
         }
-        let altgr = Key::Vk(VK_RMENU);
         assert_eq!(without_altgr_ctrl(&[Key::LeftControl, altgr]), vec![altgr]);
         assert_eq!(without_altgr_ctrl(&[Key::RightControl, Key::LeftControl, altgr]), vec![Key::RightControl, altgr]);
         // Sans AltGr, Ctrl gauche est une vraie touche.
