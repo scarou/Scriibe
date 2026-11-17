@@ -56,3 +56,7 @@ audio { width: 100%; margin-top: 6px; }
 
 /* Une carte montrée par un lien (ancre) s'arrête sous l'en-tête fixe de la page. */
 [id] { scroll-margin-top: calc(var(--page-head, 0px) + 8px); }
+
+/* Titre d'une partie de page (Moteurs / Modèles, Désinstallation) : sépare des groupes de cartes. */
+.part-title { font-size: 1.2rem; margin: 28px 0 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.part-title:first-of-type { margin-top: 8px; border-top: 0; padding-top: 0; }

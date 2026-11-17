@@ -508,6 +508,9 @@ export const en: Record<string, string> = {
   'Automatique (toutes les cartes)': 'Automatic (all cards)',
   'Processeur seulement': 'CPU only',
   'Moteurs': 'Engines',
+  'Modèles': 'Models',
+  'Désinstallation': 'Uninstall',
+  'Transcription et mise au propre': 'Transcription and cleanup',
   'Relancer l’assistant': 'Run the assistant again',
   'À quoi servent ces choix ?': 'What are these choices for?',
   'Transcription :': 'Transcription:',
@@ -778,7 +781,7 @@ export const en: Record<string, string> = {
   'Modèle : en cours…': 'Model: in progress…',
   'Modèle ({s} s) : {text}': 'Model ({s} s): {text}',
   'Modèle : {error}': 'Model: {error}',
-  'Le rapport à copier (onglet « Journal et rapport ») reprend ces résultats.': 'The report to copy (“Log and report” tab) includes these results.',
+  'Le rapport à copier (carte « Rapport à me coller », plus bas) reprend ces résultats.': 'The report to copy (“Report to paste” card, further down) includes these results.',
 
   // Banc de la mise au propre
   'Banc d’essai de la mise au propre': 'Cleanup test bench',

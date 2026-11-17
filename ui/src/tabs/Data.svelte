@@ -9,6 +9,9 @@
 
 <PageHeader title={t('Données et système')}>{t(tabDescription('data'))}</PageHeader>
 
+<System part="main" />
 <Update />
-<System />
 <Settings section="places" />
+
+<h2 class="part-title">{t('Désinstallation')}</h2>
+<System part="uninstall" />

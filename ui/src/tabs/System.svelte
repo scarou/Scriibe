@@ -6,6 +6,9 @@
   import { status } from '../lib/status.svelte';
   import { onMount } from 'svelte';
 
+  /** `main` : démarrage et sauvegarde ; `uninstall` : la désinstallation, que la page Données et système met en dernier, à part. */
+  let { part }: { part: 'main' | 'uninstall' } = $props();
+
   let osName = $derived(status.os);
 
   /** Lancer à l'ouverture de session : lu dans le système (rien n'est gardé dans les réglages). */
@@ -164,6 +167,7 @@
   onMount(() => void loadAutostart());
 </script>
 
+{#if part === 'main'}
 <Card help="start" id="demarrage" title={t('Lancer au démarrage')} intro={t('Scriibe se lance à l’ouverture de votre session, sans fenêtre : l’icône est là et la touche de dictée est prête. Désactivé tant que vous ne le cochez pas.')}>
   {#if autostart}
     <div class="row">
@@ -218,6 +222,7 @@
   {/if}
 </Card>
 
+{:else}
 <Card help="start" id="desinstaller" title={t('Désinstaller Scriibe')} intro={t('Retire Scriibe de cet ordinateur : tout part à la Corbeille (récupérable tant que vous ne la videz pas), après une sauvegarde proposée et une dernière confirmation.')}>
   {#if !removal}
     <button class="danger" onclick={openRemoval}>{t('Désinstaller Scriibe…')}</button>
@@ -265,6 +270,7 @@
     </div>
   {/if}
 </Card>
+{/if}
 
 <style>
   .summary { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }

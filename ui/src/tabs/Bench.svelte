@@ -246,13 +246,11 @@
         {/if}
       </div>
     {/each}
-    <p class="muted">{t('Le rapport à copier (onglet « Journal et rapport ») reprend ces résultats.')}</p>
+    <p class="muted">{t('Le rapport à copier (carte « Rapport à me coller », plus bas) reprend ces résultats.')}</p>
   </Card>
 {/if}
 
 <BenchArchive />
-
-<TimingsCard />
 
 <TrialBench />
 

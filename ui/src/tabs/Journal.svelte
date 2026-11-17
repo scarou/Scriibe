@@ -8,6 +8,9 @@
   import { status } from '../lib/status.svelte';
   import { t } from '../lib/i18n.svelte';
 
+  /** `live` : le journal en direct ; `report` : le rapport à coller (la page Mesures les sépare par d'autres cartes). */
+  let { part }: { part: 'live' | 'report' } = $props();
+
   let lines = $state<string[]>([]);
   let report = $state('');
   let copied = $state('');
@@ -36,19 +39,22 @@
   }
 
   onMount(() => {
+    if (part !== 'live') return;
     void loadLog();
     const timer = setInterval(() => void loadLog(), 2000);
     return () => clearInterval(timer);
   });
 </script>
 
+{#if part === 'live'}
 <Card help="problems" id="journal-dictee-avec-la-touche-dans-une-vraie-app" title={t('Dictée avec la touche, dans une vraie appli')}>
   <p>{t('Ouvrez le Bloc-notes, maintenez Ctrl droit, parlez, relâchez. Maj en plus : traduction. Toute autre touche pendant l’appui : annulation.')}</p>
   <div class="muted">{t('Journal en direct (une ligne par étape, jamais le texte dicté) :')}</div>
   <pre bind:this={logBox}>{lines.join('\n') || t('(vide)')}</pre>
 </Card>
-
+{:else}
 <Card id="journal-rapport-a-me-coller" title={t('Rapport à me coller')} help="measures">
   <div class="row"><button class="primary" onclick={copy}>{t('Copier le rapport')}</button><span class="muted">{copied}</span></div>
   <pre>{report || t('Faites quelques essais, puis cliquez sur « Copier le rapport ».')}</pre>
 </Card>
+{/if}

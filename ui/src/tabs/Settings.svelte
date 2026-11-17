@@ -134,7 +134,7 @@
   {/if}
 
   {#if section === 'engines'}
-  <Card id="moteurs" title={t('Moteurs')} help="privacy" intro={t('Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}>
+  <Card id="moteurs" title={t('Transcription et mise au propre')} help="privacy" intro={t('Où passent votre voix et votre texte : « Local » veut dire sur cet ordinateur, sans Internet ; « Cloud », chez un service en ligne. Le local reste la priorité ; le cloud sert de dépannage quand l’ordinateur est trop lent.')}>
     <p class="summary"><b>{t('Ce qui tourne quand vous dictez :')}</b>
       {t('transcription')} {v.transcriptionEngine === 'whisper' ? t('Local') : t('Cloud')}
       · {t('mise au propre')} {v.cleanupEngine === 'none' ? t('aucune') : v.cleanupEngine === 'openRouter' ? t('Cloud') : t('Local')}</p>

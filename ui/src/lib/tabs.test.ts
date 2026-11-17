@@ -13,6 +13,10 @@ import profilePage from '../tabs/Profile.svelte?raw';
 import stylePage from '../tabs/StylePage.svelte?raw';
 import modesTab from '../tabs/Modes.svelte?raw';
 import dashboard from '../tabs/Dashboard.svelte?raw';
+import enginesPage from '../tabs/EnginesPage.svelte?raw';
+import dataPage from '../tabs/Data.svelte?raw';
+import measuresPage from '../tabs/Measures.svelte?raw';
+import benchTab from '../tabs/Bench.svelte?raw';
 import help from '../tabs/Help.svelte?raw';
 import helpEn from '../tabs/HelpEn.svelte?raw';
 
@@ -145,5 +149,27 @@ describe('pages Dicter, Profil et Style d’écriture (tâche 3)', () => {
 
   it('le lien « changer » de l’Accueil mène à Profil', () => {
     expect(dashboard).toContain("goto('profile', 'utilisateurs')");
+  });
+});
+
+describe('pages Moteurs et modèles, Données et système, Mesures et essais (tâche 4)', () => {
+  const order = (src: string, re: RegExp) => [...src.matchAll(re)].map((m) => m.slice(1).find(Boolean) ?? m[0]);
+
+  it('Moteurs et modèles : une partie Moteurs, puis une partie Modèles', () => {
+    expect(order(enginesPage, /<h2 class="part-title">\{t\('([^']+)'\)\}|<(Settings section="engines"|Install) \/>/g).filter(Boolean))
+      .toEqual(['Moteurs', 'Settings section="engines"', 'Modèles', 'Install']);
+  });
+
+  it('Données et système : démarrage et sauvegarde, mise à jour, emplacements, puis la désinstallation en dernier, à part', () => {
+    expect(order(dataPage, /<(System part="\w+"|Update|Settings section="places") \/>/g))
+      .toEqual(['System part="main"', 'Update', 'Settings section="places"', 'System part="uninstall"']);
+    expect(dataPage).toContain("t('Désinstallation')");
+  });
+
+  it('Mesures et essais : bancs, temps des dictées, vitesse au clavier, journal en direct, rapport', () => {
+    expect(order(measuresPage, /<(Bench|TimingsCard|Journal part="\w+") \/>|id="(dashboard-vitesse-clavier)"/g))
+      .toEqual(['Bench', 'TimingsCard', 'dashboard-vitesse-clavier', 'Journal part="live"', 'Journal part="report"']);
+    expect(benchTab).not.toContain('<TimingsCard');
+    expect(benchTab).not.toContain('Journal et rapport');
   });
 });

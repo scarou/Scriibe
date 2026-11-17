@@ -888,3 +888,14 @@ Fait le 2026-11-17. Les cartes de l'ancienne carte Dictée sont réparties ; con
 - Textes : Aide FR et EN (« Prénom dans la salutation » dans Dicter → Profil, carte « Prénom et genre ») ; en.ts : « Comptes en ligne », « Prénom et genre », intro de la carte, « Accueil vous salue », retrait des orphelines.
 - Tests : 5 nouveaux dans `tabs.test.ts`. `svelte-check` sans erreur, Vitest 122 verts, `npm run build` passe, `cargo test --workspace` tous verts.
 - Non vu à l'écran (API absente) : contenu des cartes, à voir à l'essai (tâche 5).
+
+## Moteurs, Données, Mesures (tâche 4)
+
+Fait le 2026-11-17. Cartes déplacées telles quelles ; seuls l'ordre, deux composants à deux parties et quelques titres changent.
+
+- **Moteurs et modèles** : deux parties séparées par un titre de partie (`.part-title`, `app.css`) : **Moteurs** (carte unique : transcription, mise au propre, carte graphique, garder chargé) puis **Modèles** (état de l'installation, programmes, modèles installés, recommandés, Hugging Face). La carte, qui s'appelait aussi « Moteurs » comme sa partie, devient « Transcription et mise au propre » (id `moteurs` inchangé).
+- **Données et système** : lancer au démarrage, sauvegarde, version (mise à jour), emplacements (avec la ligne du journal), puis, après un titre « Désinstallation », la désinstallation à part. `System.svelte` prend une propriété `part` (`main` ou `uninstall`), comme `Journal.svelte` (`live` ou `report`), pour poser les cartes dans un ordre voulu sans les copier.
+- **Mesures et essais** : bancs (dictée, ce passage, passages gardés, comparaison, banc de la mise au propre), temps des dictées (sorti de `Bench.svelte`), vitesse au clavier, journal en direct, rapport.
+- Textes : renvoi de la carte « Ce passage » (« onglet Journal et rapport ») → carte « Rapport à me coller », anglais à jour ; l'Aide décrivait déjà les bonnes pages.
+- Tests : 3 nouveaux dans `tabs.test.ts` (ordre des parties et des cartes des 3 pages). `svelte-check` sans erreur, Vitest 125 verts, build passe, `cargo test --workspace` tous verts.
+- Non vu à l'écran (pas d'API) : à la tâche 5.
