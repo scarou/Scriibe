@@ -41,7 +41,18 @@ Capture (`crates/cli/src/web/mod.rs`, `capture_view`) : la combinaison est valid
 
 ## Essai
 
-Tâche 2 (17/11). PC Windows et PC Linux à jour par bundle git (le correctif n'est pas poussé, `pilote maj` ne tire que de GitHub) et compilés en release : succès sur les deux. Essai à la main sur Windows en cours (voir Ajouts). Après les remarques de l'auteur, correctif complémentaire (commit 962a1d7) renvoyé par bundle et recompilé sur les deux PC.
+Tâche 2 (17/11), par l'auteur, sur les trois machines. Le correctif n'étant pas poussé, les PC ont reçu les commits par bundle git (`pilote maj` ne tire que de GitHub) puis compilé en release (`pilote compiler --mode release`) ; Scriibe lancé par une tâche planifiée « EssaiScriibe » sur Windows (à supprimer en fin d'essai), par `setsid` dans la session GNOME sur Linux, par `open` sur le Mac.
+
+| Machine | Essai | Résultat |
+|---|---|---|
+| Windows (962a1d7) | Commandes vocales → touche de commande → AltGr | Affichée « AltGr (Alt droit) » seule après correction du Ctrl gauche fictif, enregistrée sans erreur, commande vocale lancée avec elle (reconnaissance Whisper difficile, sans rapport) |
+| Windows | Touche par défaut Alt gauche, tenue avec Ctrl droit dans le Bloc-notes | La commande s'exécute, aucun menu ne s'ouvre : **défaut confirmé** |
+| Linux (GNOME, Wayland) | Carte « Activer les commandes vocales » | Le raccourci se change dans GNOME, pas dans Scriibe (voulu) ; texte corrigé : Paramètres → Applications → Scriibe → Raccourcis clavier (fenêtre « Raccourcis globaux ») |
+| Mac (8fa4c81) | Commandes vocales → « Changer… » | « Maj gauche » par défaut affichée ; Ctrl gauche choisie et enregistrée, ça marche |
+
+Corrigés pendant l'essai (voir Ajouts) : AltGr affichée avec un Ctrl gauche fictif ; flèches et AltGr permises pour traduire et commander (flèches sous Windows seulement) ; touche de dictée admise dans la combinaison de commande ; chemin des raccourcis GNOME ; liste complète des touches proposées ajoutée à l'Aide (rubrique des touches).
+
+Pas essayé : une flèche choisie sous Windows (crochet qui la retient, couvert par un test seulement) ; dictée de commande avec combinaison de plusieurs touches sur le PC. Le PC Windows et le PC Linux ont le code de 962a1d7 et 002a0aa, pas des derniers commits (flèches réservées à Windows, Aide).
 
 ## Ajouts
 
@@ -60,3 +71,4 @@ Tâche 2 (17/11). PC Windows et PC Linux à jour par bundle git (le correctif n'
 
 5. **Mac : mêmes restrictions de touches jugées inutiles par l'auteur** (essai du 17/11). Réponse : sur Mac (et Linux hors GNOME) le crochet est un « tap » d'événements **en écoute seule** (`kCGEventTapOptionListenOnly`) : il ne peut pas retenir une touche, qui arrive aussi à l'appli active. Or les commandes agissent sur le **texte sélectionné** : une flèche le désélectionne, une lettre le remplace. Sous Windows le crochet retient ces touches, d'où la levée. Décision : flèches réservées à Windows (`Layout::swallows`, `LINUX_LAYOUT`, test `arrows_are_only_offered_where_the_hook_can_hold_them_back`) ; sur Mac et Linux restent les touches sans effet sur la sélection (modificateurs, touches de fonction, Début, Fin…). Lever la limite sur Mac demande un tap actif (autorisation d'Accessibilité supplémentaire, `ListenOnly` → `Default`) : ligne de carnet proposée.
 6. **GNOME (Wayland) : chemin du raccourci** : la carte des commandes disait seulement « même endroit pour le changer ». Corrigé : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier (une fenêtre « Raccourcis globaux » s'ouvre), puis relancer Scriibe (carte des commandes et Réglages → Dictée).
+7. **Liste des touches autorisées** (demande de l'auteur, Mac) : le bouton « Changer… » n'attend qu'une touche, sans liste. Fait : l'Aide (rubrique des touches) affiche la liste complète des touches proposées sur la machine. Reste à proposer au carnet : une liste déroulante à côté de « Changer… », avec les touches prises et leur motif.
