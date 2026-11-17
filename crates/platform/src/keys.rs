@@ -205,19 +205,27 @@ pub struct Layout {
     mac: bool,
     /// Les touches de modification qui, seules, commencent à écouter tout de suite (les autres attendent `HOLD_MS`).
     immediate: &'static [&'static str],
+    /// Le crochet du clavier peut-il retenir une touche (Windows seulement) ? Sans cela, une flèche choisie pour traduire ou commander
+    /// arriverait aussi à l'appli et déferait la sélection sur laquelle la commande doit agir : elle n'est alors pas proposée.
+    swallows: bool,
 }
 
 /// Windows et Linux : Ctrl droit dicte, Maj traduit.
-pub const WINDOWS_LAYOUT: Layout = Layout { choices: CHOICES, mac: false, immediate: &["right_control"] };
+pub const WINDOWS_LAYOUT: Layout = Layout { choices: CHOICES, mac: false, immediate: &["right_control"], swallows: true };
+
+/// Linux : comme Windows, mais le crochet n'a pas la main sur les touches ordinaires qu'il voit : pas de flèches.
+pub const LINUX_LAYOUT: Layout = Layout { choices: CHOICES, mac: false, immediate: &["right_control"], swallows: false };
 
 /// Mac : comme dans Scribe, Option droite dicte et ⌘ traduit ; Option, ⌘ droite et Fn écoutent tout de suite.
 pub const MAC_LAYOUT: Layout =
-    Layout { choices: MAC_CHOICES, mac: true, immediate: &["right_option", "left_option", "right_command", "fn"] };
+    Layout { choices: MAC_CHOICES, mac: true, immediate: &["right_option", "left_option", "right_command", "fn"], swallows: false };
 
 /// La disposition du système sur lequel tourne le programme.
 pub fn layout() -> &'static Layout {
     if cfg!(target_os = "macos") {
         &MAC_LAYOUT
+    } else if cfg!(target_os = "linux") {
+        &LINUX_LAYOUT
     } else {
         &WINDOWS_LAYOUT
     }
@@ -229,12 +237,17 @@ impl Layout {
         self.choices
     }
 
+    /// Les touches proposées à la personne : la liste, sans les flèches là où le crochet ne peut pas les retenir.
+    pub fn selectable(&self) -> impl Iterator<Item = &'static KeyChoice> + '_ {
+        self.choices.iter().filter(|c| self.swallows || !c.id.starts_with("arrow_"))
+    }
+
     fn find(&self, id: &str) -> Option<&'static KeyChoice> {
-        self.choices.iter().find(|c| c.id == id)
+        self.selectable().find(|c| c.id == id)
     }
 
     fn find_by_key(&self, key: Key) -> Option<&'static KeyChoice> {
-        self.choices.iter().find(|c| c.key == key)
+        self.selectable().find(|c| c.key == key)
     }
 
     /// Cette touche de modification, seule, écoute-t-elle tout de suite ?
@@ -1307,6 +1320,16 @@ mod tests {
     }
 
     /// Les flèches servent à commander et à traduire (personne ne tape pendant une dictée), pas à lancer la dictée.
+    /// Linux et Mac ne retiennent aucune touche : pas de flèches, qui déferaient la sélection visée par la commande.
+    #[test]
+    fn arrows_are_only_offered_where_the_hook_can_hold_them_back() {
+        assert!(WINDOWS_LAYOUT.selectable().any(|c| c.id == "arrow_left"));
+        assert!(!LINUX_LAYOUT.selectable().any(|c| c.id == "arrow_left"));
+        assert!(LINUX_LAYOUT.validate(&[], &[], &["arrow_left".to_string()]).is_err());
+        assert!(LINUX_LAYOUT.validate(&[], &[], &["f9".to_string()]).is_ok());
+        assert!(!MAC_LAYOUT.selectable().any(|c| c.id.starts_with("arrow_")));
+    }
+
     #[test]
     fn arrows_can_command_and_translate_but_not_start_the_dictation() {
         let b = command_binding(&WINDOWS_LAYOUT, &["right_control"], &["arrow_up"], &["arrow_left"]).unwrap();

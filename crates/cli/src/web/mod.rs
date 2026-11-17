@@ -788,7 +788,7 @@ fn status(ctx: &Context) -> Value {
         "gnome_command_shortcut": gnome_command_shortcut(),
         "command_label": if let Some(shortcut) = gnome_command_shortcut() { shortcut } else { scriibe_platform::keys::command_label(&settings).unwrap_or_default() },
         "default_command_label": scriibe_platform::keys::default_command_label(),
-        "key_choices": scriibe_platform::keys::layout().choices().iter().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
+        "key_choices": scriibe_platform::keys::layout().selectable().map(|c| json!({"id": c.id, "label": c.label, "modifier": c.modifier})).collect::<Vec<_>>(),
         "default_dictation_label": scriibe_platform::keys::default_dictation_label(),
         "default_translate_label": scriibe_platform::keys::default_translate_label(),
         "default_dictation_id": scriibe_platform::keys::layout().default_dictation_id(&settings),
