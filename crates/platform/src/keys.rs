@@ -94,15 +94,16 @@ pub const VK_RWIN: u32 = 0x5C;
 /// Alt droit (AltGr sur un clavier AZERTY).
 pub const VK_RMENU: u32 = 0xA5;
 
-/// Les touches réservées à la touche de commande : AltGr sert à taper (« @ », « € »), donc, seule, elle ne peut pas dicter ni traduire ;
-/// tenue **pendant** une dictée (la touche de commande), elle ne gêne rien.
+/// Les touches qui ne peuvent pas **lancer** la dictée : AltGr sert à taper (« @ », « € »), les flèches déplacent le curseur ; seules, elles
+/// déclencheraient l'écoute à chaque frappe. Tenues **pendant** une dictée (touche de traduction ou de commande), personne ne tape : elles
+/// ne gênent rien (le crochet retient les flèches pour qu'elles ne bougent pas le curseur : `HookRules::swallow_in_dictation`).
 /// Une touche de commande est une touche ou une combinaison de trois touches au plus, toutes à tenir.
 pub const MAX_COMMAND_KEYS: usize = 3;
 
-pub const COMMAND_ONLY: &[&str] = &["right_alt"];
+pub const NOT_FOR_DICTATION: &[&str] = &["right_alt", "arrow_left", "arrow_up", "arrow_right", "arrow_down"];
 
-/// Les touches qu'on peut utiliser (Windows). Ni lettres, chiffres, Espace, Entrée ou flèches (elles servent à taper). AltGr (Alt droit :
-/// nécessaire à « @ » et « € » sur un clavier AZERTY) n'est permise que pour la touche de commande (`COMMAND_ONLY`).
+/// Les touches qu'on peut utiliser (Windows). Ni lettres, chiffres, Espace ni Entrée. AltGr et les flèches ne sont permises que pour traduire
+/// ou commander, pas pour lancer la dictée (`NOT_FOR_DICTATION`).
 pub const CHOICES: &[KeyChoice] = &[
     choice("right_control", "Ctrl droit", vk::RCONTROL, true),
     choice("left_control", "Ctrl gauche", vk::LCONTROL, true),
@@ -112,6 +113,10 @@ pub const CHOICES: &[KeyChoice] = &[
     choice("right_shift", "Maj droit", vk::RSHIFT, true),
     choice("left_win", "Windows gauche", VK_LWIN, true),
     choice("right_win", "Windows droite", VK_RWIN, true),
+    choice("arrow_left", "Flèche gauche", 0x25, false),
+    choice("arrow_up", "Flèche haut", 0x26, false),
+    choice("arrow_right", "Flèche droite", 0x27, false),
+    choice("arrow_down", "Flèche bas", 0x28, false),
     choice("oem_102", "< > (à gauche de W)", 0xE2, false),
     choice("f1", "F1", 0x70, false),
     choice("f2", "F2", 0x71, false),
@@ -312,8 +317,8 @@ impl Layout {
         let mut chosen = Vec::new();
         for id in dictation {
             let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
-            if COMMAND_ONLY.contains(&choice.id) {
-                return Err(format!("{} ne peut servir qu'à dicter une commande : elle sert à taper", choice.label));
+            if NOT_FOR_DICTATION.contains(&choice.id) {
+                return Err(format!("{} ne peut pas lancer la dictée : elle sert à taper", choice.label));
             }
             if chosen.iter().any(|c: &&KeyChoice| c.id == choice.id) {
                 return Err(format!("{} choisie deux fois", choice.label));
@@ -347,9 +352,6 @@ impl Layout {
             [id] if id == BOTH_SHIFTS => self.validate_translate(dictation, &[]),
             [id] => {
                 let choice = self.find(id).ok_or_else(|| format!("touche inconnue : {id}"))?;
-                if COMMAND_ONLY.contains(&choice.id) {
-                    return Err(format!("{} ne peut servir qu'à dicter une commande : elle sert à taper", choice.label));
-                }
                 if dictation.iter().any(|c| c.id == choice.id) {
                     return Err(format!("{} sert déjà à dicter", choice.label));
                 }
@@ -383,7 +385,11 @@ impl Layout {
     fn command_keys(&self, dictation: &[Key], translate: &[Key], command: &[String]) -> Option<Vec<Key>> {
         match command {
             [] => Some(self.default_command().iter().copied().filter(|k| !dictation.contains(k) && !translate.contains(k)).collect()),
-            ids if ids.len() <= MAX_COMMAND_KEYS => ids.iter().map(|id| self.find(id).map(|c| c.key)).collect(),
+            ids if ids.len() <= MAX_COMMAND_KEYS => {
+                let keys = ids.iter().map(|id| self.find(id).map(|c| c.key)).collect::<Option<Vec<_>>>()?;
+                // La touche de dictée dans la combinaison (« Ctrl droit + AltGr ») est déjà tenue : elle n'ajoute rien.
+                Some(if keys.len() > 1 { keys.into_iter().filter(|k| !dictation.contains(k)).collect() } else { keys })
+            }
             _ => None,
         }
     }
@@ -424,7 +430,11 @@ impl Layout {
                 return Err(format!("{} choisie deux fois", choice.label));
             }
             if dictation_keys.contains(&choice.key) {
-                return Err(format!("{} sert déjà à dicter", choice.label));
+                // Dans une combinaison, la touche de dictée est déjà tenue (« Ctrl droit + AltGr ») ; seule, elle ne commande rien.
+                if command.len() == 1 {
+                    return Err(format!("{} sert déjà à dicter", choice.label));
+                }
+                continue;
             }
             if translate_keys.as_ref().is_some_and(|t| t.contains(&choice.key)) {
                 return Err(format!("{} sert déjà à traduire", choice.label));
@@ -577,6 +587,9 @@ pub struct HookRules {
     pub swallow: Vec<u32>,
     /// Les autres touches de la combinaison de dictée, tenues avant de retenir une touche ordinaire.
     pub needs: Vec<u32>,
+    /// Les touches ordinaires de traduction et de commande (flèches, F9…) : le crochet les retient tant que la dictée est tenue, pour
+    /// qu'elles n'écrivent rien et ne déplacent pas le curseur de l'appli.
+    pub swallow_in_dictation: Vec<u32>,
     /// Les touches en vigueur (aucune pendant une capture). Sous Wayland, le raccourci de GNOME rejoue l'appui de ces touches.
     pub binding: Option<Binding>,
 }
@@ -594,6 +607,7 @@ pub fn hook_rules(binding: &Binding) -> HookRules {
         dictation: codes.clone(),
         needs: if plain.is_empty() { Vec::new() } else { codes.iter().copied().filter(|c| !plain.contains(c)).collect() },
         swallow: plain,
+        swallow_in_dictation: translate.iter().chain(command.iter()).copied().filter(is_plain).filter(|c| !codes.contains(c)).collect(),
         binding: Some(binding.clone()),
     }
 }
@@ -649,6 +663,16 @@ pub fn label_of(key: Key) -> String {
     layout().label_of(key)
 }
 
+/// Les touches vues pendant une capture, sans le Ctrl gauche fictif que Windows envoie avec AltGr (Ctrl gauche + Alt droit) : la personne
+/// n'a appuyé que sur AltGr. Sur Mac, rien n'est changé.
+pub fn without_altgr_ctrl(keys: &[Key]) -> Vec<Key> {
+    let altgr = key_of(VK_RMENU);
+    if layout().mac || !keys.contains(&altgr) {
+        return keys.to_vec();
+    }
+    keys.iter().copied().filter(|k| *k != Key::LeftControl).collect()
+}
+
 /// Le nom d'une touche ou d'une combinaison (« Ctrl gauche + F9 ») en anglais, pour le menu de l'icône ; la page a sa propre liste
 /// (`ui/src/lib/locales/en-server.ts`). Un nom inconnu reste tel quel.
 pub fn english_label(french: &str) -> String {
@@ -663,6 +687,10 @@ pub fn english_label(french: &str) -> String {
             "Ctrl gauche" => "Left Ctrl",
             "Alt gauche" => "Left Alt",
             "AltGr (Alt droit)" => "AltGr (right Alt)",
+            "Flèche gauche" => "Left arrow",
+            "Flèche haut" => "Up arrow",
+            "Flèche droite" => "Right arrow",
+            "Flèche bas" => "Down arrow",
             "Maj gauche" => "Left Shift",
             "Maj droit" => "Right Shift",
             "Maj" => "Shift",
@@ -905,10 +933,12 @@ mod tests {
         assert_eq!(id_of(Key::Vk(0x78)), Some("f9"));
         assert_eq!(id_of(Key::LeftControl), Some("left_control"));
         assert_eq!(id_of(Key::Vk(0x41)), None, "une lettre ne peut pas dicter");
-        // AltGr est dans la liste, mais réservée à la touche de commande : ni dictée ni traduction.
+        // AltGr et les flèches sont dans la liste, mais ne peuvent pas lancer la dictée ; elles peuvent traduire et commander.
         assert_eq!(id_of(Key::Vk(0xA5)), Some("right_alt"));
         assert!(validate(&["right_alt".to_string()], &[]).is_err(), "AltGr seule ne peut pas dicter");
-        assert!(WINDOWS_LAYOUT.validate(&[], &["right_alt".to_string()], &[]).is_err(), "ni traduire");
+        assert!(validate(&["arrow_left".to_string()], &[]).is_err(), "une flèche seule ne peut pas dicter");
+        assert!(WINDOWS_LAYOUT.validate(&[], &["right_alt".to_string()], &[]).is_ok(), "AltGr peut traduire");
+        assert!(WINDOWS_LAYOUT.validate(&[], &["arrow_up".to_string()], &["arrow_left".to_string()]).is_ok());
         assert!(WINDOWS_LAYOUT.validate(&["f9".to_string()], &[], &["right_alt".to_string()]).is_ok());
         assert_eq!(id_of(Key::Fn), None);
     }
@@ -1263,9 +1293,41 @@ mod tests {
     fn ctrl_left_plus_altgr_is_a_valid_command_combination() {
         let b = command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["left_control", "right_alt"]).unwrap();
         assert_eq!(b.command, vec![Key::LeftControl, Key::Vk(VK_RMENU)]);
-        // Mais trois touches au plus, sans doublon, et jamais celle de la dictée.
+        // Mais trois touches au plus et sans doublon.
         assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["f1", "f2", "f3", "f4"]).is_err());
         assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["left_alt", "left_alt"]).is_err());
-        assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["right_control", "right_alt"]).is_err());
+    }
+
+    /// « Ctrl droit + AltGr » : la touche de dictée est déjà tenue, la commande se réduit à AltGr. Ctrl droit seule ne commande rien.
+    #[test]
+    fn the_dictation_key_inside_a_command_combination_is_already_held() {
+        let b = command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["right_control", "right_alt"]).unwrap();
+        assert_eq!(b.command, vec![Key::Vk(VK_RMENU)]);
+        assert!(command_binding(&WINDOWS_LAYOUT, &["right_control"], &[], &["right_control"]).is_err());
+    }
+
+    /// Les flèches servent à commander et à traduire (personne ne tape pendant une dictée), pas à lancer la dictée.
+    #[test]
+    fn arrows_can_command_and_translate_but_not_start_the_dictation() {
+        let b = command_binding(&WINDOWS_LAYOUT, &["right_control"], &["arrow_up"], &["arrow_left"]).unwrap();
+        assert_eq!((b.translate.clone(), b.command.clone()), (vec![Key::Vk(0x26)], vec![Key::Vk(0x25)]));
+        assert!(command_binding(&WINDOWS_LAYOUT, &["arrow_left"], &[], &[]).is_err());
+        // Le crochet retient ces flèches pendant la dictée, et seulement alors.
+        let rules = hook_rules(&b);
+        assert_eq!(rules.swallow_in_dictation, vec![0x26, 0x25]);
+        assert!(rules.swallow.is_empty());
+    }
+
+    /// Capture d'AltGr : Windows ajoute un Ctrl gauche fictif, la personne n'a appuyé que sur AltGr.
+    #[test]
+    fn the_fake_left_control_of_altgr_is_dropped_from_a_capture() {
+        if layout().mac {
+            return;
+        }
+        let altgr = Key::Vk(VK_RMENU);
+        assert_eq!(without_altgr_ctrl(&[Key::LeftControl, altgr]), vec![altgr]);
+        assert_eq!(without_altgr_ctrl(&[Key::RightControl, Key::LeftControl, altgr]), vec![Key::RightControl, altgr]);
+        // Sans AltGr, Ctrl gauche est une vraie touche.
+        assert_eq!(without_altgr_ctrl(&[Key::LeftControl, Key::Vk(0x78)]), vec![Key::LeftControl, Key::Vk(0x78)]);
     }
 }

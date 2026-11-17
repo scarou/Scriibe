@@ -78,6 +78,24 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                             }
                         });
                     }
+                    if rules.swallow_in_dictation.contains(&code) {
+                        let dictation_held =
+                            !rules.dictation.is_empty() && rules.dictation.iter().all(|need| held.contains(&key_of(*need)));
+                        SWALLOWED.with(|taken| {
+                            let mut taken = taken.borrow_mut();
+                            if down {
+                                if taken.contains(&code) || dictation_held {
+                                    if !taken.contains(&code) {
+                                        taken.push(code);
+                                    }
+                                    swallow = true;
+                                }
+                            } else if taken.contains(&code) {
+                                taken.retain(|c| *c != code);
+                                swallow = true;
+                            }
+                        });
+                    }
                     let event = translate_vk(&mut held, code, down);
                     mask_command = COMMAND_MENU.with(|mask| mask.borrow_mut().event(&rules, &held, code, down));
                     event

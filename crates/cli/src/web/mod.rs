@@ -927,14 +927,18 @@ fn capture_view(ctx: &Context) -> Value {
     use scriibe_platform::keys;
     let Some(capture) = ctx.app.controller.capture() else { return json!({"active": false}) };
     let kind = lock(&ctx.capture_kind).clone();
-    let labels: Vec<String> = capture.keys.iter().map(|k| keys::label_of(*k)).collect();
-    let ids: Option<Vec<String>> = capture.keys.iter().map(|k| keys::id_of(*k).map(str::to_string)).collect();
+    let seen = keys::without_altgr_ctrl(&capture.keys);
+    let labels: Vec<String> = seen.iter().map(|k| keys::label_of(*k)).collect();
+    let ids: Option<Vec<String>> = seen.iter().map(|k| keys::id_of(*k).map(str::to_string)).collect();
     let mut error = None;
     if capture.finished {
         let settings = ctx.app.config.settings();
         error = match &ids {
             None if kind == "command" => {
-                Some(format!("{} ne peut pas servir de touche de commande : elle sert à taper.", labels.join(" + ")))
+                Some(format!("{} ne peut pas servir de touche de commande : elle n'est pas dans la liste.", labels.join(" + ")))
+            }
+            None if kind == "translate" => {
+                Some(format!("{} ne peut pas servir de touche de traduction : elle n'est pas dans la liste.", labels.join(" + ")))
             }
             None => Some(format!("{} ne peut pas servir de touche de dictée : elle sert à taper (ou à AltGr).", labels.join(" + "))),
             Some(ids) if kind == "translate" => match ids.as_slice() {
