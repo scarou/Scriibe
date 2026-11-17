@@ -1183,4 +1183,28 @@ mod tests {
             assert_eq!(command_label(&settings), None);
         }
     }
+
+    // Correctif de la touche de commande (chantier 1, tâche 0) : ces tests échouent tant que le défaut n'est pas corrigé.
+
+    /// Sous Windows la touche de commande par défaut ne doit pas être « Windows droite » : beaucoup de claviers (portables) n'en ont pas, et la
+    /// page affiche alors une touche qu'on ne peut pas tenir. (Ne s'exécute que sous Windows : `default_command` lit `cfg!(windows)`.)
+    #[cfg(windows)]
+    #[test]
+    fn the_default_command_key_exists_on_every_windows_keyboard() {
+        assert_ne!(WINDOWS_LAYOUT.default_command(), vec![Key::Vk(VK_RWIN)], "Windows droite n'existe pas sur tous les claviers");
+    }
+
+    /// La touche de commande n'est tenue que pendant une dictée : AltGr (qui sert à taper « @ » et « € ») peut donc la servir.
+    #[test]
+    fn a_command_key_may_be_altgr_since_it_is_only_held_during_a_dictation() {
+        assert_eq!(WINDOWS_LAYOUT.id_of(Key::Vk(0xA5)), Some("right_alt"), "AltGr doit être reconnue pour la commande");
+        assert_eq!(WINDOWS_LAYOUT.validate(&[], &[], &["right_alt".to_string()]), Ok(()));
+    }
+
+    /// La touche de commande peut être une combinaison (Ctrl gauche + AltGr, par exemple).
+    #[test]
+    fn a_command_key_may_be_a_combination() {
+        let command = ["left_control".to_string(), "right_alt".to_string()];
+        assert_eq!(WINDOWS_LAYOUT.validate(&[], &[], &command), Ok(()));
+    }
 }

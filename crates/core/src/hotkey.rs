@@ -386,4 +386,12 @@ mod tests {
         assert_eq!(Hotkey::RightControl.key(), Key::RightControl);
         assert_eq!(Key::from_name("right_control"), Some(Key::RightControl));
     }
+
+    /// Une touche de commande en combinaison n'agit que si toutes ses touches sont tenues (chantier 1, tâche 0).
+    #[test]
+    fn a_combined_command_key_needs_all_its_keys() {
+        let binding = Binding { command: vec![Key::LeftControl, Key::Vk(0xA5)], ..Binding::from_hotkey(Hotkey::RightControl) };
+        assert!(!binding.command_key_held(&[Key::LeftControl]), "une seule des deux touches ne suffit pas");
+        assert!(binding.command_key_held(&[Key::LeftControl, Key::Vk(0xA5)]));
+    }
 }
