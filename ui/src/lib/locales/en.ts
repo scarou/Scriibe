@@ -464,8 +464,8 @@ export const en: Record<string, string> = {
   'mise au propre': 'cleanup',
   'transcription': 'transcription',
   'téléchargement interrompu': 'interrupted download',
-  'C’est le modèle utilisé en ce moment : il faudra en choisir un autre (Réglages) ou en installer un.':
-    'This is the model in use right now: you will need to choose another one (Settings) or install one.',
+  'C’est le modèle utilisé en ce moment : il faudra en choisir un autre (Moteurs et modèles) ou en installer un.':
+    'This is the model in use right now: you will need to choose another one (Engines and models) or install one.',
   'Supprimer {name} ({size}) ?': 'Delete {name} ({size})?',
   'Modèles installés': 'Installed models',
   'utilisé': 'in use',
@@ -475,8 +475,8 @@ export const en: Record<string, string> = {
 
   // Recherche sur Hugging Face
   'Ajouter un modèle depuis Hugging Face': 'Add a model from Hugging Face',
-  'Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Réglages → Moteurs.':
-    'To try a recent model: type words to search for (“qwen3 instruct”, “gemma”), or the name of a repository (“owner/name”) or its address. Scriibe then lists its files with their real size; nothing is downloaded before you confirm. For cleanup, choose a GGUF file; the “Q4_K_M” quantisation is a good size / quality compromise. Once installed, the model is chosen in Settings → Engines.',
+  'Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Moteurs et modèles.':
+    'To try a recent model: type words to search for (“qwen3 instruct”, “gemma”), or the name of a repository (“owner/name”) or its address. Scriibe then lists its files with their real size; nothing is downloaded before you confirm. For cleanup, choose a GGUF file; the “Q4_K_M” quantisation is a good size / quality compromise. Once installed, the model is chosen in Engines and models.',
   'Genre de modèle': 'Model type',
   'Mise au propre (GGUF)': 'Cleanup (GGUF)',
   'Transcription (Whisper)': 'Transcription (Whisper)',

@@ -19,7 +19,7 @@
   }
 
   async function remove(m: InstalledModel) {
-    const warn = m.used ? '\n\n' + t('C’est le modèle utilisé en ce moment : il faudra en choisir un autre (Réglages) ou en installer un.') : '';
+    const warn = m.used ? '\n\n' + t('C’est le modèle utilisé en ce moment : il faudra en choisir un autre (Moteurs et modèles) ou en installer un.') : '';
     if (!(await confirmBox(`${t('Supprimer {name} ({size}) ?', { name: m.name, size: taille(m.size) })}\n${m.path}${warn}`, { confirm: t('Supprimer'), danger: true }))) return;
     const out = await api('models/delete', { path: m.path, name: m.name });
     if (!out.ok) await notice(out.error);

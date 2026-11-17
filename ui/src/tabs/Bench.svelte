@@ -9,7 +9,6 @@
   import { fmt } from '../lib/display.svelte';
   import { t } from '../lib/i18n.svelte';
   import BenchArchive from '../components/BenchArchive.svelte';
-  import TimingsCard from '../components/TimingsCard.svelte';
   import TrialBench from '../components/TrialBench.svelte';
   import ProfileBars from '../components/ProfileBars.svelte';
   import { outcomeLabels } from '../lib/timings';

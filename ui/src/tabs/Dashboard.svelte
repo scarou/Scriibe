@@ -21,7 +21,7 @@
   /** L'onde du bandeau : la hauteur relative de chaque barre. */
   const wave = [0.18, 0.3, 0.5, 0.36, 0.7, 0.95, 0.62, 0.82, 0.45, 0.6, 0.32, 0.5, 0.24, 0.36, 0.16];
 
-  /** Montre l'assistant et le met en vue : la demande vient aussi des Réglages et de l'Aide. */
+  /** Montre l'assistant et le met en vue : la demande vient aussi de Moteurs et modèles et de l'Aide. */
   async function openAssistant() {
     showAssistant = true;
     await tick();

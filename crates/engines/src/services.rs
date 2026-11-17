@@ -118,7 +118,7 @@ impl Transcriber {
     pub fn transcribe(&self, wav: &[u8], settings: &AppSettings, vocabulary: &[String]) -> Result<String, ServiceError> {
         match settings.transcription_engine {
             TranscriptionEngine::Deepgram => {
-                let key = self.secrets.get(KeyKind::Deepgram).ok_or_else(|| ServiceError::new("Clé Deepgram manquante — voir Réglages"))?;
+                let key = self.secrets.get(KeyKind::Deepgram).ok_or_else(|| ServiceError::new("Clé Deepgram manquante — voir Profil"))?;
                 deepgram::transcribe(self.http.as_ref(), wav, &key, &settings.transcription_model, settings.language, vocabulary)
             }
             TranscriptionEngine::Whisper => {

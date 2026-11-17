@@ -164,7 +164,7 @@ fn transcriber(world: &Arc<FakeWorld>, keys: Keys, models: &'static [&'static st
 fn deepgram_needs_a_key() {
     let world = FakeWorld::new();
     let t = transcriber(&world, no_keys(), &[]);
-    assert_eq!(t.transcribe(b"x", &AppSettings::default(), &[]).unwrap_err().message, "Clé Deepgram manquante — voir Réglages");
+    assert_eq!(t.transcribe(b"x", &AppSettings::default(), &[]).unwrap_err().message, "Clé Deepgram manquante — voir Profil");
 }
 
 #[test]

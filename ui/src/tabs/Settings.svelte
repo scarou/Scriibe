@@ -66,7 +66,7 @@
   let localAddress = $derived(localEngine && v ? String(v[localEngine.url] ?? '') : '');
   $effect(() => {
     void localAddress;
-    if (localId) untrack(() => void refreshLocal());
+    if (localId && section === 'engines') untrack(() => void refreshLocal());
   });
 
   /** Joue un son au volume des réglages (le serveur le fait jouer par le système). */

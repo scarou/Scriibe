@@ -38,7 +38,7 @@
   }
 </script>
 
-<Card id="ajout-hugging-face" title={t('Ajouter un modèle depuis Hugging Face')} help="start" intro={t('Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Réglages → Moteurs.')}>
+<Card id="ajout-hugging-face" title={t('Ajouter un modèle depuis Hugging Face')} help="start" intro={t('Pour essayer un modèle récent : tapez des mots à chercher (« qwen3 instruct », « gemma »), ou le nom d’un dépôt (« propriétaire/nom ») ou son adresse. Scriibe liste alors ses fichiers avec leur vraie taille ; rien n’est téléchargé avant votre confirmation. Pour la mise au propre, choisissez un fichier GGUF ; la quantification « Q4_K_M » est un bon compromis taille / qualité. Une fois installé, le modèle se choisit dans Moteurs et modèles.')}>
   <div class="row">
     <select bind:value={kind} aria-label={t('Genre de modèle')}>
       <option value="llama">{t('Mise au propre (GGUF)')}</option>

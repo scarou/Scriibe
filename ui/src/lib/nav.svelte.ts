@@ -29,7 +29,12 @@ class Nav {
       /* sans importance */
     }
     await tick();
-    const target = anchor ? document.getElementById(anchor) : null;
+    let target = anchor ? document.getElementById(anchor) : null;
+    // Une carte qui attend la réponse du programme (ex. la mise à jour) n'existe pas encore : on la guette une seconde.
+    for (let i = 0; anchor && !target && i < 60; i++) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      target = document.getElementById(anchor);
+    }
     if (target) {
       // Une carte repliée se déplie pour être montrée.
       if (target.dataset.folded === 'true') target.querySelector<HTMLButtonElement>('button.fold')?.click();

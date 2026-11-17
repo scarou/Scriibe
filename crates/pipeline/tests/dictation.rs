@@ -533,7 +533,7 @@ fn the_dictionary_is_applied_before_and_after_the_model() {
 fn a_missing_deepgram_key_is_explained() {
     let r = rig_full(local_settings(), "x", "x", true, StaticSecrets::default(), Arc::new(NoGuesser));
     r.dictate();
-    assert_eq!(r.indicator.last(), Some(message("Clé Deepgram manquante — voir Réglages")));
+    assert_eq!(r.indicator.last(), Some(message("Clé Deepgram manquante — voir Profil")));
     assert!(!r.controller.is_busy() && r.paster.pasted().is_empty() && r.history.items().is_empty());
 }
 
@@ -2108,9 +2108,9 @@ fn under_the_command_key_an_engine_elsewhere_needs_its_consent() {
     let r = rewrite_rig("Rends ça plus amical", "Coucou ! La réunion est annulée.", remote.clone());
     r.dictate_under_key();
     assert!(
-        r.indicator
-            .states()
-            .contains(&message("Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs)")),
+        r.indicator.states().contains(&message(
+            "Reformulation impossible : moteur hors de cet ordinateur, sans accord (Commandes vocales → Reformulation de la sélection)"
+        )),
         "{:?}",
         r.indicator.states()
     );

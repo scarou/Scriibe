@@ -260,7 +260,7 @@ export const enServer: Record<string, string> = {
 
   // Reformulation de la sélection (étape 4 du chantier 6)
   'Non disponible sous Linux': 'Not available on Linux',
-  'Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs)': 'Rewrite not possible: engine not on this computer, no consent (Settings → Engines)',
+  'Reformulation impossible : moteur hors de cet ordinateur, sans accord (Commandes vocales → Reformulation de la sélection)': 'Rewrite not possible: engine not on this computer, no consent (Voice commands → Rewriting the selection)',
   'Sélection trop longue pour la reformulation (3 000 signes au plus)': 'Selection too long to rewrite (3,000 characters at most)',
   'Rien à changer': 'Nothing to change',
   'Reformulation impossible : réponse du modèle écartée': 'Rewrite not possible: the model’s answer was rejected',

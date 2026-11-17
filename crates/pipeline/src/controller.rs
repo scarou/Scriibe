@@ -872,7 +872,7 @@ impl Controller {
             Err(error) => {
                 let message = match &error {
                     RewriteError::NotAllowed => {
-                        "Reformulation impossible : moteur hors de cet ordinateur, sans accord (Réglages → Moteurs)".to_string()
+                        "Reformulation impossible : moteur hors de cet ordinateur, sans accord (Commandes vocales → Reformulation de la sélection)".to_string()
                     }
                     RewriteError::TooLong => "Sélection trop longue pour la reformulation (3 000 signes au plus)".to_string(),
                     RewriteError::Unchanged => "Rien à changer".to_string(),
