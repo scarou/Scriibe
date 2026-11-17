@@ -25,7 +25,7 @@
     </div>
   {/if}
   {#if s?.gnome_shortcut}
-    <p class="muted">{s.gnome_command_shortcut ? t('Pour dicter une commande : {shortcut}. Pour la changer, ce n’est pas ici : Paramètres de GNOME → Applications → Scriibe → Raccourcis globaux, puis relance Scriibe.', { shortcut: keyName(s.gnome_command_shortcut) }) : t('Pas encore de raccourci de commande : relance Scriibe, GNOME t’en fera choisir un.')}</p>
+    <p class="muted">{s.gnome_command_shortcut ? t('Pour dicter une commande : {shortcut}. Pour la changer, ce n’est pas ici : Paramètres de GNOME → Applications → Scriibe → Raccourcis clavier (une fenêtre « Raccourcis globaux » s’ouvre), puis relance Scriibe.', { shortcut: keyName(s.gnome_command_shortcut) }) : t('Pas encore de raccourci de commande : relance Scriibe, GNOME t’en fera choisir un.')}</p>
   {:else}
     <KeyPicker kinds={['command']} />
   {/if}
