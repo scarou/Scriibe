@@ -995,3 +995,36 @@ Fait le 2026-11-17.
 - **À propos** (`HelpAbout.svelte`, noms dans `lib/about.ts`) : nom, version (celle du programme), créateur, licence MIT, adresse du dépôt avec un bouton « Copier l'adresse » (aucun lien ne s'ouvre depuis la page : pas de nouvelle route côté programme pour ouvrir une adresse). Créateur : l'auteur, accord donné le 17/11/2026 (exception à la règle des noms, notée dans `CLAUDE.md`) ; pas de contributeurs affichés.
 - **Tests** : `helpsearch.test.ts` (4 : casse, accents, apostrophes, deux lettres), `tabs.test.ts` (13 rubriques, ordre du menu), `i18n.test.ts` (miroir FR/EN sur 13 rubriques) ; svelte-check sans erreur, Vitest 136 verts, build passe ; `cargo fmt`, `clippy`, `cargo test --workspace` verts.
 - **Vu à l'écran (Mac, copie d'essai)** : sommaire à 13 rubriques ; recherche « sauvegarde » : 20 résultats dans 5 rubriques, 20 plages surlignées ; « ÉCRAN » trouve « écran » ; « zzzqq » : « Aucun résultat » ; champ vidé : retour à « Premiers pas ». Capture : mot surligné dans « Commandes vocales » et sommaire réduit aux rubriques trouvées. **Non vu** : l'anglais à l'écran, la rubrique « À propos » à l'écran, Linux et Windows.
+
+## Essai lot 2 (tâche 11)
+
+Essai réel du 17/11/2026, code au commit `5c7bc80` (les tâches 8 à 10 poussées sur `main` pour l'occasion, accord de l'auteur ; les PC ne tirent que de GitHub). Mac : `Scriibe.app` recompilée, copie `Scriibe-essai-lot2.app` lancée sur une copie des données (`~/Library/Application Support/Scriibe-essai-lot2`, sans les modèles, lien vers eux ; l'instance habituelle de l'auteur fermée pendant l'essai puis relancée). Linux et Windows : `pilote maj` puis `pilote compiler --mode release`, lancement sur une copie des données (`~/essai-lot2`, `C:\essai-refonte-lot2`) ; Windows lancé par un double-clic de l'auteur sur un lanceur du Bureau (retiré ensuite). Les pages ont été lues par le navigateur intégré (Linux et Windows par un tunnel SSH vers le serveur local) ; les boîtes de fichier de macOS et de Windows ont été validées par l'auteur, qui a aussi relu l'écran du Mac et de Windows. Résultats relus sur disque après chaque geste.
+
+| Contrôle | Mac | Linux | Windows |
+|---|---|---|---|
+| Carte « Sauvegarder et transférer » : sauvegarde complète enregistrée et relue | ✔ (1,4 Mo) | ✔ (53 Ko, dans Documents) | ✔ (167 Ko, Bureau) |
+| Export du dictionnaire (fichier relu) | ✔ 28 mots, 48 corrections | ✔ 3 mots, 1 correction | ✔ 14 mots, 3 corrections |
+| Import du dictionnaire après retrait d'un mot : aperçu puis « Importer », mot revenu sur disque | ✔ (28 mots) | ✔ (3 mots ; saisie du chemin du fichier) | ✔ (14 mots) |
+| Aucun « vous / votre / vos » sur les 12 pages | ✔ | ✔ | ✔ |
+| Touches citées lues des réglages, sans terme d'un autre système | ✔ (Mac : « Réglages Système → Général → Ouverture ») | ✔ (« Ctrl + ← », « éditeur de texte », « Applications au démarrage ») | ✔ (« Ctrl droit », « Bloc-notes ») |
+| Assistant : « Tout est en place : maintiens {touche}, parle, relâche » | non vu (modèle Whisper « base » absent de la copie : toutes les chaînes demandent son installation) | ✔ « Ctrl + ← » | ✔ « Ctrl droit » |
+| Recherche dans l'Aide : « sauvegarde » 20 résultats dans 5 rubriques, 20 plages surlignées ; « ECRAN » trouve « écran » ; « zzzqq » aucun résultat | ✔ | ✔ | ✔ |
+| Rubrique « À propos » : version 0.9.0 (5c7bc80), créateur, licence MIT, adresse du dépôt avec « Copier l'adresse » | ✔ | ✔ | ✔ |
+
+Non vu : l'anglais à l'écran, les trois autres imports et les exports de parties (utilisateur, modes, commandes) sur ces machines, le surlignage sur Linux et Windows dans une fenêtre réelle (la plage est comptée dans le navigateur intégré), la restauration d'une sauvegarde complète (essayée à la tâche 8 sur Mac), « Mettre de côté » à l'écran.
+
+### Constats
+
+- **Texte de la carte d'export (même texte sur les trois systèmes) : « Une boîte te demande où l'enregistrer (sous Linux, il est placé dans le dossier Documents) ».** Sur Linux, aucune boîte ne s'ouvre (le fichier est écrit dans Documents, l'import demande de taper le chemin) : la phrase se contredit ; sur Mac et Windows elle parle de Linux. À rendre propre à chaque système, comme les textes de la tâche 9. Non corrigé (hors tâche).
+- Libellés « (Windows) » des programmes de Moteurs et modèles affichés sur Mac (déjà noté à la tâche 9).
+- **Une fenêtre déjà ouverte n'est pas rafraîchie par un changement venu d'une autre vue** du même serveur (ex. : 27 mots affichés alors que le fichier en contient 28). Sans conséquence en usage normal (une seule fenêtre) ; vu seulement à cause du pilotage par le navigateur intégré. De même, une carte d'import ne s'ouvre que dans la vue qui a reçu le clic, et un second import invalide le premier aperçu (« l'aperçu n'est plus à jour : recommence l'import », protection voulue).
+- Piège d'essai (Mac) : la boîte de fichier d'un clic venu d'ailleurs peut rester **cachée derrière une autre fenêtre** ; la remonter avec `open ~/Applications/<appli>.app`.
+- Piège d'essai (Windows) : un `scriibe.exe` d'essai laissé ouvert (lot 1) empêche `cargo build --release` (« Accès refusé ») ; le fermer avant `pilote compiler`.
+
+### Ajouts
+
+Aucune demande nouvelle de l'auteur pendant cet essai (observations seulement, notées dans les constats).
+
+### Restes d'essai
+
+Mac : `~/Applications/Scriibe-essai-lot2.app`, `~/Library/Application Support/Scriibe-essai-lot2` (+ `-sorties` : sauvegarde, export, copie des réglages), hors iCloud. Linux : `~/essai-lot2`, `~/essai-lot2-lancement.log`. Windows : `C:\essai-refonte-lot2`. Fichiers d'essai du Bureau et de Documents retirés. Aucune Scriibe d'essai ne tourne ; l'instance habituelle du Mac est relancée ; données réelles non touchées.
