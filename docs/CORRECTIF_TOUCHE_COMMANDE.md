@@ -41,10 +41,19 @@ Capture (`crates/cli/src/web/mod.rs`, `capture_view`) : la combinaison est valid
 
 ## Essai
 
-Tâche 2 (17/11). PC Windows et PC Linux à jour par bundle git (le correctif n'est pas poussé, `pilote maj` ne tire que de GitHub) et compilés en release : succès sur les deux. Essai à la main sur Windows en cours (voir Ajouts).
+Tâche 2 (17/11). PC Windows et PC Linux à jour par bundle git (le correctif n'est pas poussé, `pilote maj` ne tire que de GitHub) et compilés en release : succès sur les deux. Essai à la main sur Windows en cours (voir Ajouts). Après les remarques de l'auteur, correctif complémentaire (commit 962a1d7) renvoyé par bundle et recompilé sur les deux PC.
 
 ## Ajouts
 
 1. **AltGr s'affiche « Ctrl gauche + AltGr » à la capture (Windows).** Windows envoie un Ctrl gauche fictif avec AltGr ; la capture le garde. À corriger : ignorer ce Ctrl gauche fictif, afficher « AltGr » seule. Remarque de l'auteur : la touche de dictée est Ctrl droit, pas Ctrl gauche.
 2. **Restrictions sur le choix de la touche de commande.** L'auteur demande pourquoi on ne peut pas choisir « Ctrl droit + AltGr » ni la flèche gauche (à côté de Ctrl droit), alors qu'elles ne servent à rien pendant une dictée. Réponse : aucune impossibilité technique, restrictions de prudence du code (`validate_command` refuse la touche de dictée ; `CHOICES` exclut les flèches « parce qu'elles servent à taper », raison qui ne vaut que pour la dictée, comme pour AltGr). À lever pour la commande seulement.
 3. **Libellé de la touche de traduction** : l'auteur emploie Maj droit ; par défaut la touche est « Maj, l'une ou l'autre ». À vérifier que l'interface le dit clairement.
+
+### Traité pendant l'essai (commit 962a1d7)
+
+- Ajouts 1 et 2 : le Ctrl gauche fictif d'AltGr est ignoré à la capture (`keys::without_altgr_ctrl`) ; flèches (haut, bas, gauche, droite) et AltGr permises pour **traduire et commander**, interdites seulement pour **lancer la dictée** (`NOT_FOR_DICTATION`) ; la touche de dictée dans une combinaison de commande est admise (« Ctrl droit + AltGr » revient à AltGr) ; le crochet Windows retient flèches et touches ordinaires de traduction et de commande tant que la dictée est tenue (`HookRules::swallow_in_dictation`). Sur Linux et Mac aucun crochet ne retient de touche : sur Linux une flèche choisie déplacerait le curseur de l'appli (pas de flèches proposées sur Mac). Lettres, chiffres, Espace et Entrée restent hors liste : à décider.
+- Essai Windows : AltGr choisie, enregistrée sans erreur, une commande vocale lancée avec elle (reconnaissance par Whisper difficile, sans rapport avec la touche).
+
+### À reporter au carnet
+
+4. **Liste des applications incomplète sous Windows** (page Commandes vocales, nouvelle commande « ouvrir une application ») : Bloc-notes et WhatsApp absents. Cause : `installed_apps.rs` ne lit que les raccourcis `.lnk` du menu Démarrer ; les applications du Microsoft Store (Bloc-notes de Windows 11, WhatsApp) n'en ont pas. Piste : lister les applications du dossier `shell:AppsFolder` et les lancer par leur identifiant d'application. Plus que quelques minutes (sécurité du lancement, tests) : ligne de carnet proposée.
