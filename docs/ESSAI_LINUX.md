@@ -21,7 +21,7 @@
 - Une touche **ordinaire** de la combinaison (F9, « < > ») n'est pas retenue : elle écrit aussi dans l'appli active (Ctrl droit par défaut ne pose pas ce problème). À faire : `XGrabKey`.
 - Pas d'**icône** (la zone de notification de Linux passe par GTK et AppIndicator) ni de **fenêtre Tauri** : l'interface s'ouvre dans le navigateur (`xdg-open`).
 - **Terminaux** : ils collent avec Ctrl+Maj+V ; le texte reste dans le presse-papiers.
-- **Clés d'API** (Deepgram, OpenRouter) : par les variables `DEEPGRAM_API_KEY` et `OPENROUTER_API_KEY` ; pas de trousseau encore.
+- **Clés d'API** (Deepgram, OpenRouter) : enregistrées par la page Profil dans le trousseau du bureau (`secret-tool`, `docs/REGLAGES_FINS.md` § Clé Linux), ou données par les variables `DEEPGRAM_API_KEY` et `OPENROUTER_API_KEY`.
 - **Moteurs** : `whisper-server` n'a pas de version Linux toute faite (à compiler ou à installer par la distribution) ; `llama-server` par la distribution ou depuis les versions de llama.cpp. Les téléchargements de l'onglet Installation ne les proposent pas encore sous Linux.
 
 ## Essayer

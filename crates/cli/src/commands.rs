@@ -483,7 +483,7 @@ pub fn uninstall(args: &[String]) -> Result<(), String> {
     match env.os {
         uninstall::Os::Mac => println!("Clés d'API : effacées du trousseau (deepgram, openrouter, ancien github), jamais affichées."),
         uninstall::Os::Windows => println!("Clés d'API : effacées du Gestionnaire d'identifiants (deepgram, openrouter, ancien github), jamais affichées."),
-        uninstall::Os::Linux => println!("Clés d'API : Linux n'a pas de coffre, rien à effacer (retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y as mises)."),
+        uninstall::Os::Linux => println!("Clés d'API : effacées du trousseau du bureau (deepgram, openrouter, ancien github), jamais affichées ; retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y as mises."),
     }
     for (kind, path, _) in &plan.kept {
         println!("Reste en place : {} ({kind})", path.display());

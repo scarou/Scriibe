@@ -375,7 +375,7 @@
 
   {#if section === 'keys'}
   <Card id="cles" title={t('Comptes en ligne')} help="privacy" intro={t('Seulement pour les services en ligne : une clé est ton identifiant chez Deepgram ou OpenRouter. Avec Whisper et un modèle local, tout reste sur cet ordinateur et aucune clé n’est utile.')}>
-    <p class="muted">{osName === 'macos' ? t('Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.') : osName === 'linux' ? t('Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.') : t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
+    <p class="muted">{osName === 'macos' ? t('Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.') : osName === 'linux' ? t('Sous Linux, les clés sont gardées dans le trousseau du bureau (Secret Service, par l’outil secret-tool du paquet libsecret-tools), jamais affichées ni écrites dans le journal. Sans trousseau, rien n’est enregistré : donne-les par des variables d’environnement (DEEPGRAM_API_KEY, OPENROUTER_API_KEY) avant de lancer Scriibe.') : t('Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.')}</p>
     {#each [{ id: 'deepgram', label: 'Deepgram' }, { id: 'openrouter', label: 'OpenRouter' }] as k (k.id)}
       {@const id = k.id as 'deepgram' | 'openrouter'}
       <div class="row">

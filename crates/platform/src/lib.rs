@@ -24,6 +24,7 @@ pub mod profiles;
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod recorder;
 pub mod restore;
+pub mod secret_service;
 pub mod secrets;
 pub mod sounds;
 pub mod storage;
@@ -53,8 +54,8 @@ pub struct Platform {
     pub sounds: Arc<dyn sounds::Sounds>,
 }
 
-/// Enregistre une clé d'API dans le coffre du système (Gestionnaire d'identifiants de Windows, trousseau de macOS) ; rend le nom du coffre pour
-/// les messages. Elle n'est ni affichée ni journalisée. Linux n'a pas encore de coffre : les clés s'y donnent par l'environnement.
+/// Enregistre une clé d'API dans le coffre du système (Gestionnaire d'identifiants de Windows, trousseau de macOS, trousseau du bureau sous Linux) ; rend le nom du coffre pour
+/// les messages. Elle n'est ni affichée ni journalisée. Linux : le trousseau du bureau (Secret Service, par `secret-tool`) ; sans lui, rien n'est écrit et les clés se donnent par l'environnement.
 pub fn save_secret(kind: scriibe_engines::runtime::KeyKind, value: &str) -> Result<&'static str, String> {
     #[cfg(windows)]
     {
@@ -64,7 +65,11 @@ pub fn save_secret(kind: scriibe_engines::runtime::KeyKind, value: &str) -> Resu
     {
         macos::set_credential(kind, value).map(|()| "trousseau")
     }
-    #[cfg(not(any(windows, target_os = "macos")))]
+    #[cfg(target_os = "linux")]
+    {
+        secret_service::shared().store(kind, value).map(|()| "trousseau du bureau")
+    }
+    #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
     {
         let _ = value;
         Err(format!("pas encore pris en charge ici : définis la variable d'environnement {}", secrets::env_name(kind)))

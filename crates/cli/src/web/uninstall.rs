@@ -53,7 +53,7 @@ pub(crate) fn plan_view(settings: &scriibe_core::settings::AppSettings, input: &
     let keys = match env.os {
         uninstall::Os::Mac => "keychain",
         uninstall::Os::Windows => "credman",
-        uninstall::Os::Linux => "env",
+        uninstall::Os::Linux => "secretservice",
     };
     json!({
         "ok": true,

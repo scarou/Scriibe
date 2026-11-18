@@ -602,7 +602,7 @@ pub fn final_message(plan: &Plan, report: &Report, os: Os) -> String {
         let how = match os {
             Os::Mac => "Trousseaux d'accès › rechercher « Scriibe »",
             Os::Windows => "Gestionnaire d'identifiants › Informations d'identification Windows › « Scriibe »",
-            Os::Linux => "retire la variable d'environnement de ton profil",
+            Os::Linux => "Mots de passe et clés (Trousseau) › rechercher « Scriibe », ou `secret-tool clear service Scriibe account <nom>`",
         };
         lines.push(format!("La clé {name} n'a pas pu être effacée ({e}) : {how}."));
     }
@@ -682,7 +682,7 @@ pub fn capacity_problem(plan: &Plan) -> Option<String> {
 
 const KEY_ACCOUNTS: [&str; 3] = ["deepgram", "openrouter", "github"];
 
-/// Efface les clés d'API du coffre du système : `(nom, résultat)`, `Ok(false)` si absente. Linux : aucun coffre.
+/// Efface les clés d'API du coffre du système : `(nom, résultat)`, `Ok(false)` si absente. Linux : le trousseau du bureau (`secret-tool`).
 pub fn delete_credentials() -> Vec<(String, Result<bool, String>)> {
     #[cfg(target_os = "macos")]
     {
@@ -729,7 +729,11 @@ pub fn delete_credentials() -> Vec<(String, Result<bool, String>)> {
             })
             .collect()
     }
-    #[cfg(not(any(target_os = "macos", windows)))]
+    #[cfg(target_os = "linux")]
+    {
+        KEY_ACCOUNTS.iter().map(|account| ((*account).to_string(), crate::secret_service::shared().delete(*account))).collect()
+    }
+    #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {
         let _ = KEY_ACCOUNTS;
         Vec::new()

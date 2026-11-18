@@ -319,7 +319,7 @@
         <li>Choose “None” as the cleanup to load no model at all: the text is transcribed as is (dictated signs, dictionary, typography). The modes and translation are then unavailable.</li>
         <li>The history, the dictionary, the settings and the bench runs stay on this computer, in the data folder (Data and system).</li>
         <li>History, “History privacy” card: uncheck “Keep the text of dictations” to keep only the statistics (date, app, words, duration, times), or “Keep the history” for a number of days: older dictations are deleted, only per-day totals remain, without text, for Home. A preview of the number of dictations affected is shown before any deletion. This does not change what Deepgram or OpenRouter receive during the dictation.</li>
-        <li>The Deepgram and OpenRouter keys are never displayed or written to the log; {#if mac}they are stored in the Mac’s keychain.{:else if linux}on Linux, Scriibe does not store them: you give them through environment variables, before launching Scriibe.{:else}they are stored in the Windows Credential Manager.{/if}</li>
+        <li>The Deepgram and OpenRouter keys are never displayed or written to the log; {#if mac}they are stored in the Mac’s keychain.{:else if linux}on Linux, they are stored in the desktop keyring (Secret Service, libsecret-tools package); without a keyring nothing is saved and you give them through environment variables, before launching Scriibe.{:else}they are stored in the Windows Credential Manager.{/if}</li>
       </ul>
       <div class="links">{@render go('The engines', 'engines', 'moteurs')}{@render go('History privacy', 'history', 'conservation')}</div>
     </div>

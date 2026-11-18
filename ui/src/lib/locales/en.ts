@@ -625,8 +625,8 @@ export const en: Record<string, string> = {
   'Prénom et genre': 'First name and gender',
   'Ce que Scriibe sait de la personne qui dicte : son prénom pour la salutation, son genre pour accorder les textes réécrits.': 'What Scriibe knows about the person dictating: their first name for the greeting, their gender to agree reworded texts.',
   'Les clés sont gardées dans le trousseau du Mac, jamais affichées ni écrites dans le journal.': 'The keys are kept in the Mac’s keychain and are never displayed or written to the log.',
-  'Sous Linux, Scriibe ne range pas les clés : elles se donnent par des variables d’environnement, avant de lancer Scriibe. Elles ne sont jamais affichées ni écrites dans le journal.':
-    'On Linux, Scriibe does not store the keys: you give them through environment variables, before launching Scriibe. They are never displayed or written to the log.',
+  'Sous Linux, les clés sont gardées dans le trousseau du bureau (Secret Service, par l’outil secret-tool du paquet libsecret-tools), jamais affichées ni écrites dans le journal. Sans trousseau, rien n’est enregistré : donne-les par des variables d’environnement (DEEPGRAM_API_KEY, OPENROUTER_API_KEY) avant de lancer Scriibe.':
+    'On Linux, keys are kept in the desktop keyring (Secret Service, through the secret-tool program of the libsecret-tools package), never displayed or written to the log. Without a keyring nothing is saved: give them through environment variables (DEEPGRAM_API_KEY, OPENROUTER_API_KEY) before launching Scriibe.',
   'Les clés sont gardées dans le Gestionnaire d’identifiants de Windows, jamais affichées ni écrites dans le journal.':
     'The keys are kept in the Windows Credential Manager and are never displayed or written to the log.',
   '✔ présente': '✔ present',
@@ -653,7 +653,7 @@ export const en: Record<string, string> = {
   'L’entrée de démarrage est retirée.': 'The startup entry is removed.',
   'Clés d’API effacées du trousseau (deepgram, openrouter, et l’ancien compte github s’il existe). macOS peut redemander l’accès au trousseau, jusqu’à une fois par clé.': 'API keys erased from the keychain (deepgram, openrouter, and the old github account if present). macOS may ask again for keychain access, up to once per key.',
   'Clés d’API effacées du Gestionnaire d’identifiants (deepgram, openrouter, ancien github).': 'API keys erased from Credential Manager (deepgram, openrouter, old github).',
-  'Linux : Scriibe ne range pas les clés. Retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y avais mises.': 'Linux: Scriibe does not store keys. Remove DEEPGRAM_API_KEY and OPENROUTER_API_KEY from your shell profile if you put them there.',
+  'Clés d’API effacées du trousseau du bureau (deepgram, openrouter, ancien github). Retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y avais mises.': 'API keys erased from the desktop keyring (deepgram, openrouter, former github). Remove DEEPGRAM_API_KEY and OPENROUTER_API_KEY from your shell profile if you put them there.',
   'Les autorisations de Scriibe (micro, accessibilité, surveillance de l’entrée) sont retirées ; une réinstallation les redemandera.': 'Scriibe’s permissions (microphone, accessibility, input monitoring) are removed; a reinstall will ask for them again.',
   'Reste en place :': 'Stays in place:',
   'Tes modèles téléchargés': 'Your downloaded models',

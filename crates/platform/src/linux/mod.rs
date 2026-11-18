@@ -27,7 +27,8 @@ pub fn foreground_for_tests() -> impl crate::apps::ForegroundApp {
 pub use paste::X11Paster;
 
 use crate::media::MediaPauser;
-use crate::secrets::EnvSecrets;
+use crate::secret_service::DesktopKeyring;
+use crate::secrets::{ChainedSecrets, EnvSecrets};
 use crate::Platform;
 use std::sync::Arc;
 
@@ -43,8 +44,8 @@ pub fn platform() -> Platform {
         paster: Arc::new(X11Paster::default()),
         media: Arc::new(MediaPauser::new(media::PulseAudio)),
         apps: Arc::new(foreground::X11Foreground::default()),
-        // Les clés se donnent par l'environnement (DEEPGRAM_API_KEY, OPENROUTER_API_KEY) : pas encore de trousseau (voir `ROADMAP.md`).
-        secrets: Arc::new(EnvSecrets),
+        // Le trousseau du bureau d'abord (clé enregistrée par la page Profil), puis l'environnement (DEEPGRAM_API_KEY, OPENROUTER_API_KEY).
+        secrets: Arc::new(ChainedSecrets(vec![Box::new(DesktopKeyring), Box::new(EnvSecrets)])),
         sounds: Arc::new(sounds::SessionSounds),
     }
 }

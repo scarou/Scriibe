@@ -46,7 +46,7 @@
     notBackedUp: { kind: string; size: number }[];
     warnings: string[];
     startup: boolean;
-    keys: 'keychain' | 'credman' | 'env';
+    keys: 'keychain' | 'credman' | 'secretservice';
     trashSize: number;
     capacityProblem: string | null;
   };
@@ -150,7 +150,7 @@
             <li><b>{t(removalLabels[it.kind] ?? it.kind)}</b> — <code>{it.path}</code> ({human(it.size)}){#if it.count > 1} · {t('{n} fichiers', { n: it.count })}{/if}{#if it.link} · {t('lien : sa cible reste en place')}{/if}</li>
           {/each}
           {#if plan.startup}<li>{t('L’entrée de démarrage est retirée.')}</li>{/if}
-          <li>{plan.keys === 'keychain' ? t('Clés d’API effacées du trousseau (deepgram, openrouter, et l’ancien compte github s’il existe). macOS peut redemander l’accès au trousseau, jusqu’à une fois par clé.') : plan.keys === 'credman' ? t('Clés d’API effacées du Gestionnaire d’identifiants (deepgram, openrouter, ancien github).') : t('Linux : Scriibe ne range pas les clés. Retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y avais mises.')}</li>
+          <li>{plan.keys === 'keychain' ? t('Clés d’API effacées du trousseau (deepgram, openrouter, et l’ancien compte github s’il existe). macOS peut redemander l’accès au trousseau, jusqu’à une fois par clé.') : plan.keys === 'credman' ? t('Clés d’API effacées du Gestionnaire d’identifiants (deepgram, openrouter, ancien github).') : t('Clés d’API effacées du trousseau du bureau (deepgram, openrouter, ancien github). Retire DEEPGRAM_API_KEY et OPENROUTER_API_KEY de ton profil de shell si tu les y avais mises.')}</li>
           {#if osName === 'macos'}<li>{t('Les autorisations de Scriibe (micro, accessibilité, surveillance de l’entrée) sont retirées ; une réinstallation les redemandera.')}</li>{/if}
         </ul>
         {#if plan.kept.length}

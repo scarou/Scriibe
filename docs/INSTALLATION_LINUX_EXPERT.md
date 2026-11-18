@@ -47,7 +47,7 @@ mkdir -p ~/.local/share/Scriibe/engines/whisper && cp ~/whisper.cpp/build/bin/wh
 
 ## Moteurs en ligne (dépannage)
 
-Plus rapides à mettre en place, ou utiles sur une machine modeste, mais payants à l'usage : la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Sous Linux il n'y a pas de trousseau : les clés se donnent par des variables d'environnement, **avant** de lancer Scriibe, dans le même terminal :
+Plus rapides à mettre en place, ou utiles sur une machine modeste, mais payants à l'usage : la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Sous Linux, la page Réglages → Comptes en ligne range les clés dans le trousseau du bureau (Secret Service) si le paquet `libsecret-tools` (outil `secret-tool`) et un trousseau (celui de GNOME, KWallet) sont là ; sans eux, rien n'est enregistré, et les clés se donnent par des variables d'environnement, **avant** de lancer Scriibe, dans le même terminal :
 
 ```bash
 export DEEPGRAM_API_KEY='…votre clé…'

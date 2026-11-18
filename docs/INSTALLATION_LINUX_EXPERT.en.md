@@ -47,7 +47,7 @@ mkdir -p ~/.local/share/Scriibe/engines/whisper && cp ~/whisper.cpp/build/bin/wh
 
 ## Online engines (fallback)
 
-Quicker to set up, or useful on a modest machine, but paid by use: the voice goes to Deepgram, the text to OpenRouter to be cleaned up. Linux has no keychain support: keys are given through environment variables, **before** launching Scriibe, in the same terminal:
+Quicker to set up, or useful on a modest machine, but paid by use: the voice goes to Deepgram, the text to OpenRouter to be cleaned up. On Linux, the Settings → Online accounts page stores keys in the desktop keyring (Secret Service) if the `libsecret-tools` package (the `secret-tool` program) and a keyring (GNOME’s, KWallet) are present; without them nothing is saved, and keys are given through environment variables, **before** launching Scriibe, in the same terminal:
 
 ```bash
 export DEEPGRAM_API_KEY='…your key…'
