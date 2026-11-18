@@ -3,6 +3,7 @@
   import { status } from '../lib/status.svelte';
   import { exportWhere } from '../lib/exportwhere';
   import HelpButton from '../components/HelpButton.svelte';
+  import { uiState } from '../lib/uiState';
   import PageHeader from '../components/PageHeader.svelte';
   import { onMount, tick } from 'svelte';
   import { nav } from '../lib/nav.svelte';
@@ -35,17 +36,12 @@
     void tick().then(() => writtenInput?.focus());
   });
 
-  /** Hauteur commune des deux cartes (px), réglée par la poignée ; `null` = hauteur naturelle. Retenue d'une visite à l'autre. */
-  const HEIGHT_KEY = 'dictionary:height';
+  /** Hauteur commune des deux cartes (px), réglée par la poignée ; `null` = hauteur naturelle. Retenue d'un lancement à l'autre (fichier d'états de Scriibe). */
   const MIN_H = 180;
   const MAX_H = 1400;
   function savedHeight(): number | null {
-    try {
-      const n = Number(localStorage.getItem(HEIGHT_KEY));
-      return n >= MIN_H && n <= MAX_H ? n : null;
-    } catch {
-      return null;
-    }
+    const n = uiState.state.dictionaryHeight;
+    return n !== undefined && n >= MIN_H && n <= MAX_H ? n : null;
   }
   let height = $state<number | null>(savedHeight());
   let pair = $state<HTMLElement>();
@@ -53,12 +49,8 @@
 
   function setHeight(h: number | null) {
     height = h === null ? null : Math.min(MAX_H, Math.max(MIN_H, Math.round(h)));
-    try {
-      if (height === null) localStorage.removeItem(HEIGHT_KEY);
-      else localStorage.setItem(HEIGHT_KEY, String(height));
-    } catch {
-      /* le stockage peut être refusé : la hauteur reste celle de la page */
-    }
+    // Pendant le glissement de la poignée les changements s'enchaînent : un seul envoi au repos.
+    uiState.save({ dictionaryHeight: height }, 300);
   }
   function dragStart(e: PointerEvent) {
     drag = { y: e.clientY, h: height ?? pair?.getBoundingClientRect().height ?? MIN_H };

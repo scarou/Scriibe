@@ -1,15 +1,9 @@
+import { uiState } from './uiState';
 import { resolveLanguage, translate, tx, type Lang, type UiLanguage, type Vars } from './i18n';
 
-const STORAGE_KEY = 'uiLanguage';
-
+/** La copie du choix gardée dans le fichier d'états de Scriibe (lue avant l'affichage), sinon la langue du système. */
 function savedChoice(): UiLanguage {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'fr' || saved === 'en' || saved === 'auto') return saved;
-  } catch {
-    /* le stockage peut être refusé : on suit la langue du système */
-  }
-  return 'auto';
+  return uiState.state.uiLanguage ?? 'auto';
 }
 
 const systemLanguages = (): readonly string[] => (typeof navigator === 'undefined' ? [] : navigator.languages?.length ? navigator.languages : [navigator.language ?? '']);
@@ -23,11 +17,12 @@ class I18n {
   use(choice: UiLanguage | undefined): void {
     const next = choice ?? 'auto';
     this.choice = next;
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      /* sans importance */
-    }
+    if (uiState.state.uiLanguage !== next) uiState.save({ uiLanguage: next });
+  }
+
+  /** Reprend la copie du choix une fois les états lus (ce module est chargé avant leur lecture). */
+  restore(): void {
+    this.choice = savedChoice();
   }
 
   /** Pour les dates et les nombres. */

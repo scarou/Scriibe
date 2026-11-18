@@ -48,6 +48,7 @@ use scriibe_engines::whisper::{self, WhisperLauncher};
 use scriibe_platform::audio::Recording;
 use scriibe_platform::bench_store::BenchStore;
 use scriibe_platform::storage::{FileConfig, FileHistory};
+use scriibe_platform::ui_state::UiStateStore;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
@@ -57,6 +58,8 @@ pub struct Context {
     app: Arc<App>,
     history: Arc<FileHistory>,
     bench: BenchStore,
+    /// Les états d'affichage de la page (cartes repliées…), retenus d'un lancement à l'autre : le stockage du navigateur repart vide (port libre à chaque fois).
+    ui_state: UiStateStore,
     overlay: Arc<OverlayModel>,
     sinks: Arc<TestSinks>,
     downloads: Arc<Downloads>,
@@ -99,11 +102,13 @@ pub fn start(
     let token = scriibe_core::modes::new_id();
     let url = format!("http://127.0.0.1:{port}/{token}/");
     let bench = BenchStore::open(BenchStore::standard_folder(app.config.folder()));
+    let ui_state = UiStateStore::new(app.config.folder());
     app.prefill.set_url(url.clone());
     let context = Arc::new(Context {
         app,
         history,
         bench,
+        ui_state,
         overlay,
         sinks,
         downloads: Arc::new(Downloads::default()),
@@ -210,6 +215,12 @@ fn handle(ctx: &Context, mut request: Request) {
     let input: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
+        // Les états d'affichage gardés (lus une fois avant d'afficher la page) et leur mise à jour par fragment. Jamais d'erreur côté page : sans réponse, elle garde ses états en mémoire.
+        (Method::Get, "api/ui-state") => ok(request, ctx.ui_state.read()),
+        (Method::Post, "api/ui-state") => match ctx.ui_state.patch(&input) {
+            Ok(state) => ok(request, state),
+            Err(message) => fail(request, 500, &message),
+        },
         // L'état de la dictée seul, léger : la ligne d'état de la barre latérale le relit chaque seconde.
         (Method::Get, "api/activity") => ok(
             request,

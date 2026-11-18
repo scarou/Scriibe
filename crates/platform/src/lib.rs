@@ -29,6 +29,7 @@ pub mod sounds;
 pub mod storage;
 pub mod testing;
 pub mod tray_menu;
+pub mod ui_state;
 pub mod uninstall;
 mod unsupported;
 

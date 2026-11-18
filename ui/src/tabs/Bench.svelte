@@ -15,6 +15,7 @@
   import { outcomeLabels } from '../lib/timings';
   import { settings } from '../lib/settings.svelte';
   import { nav } from '../lib/nav.svelte';
+  import { uiState } from '../lib/uiState';
 
   let recording = $state(false);
   let working = $state(false);
@@ -27,22 +28,11 @@
   let poll: ReturnType<typeof setInterval> | undefined;
 
   // Comparer les phrases sautées avec le modèle : utile pour juger l'option, mais long avec un modèle lent (processeur) : à choisir.
-  const COMPARE_KEY = 'scriibe.bench.compare';
-  const savedCompare = (() => {
-    try {
-      return localStorage.getItem(COMPARE_KEY) !== 'off';
-    } catch {
-      return true;
-    }
-  })();
-  let compareOn = $state(savedCompare);
+  // Retenu d'un lancement à l'autre (fichier d'états de Scriibe) ; coché tant qu'on n'a pas choisi.
+  let compareOn = $state(uiState.state.benchCompare ?? true);
   function setCompare(on: boolean) {
     compareOn = on;
-    try {
-      localStorage.setItem(COMPARE_KEY, on ? 'on' : 'off');
-    } catch {
-      // Sans stockage du navigateur, le choix ne survit pas au prochain lancement : sans importance.
-    }
+    uiState.save({ benchCompare: on });
   }
 
   let index = $derived(bench.current);
