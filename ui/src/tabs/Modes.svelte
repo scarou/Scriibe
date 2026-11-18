@@ -1,5 +1,7 @@
 <script lang="ts">
   import Card from '../components/Card.svelte';
+  import { status } from '../lib/status.svelte';
+  import { exportWhere } from '../lib/exportwhere';
   import { confirmBox } from '../lib/dialog.svelte';
   import HelpButton from '../components/HelpButton.svelte';
   import { onMount } from 'svelte';
@@ -289,7 +291,7 @@
 
   {#if exporting}
     <Card id="mode-export" accent title={t('Exporter le mode « {name} »', { name: exporting.mode.name || t('Mode sans nom') })} help="modes">
-      <p>{t('Le fichier (.scriibe.json) contient ce mode : sa consigne, son cran de fidélité et, si la case est cochée, ses exemples. Une boîte te demande où l’enregistrer (sous Linux, il est placé dans le dossier Documents).')}</p>
+      <p>{t('Le fichier (.scriibe.json) contient ce mode : sa consigne, son cran de fidélité et, si la case est cochée, ses exemples.')} {exportWhere(status.os)}</p>
       <p><b>{t('Contenu : 1 mode, {n} exemple(s)', { n: exporting.examples ? exporting.mode.examples.length : 0 })}</b></p>
       {#if exporting.mode.examples.length > 0}
         <div class="row"><label><input type="checkbox" bind:checked={exporting.examples} disabled={exporting.busy} /> {t('Inclure les exemples')}</label></div>

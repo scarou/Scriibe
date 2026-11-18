@@ -48,7 +48,13 @@
 
 {#if part === 'live'}
 <Card help="problems" id="journal-dictee-avec-la-touche-dans-une-vraie-app" title={t('Dictée avec la touche, dans une vraie appli')}>
-  <p>{t('Ouvre {app}, maintiens {key}, parle, relâche. {translate} en plus : traduction. Toute autre touche pendant l’appui : annulation.', { app: t(status.os === 'macos' ? tx('TextEdit') : status.os === 'linux' ? tx('un éditeur de texte') : tx('le Bloc-notes')), key: keyName(status.value?.dictation_label ?? ''), translate: keyName(status.value?.translate_label ?? '') })}</p>
+  {@const app = t(status.os === 'macos' ? tx('TextEdit') : status.os === 'linux' ? tx('un éditeur de texte') : tx('le Bloc-notes'))}
+  {@const key = keyName(status.value?.dictation_label ?? '')}
+  {#if status.value?.translate_label}
+    <p>{t('Ouvre {app}, maintiens {key}, parle, relâche. {translate} en plus : traduction. Toute autre touche pendant l’appui : annulation.', { app, key, translate: keyName(status.value.translate_label) })}</p>
+  {:else}
+    <p>{t('Ouvre {app}, maintiens {key}, parle, relâche. Toute autre touche pendant l’appui : annulation.', { app, key })}</p>
+  {/if}
   <div class="muted">{t('Journal en direct (une ligne par étape, jamais le texte dicté) :')}</div>
   <pre bind:this={logBox}>{lines.join('\n') || t('(vide)')}</pre>
 </Card>

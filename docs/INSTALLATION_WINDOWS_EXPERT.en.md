@@ -18,8 +18,8 @@ Useful between two releases, or if the zip is not yet attached to the latest one
 
 Scriibe calls two external programs over HTTP, like Scribe: `whisper-server` (transcription) and `llama-server` (cleanup). The **Programs** card in **Settings → Engines** downloads them one by one, with size and source shown before you agree:
 
-- `whisper-server (Windows)`: whisper.cpp with its DLLs;
-- `llama-server (Windows, CPU)` or `llama-server (Windows, Vulkan graphics card)`. The Vulkan version replaces the CPU version: cleanup runs on the graphics card (compare with the CPU timings; to go back, download the CPU version again). The **Dashboard** wizard measures the machine and suggests the matching chain with measured timings.
+- `whisper-server`: whisper.cpp with its DLLs;
+- `llama-server (CPU)` or `llama-server (Vulkan graphics card)`. The Vulkan version replaces the CPU version: cleanup runs on the graphics card (compare with the CPU timings; to go back, download the CPU version again). The **Dashboard** wizard measures the machine and suggests the matching chain with measured timings.
 
 Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into Scriibe's models folder. GGUF files are for cleanup, `ggml-….bin` files for Whisper (**Settings → Engines → Choose a file…** to point at a file elsewhere). Cleanup can also go through LM Studio or Ollama (list of the server's models, adjustable address).
 

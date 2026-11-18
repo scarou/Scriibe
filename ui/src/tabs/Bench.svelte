@@ -7,7 +7,7 @@
   import { bench } from '../lib/bench.svelte';
   import { cleanButChanged, normalizedText, versions } from '../lib/benchflow';
   import { fmt } from '../lib/display.svelte';
-  import { keyName, t } from '../lib/i18n.svelte';
+  import { joinKeys, t } from '../lib/i18n.svelte';
   import { status } from '../lib/status.svelte';
   import BenchArchive from '../components/BenchArchive.svelte';
   import TrialBench from '../components/TrialBench.svelte';
@@ -173,7 +173,7 @@
       <span class="muted">{fmt(seconds)} s</span>
     </div>
     <div class="row">
-      <label><input type="checkbox" bind:checked={translate} /> {t('Traduire (comme {keys})', { keys: keyName(status.value?.dictation_label ?? '') + ' + ' + keyName(status.value?.translate_label ?? '') })}</label>
+      <label><input type="checkbox" bind:checked={translate} /> {status.value?.translate_label ? t('Traduire (comme {keys})', { keys: joinKeys(status.value?.dictation_label, status.value?.translate_label) }) : t('Traduire')}</label>
       <button onclick={skip} disabled={recording || working}>{t('Passer')}</button>
       <button onclick={redo} disabled={recording || working || !bench.results.length}>{t('Relire la dernière')}</button>
       <button onclick={() => { clearTake(); bench.stop(); }} disabled={recording || working}>{t('Arrêter')}</button>

@@ -133,3 +133,21 @@ Les 7 points du Constat (1 à 7) sont corrigés dans `ui/src`. Tests : `npm run 
 Vu : recherche de l'Aide collée à 120 px sous l'en-tête après défilement, sommaire à 167 px (= en-tête + recherche + 8) ; bandeau « Scriibe ne répond plus » avec 20 px de marge ; menu en bande de côté à 375 px ; `aria-label`, `aria-current` et icônes cachées lus dans le DOM.
 
 **Non vu à l'écran** : tuiles de l'Accueil de même hauteur et `inert` des commandes décochées, car il faut les réglages et les statistiques du programme (sans lui, la page n'a pas de données). Ils sont couverts par les tests de source seulement. À voir à la tâche 6 (essai sur le Mac avec `Scriibe.app`, lancée par `open`).
+
+## Textes (tâche 2, 18/11/2026)
+
+Tests : `npm run check`, `npm test` (148 passés, 2 nouveaux dans `lib/textes.test.ts`), `npm run build`, `cargo fmt`, `cargo clippy --workspace -D warnings`, `cargo test --workspace` : verts (sur le Mac).
+
+| Point | Correctif |
+|---|---|
+| Texte de la carte d'export | `lib/exportwhere.ts` : « Une boîte te demande où l'enregistrer. » (Mac, Windows) ou « Il est placé dans le dossier Documents. » (Linux), dans `Modes`, `Dictionary`, `CustomCommands` (phrases découpées, traductions en.ts). Aide (`Help`, `HelpEn`, 3 passages chacune) : la phrase « Sous Linux… » n'apparaît plus que sous Linux (`{#if linux}`) |
+| « (Windows) » (décision du Constat) | `offered()` : les 3 programmes Windows seulement sous Windows (aucun sur Mac) ; libellés sans « Windows, » (`whisper-server`, `llama-server (processeur)`, `llama-server (carte graphique Vulkan)`, traductions `en-server.ts`, guides d'installation Windows FR et EN) ; Mac : carte « Les programmes » remplacée par l'encart Homebrew (état détecté + 2 commandes) ; ligne d'état « à installer avec Homebrew » ; assistant : sur Mac « llama-vulkan » devient `llama-server`, texte de la chaîne « gpu » sans « Vulkan » ; test `every_need_is_a_real_download` adapté (Mac : Homebrew) |
+| « + » en trop | `joinKeys()` (`i18n.svelte.ts`) saute les libellés vides ; Banc, Journal (phrase sans « {translate} en plus »), ligne « Touche globale » de l'état, KeyPicker (« aucune ») ; côté Rust, `translate_label` est vide sous GNOME quand il n'y a pas de raccourci de traduction (avant : « Maj », faux). **Non reproduit sous GNOME** : à voir à la tâche 6 |
+| Aide → champ « Carte graphique » | Nouvelle rubrique dans Moteurs (FR et EN), avec une phrase propre à Mac et à Linux |
+| `tools/captures_interface.js` | Bloc « Réglages » et sélecteur `.pills` supprimés, commentaire corrigé |
+
+### Vérification et limites
+- Vu à l'écran (volet navigateur, Vite sans le programme) : sur Mac, la page Moteurs montre l'encart Homebrew et aucun mot « Windows ».
+- **Non fait** : les captures (`tools/captures_interface.js`) n'ont pas été relancées, Playwright n'étant pas installé sur ce Mac (`require('playwright')` échoue) ; le script passe `node --check`. À relancer depuis une session qui l'a, ou après accord de l'auteur pour l'installer.
+- Sous Linux, la chaîne « gpu » de l'assistant promet « sa carte graphique » alors que le seul programme proposé est la version processeur : non traité (hors périmètre), à décider.
+- Clippy pour Windows (`x86_64-pc-windows-gnu`) non relancé ; `offered()` y est inchangé en logique pour les ids Windows.

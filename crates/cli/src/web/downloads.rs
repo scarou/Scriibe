@@ -22,7 +22,7 @@ pub struct Item {
 pub const ITEMS: [Item; 10] = [
     Item {
         id: "whisper-server",
-        label: "whisper-server (Windows)",
+        label: "whisper-server",
         detail: "Le programme de transcription (whisper.cpp), avec ses DLL.",
         kind: "program",
     },
@@ -47,13 +47,13 @@ pub const ITEMS: [Item; 10] = [
     Item { id: "whisper-small", label: "Modèle Whisper « small »", detail: "Plus précis, plus lent.", kind: "whisper" },
     Item {
         id: "llama-server",
-        label: "llama-server (Windows, processeur)",
+        label: "llama-server (processeur)",
         detail: "Le programme de mise au propre (llama.cpp), version processeur.",
         kind: "program",
     },
     Item {
         id: "llama-vulkan",
-        label: "llama-server (Windows, carte graphique Vulkan)",
+        label: "llama-server (carte graphique Vulkan)",
         detail: "Remplace la version processeur : la mise au propre tourne sur la carte graphique (à comparer aux temps du processeur). Pour revenir en arrière, retélécharger la version processeur.",
         kind: "program",
     },
@@ -81,13 +81,11 @@ pub const ITEMS: [Item; 10] = [
 const LINUX_WHISPER_ASSET: &str = "whisper-server-linux-x64.zip";
 const LINUX_LLAMA_ASSET: &str = "llama-server-linux-x64.zip";
 
-/// La page ne montre que les programmes de son système : ceux de Windows pas sous Linux, ceux de Linux nulle part ailleurs.
+/// La page ne montre que les programmes de son système : ceux de Windows seulement sous Windows, ceux de Linux seulement sous Linux. Sur Mac, aucun : les moteurs viennent de Homebrew (la page l'explique).
 pub fn offered(id: &str) -> bool {
-    match id {
-        "whisper-server-linux" | "llama-server-linux" => cfg!(target_os = "linux"),
-        "whisper-server" | "llama-server" | "llama-vulkan" => !cfg!(target_os = "linux"),
-        _ => true,
-    }
+    let linux_only = matches!(id, "whisper-server-linux" | "llama-server-linux");
+    let windows_only = matches!(id, "whisper-server" | "llama-server" | "llama-vulkan");
+    (!linux_only || cfg!(target_os = "linux")) && (!windows_only || cfg!(windows))
 }
 
 #[derive(Debug, Clone)]
@@ -541,7 +539,7 @@ mod tests {
     #[test]
     fn each_system_is_offered_its_own_engines_only() {
         assert_eq!(offered("whisper-server-linux"), cfg!(target_os = "linux"));
-        assert_eq!(offered("llama-vulkan"), !cfg!(target_os = "linux"));
+        assert_eq!(offered("llama-vulkan"), cfg!(windows));
         assert!(offered("whisper-base"));
     }
 

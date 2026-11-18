@@ -149,7 +149,7 @@
     <button onclick={() => begin('dictation')} disabled={kind === 'dictation'}>{t('Changer…')}</button>
   </div>{/if}
   {#if kinds.includes('translate')}<div class="row">
-    <span>{t('Touche tenue en plus pour traduire :')} <b>{keyName(s.translate_label)}</b></span>
+    <span>{t('Touche tenue en plus pour traduire :')} <b>{keyName(s.translate_label) || t('aucune')}</b></span>
     <button onclick={() => begin('translate')} disabled={kind === 'translate'}>{t('Changer…')}</button>
   </div>{/if}
   {#if kinds.includes('command')}<div class="row">

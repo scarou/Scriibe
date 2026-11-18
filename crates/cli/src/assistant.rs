@@ -26,7 +26,7 @@ const CHAINS: [Chain; 4] = [
     Chain {
         id: "gpu",
         title: "Tout sur cet ordinateur, avec sa carte graphique",
-        detail: "Whisper « small » + Qwen 2.5 3 B sur la carte graphique (llama.cpp Vulkan). Sans doute plus rapide et plus juste que sur le processeur.",
+        detail: "Whisper « small » + Qwen 2.5 3 B sur la carte graphique (llama.cpp). Sans doute plus rapide et plus juste que sur le processeur.",
         timing: "pas encore mesuré sur une carte de cette classe",
         measured: false,
         transcription: TranscriptionEngine::Whisper,
@@ -112,8 +112,12 @@ pub fn chain_json(chain: &Chain) -> Value {
 }
 
 /// Les programmes des chaînes sont nommés comme sous Windows ; sous Linux, la page propose les siens (`downloads::offered`). Pas de
-/// llama.cpp Vulkan pour Linux : la version processeur.
+/// llama.cpp Vulkan pour Linux : la version processeur. Sur Mac, rien ne se télécharge (Homebrew) et llama.cpp utilise Metal de
+/// lui-même : « llama-vulkan » devient le llama-server ordinaire.
 fn for_this_system(need: &'static str) -> &'static str {
+    if cfg!(target_os = "macos") {
+        return if need == "llama-vulkan" { "llama-server" } else { need };
+    }
     if !cfg!(target_os = "linux") {
         return need;
     }
@@ -187,7 +191,10 @@ mod tests {
             for need in c.needs {
                 assert!(ids.contains(need), "{} : {need} n'existe pas dans la page Installation", c.id);
                 let need = for_this_system(need);
-                assert!(crate::web::downloads::offered(need), "{} : {need} n'est pas proposé sur ce système", c.id);
+                // Sur Mac, les programmes viennent de Homebrew : la page n'en propose aucun au téléchargement.
+                if !cfg!(target_os = "macos") || !["whisper-server", "llama-server"].contains(&need) {
+                    assert!(crate::web::downloads::offered(need), "{} : {need} n'est pas proposé sur ce système", c.id);
+                }
             }
         }
     }

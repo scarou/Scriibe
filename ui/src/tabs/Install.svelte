@@ -28,6 +28,7 @@
   }
 
   let s = $derived(status.value);
+  let mac = $derived(status.os === 'macos');
   let items = $state<Item[]>([]);
   let chosen = $state<Record<string, DownloadProgress>>({});
   let resolved = $state<Record<string, Resolved>>({});
@@ -83,12 +84,12 @@
   let rows = $derived(
     s
       ? [
-          { label: 'whisper-server', ok: !!s.whisper.binary, detail: s.whisper.binary ?? t('à installer ci-dessous') },
+          { label: 'whisper-server', ok: !!s.whisper.binary, detail: s.whisper.binary ?? (mac ? t('à installer avec Homebrew, ci-dessous') : t('à installer ci-dessous')) },
           { label: t('Modèle Whisper'), ok: s.whisper.models.length > 0, detail: s.whisper.models.map(base).join(', ') || t('à installer ci-dessous') },
-          { label: 'llama-server', ok: !!s.llama.binary, detail: s.llama.binary ?? t('à installer ci-dessous — seulement si la mise au propre est activée') },
+          { label: 'llama-server', ok: !!s.llama.binary, detail: s.llama.binary ?? (mac ? t('à installer avec Homebrew, ci-dessous — seulement si la mise au propre est activée') : t('à installer ci-dessous — seulement si la mise au propre est activée')) },
           { label: t('Modèle de mise au propre (GGUF)'), ok: s.llama.models.length > 0, detail: s.llama.models.map(base).join(', ') || t('à installer ci-dessous') },
           { label: t('Micro'), ok: s.microphones.length > 0, detail: s.microphones.join(' | ') || t('aucun micro détecté') },
-          { label: t('Touche globale'), ok: !s.keys_error, detail: s.keys_error ?? t('{key} ({translate} : traduire)', { key: keyName(s.dictation_label), translate: keyName(s.translate_label) }) },
+          { label: t('Touche globale'), ok: !s.keys_error, detail: s.keys_error ?? (s.translate_label ? t('{key} ({translate} : traduire)', { key: keyName(s.dictation_label), translate: keyName(s.translate_label) }) : keyName(s.dictation_label)) },
         ]
       : [],
   );
@@ -126,9 +127,17 @@
   </div>
 {/snippet}
 
-<Card help="engines" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans ton accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
-  {#each items.filter((i) => i.kind === 'program') as it (it.id)}{@render offer(it)}{/each}
-</Card>
+{#if mac}
+  <Card help="engines" id="install-les-programmes" title={t('Les programmes')} intro={t('Sur Mac, les deux programmes s’installent avec Homebrew : rien ne se télécharge ici. Colle ces commandes dans le Terminal, puis reviens sur cette page.')}>
+    <div class="item"><b>whisper-server</b> <span class={s?.whisper.binary ? 'ok' : 'muted'}>{s?.whisper.binary ?? t('pas encore installé')}</span><pre>brew install whisper-cpp</pre></div>
+    <div class="item"><b>llama-server</b> <span class={s?.llama.binary ? 'ok' : 'muted'}>{s?.llama.binary ?? t('pas encore installé')}</span><pre>brew install llama.cpp</pre></div>
+    <p class="muted">{t('La carte graphique du Mac (Metal) est utilisée automatiquement par llama.cpp.')}</p>
+  </Card>
+{:else}
+  <Card help="engines" id="install-les-programmes" title={t('Les programmes')} intro={t('Rien n’est téléchargé sans ton accord : « Voir » affiche le nom, la taille réelle et la source, puis il faut confirmer.')}>
+    {#each items.filter((i) => i.kind === 'program') as it (it.id)}{@render offer(it)}{/each}
+  </Card>
+{/if}
 
 <InstalledModels />
 

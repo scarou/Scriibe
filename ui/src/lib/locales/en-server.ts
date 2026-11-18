@@ -117,9 +117,9 @@ export const enServer: Record<string, string> = {
   'Le plus rapide ; quelques erreurs sur les mots courts.': 'The fastest; a few mistakes on short words.',
   'Modèle Whisper « small »': 'Whisper “small” model',
   'Plus précis, plus lent.': 'More accurate, slower.',
-  'llama-server (Windows, processeur)': 'llama-server (Windows, CPU)',
+  'llama-server (processeur)': 'llama-server (CPU)',
   'Le programme de mise au propre (llama.cpp), version processeur.': 'The cleanup program (llama.cpp), CPU version.',
-  'llama-server (Windows, carte graphique Vulkan)': 'llama-server (Windows, Vulkan graphics card)',
+  'llama-server (carte graphique Vulkan)': 'llama-server (Vulkan graphics card)',
   'Remplace la version processeur : la mise au propre tourne sur la carte graphique (à comparer aux temps du processeur). Pour revenir en arrière, retélécharger la version processeur.':
     'Replaces the CPU version: cleanup runs on the graphics card (compare with the CPU times). To go back, download the CPU version again.',
   'Modèle de mise au propre « Qwen 2.5 0,5 B »': 'Cleanup model “Qwen 2.5 0.5 B”',
@@ -151,8 +151,8 @@ export const enServer: Record<string, string> = {
   '4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle':
     '4 to 6 s (measured on a 4-core laptop with no graphics card); 15 to 45 s for the first dictation after the model has been released',
   'Tout sur cet ordinateur, avec sa carte graphique': 'Everything on this computer, using its graphics card',
-  'Whisper « small » + Qwen 2.5 3 B sur la carte graphique (llama.cpp Vulkan). Sans doute plus rapide et plus juste que sur le processeur.':
-    'Whisper “small” + Qwen 2.5 3 B on the graphics card (llama.cpp Vulkan). Probably faster and more accurate than on the CPU.',
+  'Whisper « small » + Qwen 2.5 3 B sur la carte graphique (llama.cpp). Sans doute plus rapide et plus juste que sur le processeur.':
+    'Whisper “small” + Qwen 2.5 3 B on the graphics card (llama.cpp). Probably faster and more accurate than on the CPU.',
   'pas encore mesuré sur une carte de cette classe': 'not yet measured on a card of this class',
 
   // Niveau du micro (web/mod.rs)

@@ -48,6 +48,11 @@ export function keyName(label: string): string {
     .join(' + ');
 }
 
+/** Réunit des noms de touches avec « + » en sautant les vides (sous GNOME sans raccourci de traduction, le libellé de traduction est vide). */
+export function joinKeys(...labels: (string | undefined)[]): string {
+  return labels.filter(Boolean).map((l) => keyName(l as string)).join(' + ');
+}
+
 /** Le texte dans la langue de l'interface ; `{nom}` est remplacé par la valeur de `vars`. Se relit tout seul quand la langue change. */
 export function t(text: string, vars?: Vars): string {
   return translate(text, i18n.lang, vars);

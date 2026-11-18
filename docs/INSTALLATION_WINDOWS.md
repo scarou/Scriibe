@@ -60,8 +60,8 @@ Fermer la fenêtre de Scriibe ne quitte pas le programme : pour le quitter vraim
 Scriibe a besoin de deux petits programmes : l'un transcrit votre voix, l'autre met le texte au propre. Scriibe les télécharge pour vous et **ne télécharge rien sans votre accord** : avant chaque téléchargement, il montre le nom, la taille et la source. Il n'y a rien à installer à part.
 
 1. Dans la fenêtre de Scriibe, cliquez sur **Réglages**, puis sur l'onglet **Moteurs**. La carte **État de l'installation** dit ce qui manque.
-2. Plus bas, dans la carte **Les programmes**, repérez **whisper-server (Windows)** (la transcription). Cliquez sur **Voir la taille et la source**, lisez, puis cliquez sur **Télécharger**. Attendez la fin de la barre de progression : le mot **✔ installé** apparaît.
-3. Faites de même pour **llama-server (Windows, processeur)** (la mise au propre). Choisissez la version « processeur » : c'est la plus simple et elle convient à tous les PC.
+2. Plus bas, dans la carte **Les programmes**, repérez **whisper-server** (la transcription). Cliquez sur **Voir la taille et la source**, lisez, puis cliquez sur **Télécharger**. Attendez la fin de la barre de progression : le mot **✔ installé** apparaît.
+3. Faites de même pour **llama-server (processeur)** (la mise au propre). Choisissez la version « processeur » : c'est la plus simple et elle convient à tous les PC.
 
 **C'est réussi quand** les deux programmes affichent **✔ installé**.
 

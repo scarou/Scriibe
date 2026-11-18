@@ -784,7 +784,7 @@ fn status(ctx: &Context) -> Value {
         "gnome_shortcut": gnome_shortcut(),
         "dictation_label": if let Some(shortcut) = gnome_shortcut() { shortcut } else if settings.dictation_keys.is_empty() { scriibe_platform::keys::default_dictation_label().to_string() } else { scriibe_platform::keys::label(&settings.dictation_keys) },
         "gnome_translate_shortcut": gnome_translate_shortcut(),
-        "translate_label": if let Some(shortcut) = gnome_translate_shortcut() { shortcut } else if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
+        "translate_label": if let Some(shortcut) = gnome_translate_shortcut() { shortcut } else if gnome_shortcut().is_some() { String::new() } else if settings.translate_keys.is_empty() { scriibe_platform::keys::default_translate_label().to_string() } else { scriibe_platform::keys::label(&settings.translate_keys) },
         "gnome_command_shortcut": gnome_command_shortcut(),
         "command_label": if let Some(shortcut) = gnome_command_shortcut() { shortcut } else { scriibe_platform::keys::command_label(&settings).unwrap_or_default() },
         "default_command_label": scriibe_platform::keys::default_command_label(),

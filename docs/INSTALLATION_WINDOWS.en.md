@@ -62,8 +62,8 @@ Closing the Scriibe window does not quit the program: to really quit, right-clic
 Scriibe needs two small programs: one transcribes your voice, the other cleans up the text. Scriibe downloads them for you and **downloads nothing without your approval**: before each download it shows the name, the size and the source. There is nothing to install separately.
 
 1. In the Scriibe window, click **Settings**, then the **Engines** tab. The **Installation status** card says what is missing.
-2. Further down, in the **Programs** card, find **whisper-server (Windows)** (transcription). Click **See the size and source**, read, then click **Download**. Wait for the progress bar to finish: **✔ installed** appears.
-3. Do the same for **llama-server (Windows, CPU)** (cleanup). Choose the “CPU” version: it is the simplest and suits every PC.
+2. Further down, in the **Programs** card, find **whisper-server** (transcription). Click **See the size and source**, read, then click **Download**. Wait for the progress bar to finish: **✔ installed** appears.
+3. Do the same for **llama-server (CPU)** (cleanup). Choose the “CPU” version: it is the simplest and suits every PC.
 
 **It worked when** both programs show **✔ installed**.
 

@@ -1,5 +1,7 @@
 <script lang="ts">
   import Card from '../Card.svelte';
+  import { status } from '../../lib/status.svelte';
+  import { exportWhere } from '../../lib/exportwhere';
   import { api } from '../../lib/api';
   import { settings } from '../../lib/settings.svelte';
   import { nav } from '../../lib/nav.svelte';
@@ -197,7 +199,7 @@
     </div>
     {#if transfer?.mode === 'export'}
       <div class="command">
-        <p>{t('Le fichier (.scriibe.json) contient tes {n} commande(s) : titre, phrases et raccourci. Une boîte te demande où l’enregistrer (sous Linux, il est placé dans le dossier Documents). Le fichier n’est pas chiffré : relis-le avant de le partager.', { n: customs.length })}</p>
+        <p>{t('Le fichier (.scriibe.json) contient tes {n} commande(s) : titre, phrases et raccourci.', { n: customs.length })} {exportWhere(status.os)} {t('Le fichier n’est pas chiffré : relis-le avant de le partager.')}</p>
         {#if transfer.message}<p role="status"><b>{transfer.message}</b></p>{/if}
         <div class="chips"><button onclick={closeTransfer}>{t('Fermer')}</button><button class="primary" disabled={transfer.busy} onclick={exportCommands}>{t('Enregistrer le fichier')}</button></div>
       </div>

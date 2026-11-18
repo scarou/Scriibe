@@ -1,5 +1,7 @@
 <script lang="ts">
   import Card from '../components/Card.svelte';
+  import { status } from '../lib/status.svelte';
+  import { exportWhere } from '../lib/exportwhere';
   import HelpButton from '../components/HelpButton.svelte';
   import PageHeader from '../components/PageHeader.svelte';
   import { onMount, tick } from 'svelte';
@@ -347,7 +349,7 @@
 
 {#if exporting}
   <Card id="dictionary-export" accent title={t('Exporter le dictionnaire')} help="dictionary">
-    <p>{t('Le fichier (.scriibe.json) contient les catégories cochées. Une boîte te demande où l’enregistrer (sous Linux, il est placé dans le dossier Documents).')}</p>
+    <p>{t('Le fichier (.scriibe.json) contient les catégories cochées.')} {exportWhere(status.os)}</p>
     <div class="row"><label><input type="checkbox" bind:checked={exporting.words} disabled={exporting.busy || words.length === 0} /> {t('{n} mot(s)', { n: words.length })}</label></div>
     {#if words.length > 0}<details><summary>{t('Voir les mots')}</summary><div class="chips scroll">{#each words as w, i (w + i)}<span class="sign">{w}</span>{/each}</div></details>{/if}
     <div class="row"><label><input type="checkbox" bind:checked={exporting.corrections} disabled={exporting.busy || corrections.length === 0} /> {t('{n} correction(s)', { n: corrections.length })}</label></div>
