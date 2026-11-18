@@ -271,6 +271,31 @@ fn a_looping_answer_from_the_short_server_is_redone_on_the_normal_server() {
     assert_eq!(urls, ["http://127.0.0.1:8177/inference", "http://127.0.0.1:8178/inference"]);
 }
 
+/// Chantier 4 (mot dicté collé plusieurs fois, `docs/MOT_REPETE.md`) : « fait » dit seul revient « Fé. Fé. Fé. Fé. » dans le texte brut de
+/// Whisper (historique du 13/11, prise de 1,2 s). La boucle d'un seul mot échappe à `repeats_itself`, qui exige 4 mots : la réponse
+/// du serveur court est collée telle quelle au lieu d'être refaite sur le serveur normal.
+#[test]
+fn a_single_word_looping_on_the_short_server_is_redone_on_the_normal_server() {
+    let world = FakeWorld::new();
+    world.route(":8177/inference", |_| {
+        Ok(HttpResponse { status: 200, body: json!({"text": "Fé. Fé. Fé. Fé."}).to_string().into_bytes() })
+    });
+    world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Fait."}).to_string().into_bytes() }));
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    assert_eq!(t.transcribe(&wav_of(1.2), &settings, &[]).unwrap(), "Fait.");
+    let urls: Vec<String> = world.requests().into_iter().map(|r| r.url).filter(|u| u.ends_with("/inference")).collect();
+    assert_eq!(urls, ["http://127.0.0.1:8177/inference", "http://127.0.0.1:8178/inference"]);
+}
+
+/// Les boucles réellement relevées dans l'historique (13/11 et 04/11) et au banc (18/11, Whisper court sur un mot synthétique).
+#[test]
+fn a_short_phrase_repeated_three_times_or_more_is_a_loop() {
+    assert!(whisper::repeats_itself("Fé. Fé. Fé. Fé."));
+    assert!(whisper::repeats_itself("C'est fait. C'est fait. C'est fait."));
+    assert!(whisper::repeats_itself("正\n正\n正\n正\n正\n正"));
+}
+
 #[test]
 fn a_clean_answer_from_the_short_server_is_not_redone() {
     let world = whisper_world();
