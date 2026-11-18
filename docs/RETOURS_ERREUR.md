@@ -170,12 +170,33 @@ Ces trois comportements ne se testent pas par un test automatique (ils dépenden
 
 **Non fait ici** : la page n'a pas été vue à l'écran (vérifiée par `svelte-check` et les tests de l'interface seulement) ; la reformulation de la sélection n'a pas d'interrupteur (voulu, § Conception 6).
 
+## Relecture
+
+*(Tâche 3, 18/11/2026. Relecteur : sous-agent Sonnet (Élevé) distinct de l'auteur, lecture seule, sur `04c40ca` et `545b03b`. Bilan : **0 bloquant, 2 importants, 9 mineurs**.)*
+
+**Importants (corrigés)**
+- **I1 · croix morte après deux erreurs identiques de suite** (`overlay.rs` `fail`, `OverlayView.svelte`). Cas : micro absent, appui répété : la 2ᵉ erreur remettait la mesure de la capsule à zéro alors que la page, voyant la même taille, ne la renvoyait pas ; la fenêtre redevenait insensible à la souris sous une capsule décalée de 12 px. Correction : `fail` garde la mesure quand une erreur en remplace une (la page renvoie sa mesure si la taille change) ; tout autre état la remet à zéro. Test : `a_failure_replacing_a_failure_keeps_the_measured_shape_but_any_other_state_drops_it`.
+- **I2 · l'Aide promettait « Cliquer la croix ne prend pas le focus »** alors que Windows et Linux ne sont pas essayés (tao ne traite pas `WM_MOUSEACTIVATE`, WebView2 peut prendre le focus au clic). Correction : phrase tempérée en français et en anglais (« conçu pour ne pas prendre le focus… si la frappe ne va plus dans ton appli, reclique dans ton appli »). **À essayer à la tâche 4 sur Windows et Linux, en tapant du texte après le clic** ; repli prêt si le focus est pris : sous-classer la fenêtre pour `MA_NOACTIVATE` sous Windows (§ Conception 5).
+
+**Mineurs corrigés au passage** : M3 `OverlayModel::fail` atomique (un seul verrou : plus de trame « message ordinaire » avant la capsule d'erreur) ; M8 la case d'un interrupteur revient à l'état du réglage même si le serveur refuse, et « commande inconnue » / « interrupteur illisible » sont traduits (`en-server.ts`) ; M9a `clean_disabled` s'arrête à 500 (plus de coût quadratique sur un profil édité à la main).
+
+**Mineurs restants (notés, non corrigés)**
+- M1/M2 · `controller.rs` ~1206–1350 : la note d'une commande ratée sans la touche (sélection illisible) est perdue, donc ni capsule persistante ni son, si la traduction l'écrase ou si le collage se fait en simple copie ; la décision se prend par comparaison de chaînes (`command_failure == note`). Rare ; correction : décider `fail_command` au retour de `try_command`, avec un booléen.
+- M4 · saut visible de 12 px à l'apparition de la capsule (la page passe en `.failing` avant que la fenêtre se réduise, 1 à 3 tours de 45 ms) : cosmétique.
+- M5 · `window.rs` : `set_size` avant `set_position` : avec deux écrans de définitions différentes, la fenêtre réduite peut être mal dimensionnée sur le nouvel écran ; et sans écran trouvé, `place_overlay` sort sans remettre la taille normale. Non essayé (pas d'écran double).
+- M6 · les quatre coins transparents de la fenêtre réduite captent le clic sans rien faire : négligeable.
+- M7 · titre redondant (« Commande non reconnue » + détail « Commande inconnue » ; « Commande non faite » + « Commande non faite : sélection illisible… ») : pas faux.
+- M9b · `disabledCommands` suit l'utilisateur alors que `voiceApps` reste à l'ordinateur : un `profile.json` restauré sur un autre ordinateur peut couper une autre application portant le même `appli.N` (ou perdre l'interrupteur à la première sauvegarde). Accepté pour l'instant.
+- **Lacunes de tests** : `TeeIndicator::fail`, échec du micro à l'appui (le chemin de I1, couvert maintenant au niveau du modèle seulement), échec de transcription ; `set_shape` périmé (mesure d'un ancien état arrivant après une nouvelle erreur).
+
+**Rien de réel trouvé** par le relecteur sur : clics transmis à l'appli dessous hors erreur et géométrie de la fenêtre réduite ; lecture, écriture, export et import de `disabledCommands` (ancien profil, clé malformée, inconnus, changement d'utilisateur, verrou et 409) ; textes anglais ; placement de `Route::Disabled` ; `flash` oubliés ; son d'erreur.
+
 ## Relais
 
-*(Fin de la tâche 1, 18/11/2026, contexte à 32 % : relais avant la tâche 2.)*
+*(Fin de la tâche 3, 18/11/2026, contexte à 23 % : pas de relais, le chantier passe à la tâche 4 dans une nouvelle session.)*
 
-- **Fait** : v0.11.0 publiée (avant le chantier) ; tâche 0 (`2d99b83`) ; tâche 1 (`04c40ca`). Commits locaux, **non poussés** (le dernier poussé est `1d10a99`). Tests mesurés : 863 Rust (3 ignorés), 170 interface, fmt/clippy/check verts.
+- **Fait** : v0.11.0 publiée (avant le chantier) ; tâche 0 (`2d99b83`), tâche 1 (`04c40ca`), tâche 2 (`545b03b`), tâche 3 (relecture et corrections, commit suivant). Commits locaux, **non poussés** (le dernier poussé est `1d10a99`). Tests mesurés : 875 Rust (3 ignorés), 170 interface, fmt/clippy/check verts.
 - **En cours** : rien ; arbre propre.
-- **Prochain pas** : tâche 2 (désactiver une commande), d'après § Conception 6 : `disabledCommands` dans `USER_KEYS` et `AppSettings` (lecture tolérante, retrait des identifiants inconnus à l'écriture), `recognize_for` écarte les désactivées, `Route::Disabled` avant `is_close` (message « Commande désactivée », genre `NotRecognised`, à traduire), `POST api/commands/enabled`, `commands_view`, interrupteur sur chaque ligne des six blocs de `ui/src/components/commands/`, export/import (commandes du programme seulement, `profile_file.rs`), Aide FR/EN, tests listés au § 7.
-- **Pièges** : `all_defs` reste entier (phrases déjà prises, `is_close`) ; ne pas bumper `SETTINGS_SCHEMA` ; `AppSettings` écrit tous ses champs (la clé `[]` apparaît à la première sauvegarde) ; un `Failure` neuf passe par `fail_command` (jamais `flash` direct) ; texte français ajouté = traduction dans `en.ts`/`en-server.ts` (`i18n.test.ts`) et Aide FR **et** EN ; `cd ui` change le dossier courant du shell : utiliser des chemins absolus.
-- **Reste du clic** : Windows et Linux, et la frappe dans l'appli après le clic, à l'essai de la tâche 4.
+- **Prochain pas** : tâche 4 (essai sur Mac, Windows et Linux). À vérifier en priorité : **la frappe dans l'appli d'origine après un clic sur la croix** (Mac, Windows, Linux ; repli Windows : `MA_NOACTIVATE`, § Conception 5), puis la capsule d'erreur vue à l'écran (jamais vue : pas de capture), l'interrupteur par commande sur la page, « Commande désactivée » sous la touche, une erreur de micro répétée (I1), puis retirer ou confirmer la phrase tempérée de l'Aide sur le focus.
+- **Pièges** : un `Failure` neuf passe par `fail_command` / `fail_dictation` (jamais `flash` direct) ; `Route::Disabled` passe avant `search_without_target` et `is_close` ; `all_defs` reste entier ; ne pas bumper `SETTINGS_SCHEMA` ; texte français ajouté = traduction dans `en.ts` / `en-server.ts` et Aide FR **et** EN ; `cd ui` change le dossier courant du shell : chemins absolus.
+- **Mineurs restants** : voir § Relecture (M1/M2 à traiter si l'essai les montre, M4 à M7, M9b).

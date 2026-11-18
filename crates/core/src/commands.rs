@@ -290,11 +290,13 @@ pub fn clean_disabled(list: Vec<String>) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for id in list {
         let id = id.trim();
+        if out.len() == MAX_DISABLED {
+            break;
+        }
         if !id.is_empty() && id.chars().count() <= MAX_DISABLED_ID && !out.iter().any(|o| o == id) {
             out.push(id.to_string());
         }
     }
-    out.truncate(MAX_DISABLED);
     out
 }
 

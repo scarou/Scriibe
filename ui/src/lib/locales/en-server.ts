@@ -255,6 +255,8 @@ export const enServer: Record<string, string> = {
   'Commande non reconnue': 'Command not recognised',
   'Commande non faite': 'Command not done',
   'Commande désactivée': 'Command turned off',
+  'commande inconnue': 'unknown command',
+  'interrupteur illisible': 'switch unreadable',
   'Commande trop longue': 'Command too long',
   'Rien à chercher': 'Nothing to search for',
   'Site de recherche inconnu': 'Unknown search site',

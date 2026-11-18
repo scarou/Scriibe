@@ -73,7 +73,7 @@ export async function setCommandEnabled(id: string, enabled: boolean): Promise<v
   const out = await api<{ ok: boolean; error?: string }>('commands/enabled', { id, enabled });
   if (!out.ok) {
     void notice(out.error ?? t('réglage refusé'));
-    return;
   }
+  // Même après un refus : la case revient à l'état du réglage.
   await settings.load();
 }

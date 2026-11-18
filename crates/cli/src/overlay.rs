@@ -123,9 +123,18 @@ impl OverlayModel {
     }
 
     /// Une erreur qui reste affichée jusqu'à `dismiss` ou jusqu'à l'état suivant (la dictée suivante, un autre message).
+    ///
+    /// D'un seul verrou (la page ne voit jamais un message ordinaire entre les deux). Une erreur qui en remplace une garde la dernière
+    /// mesure de la capsule : la page ne renvoie sa taille que si elle change, et sans cela deux erreurs identiques de suite (micro
+    /// absent, appui répété) laisseraient la fenêtre agrandie et insensible à la souris sous une capsule qui n'a pas bougé.
     pub fn fail(&self, failure: Failure) {
-        self.show(IndicatorState::Message(failure.message.clone()));
-        self.lock().failure = Some(failure);
+        self.generation.fetch_add(1, Ordering::SeqCst);
+        let mut inner = self.lock();
+        let shape = if inner.failure.is_some() { inner.shape } else { None };
+        inner.state = IndicatorState::Message(failure.message.clone());
+        inner.until = None;
+        inner.failure = Some(failure);
+        inner.shape = shape;
     }
 
     /// La croix de la pastille : cache l'erreur qui reste affichée. Sans effet sur un autre état (une dictée déjà repartie).
@@ -311,6 +320,32 @@ mod tests {
 
     fn failure(text: &str) -> Failure {
         Failure::new(FailureKind::NotDone, text)
+    }
+
+    /// Relecture C5 (important I1) : une erreur qui en remplace une garde la mesure de la capsule (sinon la fenêtre redevient insensible à la
+    /// souris sous une capsule inchangée) ; une erreur après un autre état repart sans mesure ; la mesure ne s'applique qu'à une erreur.
+    #[test]
+    fn a_failure_replacing_a_failure_keeps_the_measured_shape_but_any_other_state_drops_it() {
+        let model = OverlayModel::default();
+        model.fail(failure("Le micro ne répond pas"));
+        model.set_shape(300.0, 60.0);
+        model.fail(failure("Le micro ne répond pas"));
+        assert_eq!(model.snapshot().shape, Some((300.0, 60.0)), "deux erreurs identiques de suite : la croix reste cliquable");
+        assert!(model.snapshot().failure.is_some());
+        model.fail(failure("Aucune sélection"));
+        assert_eq!(model.snapshot().shape, Some((300.0, 60.0)), "la page renvoie sa mesure si la taille change");
+        model.show(IndicatorState::Listening);
+        model.fail(failure("Aucune sélection"));
+        assert_eq!(model.snapshot().shape, None, "après un autre état, la capsule est neuve : rien n'est gardé");
+        // Une première erreur sur une pastille ordinaire, ou après une croix, repart aussi sans mesure.
+        model.set_shape(300.0, 60.0);
+        model.dismiss();
+        model.fail(failure("Aucune sélection"));
+        assert_eq!(model.snapshot().shape, None);
+        // Un flash ordinaire efface l'erreur et sa mesure.
+        model.set_shape(200.0, 50.0);
+        model.flash(IndicatorState::Done, 1.0);
+        assert_eq!((model.snapshot().failure, model.snapshot().shape), (None, None));
     }
 
     #[test]
