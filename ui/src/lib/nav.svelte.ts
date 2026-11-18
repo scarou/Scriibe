@@ -62,13 +62,32 @@ class Nav {
 
   /** Ouvre la page concernée et y demande la même carte secondaire que ses propres boutons. */
   async transfer(kind: TransferKind): Promise<void> {
+    const id = ++this.#seq;
+    this.transferNotice = '';
     this.transferRequest = kind;
     const { tab, anchor } = transferTargets[kind];
     await this.go(tab, anchor);
-    // Une demande que la page n'a pas pu prendre (rien à exporter, données pas lues) ne doit pas rester pour une visite ultérieure.
+    // Une demande que la page n'a pas pu prendre (données pas lues) ne doit pas rester pour une visite ultérieure.
+    // Le numéro évite que le minuteur d'une demande efface la suivante, même du même type.
     setTimeout(() => {
-      if (this.transferRequest === kind) this.transferRequest = null;
+      if (this.#seq === id && this.transferRequest === kind) this.transferRequest = null;
     }, 4000);
+  }
+
+  /** Numéro de la dernière demande de transfert. */
+  #seq = 0;
+
+  /** Message de la carte « Sauvegarder et transférer » quand la page visée n'a rien à exporter ; vide sinon. */
+  transferNotice = $state('');
+
+  /** La page visée prend la demande et dit pourquoi elle n'a rien à ouvrir : la carte l'affiche. */
+  transferNothing(message: string): void {
+    this.transferRequest = null;
+    this.transferNotice = message;
+    const id = this.#seq;
+    setTimeout(() => {
+      if (this.#seq === id && this.transferNotice === message) this.transferNotice = '';
+    }, 8000);
   }
 
   /** Demande l'ouverture de l'assistant de premier lancement ; l'Accueil la prend en compte à son affichage. */

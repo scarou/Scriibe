@@ -80,7 +80,10 @@
         <label>{t('Chemin du fichier de sauvegarde :')}
           <input type="text" class="grow" bind:value={restoring.path} placeholder="~/Documents/scriibe-sauvegarde-….scriibe.json" />
         </label>
-        <button onclick={() => readBackup(restoring?.path)} disabled={!restoring.path || restoring.busy}>{t('Lire')}</button>
+        <div class="row">
+          <button onclick={() => readBackup(restoring?.path)} disabled={!restoring.path || restoring.busy}>{t('Lire')}</button>
+          <button onclick={() => (restoring = null)}>{t('Annuler')}</button>
+        </div>
       {/if}
       {#if restoring.preview}
         {@const p = restoring.preview}
@@ -118,6 +121,7 @@
       <button onclick={() => nav.go('history', 'conservation')}>{t('Régler la conservation →')}</button>
     </li>
   </ul>
+  {#if nav.transferNotice}<p role="status" class="warn">{nav.transferNotice}</p>{/if}
   <p class="muted">{t('L’historique et les statistiques ne partent que dans la sauvegarde complète.')}</p>
 </Card>
 

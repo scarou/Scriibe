@@ -271,6 +271,7 @@
     nav.transferRequest = null;
     if (kind === 'dictionary-import') void readImport();
     else if (words.length > 0 || corrections.length > 0) void openExport();
+    else nav.transferNothing(t('Le dictionnaire est vide : rien à exporter.'));
   });
 </script>
 
@@ -369,7 +370,8 @@
     {#if importing.askPath}
       <p>{t('Sur ce système, indique le chemin du fichier .scriibe.json à importer :')}</p>
       <div class="row"><input type="text" class="grow" bind:value={importing.path} placeholder="/home/…/scriibe-dictionnaire.scriibe.json" disabled={importing.busy} />
-        <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button></div>
+        <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button>
+        <button onclick={closeImport}>{t('Annuler')}</button></div>
     {:else if importing.words.length + importing.corrections.length > 0}
       <p>{t('Ce fichier contient {words} mot(s) et {corrections} correction(s). Rien n’est modifié tant que tu n’as pas cliqué sur « Importer ». L’import ajoute : ce qui est déjà dans ton dictionnaire n’est jamais remplacé. Si le fichier vient de quelqu’un d’autre, relis-le : les mots sont donnés au modèle de mise au propre à chaque dictée, et une correction remplace un mot par un autre dans toutes tes dictées.', { words: importing.words.length, corrections: importing.corrections.length })}</p>
       {#if importing.words.length > 0}

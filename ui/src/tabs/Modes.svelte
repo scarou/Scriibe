@@ -174,6 +174,8 @@
     return stop;
   });
 
+  const exportNotice = (n: number) => (n === 0 ? t('Aucun mode personnel à exporter.') : t('Plusieurs modes personnels : exporte celui que tu veux avec son bouton « Exporter », dans « Mes modes ».'));
+
   /** Demande de la carte « Sauvegarder et transférer » : l'import, ou l'export (d'emblée s'il n'y a qu'un mode personnel, sinon à choisir dans la liste). */
   $effect(() => {
     const kind = nav.transferRequest;
@@ -182,6 +184,7 @@
     nav.transferRequest = null;
     if (kind === 'modes-import') void readImport();
     else if (custom.length === 1) exporting = { mode: structuredClone($state.snapshot(custom[0])), examples: true, busy: false, result: '' };
+    else nav.transferNothing(exportNotice(custom.length));
   });
 </script>
 
@@ -255,7 +258,8 @@
       {#if importing.askPath}
         <p>{t('Sur ce système, indique le chemin du fichier .scriibe.json à importer :')}</p>
         <div class="row"><input type="text" class="grow" bind:value={importing.path} placeholder="/home/…/scriibe-mode-sms.scriibe.json" disabled={importing.busy} />
-          <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button></div>
+          <button class="primary" disabled={importing.busy || !importing.path.trim()} onclick={() => readImport(importing!.path)}>{t('Lire le fichier')}</button>
+          <button onclick={closeImport}>{t('Annuler')}</button></div>
       {:else if importing.items.length > 0}
         <p>{t('Ce fichier contient {n} mode(s). Rien n’est modifié tant que tu n’as pas cliqué sur « Importer ». Un mode importé est ajouté à tes modes ; la consigne est un texte donné au modèle : relis-la si le fichier vient de quelqu’un d’autre.', { n: importing.items.length })}</p>
         {#each importing.items as item, i (i)}

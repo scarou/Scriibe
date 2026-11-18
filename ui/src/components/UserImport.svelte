@@ -99,7 +99,8 @@
   {#if askPath}
     <p>{t('Sur ce système, indique le chemin du fichier .scriibe.json à importer :')}</p>
     <div class="row"><input type="text" class="grow" bind:value={path} placeholder="/home/…/scriibe-utilisateur.scriibe.json" disabled={busy} />
-      <button class="primary" disabled={busy || !path.trim()} onclick={() => read(path)}>{t('Lire le fichier')}</button></div>
+      <button class="primary" disabled={busy || !path.trim()} onclick={() => read(path)}>{t('Lire le fichier')}</button>
+      <button onclick={cancel}>{t('Annuler')}</button></div>
   {:else if preview}
     <p>{t('Ce fichier crée un nouvel utilisateur. Rien n’est modifié tant que tu n’as pas cliqué sur « Importer », et l’utilisateur actuel n’est jamais touché. Décoche ce que tu ne veux pas reprendre, et relis ce qui vient de quelqu’un d’autre : une correction remplace un mot par un autre dans toutes les dictées, une consigne est donnée au modèle, une commande appuie un raccourci de l’appli.')}</p>
     <label class="field">{t('Nom du nouvel utilisateur :')}

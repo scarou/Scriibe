@@ -151,3 +151,13 @@ Tests : `npm run check`, `npm test` (148 passés, 2 nouveaux dans `lib/textes.te
 - **Non fait** : les captures (`tools/captures_interface.js`) n'ont pas été relancées, Playwright n'étant pas installé sur ce Mac (`require('playwright')` échoue) ; le script passe `node --check`. À relancer depuis une session qui l'a, ou après accord de l'auteur pour l'installer.
 - Sous Linux, la chaîne « gpu » de l'assistant promet « sa carte graphique » alors que le seul programme proposé est la version processeur : non traité (hors périmètre), à décider.
 - Clippy pour Windows (`x86_64-pc-windows-gnu`) non relancé ; `offered()` y est inchangé en logique pour les ids Windows.
+
+## Sauvegarde (tâche 3, 18/11/2026)
+
+| Point | Correctif |
+|---|---|
+| 13. « Exporter… » muet | `nav.transferNothing(message)` : la page visée vide la demande et laisse un message (`nav.transferNotice`, effacé à la demande suivante ou après 8 s) que `BackupTransfer` affiche en `role="status"` sous la liste. Cas : 0 mode, plusieurs modes (« exporte celui que tu veux avec son bouton », car l'export se fait mode par mode), dictionnaire vide, 0 commande, utilisateurs indisponibles. Textes dans `en.ts` |
+| 14. Minuteur de 4 s | Numéro de demande (`#seq`) : le minuteur n'efface que la demande qui l'a lancé (le même type cliqué deux fois ne perd plus la seconde). **Non traité** : une page qui charge plus de 4 s perd encore sa demande (rare ; la demande est vidée et le message n'apparaît pas) |
+| 15. « Annuler » au chemin à taper | Bouton ajouté aux 4 endroits : `BackupTransfer` (ferme sans appel serveur : rien n'a été lu), `Modes` et `Dictionary` (`closeImport`), `UserImport` (`cancel`). `CustomCommands` l'avait déjà |
+
+Tests : `lib/transfer.test.ts` (6 cas : minuteur deux clics, effacement à 4 s, message puis effacé, effacement à 8 s, pages et carte câblées, « Annuler » dans chaque bloc de chemin). Il n'y a pas de banc de composants dans le projet : le câblage des pages est vérifié sur le texte des sources (comme `links.test.ts`). `npm test` 154 passés, `npm run check` 0 erreur. Pas vu à l'écran.

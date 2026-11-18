@@ -155,6 +155,7 @@
     nav.transferRequest = null;
     if (kind === 'commands-import') void openTransfer('import');
     else if (customs.length > 0) void openTransfer('export');
+    else nav.transferNothing(t('Aucune commande vocale personnelle à exporter.'));
   });
 </script>
 

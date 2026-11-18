@@ -97,6 +97,7 @@
     nav.transferRequest = null;
     if (kind === 'user-import') openImport();
     else if (list.ok && list.active) openExport(list.active);
+    else nav.transferNothing(t('Aucun utilisateur à exporter : les utilisateurs ne sont pas disponibles.'));
   });
 </script>
 
