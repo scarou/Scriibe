@@ -191,6 +191,32 @@ Ces trois comportements ne se testent pas par un test automatique (ils dépenden
 
 **Rien de réel trouvé** par le relecteur sur : clics transmis à l'appli dessous hors erreur et géométrie de la fenêtre réduite ; lecture, écriture, export et import de `disabledCommands` (ancien profil, clé malformée, inconnus, changement d'utilisateur, verrou et 409) ; textes anglais ; placement de `Route::Disabled` ; `flash` oubliés ; son d'erreur.
 
+## Essai
+
+*(Tâche 4, 18/11/2026. Mac (`Scriibe.app` par `open`), PC Windows (Bloc-notes), PC Linux GNOME (Éditeur de texte). Code des 8 commits locaux envoyé aux PC par fichier `git bundle` sur une branche `essai-c5` (pas de push), compilé par `pilote compiler --mode release`, puis branche supprimée et PC remis sur `main`. Dictées et clics par l'auteur ; capsule, sons et frappe constatés par lui, journaux lus par l'assistant. Pas de capture : l'auteur a vu l'écran lui-même.)*
+
+| Cas | Mac | Windows | Linux |
+|---|---|---|---|
+| Non reconnue (capsule jusqu'au clic, 2 notes graves) | OK (« Commande non reconnue ») | OK | OK (« Site de recherche inconnu ») |
+| Commande qui échoue (« Commande non faite », notes graves) | OK (« Aucune sélection ») | OK (« Aucune sélection ») | OK (« Sélection illisible » ; reformulation « non disponible sous Linux ») |
+| Réussie (son et pastille habituels, pas d'erreur) | OK (guillemets sur sélection) | OK (guillemets sur sélection) | OK (recherche YouTube ; la sélection n'est pas lue sous Linux) |
+| Désactivée puis dite (rien d'écrit, « Commande désactivée », notes graves) | OK (journal : « phrase d'une commande désactivée ») | OK | OK |
+| Clic sur la croix puis frappe : le texte arrive dans l'appli d'origine | **ÉCHEC puis OK après correction** | OK | OK |
+
+**Trouvé et corrigé : Mac, le clic sur la croix activait Scriibe** (sa fenêtre passait devant, TextEdit disparaissait, la frappe se perdait). `focusable(false)` ne suffisait pas, contrairement à ce que l'essai de la tâche 1 laissait croire (suivi toutes les 0,2 s, frappe non essayée). Correction : `order_front_without_activating` (`crates/platform/src/macos/mod.rs`) pose aussi le bit « panneau non activant » du masque de style et la marque privée `_setPreventsActivation:` (si la fenêtre la connaît) avant `orderFrontRegardless`. Reessayé : capsule effacée, `abc` arrivé dans TextEdit. Ni `NSPanel` ni repli sans clic nécessaires. Windows et Linux : pas de repli (`MA_NOACTIVATE` inutile), la phrase de l'Aide sur le focus reste vraie ; on peut retirer la précaution (tâche 5).
+
+**Observations (pas des défauts du chantier)**
+- Whisper confond « mets » (Mac : « phrase proche d'une commande, non reconnue » ; Windows : consigne de 2 mots prise pour une reformulation) : dire l'infinitif (« Mettre entre guillemets », « Mettre en gras ») et lentement.
+- Linux : une phrase libre (« Fais le tour du jardin ») est une reformulation de sélection, donc « Commande non faite : non disponible sous Linux » plutôt que « non reconnue ». Même cas sous Windows sans accord du moteur (« reformulation impossible : moteur hors de cet ordinateur sans accord »). Les deux sont des erreurs persistantes avec son : cohérent avec le § Conception (cas B).
+- Windows : un `scriibe.exe` en cours verrouille la compilation (déjà dans `docs/PIEGES.md`) ; lancé dans la session de l'auteur par une tâche planifiée `/IT` temporaire (supprimée).
+- Non essayé : erreur de micro répétée (I1, couvert par test), « Dictée en erreur » sans son, écran double (M5), page des interrupteurs vue à l'écran (la désactivation a été posée par le point d'accès `POST api/commands/enabled`, rétablie ensuite sur les trois machines).
+
+**Mesuré** (Mac, après correction) : `cargo fmt`, `clippy -D warnings` sans erreur ; 875 tests Rust passés, 3 ignorés. Compilation release Linux et Windows : OK.
+
+## Ajouts
+
+Aucune nouvelle demande de l'auteur pendant l'essai. Notée pour mémoire : la lecture de la sélection sous Linux reste ouverte (« sélection illisible », limite connue, `ROADMAP.md`).
+
 ## Relais
 
 *(Fin de la tâche 3, 18/11/2026, contexte à 23 % : pas de relais, le chantier passe à la tâche 4 dans une nouvelle session.)*

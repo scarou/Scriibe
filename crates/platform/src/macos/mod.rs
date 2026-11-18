@@ -32,7 +32,19 @@ pub fn order_front_without_activating(ns_window: *mut std::ffi::c_void) {
     // SAFETY : `ns_window` est le `NSWindow` d'une fenêtre vivante de ce processus (donné par Tauri), utilisé sur le fil principal ;
     // `orderFrontRegardless` n'a pas d'autre condition.
     unsafe {
-        let _: () = msg_send![ns_window as *mut AnyObject, orderFrontRegardless];
+        let window = ns_window as *mut AnyObject;
+        // Un clic sur la fenêtre (la croix de la pastille d'erreur) ne doit pas activer Scriibe : l'appli où l'on dicte perdrait le focus
+        // (essai du 18/11/2026 : `focusable(false)` seul ne suffit pas). Bit « panneau non activant » du masque de style, plus la
+        // marque privée « empêche l'activation » du serveur de fenêtres ; refusées sans erreur si l'une manque.
+        const NONACTIVATING_PANEL: usize = 1 << 7;
+        let mask: usize = msg_send![window, styleMask];
+        let _: () = msg_send![window, setStyleMask: mask | NONACTIVATING_PANEL];
+        let sel = objc2::sel!(_setPreventsActivation:);
+        let responds: bool = msg_send![window, respondsToSelector: sel];
+        if responds {
+            let _: () = msg_send![window, _setPreventsActivation: true];
+        }
+        let _: () = msg_send![window, orderFrontRegardless];
     }
 }
 
