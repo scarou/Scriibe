@@ -15,11 +15,11 @@ use scriibe_engines::services::{Cleaner, Transcriber};
 use scriibe_engines::whisper;
 use scriibe_platform::apps::{AppInfo, ForegroundApp};
 use scriibe_platform::audio::Recorder;
-use scriibe_platform::indicator::{Indicator, IndicatorState};
+use scriibe_platform::indicator::{Failure, FailureKind, Indicator, IndicatorState};
 use scriibe_platform::keys::KeyEvent;
 use scriibe_platform::media::MediaControl;
 use scriibe_platform::paste::{PasteOutcome, Paster, SelectedRead, SelectedText, Unreadable};
-use scriibe_platform::sounds::Sounds;
+use scriibe_platform::sounds::{Sounds, ERROR_SOUND};
 use scriibe_platform::storage::{ConfigSource, HistorySink};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -70,6 +70,8 @@ enum CommandOutcome {
     Handled,
     /// Ce n'est pas une commande : la phrase suit le chemin d'une dictée ordinaire, avec peut-être une remarque pour la pastille.
     Text(Option<String>),
+    /// Comme `Text`, mais une commande reconnue n'a pas pu se faire : la remarque est une erreur qui reste affichée (chantier 5).
+    TextAfterFailure(String),
 }
 
 /// Tout ce que le chef d'orchestre utilise.
@@ -556,7 +558,7 @@ impl Controller {
             Ok(info) => info,
             Err(message) => {
                 deps.log.write(&format!("micro: ouverture impossible ({message})"));
-                deps.indicator.flash(IndicatorState::Message(message), 2.5);
+                self.fail_dictation(message);
                 return;
             }
         };
@@ -732,7 +734,7 @@ impl Controller {
         if MicLevel::assess(recording.level) == MicLevel::Silent {
             deps.log.write(&format!("dictée: aucun son capté (niveau RMS max {:.4}) — micro : {input}", recording.level));
             let name = input.split(',').next().unwrap_or("").to_string();
-            deps.indicator.flash(IndicatorState::Message(format!("Aucun son capté — vérifie le micro ({name})")), 4.0);
+            self.fail_dictation(format!("Aucun son capté — vérifie le micro ({name})"));
             return;
         }
         deps.indicator.show(IndicatorState::Working);
@@ -801,7 +803,7 @@ impl Controller {
             }
             Route::Close => {
                 deps.log.write("commande: phrase proche d'une commande, non reconnue — rien n'est collé");
-                self.refuse("Commande non reconnue");
+                self.refuse(FailureKind::NotRecognised, "Commande non reconnue");
             }
             // Ni une commande, ni une phrase proche : avec une sélection, la phrase est la consigne de reformulation (étape 4).
             Route::Instruction => self.rewrite_selection(raw, settings, target),
@@ -810,15 +812,15 @@ impl Controller {
                     "commande: phrase de plus de {} mots, dictée prise par mégarde — rien n'est collé",
                     scriibe_core::commands::INSTRUCTION_MAX_WORDS
                 ));
-                self.refuse("Commande trop longue");
+                self.refuse(FailureKind::NotRecognised, "Commande trop longue");
             }
             Route::EmptySearch => {
                 deps.log.write("commande: recherche sans rien à chercher — rien n'est ouvert");
-                self.refuse("Rien à chercher");
+                self.refuse(FailureKind::NotDone, "Rien à chercher");
             }
             Route::UnknownSearch => {
                 deps.log.write("commande: « nouvelle recherche » avec un site inconnu — rien n'est ouvert");
-                self.refuse("Site de recherche inconnu");
+                self.refuse(FailureKind::NotRecognised, "Site de recherche inconnu");
             }
         }
     }
@@ -832,26 +834,26 @@ impl Controller {
         let deps = &self.inner.deps;
         if !deps.paster.reads_selection() {
             deps.log.write("commande: reformulation impossible, ce système ne lit pas la sélection — rien n'est collé");
-            self.refuse("Non disponible sous Linux");
+            self.refuse(FailureKind::NotDone, "Non disponible sous Linux");
             return;
         }
         // La sélection lue doit être celle de l'application de l'appui : sinon la reformulation d'un texte d'une autre application
         // pourrait être collée dans celle-ci au retour (relecture de la tâche 10).
         if !same_app(target, &deps.apps.current()) {
             deps.log.write("commande: reformulation impossible, l'application au premier plan a changé — rien n'est lu ni collé");
-            self.refuse("Reformulation impossible : l'application a changé");
+            self.refuse(FailureKind::NotDone, "Reformulation impossible : l'application a changé");
             return;
         }
         let selection = match deps.paster.selected_text() {
             SelectedRead::Text(text) if !text.expose().trim().is_empty() => text,
             SelectedRead::Text(_) | SelectedRead::NoSelection => {
                 deps.log.write("commande: aucune commande reconnue et aucune sélection — rien n'est collé");
-                self.refuse("Commande inconnue");
+                self.refuse(FailureKind::NotRecognised, "Commande inconnue");
                 return;
             }
             SelectedRead::Unreadable(why) => {
                 deps.log.write(&format!("commande: reformulation impossible ({}) — rien n'est collé", why.reason()));
-                self.refuse("Sélection illisible");
+                self.refuse(FailureKind::NotDone, "Sélection illisible");
                 return;
             }
         };
@@ -887,7 +889,7 @@ impl Controller {
                     RewriteError::Service(e) => e.to_string(),
                 };
                 deps.log.write(&format!("commande: reformulation non faite ({why}, {took}) — rien n'est remplacé"));
-                deps.indicator.flash(IndicatorState::Message(message), 4.0);
+                self.fail_command(FailureKind::NotDone, message);
                 return;
             }
         };
@@ -896,12 +898,12 @@ impl Controller {
                 "commande: reformulation copiée, l'application au premier plan a changé ({} signes, {took}) — rien n'est collé",
                 text.char_count()
             ));
-            let message = if deps.paster.copy_transient(text.expose()) {
-                format!("Reformulation copiée : l'application a changé, à coller avec {PASTE_SHORTCUT}")
+            if deps.paster.copy_transient(text.expose()) {
+                let message = format!("Reformulation copiée : l'application a changé, à coller avec {PASTE_SHORTCUT}");
+                deps.indicator.flash(IndicatorState::Message(message), 4.0);
             } else {
-                "Reformulation non collée : l'application a changé".to_string()
-            };
-            deps.indicator.flash(IndicatorState::Message(message), 4.0);
+                self.fail_command(FailureKind::NotDone, "Reformulation non collée : l'application a changé");
+            }
             return;
         }
         match deps.paster.paste_transient(text.expose()) {
@@ -918,9 +920,27 @@ impl Controller {
     }
 
     /// Le message fixe de la pastille quand une commande ne se fait pas. Rien n'est collé.
-    fn refuse(&self, message: &'static str) -> CommandOutcome {
-        self.inner.deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
+    fn refuse(&self, kind: FailureKind, message: &'static str) -> CommandOutcome {
+        self.fail_command(kind, message);
         CommandOutcome::Handled
+    }
+
+    /// Une commande ratée : la pastille garde l'erreur (jusqu'à la croix ou la dictée suivante) et le son d'erreur joue, sauf si la
+    /// personne a coupé les sons (volume à 0, ou « Aucun » au début et à la fin).
+    fn fail_command(&self, kind: FailureKind, message: impl Into<String>) {
+        let deps = &self.inner.deps;
+        deps.indicator.fail(Failure::new(kind, message));
+        let settings = deps.config.settings();
+        let no_sound = scriibe_core::settings::NO_SOUND;
+        let silent = settings.sound_volume <= 0.0 || (settings.start_sound_name == no_sound && settings.end_sound_name == no_sound);
+        if !silent {
+            deps.sounds.play(ERROR_SOUND, settings.sound_volume);
+        }
+    }
+
+    /// Une dictée en échec (micro, transcription) : la pastille garde l'erreur, sans son (le son d'erreur est celui des commandes).
+    fn fail_dictation(&self, message: impl Into<String>) {
+        self.inner.deps.indicator.fail(Failure::new(FailureKind::Dictation, message));
     }
 
     /// Une commande qui ne peut rien faire : sans la touche, la phrase suit le chemin d'une dictée ordinaire ; sous la touche, jamais
@@ -928,7 +948,7 @@ impl Controller {
     fn nothing_to_do(&self, context: scriibe_core::commands::Context, message: &'static str) -> CommandOutcome {
         match context {
             scriibe_core::commands::Context::NoKey => CommandOutcome::Text(None),
-            scriibe_core::commands::Context::UnderKey => self.refuse(message),
+            scriibe_core::commands::Context::UnderKey => self.refuse(FailureKind::NotDone, message),
         }
     }
 
@@ -947,7 +967,7 @@ impl Controller {
                 SelectedRead::NoSelection => {
                     if under_key {
                         deps.log.write(&format!("commande: {} ignorée (aucune sélection) — rien n'est collé", command.id));
-                        return self.refuse("Aucune sélection");
+                        return self.refuse(FailureKind::NotDone, "Aucune sélection");
                     }
                     deps.log.write(&format!("commande: {} ignorée (aucune sélection) — la phrase est collée comme du texte", command.id));
                     return CommandOutcome::Text(None);
@@ -955,7 +975,7 @@ impl Controller {
                 SelectedRead::Unreadable(why) => {
                     if under_key {
                         deps.log.write(&format!("commande: {} ignorée ({}) — rien n'est collé", command.id, why.reason()));
-                        return self.refuse("Sélection illisible");
+                        return self.refuse(FailureKind::NotDone, "Sélection illisible");
                     }
                     deps.log.write(&format!("commande: {} ignorée ({}) — la phrase est collée comme du texte", command.id, why.reason()));
                     let note = match why {
@@ -967,7 +987,7 @@ impl Controller {
                         }
                         Unreadable::Failed => "Commande non faite : sélection illisible — phrase collée comme du texte",
                     };
-                    return CommandOutcome::Text(Some(note.into()));
+                    return CommandOutcome::TextAfterFailure(note.into());
                 }
             }
         } else {
@@ -980,19 +1000,16 @@ impl Controller {
                 deps.log.write(&format!("commande: {} (sélection : {length} signes)", command.id));
                 let shown = text.expose().trim();
                 if shown.is_empty() || shown.chars().count() > DICTIONARY_MAX_CHARS || shown.contains('\n') {
-                    deps.indicator.flash(
-                        IndicatorState::Message(
-                            "Sélection trop longue pour le dictionnaire (80 signes au plus, sur une seule ligne)".into(),
-                        ),
-                        3.5,
+                    self.fail_command(
+                        FailureKind::NotDone,
+                        "Sélection trop longue pour le dictionnaire (80 signes au plus, sur une seule ligne)",
                     );
                     return CommandOutcome::Handled;
                 }
-                let message = match deps.commands.add_to_dictionary(SelectedText::new(shown)) {
-                    Ok(()) => "Ajouter au dictionnaire — complète « Écrit »",
-                    Err(why) => why,
-                };
-                deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
+                match deps.commands.add_to_dictionary(SelectedText::new(shown)) {
+                    Ok(()) => deps.indicator.flash(IndicatorState::Message("Ajouter au dictionnaire — complète « Écrit »".into()), 3.0),
+                    Err(why) => self.fail_command(FailureKind::NotDone, why),
+                }
                 CommandOutcome::Handled
             }
             // Gras, italique, souligné (tâche 8) : pas de texte à écrire, on appuie le raccourci de l'appli, qui agit sur la sélection restée active
@@ -1013,14 +1030,14 @@ impl Controller {
                     None => settings.format_shortcuts.for_command(id),
                 };
                 let Some(shortcut) = text_of_shortcut.and_then(scriibe_core::shortcut::Shortcut::parse) else {
-                    deps.indicator.flash(IndicatorState::Message("Raccourci invalide dans les réglages (exemple : Mod+B)".into()), 3.5);
+                    self.fail_command(FailureKind::NotDone, "Raccourci invalide dans les réglages (exemple : Mod+B)");
                     return CommandOutcome::Handled;
                 };
                 match deps.paster.press_shortcut(&shortcut) {
                     Ok(()) => deps.indicator.flash(IndicatorState::Done, 0.9),
                     Err(reason) => {
                         deps.log.write(&format!("commande: {id} — raccourci non envoyé ({reason})"));
-                        deps.indicator.flash(IndicatorState::Message(format!("Raccourci non envoyé — {reason}")), 3.5);
+                        self.fail_command(FailureKind::NotDone, format!("Raccourci non envoyé — {reason}"));
                     }
                 }
                 CommandOutcome::Handled
@@ -1030,7 +1047,7 @@ impl Controller {
                 let Some(text) = selected else { return self.nothing_to_do(context, "Aucune sélection") };
                 deps.log.write(&format!("commande: {id} (sélection : {} signes)", text.char_count()));
                 let Some(wrapped) = scriibe_core::commands::surround(id, command.lang, text.expose()) else {
-                    deps.indicator.flash(IndicatorState::Message("Rien à entourer (la sélection est vide)".into()), 3.0);
+                    self.fail_command(FailureKind::NotDone, "Rien à entourer (la sélection est vide)");
                     return CommandOutcome::Handled;
                 };
                 // Le texte entouré contient la sélection : mémoire effacée à la fin, jamais journalisé ni mis dans l'historique.
@@ -1058,7 +1075,7 @@ impl Controller {
                     Ok(()) => deps.indicator.flash(IndicatorState::Done, 0.9),
                     Err(reason) => {
                         deps.log.write(&format!("commande: {id} — adresse non ouverte ({reason})"));
-                        deps.indicator.flash(IndicatorState::Message("Recherche non ouverte".into()), 3.0);
+                        self.fail_command(FailureKind::NotDone, "Recherche non ouverte");
                     }
                 }
                 CommandOutcome::Handled
@@ -1094,7 +1111,7 @@ impl Controller {
                     Ok(()) => deps.indicator.flash(IndicatorState::Done, 0.9),
                     Err(reason) => {
                         deps.log.write(&format!("commande: {id} — messagerie non ouverte ({reason})"));
-                        deps.indicator.flash(IndicatorState::Message("Mail non ouvert".into()), 3.0);
+                        self.fail_command(FailureKind::NotDone, "Mail non ouvert");
                     }
                 }
                 CommandOutcome::Handled
@@ -1117,7 +1134,7 @@ impl Controller {
                         } else {
                             "Application non ouverte"
                         };
-                        deps.indicator.flash(IndicatorState::Message(message.into()), 3.0);
+                        self.fail_command(FailureKind::NotDone, message);
                     }
                 }
                 CommandOutcome::Handled
@@ -1140,7 +1157,7 @@ impl Controller {
             Ok(text) => text.trim().to_string(),
             Err(e) => {
                 deps.log.write(&format!("dictée: transcription en échec ({e})"));
-                deps.indicator.flash(IndicatorState::Message(e.to_string()), 3.0);
+                self.fail_dictation(e.to_string());
                 return;
             }
         };
@@ -1171,9 +1188,10 @@ impl Controller {
         };
 
         // Commande vocale : la phrase est toute la transcription (avant `dictionary::apply`, qui la réécrirait). La sélection n'est lue qu'ici.
-        let command_note = match self.try_command(&raw, settings) {
+        let (command_note, command_failure) = match self.try_command(&raw, settings) {
             CommandOutcome::Handled => return,
-            CommandOutcome::Text(note) => note,
+            CommandOutcome::Text(note) => (note, None),
+            CommandOutcome::TextAfterFailure(note) => (Some(note.clone()), Some(note)),
         };
 
         // S18 : signes dictés des langues de la dictée (les signes anglais ne s'appliquent pas à une dictée française).
@@ -1321,7 +1339,12 @@ impl Controller {
             deps.log.write(&format!("collage: {reason}"));
             deps.indicator.flash(IndicatorState::Message(format!("Copié, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
         } else if let Some(note) = note {
-            deps.indicator.flash(IndicatorState::Message(note), 3.0);
+            // Une commande reconnue qui n'a pas pu se faire (la phrase est collée comme du texte) : erreur qui reste affichée.
+            if command_failure.as_deref() == Some(note.as_str()) {
+                self.fail_command(FailureKind::NotDone, note);
+            } else {
+                deps.indicator.flash(IndicatorState::Message(note), 3.0);
+            }
         } else if weak {
             let language = translated.map(|l| format!(" en {}", l.name())).unwrap_or_default();
             deps.indicator

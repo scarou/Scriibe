@@ -128,3 +128,23 @@ Ces trois comportements ne se testent pas par un test automatique (ils dépenden
 - Le comportement du clic sans focus (macOS surtout, Windows ensuite) est une hypothèse de lecture de la documentation de Tauri et des systèmes, **non essayée ici** (pas de code dans cette tâche). Les replis sont décrits pour chaque système.
 - Les messages à l'écran de plusieurs lignes : la hauteur de la capsule d'erreur est mesurée par la page, jamais calculée côté Rust.
 - Un `Failure` oublié au moment de remplacer les appels retomberait en pastille de 4 s (comportement actuel) : le test de la tâche 1 parcourt les cas du § 2.
+
+## Pastille et son
+
+*(Tâche 1, 18/11/2026, Mac. Code selon § Conception ; écarts notés ci-dessous.)*
+
+**Fait**
+- `crates/platform/src/indicator.rs` : `FailureKind` (`NotRecognised`, `NotDone`, `Dictation`), `Failure { kind, message }`, méthode `Indicator::fail` (par défaut : `flash(Message, 4 s)`). `FakeIndicator` garde les erreurs (`failures()`), `TeeIndicator` (essai de mode) et `OverlayIndicator` la redéfinissent ; l'icône de la zone de notification reçoit toujours le message temporaire.
+- `crates/platform/src/sounds.rs` : `ERROR_SOUND = "Erreur"` (deux notes graves 330 → 220 Hz), hors de `NAMES` (test).
+- `controller.rs` : `fail_command` (pastille + son, sauf volume 0 ou « Aucun » au début **et** à la fin), `fail_dictation` (pastille seule) ; `refuse` prend le genre. Remplacés : tous les cas des tableaux A, B et C du § Conception. `CommandOutcome::TextAfterFailure` porte le cas « sans la touche, sélection illisible » (la dictée est collée, la remarque est une erreur qui reste). Le dictionnaire distingue enfin son succès (message temporaire) de son refus (erreur).
+- `overlay.rs` : `OverlayModel::fail` (aucun délai), `dismiss`, `set_shape` (bornée à la fenêtre normale, ignorée sans erreur) ; `Snapshot.failure` et `shape` ; `GET api/overlay` gagne `error`. Routes `POST api/overlay/dismiss` et `shape` (`web/mod.rs`).
+- `window.rs` : la fenêtre se réduit à la capsule mesurée, au même endroit à l'écran qu'une pastille ordinaire, et n'accepte la souris que pendant l'erreur ; pastille décochée : l'erreur est effacée (`dismiss`) plutôt que gardée.
+- Page : `OverlayView.svelte` (capsule d'erreur, titre selon le genre, raison dessous, croix de 24 px, mesure par `ResizeObserver`), `en-server.ts` (« Commande non faite »), Aide française et anglaise (puce « Erreur »).
+
+**Tests ajoutés** (13) : `dictation.rs` (erreur non reconnue, non faite, succès sans erreur ni son, « sans la touche » avec sélection illisible, dictée en échec sans son, réussite partielle temporaire, sons coupés) ; `overlay.rs` (reste jusqu'à `dismiss` même une heure après, remplacée par l'écoute ou un autre état, `dismiss` tardif sans effet sur une dictée repartie, forme bornée, l'icône garde le message temporaire) ; `sounds.rs` (son d'erreur hors liste).
+
+**Essai du clic sur le Mac** (copie d'essai `Scriibe-essai-c5.app` lancée par `open`, erreur déclenchée par un point d'accès temporaire retiré ensuite) : la pastille d'erreur s'affiche, un clic réel sur la croix l'efface, et **l'appli au premier plan (TextEdit) est restée la même** d'après un suivi toutes les 0,2 s pendant le clic. `focusable(false)` suffit donc : ni `NSPanel` ni repli nécessaires pour l'instant. **Limite** : un changement de focus plus court que 0,2 s échapperait au suivi, et la frappe dans l'appli après le clic n'a pas été essayée ; à confirmer à l'essai (tâche 4), avec Windows et Linux.
+
+**Écarts avec le § Conception** : aucun sur le fond. `shape` est posée sur la capsule +1 px ; la fenêtre normale reste à `BOTTOM_GAP`, la fenêtre réduite se place 12 px plus haut (`STAGE_PADDING`) pour que la capsule ne bouge pas à l'écran.
+
+**Non fait ici** : rien vu à l'écran de la capsule d'erreur elle-même (pas de capture) ; Windows et Linux non essayés.

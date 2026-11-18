@@ -15,7 +15,7 @@ use scriibe_engines::testing::FakeWorld;
 use scriibe_engines::whisper::{Whisper, WhisperLauncher};
 use scriibe_pipeline::{CommandSink, Controller, Deps, Executor, InlineExecutor};
 use scriibe_platform::apps::AppInfo;
-use scriibe_platform::indicator::IndicatorState;
+use scriibe_platform::indicator::{Failure, FailureKind, IndicatorState};
 use scriibe_platform::keys::KeyEvent;
 use scriibe_platform::paste::{PasteOutcome, SelectedText, Unreadable};
 use scriibe_platform::testing::{
@@ -2223,4 +2223,129 @@ fn under_the_command_key_a_rewrite_that_cannot_be_copied_or_pasted_says_so_witho
         r.indicator.states()
     );
     nothing_said_or_selected_in(&r);
+}
+
+// ---- Chantier 5 : erreurs qui restent affichées et son d'erreur (docs/RETOURS_ERREUR.md) ----
+
+fn failure(kind: FailureKind, text: &str) -> Failure {
+    Failure::new(kind, text)
+}
+
+fn error_sounds(r: &Rig) -> usize {
+    r.sounds.played().iter().filter(|s| s.as_str() == "Erreur").count()
+}
+
+#[test]
+fn a_phrase_that_is_no_command_stays_on_screen_as_not_recognised_with_the_error_sound() {
+    let r = command_rig("mets ça en rouge et en gras");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert_eq!(r.indicator.failures(), vec![failure(FailureKind::NotRecognised, "Commande non reconnue")]);
+    assert_eq!(error_sounds(&r), 1);
+    let r = command_rig("un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize dix-sept dix-huit dix-neuf vingt vingt-et-un vingt-deux vingt-trois vingt-quatre vingt-cinq vingt-six");
+    r.dictate_under_key();
+    assert_eq!(r.indicator.failures(), vec![failure(FailureKind::NotRecognised, "Commande trop longue")]);
+}
+
+#[test]
+fn a_command_that_cannot_be_done_stays_on_screen_as_not_done_with_the_error_sound() {
+    let r = command_rig("Mets en gras");
+    r.dictate_under_key();
+    assert_eq!(r.indicator.failures(), vec![failure(FailureKind::NotDone, "Aucune sélection")]);
+    assert_eq!(error_sounds(&r), 1);
+    let r = command_rig("Mets en gras");
+    r.paster.set_selected(FakeSelected::Unreadable(Unreadable::Failed));
+    r.dictate_under_key();
+    assert_eq!(r.indicator.failures(), vec![failure(FailureKind::NotDone, "Sélection illisible")]);
+    // Le dictionnaire qui refuse : le message du refus reste, pas le message de réussite.
+    let r = command_rig("Ajoute au dictionnaire");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    *r.commands.fail_with.lock().unwrap() = Some("Déjà dans le dictionnaire");
+    r.dictate_under_key();
+    assert_eq!(r.indicator.failures(), vec![failure(FailureKind::NotDone, "Déjà dans le dictionnaire")]);
+}
+
+#[test]
+fn a_command_that_succeeds_neither_keeps_the_pill_nor_plays_the_error_sound() {
+    let r = command_rig("Mets en gras");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert_eq!(r.paster.shortcuts().len(), 1);
+    assert!(r.indicator.failures().is_empty());
+    assert_eq!(error_sounds(&r), 0);
+    // Un succès du dictionnaire (message d'information) non plus.
+    let r = command_rig("Ajoute au dictionnaire");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert!(r.indicator.failures().is_empty() && error_sounds(&r) == 0, "{:?}", r.indicator.states());
+}
+
+#[test]
+fn without_the_key_an_unreadable_selection_is_a_failure_that_stays_even_though_the_phrase_is_pasted() {
+    let r = rig("Ajouter au dictionnaire", "Ajouter au dictionnaire.");
+    r.paster.set_selected(FakeSelected::Unreadable(Unreadable::ClipboardNotText));
+    r.dictate();
+    assert_eq!(r.paster.pasted().len(), 1, "la dictée a réussi");
+    assert_eq!(
+        r.indicator.failures(),
+        vec![failure(
+            FailureKind::NotDone,
+            "Commande non faite : le presse-papiers contient autre chose que du texte — phrase collée comme du texte"
+        )]
+    );
+    assert_eq!(error_sounds(&r), 1);
+    // Une dictée ordinaire sans commande ne produit aucune erreur.
+    let r = rig("Bonjour tout le monde", "Bonjour tout le monde.");
+    r.dictate();
+    assert!(r.indicator.failures().is_empty() && error_sounds(&r) == 0);
+}
+
+#[test]
+fn a_dictation_in_failure_stays_on_screen_without_the_error_sound() {
+    let r = rig("x", "x");
+    r.recorder.set_recording(2.0, 0.0005);
+    r.dictate();
+    let failures = r.indicator.failures();
+    assert!(
+        matches!(failures.as_slice(), [f] if f.kind == FailureKind::Dictation && f.message.starts_with("Aucun son capté — vérifie le micro")),
+        "{failures:?}"
+    );
+    assert_eq!(error_sounds(&r), 0, "le son d'erreur est celui des commandes");
+    // Une transcription qui ne rend rien (« Rien entendu ») reste temporaire.
+    let r = rig("", "");
+    r.dictate();
+    assert!(r.indicator.failures().is_empty(), "{:?}", r.indicator.states());
+}
+
+#[test]
+fn partial_successes_stay_temporary() {
+    // Le texte est dans le presse-papiers, à coller à la main : pas une erreur qui reste.
+    let r = command_rig("Mets entre parenthèses");
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.paster.set_outcome(PasteOutcome::CopiedOnly("autorisation manquante".into()));
+    r.dictate_under_key();
+    assert!(r.indicator.failures().is_empty(), "{:?}", r.indicator.states());
+    assert_eq!(error_sounds(&r), 0);
+}
+
+#[test]
+fn no_error_sound_when_the_person_has_turned_the_sounds_off() {
+    for settings in [
+        AppSettings { sound_volume: 0.0, ..command_settings() },
+        AppSettings {
+            start_sound_name: scriibe_core::settings::NO_SOUND.into(),
+            end_sound_name: scriibe_core::settings::NO_SOUND.into(),
+            ..command_settings()
+        },
+    ] {
+        let r = rig_with(settings, "mets ça en rouge et en gras", "x", true);
+        r.dictate_under_key();
+        assert_eq!(r.indicator.failures().len(), 1, "l'erreur reste affichée");
+        assert_eq!(error_sounds(&r), 0, "mais sans son : la personne a coupé les sons");
+    }
+    // Un seul des deux sons coupé : le son d'erreur joue.
+    let settings = AppSettings { end_sound_name: scriibe_core::settings::NO_SOUND.into(), ..command_settings() };
+    let r = rig_with(settings, "mets ça en rouge et en gras", "x", true);
+    r.dictate_under_key();
+    assert_eq!(error_sounds(&r), 1);
 }

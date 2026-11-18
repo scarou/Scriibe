@@ -11,6 +11,45 @@ pub enum IndicatorState {
     Message(String),
 }
 
+/// Le genre d'une erreur qui reste affichée (chantier 5) : il choisit le titre de la pastille et, pour les deux premiers, le son d'erreur.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FailureKind {
+    /// Sous la touche de commande, la phrase n'est (ou n'est plus) une commande.
+    NotRecognised,
+    /// Une commande reconnue qui n'a pas abouti.
+    NotDone,
+    /// La dictée elle-même a échoué (micro, transcription).
+    Dictation,
+}
+
+impl FailureKind {
+    /// Le son d'erreur ne concerne que les commandes.
+    pub fn is_command(self) -> bool {
+        self != Self::Dictation
+    }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::NotRecognised => "not_recognised",
+            Self::NotDone => "not_done",
+            Self::Dictation => "dictation",
+        }
+    }
+}
+
+/// Une erreur qui reste affichée jusqu'à un clic sur la croix ou la dictée suivante. `message` est à texte fixe (jamais les mots dits).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Failure {
+    pub kind: FailureKind,
+    pub message: String,
+}
+
+impl Failure {
+    pub fn new(kind: FailureKind, message: impl Into<String>) -> Self {
+        Self { kind, message: message.into() }
+    }
+}
+
 pub trait Indicator: Send + Sync {
     fn show(&self, state: IndicatorState);
     /// Pendant l'écoute : la langue de traduction annoncée (None : pas de traduction).
@@ -21,6 +60,10 @@ pub trait Indicator: Send + Sync {
     fn set_mic_level(&self, _level: MicLevel) {}
     /// Affiche `state` puis revient à l'état caché au bout de `seconds`.
     fn flash(&self, state: IndicatorState, seconds: f64);
+    /// Une erreur qui reste affichée. Par défaut (icône, console) : un affichage temporaire comme avant ; la pastille à l'écran la garde.
+    fn fail(&self, failure: Failure) {
+        self.flash(IndicatorState::Message(failure.message), 4.0);
+    }
 }
 
 /// Écrit les changements d'état sur la sortie d'erreur (essais en ligne de commande, systèmes sans icône).

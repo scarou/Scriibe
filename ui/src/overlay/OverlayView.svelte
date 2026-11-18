@@ -8,6 +8,8 @@
     translation: string | null;
     mic: 'ok' | 'weak' | 'silent';
     level: number;
+    /** Une erreur qui reste affichée jusqu'à la croix ou la dictée suivante (le genre choisit le titre) ; `null` sinon. */
+    error?: { kind: 'not_recognised' | 'not_done' | 'dictation'; message: string } | null;
     /** « windows », « macos » ou « linux » : la couleur de la marque (absent dans les illustrations de l'Aide). */
     os?: string;
     appearance: { enabled: boolean; style: CaptureStyle; position: CapturePosition; color: CaptureColor; opacity: number };
@@ -17,6 +19,7 @@
 <script lang="ts">
   import { caption, gradient, listeningOpacity, listeningText } from '../lib/appearance';
   import { t } from '../lib/i18n.svelte';
+  import { api } from '../lib/api';
 
   /** `inline` : posé dans une page (illustration de l'Aide) au lieu de remplir la fenêtre de la pastille. */
   let { view, levels = [], inline = false }: { view: View; levels?: number[]; inline?: boolean } = $props();
@@ -27,13 +30,49 @@
   let align = $derived(v.appearance.position === 'left' ? 'flex-start' : v.appearance.position === 'right' ? 'flex-end' : 'center');
   let opacity = $derived(v.state === 'listening' ? listeningOpacity(v.mic, v.appearance.opacity) : v.state === 'message' ? 1 : v.appearance.opacity);
   let bars = [0.45, 0.8, 1, 0.7, 0.4];
+
+  // Erreur qui reste : titre selon le genre, raison dessous (rien si elle répète le titre). Une erreur de dictée n'a pas de titre.
+  let err = $derived(v.state === 'message' ? (v.error ?? null) : null);
+  let headline = $derived(err?.kind === 'not_recognised' ? t('Commande non reconnue') : err?.kind === 'not_done' ? t('Commande non faite') : '');
+  let detail = $derived(err ? t(err.message) : '');
+  let showDetail = $derived(detail !== '' && detail !== headline);
+
+  /** Mesure la capsule d'erreur et la dit à Scriibe : la fenêtre s'y réduit, et c'est alors seulement qu'elle accepte la souris. */
+  function measure(node: HTMLElement) {
+    if (inline) return {};
+    let last = '';
+    const send = () => {
+      const r = node.getBoundingClientRect();
+      const key = `${Math.ceil(r.width) + 1}x${Math.ceil(r.height) + 1}`;
+      if (key === last) return;
+      last = key;
+      void api('overlay/shape', { width: Math.ceil(r.width) + 1, height: Math.ceil(r.height) + 1 }).catch(() => {});
+    };
+    const observer = new ResizeObserver(send);
+    observer.observe(node);
+    send();
+    return { destroy: () => observer.disconnect() };
+  }
+
+  function dismiss() {
+    void api('overlay/dismiss', {}).catch(() => {});
+  }
 </script>
 
 
 {#if v.state !== 'hidden'}
-  <div class="stage" class:inline style="align-items: {align}">
+  <div class="stage" class:inline class:failing={!!err && !inline} style="align-items: {align}">
     <div class="wrap" style="align-items: {align}; opacity: {opacity}">
-      {#if v.state === 'message'}
+      {#if err}
+        <div class="capsule message failure" style="background: {fill}" use:measure>
+          <span class="icon">{err.kind === 'not_recognised' ? '?' : '!'}</span>
+          <span class="body">
+            {#if headline}<span class="text">{headline}</span>{/if}
+            {#if showDetail}<span class="detail" class:soft={!!headline}>{detail}</span>{/if}
+          </span>
+          <button class="close" type="button" aria-label={t('Fermer')} onclick={dismiss}>✕</button>
+        </div>
+      {:else if v.state === 'message'}
         <div class="capsule message" style="background: {fill}">
           <span class="icon">!</span><span class="text">{v.message ? t(v.message) : ''}</span>
         </div>
@@ -74,6 +113,8 @@
 
 <style>
   .stage { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; font: 600 13px/1 system-ui, 'Segoe UI', sans-serif; color: #fff; }
+  /* Erreur qui reste : la fenêtre est réduite à la capsule (Scriibe la place à l'endroit d'une pastille ordinaire). */
+  .stage.failing { padding: 0; }
   .stage.inline { position: static; padding: 8px; font-size: 13px; }
   .wrap { display: flex; flex-direction: column; gap: 6px; transition: opacity 0.15s ease-out; }
   .capsule { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px; border-radius: 999px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); white-space: nowrap; max-width: 100%; }
@@ -82,6 +123,10 @@
   .capsule.message { height: auto; min-height: 40px; padding: 9px 18px; border-radius: 22px; white-space: normal; line-height: 1.3; }
   .capsule.message .icon { flex: none; }
   .text.soft { opacity: 0.85; }
+  .failure .body { display: flex; flex-direction: column; gap: 3px; }
+  .failure .detail.soft { font-weight: 500; opacity: 0.9; }
+  .close { flex: none; width: 24px; height: 24px; margin: -4px -8px -4px 2px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font: inherit; font-size: 12px; line-height: 1; cursor: pointer; }
+  .close:hover, .close:focus-visible { background: rgba(255, 255, 255, 0.25); outline: none; }
   .icon { font-weight: 800; }
   .bars { display: inline-flex; align-items: center; gap: 3px; height: 20px; }
   .bars i { display: block; width: 3px; border-radius: 2px; background: #fff; transition: height 0.08s ease-out; }

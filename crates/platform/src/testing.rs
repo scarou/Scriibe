@@ -2,7 +2,7 @@
 
 use crate::apps::{AppInfo, ForegroundApp};
 use crate::audio::{wav, LevelListener, Recorder, Recording, StartInfo};
-use crate::indicator::{Indicator, IndicatorState};
+use crate::indicator::{Failure, Indicator, IndicatorState};
 use crate::media::MediaControl;
 use crate::paste::{PasteOutcome, Paster};
 use crate::sounds::Sounds;
@@ -389,9 +389,15 @@ pub struct FakeIndicator {
     translation: Mutex<Vec<Option<String>>>,
     levels: Mutex<Vec<f32>>,
     mic: Mutex<Vec<MicLevel>>,
+    failures: Mutex<Vec<Failure>>,
 }
 
 impl FakeIndicator {
+    /// Les erreurs qui devaient rester affichées (avec leur genre), dans l'ordre.
+    pub fn failures(&self) -> Vec<Failure> {
+        lock(&self.failures).clone()
+    }
+
     pub fn states(&self) -> Vec<IndicatorState> {
         lock(&self.states).clone()
     }
@@ -432,6 +438,11 @@ impl Indicator for FakeIndicator {
 
     fn flash(&self, state: IndicatorState, _: f64) {
         lock(&self.states).push(state);
+    }
+
+    fn fail(&self, failure: Failure) {
+        lock(&self.failures).push(failure.clone());
+        lock(&self.states).push(IndicatorState::Message(failure.message));
     }
 }
 

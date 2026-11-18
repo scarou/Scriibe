@@ -253,6 +253,7 @@ export const enServer: Record<string, string> = {
   'Sélection illisible': 'Selection unreadable',
   'Commande inconnue': 'Unknown command',
   'Commande non reconnue': 'Command not recognised',
+  'Commande non faite': 'Command not done',
   'Commande trop longue': 'Command too long',
   'Rien à chercher': 'Nothing to search for',
   'Site de recherche inconnu': 'Unknown search site',

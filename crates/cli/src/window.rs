@@ -30,6 +30,9 @@ use tauri::{AppHandle, Manager, RunEvent, Url, WebviewUrl, WebviewWindowBuilder}
 const LABEL: &str = "main";
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 const OVERLAY_LABEL: &str = "overlay";
+/// Marge de la pastille dans sa fenêtre normale (`.stage` de `OverlayView.svelte`).
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
+const STAGE_PADDING: f64 = 12.0;
 
 static HANDLE: Mutex<Option<AppHandle>> = Mutex::new(None);
 
@@ -148,7 +151,14 @@ fn build_overlay(app: &AppHandle, url: &str) -> Result<tauri::WebviewWindow, Str
 
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 /// Pose la fenêtre en bas de la zone de travail de l'écran où se trouve la souris, selon la position choisie.
-fn place_overlay(app: &AppHandle, window: &tauri::WebviewWindow, position: scriibe_core::settings::CapturePosition) {
+/// `shape` : la capsule d'erreur mesurée (px logiques) : la fenêtre s'y réduit, au même endroit à l'écran qu'une pastille ordinaire (12 px
+/// de marge autour d'elle dans la fenêtre normale) ; sans elle, la fenêtre normale.
+fn place_overlay(
+    app: &AppHandle,
+    window: &tauri::WebviewWindow,
+    position: scriibe_core::settings::CapturePosition,
+    shape: Option<(f64, f64)>,
+) {
     let monitor = app
         .cursor_position()
         .ok()
@@ -156,16 +166,31 @@ fn place_overlay(app: &AppHandle, window: &tauri::WebviewWindow, position: scrii
         .or_else(|| app.primary_monitor().ok().flatten());
     let Some(monitor) = monitor else { return };
     let (area, scale) = (monitor.work_area(), monitor.scale_factor());
-    let (width, height) = (WINDOW_SIZE.0 * scale, WINDOW_SIZE.1 * scale);
-    let x = origin_x(position, f64::from(area.position.x), f64::from(area.size.width), width);
-    let y = f64::from(area.position.y) + f64::from(area.size.height) - BOTTOM_GAP * scale - height;
+    let (area_x, area_width) = (f64::from(area.position.x), f64::from(area.size.width));
+    let (x, y) = match shape {
+        None => {
+            let (width, height) = (WINDOW_SIZE.0 * scale, WINDOW_SIZE.1 * scale);
+            (
+                origin_x(position, area_x, area_width, width),
+                f64::from(area.position.y) + f64::from(area.size.height) - BOTTOM_GAP * scale - height,
+            )
+        }
+        Some((w, h)) => {
+            let (width, height, pad) = (w * scale, h * scale, STAGE_PADDING * scale);
+            (
+                origin_x(position, area_x + pad, area_width - 2.0 * pad, width),
+                f64::from(area.position.y) + f64::from(area.size.height) - BOTTOM_GAP * scale - pad - height,
+            )
+        }
+    };
+    let _ = window.set_size(tauri::LogicalSize::new(shape.map_or(WINDOW_SIZE.0, |s| s.0), shape.map_or(WINDOW_SIZE.1, |s| s.1)));
     let _ = window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
 }
 
 /// Montre la pastille sans l'activer : `show()` prendrait le focus quand Scriibe est au premier plan, et la fenêtre perdrait la touche tenue
 /// (Windows) ou le texte ne se collerait plus dans l'appli où la personne écrit (macOS).
 #[cfg(windows)]
-fn reveal(_: &AppHandle, window: &tauri::WebviewWindow) {
+fn reveal(_: &AppHandle, window: &tauri::WebviewWindow, _clickable: bool) {
     match window.hwnd() {
         Ok(hwnd) => scriibe_platform::windows::show_without_activating(hwnd.0 as isize),
         Err(_) => {
@@ -176,13 +201,13 @@ fn reveal(_: &AppHandle, window: &tauri::WebviewWindow) {
 
 /// Linux (X11 ou XWayland) : la pastille refuse le focus (`focusable(false)`), un simple `show()` ne l'active donc pas.
 #[cfg(target_os = "linux")]
-fn reveal(_: &AppHandle, window: &tauri::WebviewWindow) {
+fn reveal(_: &AppHandle, window: &tauri::WebviewWindow, clickable: bool) {
     let _ = window.show();
-    let _ = window.set_ignore_cursor_events(true);
+    let _ = window.set_ignore_cursor_events(!clickable);
 }
 
 #[cfg(target_os = "macos")]
-fn reveal(app: &AppHandle, window: &tauri::WebviewWindow) {
+fn reveal(app: &AppHandle, window: &tauri::WebviewWindow, _clickable: bool) {
     // Les fenêtres d'AppKit ne se touchent que depuis le fil principal.
     let window = window.clone();
     let _ = app.run_on_main_thread(move || match window.ns_window() {
@@ -199,12 +224,20 @@ fn reveal(app: &AppHandle, window: &tauri::WebviewWindow) {
 pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConfig>, log: Arc<dyn Log>) {
     let _ = std::thread::Builder::new().name("scriibe-pastille".into()).spawn(move || {
         let mut shown = false;
+        let mut shown_shape: Option<(f64, f64)> = None;
         let mut failed = false;
         loop {
             std::thread::sleep(Duration::from_millis(40));
             let settings = config.settings();
-            let want = settings.overlay_enabled && model.snapshot().visible();
-            if failed || want == shown {
+            let snapshot = model.snapshot();
+            // Pastille décochée : une erreur qui reste affichée ne doit pas surgir plus tard, si le réglage est recoché.
+            if !settings.overlay_enabled && snapshot.failure.is_some() {
+                model.dismiss();
+            }
+            let want = settings.overlay_enabled && snapshot.visible();
+            // La fenêtre n'est cliquable que réduite à la capsule d'une erreur mesurée.
+            let shape = if want && snapshot.failure.is_some() { snapshot.shape } else { None };
+            if failed || (want == shown && shape == shown_shape) {
                 continue;
             }
             let Some(app) = handle().clone() else { continue };
@@ -227,12 +260,17 @@ pub fn start_overlay(url: String, model: Arc<OverlayModel>, config: Arc<FileConf
                 }
             };
             if want {
-                place_overlay(&app, &window, settings.capture_position);
-                reveal(&app, &window);
+                place_overlay(&app, &window, settings.capture_position, shape);
+                // Linux : `reveal` s'en charge (impossible avant le premier affichage).
+                #[cfg(not(target_os = "linux"))]
+                let _ = window.set_ignore_cursor_events(shape.is_none());
+                reveal(&app, &window, shape.is_some());
             } else {
+                let _ = window.set_ignore_cursor_events(true);
                 let _ = window.hide();
             }
             shown = want;
+            shown_shape = shape;
         }
     });
 }

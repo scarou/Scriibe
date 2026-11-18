@@ -393,6 +393,15 @@ fn handle(ctx: &Context, mut request: Request) {
             ctx.overlay.preview();
             ok(request, json!({"ok": true}))
         }
+        // La croix de la pastille d'erreur, et la taille mesurée de sa capsule (la fenêtre s'y réduit pour devenir cliquable).
+        (Method::Post, "api/overlay/dismiss") => {
+            ctx.overlay.dismiss();
+            ok(request, json!({"ok": true}))
+        }
+        (Method::Post, "api/overlay/shape") => {
+            ctx.overlay.set_shape(input["width"].as_f64().unwrap_or(0.0), input["height"].as_f64().unwrap_or(0.0));
+            ok(request, json!({"ok": true}))
+        }
         (Method::Get, "api/assistant") => ok(request, assistant_view(ctx)),
         (Method::Post, "api/assistant/apply") => match assistant_apply(ctx, input["chain"].as_str().unwrap_or("")) {
             Ok(()) => ok(request, json!({"ok": true})),

@@ -15,6 +15,9 @@ impl Sounds for Silent {
 /// système à l'autre. Les sons eux-mêmes sont synthétisés ici (`synth`), pas copiés.
 pub const NAMES: [&str; 11] = ["Tink", "Pop", "Purr", "Morse", "Bottle", "Frog", "Glass", "Ping", "Submarine", "Funk", "Hero"];
 
+/// Le son d'erreur d'une commande (non reconnue ou non faite) : hors de [`NAMES`], il ne se choisit pas comme son de début ou de fin.
+pub const ERROR_SOUND: &str = "Erreur";
+
 const RATE: u32 = 44_100;
 
 /// Une note : début (s), fréquence de départ et d'arrivée (Hz), durée (s), vitesse d'extinction, part de bruit (0 à 1).
@@ -46,6 +49,7 @@ fn notes(name: &str) -> Option<Vec<Note>> {
         "Submarine" => vec![note(0.0, 330.0, 190.0, 0.40, 8.0)],
         "Funk" => vec![note(0.0, 330.0, 330.0, 0.09, 18.0), note(0.10, 440.0, 440.0, 0.14, 14.0)],
         "Hero" => vec![note(0.0, 523.0, 523.0, 0.12, 12.0), note(0.11, 659.0, 659.0, 0.12, 12.0), note(0.22, 784.0, 784.0, 0.30, 8.0)],
+        "Erreur" => vec![note(0.0, 330.0, 330.0, 0.12, 16.0), note(0.14, 220.0, 220.0, 0.21, 9.0)],
         _ => return None,
     })
 }
@@ -124,6 +128,12 @@ mod tests {
         }
         assert!(synth(scriibe_core::settings::NO_SOUND, 0.5).is_none());
         assert!(synth("Inconnu", 0.5).is_none());
+    }
+
+    #[test]
+    fn the_error_sound_exists_but_cannot_be_chosen() {
+        assert!(synth(ERROR_SOUND, 0.5).is_some());
+        assert!(!NAMES.contains(&ERROR_SOUND));
     }
 
     #[test]

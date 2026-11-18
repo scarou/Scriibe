@@ -197,6 +197,11 @@ impl Indicator for TeeIndicator {
         self.note(&state);
         self.0.indicator.flash(state, seconds);
     }
+
+    fn fail(&self, failure: scriibe_platform::indicator::Failure) {
+        self.note(&IndicatorState::Message(failure.message.clone()));
+        self.0.indicator.fail(failure);
+    }
 }
 
 impl TeeIndicator {
