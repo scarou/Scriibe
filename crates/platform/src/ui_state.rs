@@ -22,7 +22,8 @@ const HEIGHT: std::ops::RangeInclusive<i64> = 180..=1400;
 
 pub struct UiStateStore {
     path: PathBuf,
-    /// Une écriture à la fois : lire, fusionner, écrire ne se chevauchent pas.
+    /// Une écriture à la fois dans ce processus : lire, fusionner, écrire ne se chevauchent pas (entre deux processus, le dernier
+    /// renommage gagne ; la seconde instance de Scriibe est de toute façon refusée).
     lock: Mutex<()>,
 }
 
@@ -30,6 +31,9 @@ pub struct UiStateStore {
 enum Disk {
     State(Map<String, Value>),
     Newer,
+    /// Le fichier n'a pas pu être lu (verrouillé par un antivirus, refus d'accès…) : on ne sait pas ce qu'il contient, donc on ne
+    /// l'écrase pas.
+    Unreadable(String),
 }
 
 fn valid_id(id: &str) -> bool {
@@ -93,7 +97,12 @@ impl UiStateStore {
 
     fn read_disk(&self) -> Disk {
         let mut state = Map::new();
-        let Ok(text) = std::fs::read_to_string(&self.path) else { return Disk::State(state) };
+        let text = match std::fs::read_to_string(&self.path) {
+            Ok(text) => text,
+            // Absent, ou pas du texte : rien de gardé, la prochaine écriture le crée ou le remplace.
+            Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::InvalidData) => return Disk::State(state),
+            Err(e) => return Disk::Unreadable(e.to_string()),
+        };
         let Ok(Value::Object(file)) = serde_json::from_str::<Value>(&text) else { return Disk::State(state) };
         match file.get("version").and_then(Value::as_u64) {
             Some(v) if v > VERSION => return Disk::Newer,
@@ -109,7 +118,7 @@ impl UiStateStore {
         let _guard = self.lock.lock().unwrap_or_else(|p| p.into_inner());
         match self.read_disk() {
             Disk::State(state) => Value::Object(state),
-            Disk::Newer => json!({}),
+            Disk::Newer | Disk::Unreadable(_) => json!({}),
         }
     }
 
@@ -117,10 +126,18 @@ impl UiStateStore {
     /// page garde alors l'état en mémoire, sans rien afficher.
     pub fn patch(&self, fragment: &Value) -> Result<Value, String> {
         let _guard = self.lock.lock().unwrap_or_else(|p| p.into_inner());
-        let Disk::State(mut state) = self.read_disk() else {
-            return Err("fichier d'une version plus récente de Scriibe, laissé tel quel".into());
+        let mut state = match self.read_disk() {
+            Disk::State(state) => state,
+            Disk::Newer => return Err("fichier d'une version plus récente de Scriibe, laissé tel quel".into()),
+            Disk::Unreadable(e) => return Err(format!("états de la fenêtre illisibles, laissés tels quels : {e}")),
         };
+        let before = state.clone();
         merge(&mut state, fragment);
+        // Rien de changé (fragment refusé, même valeur) : pas d'écriture, donc pas de fichier créé ni de renommage pour rien.
+        if state == before {
+            return Ok(Value::Object(state));
+        }
+        // Pendant une désinstallation `write_atomic` ne fait rien et réussit : la page garde de toute façon ses états en mémoire.
         let mut file = Map::new();
         file.insert("version".into(), json!(VERSION));
         file.extend(state.clone());
@@ -142,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn the_three_states_survive_a_restart() {
+    fn the_four_states_survive_a_restart() {
         let dir = temp("restart");
         let store = UiStateStore::new(&dir);
         store.patch(&json!({"folds": {"modes-mes-modes": true, "utilisateurs": false}})).unwrap();
@@ -250,6 +267,45 @@ mod tests {
         // Une carte déjà connue se change encore quand la liste est pleine, et se retire.
         store.patch(&json!({"folds": {"ok-1.2:x": false}})).unwrap();
         assert_eq!(store.read()["folds"]["ok-1.2:x"], json!(false));
+        // Pleine, la liste refuse une carte neuve mais laisse retirer une carte connue ; la place libérée sert de nouveau.
+        store.patch(&json!({"folds": {"neuve": true}})).unwrap();
+        assert!(store.read()["folds"].get("neuve").is_none(), "liste pleine : carte neuve refusée");
+        store.patch(&json!({"folds": {"ok-1.2:x": null}})).unwrap();
+        assert!(store.read()["folds"].get("ok-1.2:x").is_none(), "une carte connue se retire");
+        store.patch(&json!({"folds": {"neuve": true}})).unwrap();
+        assert_eq!(store.read()["folds"]["neuve"], json!(true));
+    }
+
+    #[test]
+    fn an_unreadable_file_is_left_alone_and_a_non_text_file_is_replaced() {
+        // Un dossier au nom du fichier : la lecture échoue autrement que par « absent » (ici, comme un fichier verrouillé).
+        let dir = temp("unreadable");
+        std::fs::create_dir(dir.join(FILE)).unwrap();
+        let store = UiStateStore::new(&dir);
+        assert_eq!(store.read(), json!({}));
+        assert!(store.patch(&json!({"benchCompare": true})).is_err());
+        assert!(dir.join(FILE).is_dir(), "rien n'a été écrasé");
+        // Des octets qui ne sont pas du texte : fichier abîmé, remplacé.
+        let dir = temp("binary");
+        std::fs::write(dir.join(FILE), [0xff, 0xfe, 0x00, 0x9f]).unwrap();
+        let store = UiStateStore::new(&dir);
+        assert_eq!(store.read(), json!({}));
+        store.patch(&json!({"benchCompare": false})).unwrap();
+        assert_eq!(UiStateStore::new(&dir).read(), json!({"benchCompare": false}));
+    }
+
+    #[test]
+    fn a_patch_that_changes_nothing_writes_nothing() {
+        let dir = temp("no-change");
+        let store = UiStateStore::new(&dir);
+        store.patch(&json!({"dictionaryHeight": 5, "inconnu": 1, "folds": {"a b": true}})).unwrap();
+        store.patch(&Value::Null).unwrap();
+        assert!(!dir.join(FILE).exists(), "un fragment refusé ne crée pas le fichier");
+        store.patch(&json!({"benchCompare": true})).unwrap();
+        let before = std::fs::metadata(dir.join(FILE)).unwrap().modified().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        store.patch(&json!({"benchCompare": true})).unwrap();
+        assert_eq!(std::fs::metadata(dir.join(FILE)).unwrap().modified().unwrap(), before, "même valeur : pas de réécriture");
     }
 
     #[test]

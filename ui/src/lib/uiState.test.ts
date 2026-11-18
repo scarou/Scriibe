@@ -93,4 +93,46 @@ describe('états d’affichage', () => {
     await cache.load();
     expect(cache.state).toEqual({ folds: {} });
   });
+
+  it('n’attend pas un programme qui ne répond pas : états par défaut au bout de 2 s, réponse tardive ignorée', async () => {
+    let answer: (v: unknown) => void = () => {};
+    const cache = new UiStateCache(() => new Promise((resolve) => (answer = resolve)));
+    cache.state = { folds: { vieux: true } };
+    let done = false;
+    const loading = cache.load().then(() => (done = true));
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    await loading;
+    expect(done).toBe(true);
+    expect(cache.state).toEqual({ folds: {} });
+    cache.save({ benchCompare: false });
+    answer({ benchCompare: true, folds: { tard: true } });
+    await vi.runAllTimersAsync();
+    expect(cache.state).toEqual({ folds: {}, benchCompare: false });
+  });
+
+  it('une réponse rapide annule le délai (aucun minuteur ne reste)', async () => {
+    const cache = new UiStateCache(async () => ({ benchCompare: false }));
+    await cache.load();
+    expect(cache.state.benchCompare).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('les envois partent à la suite : le second attend la réponse du premier', async () => {
+    const calls: string[] = [];
+    const releases: (() => void)[] = [];
+    const cache = new UiStateCache((_path, body) => {
+      calls.push(JSON.stringify(body));
+      return new Promise<void>((resolve) => releases.push(resolve));
+    });
+    cache.save({ benchCompare: true });
+    cache.save({ benchCompare: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toEqual(['{"benchCompare":true}']);
+    releases[0]();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls.length).toBe(2);
+    expect(calls[1]).toBe('{"benchCompare":false}');
+  });
 });

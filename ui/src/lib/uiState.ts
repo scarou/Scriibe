@@ -68,12 +68,21 @@ export class UiStateCache {
 
   constructor(private send: Send) {}
 
-  /** Lit l'état gardé par le programme. Sans réponse ou réponse illisible : états par défaut, sans erreur. */
-  async load(): Promise<void> {
+  /** Lit l'état gardé par le programme. Sans réponse, réponse illisible ou réponse qui tarde plus de `timeoutMs` : états par défaut,
+   * sans erreur (la page ne doit jamais attendre ce confort pour s'afficher) ; une réponse tardive est ignorée. */
+  async load(timeoutMs = 2000): Promise<void> {
+    const late = Symbol('late');
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<typeof late>((resolve) => {
+      timer = setTimeout(() => resolve(late), timeoutMs);
+    });
     try {
-      this.state = cleanUiState(await this.send('ui-state'));
+      const raw = await Promise.race([this.send('ui-state'), timeout]);
+      this.state = raw === late ? { folds: {} } : cleanUiState(raw);
     } catch {
       this.state = { folds: {} };
+    } finally {
+      clearTimeout(timer);
     }
   }
 
