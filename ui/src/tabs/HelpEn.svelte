@@ -433,7 +433,7 @@
 <style>
   /* Sommaire fixe, seule la carte de texte défile ; jamais de retour à la ligne (sinon le sommaire passerait au-dessus et le sticky recouvrirait le texte). */
   .layout { display: flex; gap: 14px; align-items: flex-start; flex-wrap: nowrap; }
-  .toc { list-style: none; margin: 0; padding: 0; width: clamp(140px, 24%, 220px); flex: none; display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--page-head, 0px) + 8px); max-height: calc(100vh - var(--page-head, 0px) - 24px); overflow-y: auto; }
+  .toc { list-style: none; margin: 0; padding: 0; width: clamp(140px, 24%, 220px); flex: none; display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(var(--page-head, 0px) + var(--help-search, 0px) + 8px); max-height: calc(100vh - var(--page-head, 0px) - var(--help-search, 0px) - 24px); overflow-y: auto; }
   .toc button { width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 8px; }
   .toc button:hover { background: var(--line); }
   .toc button.active { background: var(--accent); color: var(--accent-ink); }
@@ -441,7 +441,7 @@
   /* Fenêtre étroite : la barre principale (210 px) et le sommaire laisseraient moins de 300 px au texte ; le sommaire devient une bande fixe en haut. */
   @media (max-width: 860px) {
     .layout { flex-direction: column; align-items: stretch; gap: 8px; }
-    .toc { flex-direction: row; width: auto; max-height: none; overflow-x: auto; overflow-y: hidden; top: var(--page-head, 0px); z-index: 5; padding: 6px 0; background: var(--bg); }
+    .toc { flex-direction: row; width: auto; max-height: none; overflow-x: auto; overflow-y: hidden; top: calc(var(--page-head, 0px) + var(--help-search, 0px)); z-index: 5; padding: 6px 0; background: var(--bg); }
     .toc li { flex: none; }
     .toc button { width: auto; white-space: nowrap; }
     .body { flex: none; }

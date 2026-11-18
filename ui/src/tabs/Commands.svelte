@@ -15,8 +15,8 @@
 <PageHeader title={t('Commandes vocales')}>{t(tabDescription('commands'))}</PageHeader>
 
 <ActivationCommands />
-<!-- Interrupteur coupé : le reste est grisé et ne répond plus. -->
-<div class:off={settings.value?.voiceCommandsEnabled === false}>
+<!-- Interrupteur coupé : le reste est grisé et ne répond plus (souris : pointer-events ; clavier et lecteurs d'écran : inert). -->
+<div class:off={settings.value?.voiceCommandsEnabled === false} inert={settings.value?.voiceCommandsEnabled === false}>
   <BuiltinCommands />
   <SiteCommands />
   <SnippetCommands />

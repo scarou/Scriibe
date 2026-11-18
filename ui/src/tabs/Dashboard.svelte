@@ -134,7 +134,7 @@
   .recent:first-of-type { border-top: 0; }
   .time { width: 46px; flex: none; font-variant-numeric: tabular-nums; }
   .text { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; grid-auto-rows: 1fr; }
   .tile { margin: 0; padding: 14px 16px; }
   .n { font-size: 1.8rem; font-weight: 700; line-height: 1.2; }
   .n small { font-size: .8rem; font-weight: 400; color: var(--muted); }

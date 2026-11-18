@@ -88,9 +88,16 @@
   });
 
   $effect(() => () => clearHighlight());
+
+  let height = $state(0);
+  // La recherche reste en haut sous l'en-tête : sa hauteur est connue du sommaire et des ancres (voir PageHeader).
+  $effect(() => {
+    document.documentElement.style.setProperty('--help-search', `${height}px`);
+    return () => document.documentElement.style.removeProperty('--help-search');
+  });
 </script>
 
-<div class="search">
+<div class="search" bind:clientHeight={height}>
   <input
     type="search"
     bind:value={helpSearch.query}
@@ -109,6 +116,6 @@
 </div>
 
 <style>
-  .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 14px; }
+  .search { position: sticky; top: var(--page-head, 0px); z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 10px 0 8px; background: var(--bg); }
   .search input { flex: 1 1 14em; max-width: 28em; }
 </style>

@@ -65,6 +65,7 @@ export const en: Record<string, string> = {
   'Dictionnaire': 'Dictionary',
   'Aide': 'Help',
   'Quitter Scriibe': 'Quit Scriibe',
+  'Menu principal': 'Main menu',
   'Quitter Scriibe ?': 'Quit Scriibe?',
   'Quitter': 'Quit',
   'version {version}': 'version {version}',

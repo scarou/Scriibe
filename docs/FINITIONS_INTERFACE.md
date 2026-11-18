@@ -113,3 +113,23 @@ Ce sont donc de **vrais programmes propres à Windows** (binaires .exe/DLL), cor
 - Point 9 (« + » en trop) : cause probable relue dans le code, non reproduite sous GNOME.
 - Point 8 : `UserExport.svelte` et `Users.svelte` non relus ligne à ligne pour la formule d'export ; `Help.svelte` : 3 lignes (201, 229, 321) contiennent la formule, à confirmer à la tâche 2.
 - Numéros de lignes de `HelpSearchBox.svelte` et `BackupTransfer.svelte` approximatifs (±3).
+
+## Mise en page (tâche 1, 18/11/2026)
+
+Les 7 points du Constat (1 à 7) sont corrigés dans `ui/src`. Tests : `npm run check` (0 erreur), `npm test` (146 passés, dont 7 nouveaux dans `lib/tabs.test.ts`), `npm run build` : verts. `cargo` non relancé (aucun Rust touché).
+
+| Point | Correctif |
+|---|---|
+| 1 Recherche de l'Aide | `HelpSearchBox.svelte` : `position: sticky` sous l'en-tête, hauteur publiée dans `--help-search` ; `.toc` de `Help` et `HelpEn` en tient compte (bureau et fenêtre étroite) |
+| 2 `scroll-padding-top` | `App.svelte` (`:global(html)`) : en-tête + recherche + 8 px. Remplace le `[id] { scroll-margin-top }` de `app.css` (les deux ensemble auraient doublé le décalage des ancres) |
+| 3 Bandeau d'erreur | `App.svelte` : `main > .card.bad { margin-bottom: 20px }` (compense la remontée de l'en-tête, plus de 6 px rognés) |
+| 4 Tuiles de l'Accueil | `Dashboard.svelte` : `grid-auto-rows: 1fr` |
+| 5 Menu étroit (≤ 640 px) | `App.svelte` : une seule bande qui défile de côté (`nowrap`, `overflow-x: auto`), boutons compacts |
+| 6 Accessibilité du menu | `<nav aria-label="Menu principal">` (traduit « Main menu »), `aria-current="page"` sur la page courante et sur Aide, icônes `aria-hidden` |
+| 7 Commandes décochées | `Commands.svelte` : `inert` en plus de `pointer-events: none` ; la carte d'activation est hors du bloc |
+
+### Vérification à l'écran (Mac, navigateur du volet, serveur Vite sans le programme)
+
+Vu : recherche de l'Aide collée à 120 px sous l'en-tête après défilement, sommaire à 167 px (= en-tête + recherche + 8) ; bandeau « Scriibe ne répond plus » avec 20 px de marge ; menu en bande de côté à 375 px ; `aria-label`, `aria-current` et icônes cachées lus dans le DOM.
+
+**Non vu à l'écran** : tuiles de l'Accueil de même hauteur et `inert` des commandes décochées, car il faut les réglages et les statistiques du programme (sans lui, la page n'a pas de données). Ils sont couverts par les tests de source seulement. À voir à la tâche 6 (essai sur le Mac avec `Scriibe.app`, lancée par `open`).

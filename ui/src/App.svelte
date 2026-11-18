@@ -86,16 +86,16 @@
   <main class="stopped"><p>{t('Scriibe est arrêté. Tu peux fermer cette page.')}</p></main>
 {:else}
   <div class="shell">
-    <nav>
+    <nav aria-label={t('Menu principal')}>
       <div class="brand"><img src={dark ? logo.dark : logo.light} alt="Scriibe" /></div>
       {#each tabGroups as group (group.label)}
         <div class="group">{t(group.label)}</div>
         {#each group.tabs as tab (tab.id)}
-          <button class="nav" class:active={nav.tab === tab.id} onclick={() => choose(tab.id)}><span class="icon">{tab.icon}</span>{t(tab.label)}{#if tab.id === 'data' && status.value?.update}<span class="new" title={t('Nouvelle version disponible')}>●</span>{/if}</button>
+          <button class="nav" class:active={nav.tab === tab.id} aria-current={nav.tab === tab.id ? 'page' : undefined} onclick={() => choose(tab.id)}><span class="icon" aria-hidden="true">{tab.icon}</span>{t(tab.label)}{#if tab.id === 'data' && status.value?.update}<span class="new" title={t('Nouvelle version disponible')}>●</span>{/if}</button>
         {/each}
       {/each}
       <div class="spacer"></div>
-      <button class="nav" class:active={nav.tab === helpTab.id} onclick={() => choose(helpTab.id)}><span class="icon">{helpTab.icon}</span>{t(helpTab.label)}</button>
+      <button class="nav" class:active={nav.tab === helpTab.id} aria-current={nav.tab === helpTab.id ? 'page' : undefined} onclick={() => choose(helpTab.id)}><span class="icon" aria-hidden="true">{helpTab.icon}</span>{t(helpTab.label)}</button>
       {#if status.value}
         {@const a = status.activity}
         <div class="state" title={status.value.keys_error ?? ''}>
@@ -139,6 +139,8 @@
 {/if}
 
 <style>
+  /* Une carte montrée par un lien (ancre) et le défilement au clavier (PageUp, Espace, Tab) s'arrêtent sous l'en-tête fixe de la page (et sous la recherche de l'Aide). */
+  :global(html) { scroll-padding-top: calc(var(--page-head, 0px) + var(--help-search, 0px) + 8px); }
   .shell { display: flex; min-height: 100vh; }
   nav { width: 210px; flex: none; background: var(--side); border-right: 1px solid var(--line); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
   .brand { display: block; padding: 4px 10px 12px; }
@@ -160,9 +162,13 @@
   /* Tous les onglets (cartes comprises) suivent la largeur de la fenêtre. */
   main { flex: 1; min-width: 0; padding: 20px; }
   main.stopped { padding: 40px; }
+  /* L'en-tête de page remonte de 20 px sur le bandeau : sans cette marge il en mordrait 6 (20 − 14 de la carte). */
+  main > :global(.card.bad) { margin-bottom: 20px; }
   @media (max-width: 640px) {
     .shell { flex-direction: column; }
-    nav { width: auto; height: auto; position: static; flex-direction: row; flex-wrap: wrap; }
+    /* Une seule bande qui défile de côté, au lieu de treize boutons sur plusieurs lignes. */
+    nav { width: auto; height: auto; position: static; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 10px; }
+    .nav { flex: none; white-space: nowrap; padding: 8px; }
     .spacer, .version, .state, .brand, .group { display: none; }
   }
 </style>

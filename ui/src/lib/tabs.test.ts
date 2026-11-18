@@ -19,6 +19,7 @@ import measuresPage from '../tabs/Measures.svelte?raw';
 import benchTab from '../tabs/Bench.svelte?raw';
 import help from '../tabs/Help.svelte?raw';
 import helpEn from '../tabs/HelpEn.svelte?raw';
+import helpSearchBox from '../components/HelpSearchBox.svelte?raw';
 
 describe('structure de l’interface', () => {
   it('ui_logic-014 Aide : treize rubriques (une par page du menu, plus Premiers pas, Sur cet ordinateur ou en ligne, Problèmes fréquents, À propos) aux titres distincts, dernière page de la barre latérale, ouverte sur « Premiers pas »', () => {
@@ -173,5 +174,41 @@ describe('sélecteurs de touches : aucun vide (correctif de la touche de command
     expect(activation).toContain("kinds={['command']}");
     // La capture de la commande parle d'une combinaison, pas d'une seule touche.
     expect(keyPicker).toContain("kind === 'command' ? t('Appuie sur la touche ou la combinaison à tenir en plus");
+  });
+});
+
+describe('finitions de mise en page (chantier 2, tâche 1)', () => {
+  it('la recherche de l’Aide reste en haut sous l’en-tête, et le sommaire et les ancres comptent sa hauteur', () => {
+    expect(helpSearchBox).toMatch(/\.search \{[^}]*position:\s*sticky[^}]*top:\s*var\(--page-head/);
+    expect(helpSearchBox).toContain("setProperty('--help-search'");
+    for (const src of [help, helpEn]) expect(src).toMatch(/\.toc \{[^}]*top: calc\(var\(--page-head, 0px\) \+ var\(--help-search, 0px\)/);
+  });
+
+  it('le défilement au clavier s’arrête sous l’en-tête fixe (scroll-padding-top)', () => {
+    expect(app).toMatch(/:global\(html\) \{[^}]*scroll-padding-top:[^;]*--page-head/);
+  });
+
+  it('le bandeau d’erreur laisse 20 px sous lui, autant que la remontée de l’en-tête', () => {
+    expect(app).toMatch(/main > :global\(\.card\.bad\) \{ margin-bottom: 20px; \}/);
+  });
+
+  it('les tuiles de l’Accueil ont la même hauteur d’une ligne à l’autre', () => {
+    expect(dashboard).toMatch(/\.grid \{[^}]*grid-auto-rows:\s*1fr/);
+  });
+
+  it('menu en fenêtre étroite : une bande qui défile de côté, sans retour à la ligne', () => {
+    const narrow = /@media \(max-width: 640px\) \{([\s\S]*?)\n  \}/.exec(app)?.[1] ?? '';
+    expect(narrow).toMatch(/flex-wrap:\s*nowrap/);
+    expect(narrow).toMatch(/overflow-x:\s*auto/);
+  });
+
+  it('menu : nom du menu, page courante annoncée, icônes cachées aux lecteurs d’écran', () => {
+    expect(app).toContain("<nav aria-label={t('Menu principal')}>");
+    expect(app.match(/aria-current=\{nav\.tab === (tab|helpTab)\.id \? 'page' : undefined\}/g)?.length).toBe(2);
+    expect(app.match(/<span class="icon" aria-hidden="true">/g)?.length).toBe(2);
+  });
+
+  it('commandes vocales décochées : inert (le clavier n’y entre plus), pas seulement grisées', () => {
+    expect(commandsPage).toMatch(/<div class:off=\{settings\.value\?\.voiceCommandsEnabled === false\} inert=\{settings\.value\?\.voiceCommandsEnabled === false\}>/);
   });
 });
