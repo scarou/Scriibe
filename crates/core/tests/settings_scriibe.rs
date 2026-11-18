@@ -1,7 +1,8 @@
 //! Les réglages propres à Scriibe (absents de Scribe) : appareil et durée de conservation de llama.cpp.
 
 use scriibe_core::settings::{
-    is_device_name, is_profile_id, AppSettings, Theme, UiLanguage, LEGACY_SCHEMA, LLAMA_IDLE_DEFAULT, SETTINGS_SCHEMA,
+    is_device_name, is_profile_id, AppSettings, CaptureColor, Theme, UiLanguage, IDLE_CHOICES, LEGACY_SCHEMA, LLAMA_IDLE_DEFAULT,
+    SETTINGS_SCHEMA,
 };
 
 #[test]
@@ -125,4 +126,38 @@ fn the_active_profile_is_read_only_if_it_is_a_safe_folder_name() {
         "absent tant qu'il n'y a pas d'utilisateur"
     );
     assert!(is_profile_id(&"A".repeat(64)) && !is_profile_id(&"A".repeat(65)));
+}
+
+#[test]
+fn idle_choices_are_the_same_for_both_engines_and_never_is_zero() {
+    assert_eq!(IDLE_CHOICES, [1, 2, 5, 10, 15, 30, 60, 0]);
+    for m in IDLE_CHOICES {
+        let json = format!(r#"{{"whisperIdleMinutes": {m}, "llamaIdleMinutes": {m}}}"#);
+        let s = AppSettings::from_json(&json).unwrap();
+        assert_eq!((s.whisper_idle_minutes, s.llama_idle_minutes), (m, m), "{m} min relu tel quel");
+    }
+}
+
+#[test]
+fn old_idle_settings_are_read_as_they_were() {
+    // Anciens menus : Whisper 0, 5, 10, 30, 60 ; llama.cpp 30 min, 2 h, 8 h, « tant que Scriibe tourne » (0).
+    for m in [0, 5, 10, 30, 60] {
+        let s = AppSettings::from_json(&format!(r#"{{"whisperIdleMinutes": {m}}}"#)).unwrap();
+        assert_eq!(s.whisper_idle_minutes, m);
+    }
+    for m in [30, 120, 480, 0] {
+        let s = AppSettings::from_json(&format!(r#"{{"llamaIdleMinutes": {m}}}"#)).unwrap();
+        assert_eq!(s.llama_idle_minutes, m);
+    }
+    assert_eq!(AppSettings::default().whisper_idle_minutes, 10, "défauts inchangés");
+}
+
+#[test]
+fn old_and_new_indicator_colors_are_read() {
+    for c in ["scribe", "gray", "red", "blue", "black", "orange", "green", "teal", "purple", "pink", "indigo", "brown"] {
+        let s = AppSettings::from_json(&format!(r#"{{"captureColor": "{c}"}}"#)).unwrap();
+        assert_eq!(serde_json::to_value(s.capture_color).unwrap(), c);
+    }
+    let s = AppSettings::from_json(r#"{"captureColor": "fuchsia"}"#).unwrap();
+    assert_eq!(s.capture_color, CaptureColor::Scribe, "une couleur inconnue (pas de couleur libre) : celle de Scriibe");
 }

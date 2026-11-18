@@ -188,6 +188,9 @@ mod tests {
         assert_eq!(config.settings().llama_idle_minutes, 30, "valeur de Scribe par défaut");
         assert_eq!(idle_limit(30), Some(Duration::from_secs(30 * 60)));
         assert_eq!(idle_limit(0), None, "0 : jamais libéré");
+        for m in [1, 2, 5, 10, 15, 30, 60] {
+            assert_eq!(idle_limit(m), Some(Duration::from_secs(m as u64 * 60)), "{m} min");
+        }
 
         migrate_engine_options(&config);
         assert_eq!(config.settings().llama_device, "", "pas de fichier : rien ne change");

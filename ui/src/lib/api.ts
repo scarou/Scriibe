@@ -1,3 +1,5 @@
+import type { CaptureColor } from './appearance';
+
 /** Le client du serveur local : l'adresse de la page contient le jeton secret, les chemins sont donc relatifs. */
 
 export interface ApiError {
@@ -164,7 +166,7 @@ export interface Settings {
   animatedLogo?: boolean;
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
-  captureColor: 'scribe' | 'gray' | 'red' | 'blue' | 'black';
+  captureColor: CaptureColor;
   captureOpacity: number;
   historyKeepDays?: number | null;
   [key: string]: unknown;

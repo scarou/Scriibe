@@ -313,7 +313,7 @@
       <ul>
         <li><b>Whisper</b> (transcription) and <b>llama.cpp</b> (cleanup) run on this computer: your voice and text stay on the computer.</li>
         <li><b>Deepgram</b> receives the recording of each dictation, once the key is released (nothing outside your dictations); <b>OpenRouter</b> receives the transcribed text to clean it up.</li>
-        <li><b>Memory</b>: Whisper stops after 10 minutes without dictation and comes back when you press the key, while you speak; llama.cpp’s cleanup model is freed after 30 minutes by default (adjustable: 2 h, 8 h or “as long as Scriibe is running”). <i>Why:</i> they take several GB of memory. After a release, the first dictation is slower: on a computer without a graphics card, count 15 to 45 s for the local model; preloading at launch avoids it for the first one.</li>
+        <li><b>Memory</b>: Whisper stops after 10 minutes without dictation and comes back when you press the key, while you speak; llama.cpp’s cleanup model is freed after 30 minutes by default (adjustable, for both: from 1 minute to 1 hour, or “Never”). <i>Why:</i> they take several GB of memory. After a release, the first dictation is slower: on a computer without a graphics card, count 15 to 45 s for the local model; preloading at launch avoids it for the first one.</li>
         <li>The words in “Words to write exactly” go along with the dictation: to Deepgram and OpenRouter if you use them.</li>
         <li>Translation always goes through the cleanup engine, even in Literal mode.</li>
         <li>Choose “None” as the cleanup to load no model at all: the text is transcribed as is (dictated signs, dictionary, typography). The modes and translation are then unavailable.</li>
@@ -373,7 +373,7 @@
         <li><b>Pasted</b>: a ✓ confirms that the text has arrived.</li>
         <li>{#if linux}There is no icon on Linux yet: the state can be read in the page’s sidebar.{:else}<b>{trayIcon}</b> always changes colour: <b>grey</b> at rest, <b>red</b> while listening, <b>orange</b> while processing, <b>green</b> once the text is pasted, <b>blue</b> for a message. It is useful when the pill is turned off.{/if}</li>
         <li><b>Error</b>: when a command is not recognised or cannot be done, or when the dictation fails (microphone, transcription), the pill stays on screen with what happened, until you click its ✕ or dictate again. For a command, a short low sound goes with it (unless you turned the sounds off). Clicking the ✕ is designed not to take the focus (your app keeps it); if, on your system, typing no longer goes into your app after a click, click in your app again.</li>
-        <li>Three styles (pill, plain dot, level meter), three positions, five colours and an adjustable transparency. The pill is on by default; it is turned off in the settings. The window appearance (light, dark or the system one) is set in the same place, Appearance.</li>
+        <li>Three styles (pill, plain dot, level meter), three positions, twelve colours and an adjustable transparency. The pill is on by default; it is turned off in the settings. The window appearance (light, dark or the system one) is set in the same place, Appearance.</li>
       </ul>
       <div class="links">{@render go('Adjust the indicator', 'appearance', 'indicateur')}</div>
     </div>

@@ -269,6 +269,18 @@ fn no_idle_limit_means_never() {
 }
 
 #[test]
+fn llama_with_never_is_not_released() {
+    let world = FakeWorld::new();
+    let model = "/m/gemma-4-E4B-it-Q4_0.gguf";
+    let server = llama_server(&world, files(&[model]));
+    server.set_idle_limit(None); // « Jamais » : 0 minute dans les réglages
+    server.ensure_running(model).unwrap();
+    world.advance(Duration::from_secs(100_000));
+    assert!(!server.release_if_idle());
+    assert!(server.is_running());
+}
+
+#[test]
 fn llama_is_released_after_thirty_minutes() {
     let world = FakeWorld::new();
     let model = "/m/gemma-4-E4B-it-Q4_0.gguf";

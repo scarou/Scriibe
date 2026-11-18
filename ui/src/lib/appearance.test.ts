@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { caption, colors, gradient, listeningOpacity, listeningText } from './appearance';
 
 describe('apparence de l’indicateur', () => {
-  it('reprend les cinq couleurs de Scribe', () => {
-    expect(colors.map((c) => c.id)).toEqual(['scribe', 'gray', 'red', 'blue', 'black']);
+  it('reprend les cinq couleurs de Scribe, suivies de sept autres', () => {
+    expect(colors.map((c) => c.id)).toEqual(['scribe', 'gray', 'red', 'blue', 'black', 'orange', 'green', 'teal', 'purple', 'pink', 'indigo', 'brown']);
     expect(gradient('red')).toBe('linear-gradient(to right, #E5484D, #C62F35)');
   });
   it('dit « J’écoute… » ou l’alerte du micro', () => {

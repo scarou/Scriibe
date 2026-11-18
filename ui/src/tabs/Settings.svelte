@@ -9,6 +9,7 @@
   import { colors, positions, styles } from '../lib/appearance';
   import { nav } from '../lib/nav.svelte';
   import { keyName, t, tx } from '../lib/i18n.svelte';
+  import { idleOptions } from '../lib/idle';
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
 
@@ -86,6 +87,11 @@
     keyInput[kind] = '';
     if (!out.ok) void notice(out.error ?? t('réglage refusé'));
     await status.refresh();
+  }
+
+  /** « Jamais », « 30 min », « 2 h » (un ancien réglage en heures rondes). */
+  function idleText(m: number): string {
+    return m === 0 ? t('Jamais') : m > 60 && m % 60 === 0 ? t('{n} h', { n: m / 60 }) : t('{n} min', { n: m });
   }
 
   async function listDevices() {
@@ -172,7 +178,7 @@
       <div class="row">
         <label>{t('Libérer Whisper au repos :')}
           <select value={String(v.whisperIdleMinutes)} onchange={(e) => settings.change({ whisperIdleMinutes: Number(e.currentTarget.value) })}>
-            {#each [0, 5, 10, 30, 60] as m (m)}<option value={String(m)}>{m === 0 ? t('Jamais') : t('{n} min', { n: m })}</option>{/each}
+            {#each idleOptions(v.whisperIdleMinutes) as m (m)}<option value={String(m)}>{idleText(m)}</option>{/each}
           </select>
         </label>
       </div>
@@ -244,10 +250,7 @@
       <div class="row">
         <label>{t('Garder le modèle chargé :')}
           <select value={String(v.llamaIdleMinutes)} onchange={(e) => settings.change({ llamaIdleMinutes: Number(e.currentTarget.value) })}>
-            <option value="30">{t('30 min sans dictée (comme Scribe)')}</option>
-            <option value="120">{t('2 h')}</option>
-            <option value="480">{t('8 h')}</option>
-            <option value="0">{t('tant que Scriibe tourne')}</option>
+            {#each idleOptions(v.llamaIdleMinutes) as m (m)}<option value={String(m)}>{idleText(m)}</option>{/each}
           </select>
         </label>
       </div>

@@ -171,6 +171,13 @@ pub enum CaptureColor {
     Red,
     Blue,
     Black,
+    Orange,
+    Green,
+    Teal,
+    Purple,
+    Pink,
+    Indigo,
+    Brown,
 }
 
 /// L'apparence de la fenêtre : claire, sombre, ou celle du système (`Auto`, décidée par la page).
@@ -620,8 +627,11 @@ pub fn is_device_name(name: &str) -> bool {
     name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-/// Durées proposées pour libérer Whisper au repos (0 : jamais).
-pub const WHISPER_IDLE_CHOICES: [i64; 5] = [0, 5, 10, 30, 60];
+/// Durées proposées (minutes) pour libérer un moteur au repos, Whisper comme llama.cpp (0 : jamais, le moteur reste en mémoire).
+pub const IDLE_CHOICES: [i64; 8] = [1, 2, 5, 10, 15, 30, 60, 0];
+/// Les durées de Scribe (le cas `settings-020` de `fixtures/` les prend pour référence) : une valeur écrite à la main hors de `IDLE_CHOICES`
+/// devient la plus proche d'entre elles.
+pub const SCRIBE_IDLE_CHOICES: [i64; 5] = [0, 5, 10, 30, 60];
 
 fn get<T: DeserializeOwned>(o: &Map<String, Value>, key: &str) -> Option<T> {
     o.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
@@ -651,95 +661,102 @@ impl AppSettings {
         let custom_mode_id = modes::parse_id(o.get("customModeID")).filter(|id| custom_modes.iter().any(|m| &m.id == id));
         let rewrite_mode = if custom_mode_id.is_some() { RewriteMode::Simple } else { get(o, "rewriteMode").unwrap_or(d.rewrite_mode) };
         let hidden_modes = clean_hidden_modes(get::<Vec<String>>(o, "hiddenModes").unwrap_or_default(), &custom_modes);
-        let mut settings = Self {
-            schema_version: get(o, "schemaVersion").unwrap_or(d.schema_version),
-            hotkey: get(o, "hotkey").unwrap_or(d.hotkey),
-            language: get(o, "language").unwrap_or(d.language),
-            transcription_engine: get(o, "transcriptionEngine").unwrap_or(d.transcription_engine),
-            transcription_model: get(o, "transcriptionModel").unwrap_or(d.transcription_model),
-            whisper_model_path: get(o, "whisperModelPath").unwrap_or(d.whisper_model_path),
-            start_sound_name: get(o, "startSoundName").unwrap_or(if legacy_start == Some(false) {
-                none.clone()
-            } else {
-                d.start_sound_name
-            }),
-            end_sound_name: get(o, "endSoundName").unwrap_or(if legacy_end == Some(false) { none } else { d.end_sound_name }),
-            sound_volume: get(o, "soundVolume").unwrap_or(d.sound_volume),
-            restore_clipboard: get(o, "restoreClipboard").unwrap_or(d.restore_clipboard),
-            pause_media: get(o, "pauseMedia").unwrap_or(d.pause_media),
-            trial_text: get(o, "trialText").unwrap_or(d.trial_text),
-            trial_candidates: o
-                .get("trialCandidates")
-                .and_then(Value::as_array)
-                .map(|a| a.iter().filter_map(TrialCandidate::from_value).collect())
-                .unwrap_or(d.trial_candidates),
-            cleanup_enabled: get(o, "cleanupEnabled").unwrap_or(d.cleanup_enabled),
-            rewrite_mode,
-            simple_fidelity: get(o, "simpleFidelity").unwrap_or(d.simple_fidelity),
-            speaker_gender: get(o, "speakerGender").unwrap_or(d.speaker_gender),
-            first_name: get::<String>(o, "firstName").map(|n| n.trim().to_string()).unwrap_or(d.first_name),
-            style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
-            custom_modes,
-            custom_mode_id,
-            hidden_modes,
-            skip_when_clean: get(o, "skipWhenClean").unwrap_or(d.skip_when_clean),
-            microphone_uid: get(o, "microphoneUID").unwrap_or(d.microphone_uid),
-            microphone_name: get(o, "microphoneName").unwrap_or(d.microphone_name),
-            translation_language: get(o, "translationLanguage").unwrap_or(d.translation_language),
-            capture_style: get(o, "captureStyle").unwrap_or(d.capture_style),
-            capture_position: get(o, "capturePosition").unwrap_or(d.capture_position),
-            capture_color: get(o, "captureColor").unwrap_or(d.capture_color),
-            capture_opacity: get::<f64>(o, "captureOpacity").unwrap_or(d.capture_opacity).clamp(0.3, 1.0),
-            cleanup_engine: get(o, "cleanupEngine").unwrap_or(d.cleanup_engine),
-            cleanup_model: get(o, "cleanupModel").unwrap_or(d.cleanup_model),
-            lm_studio_model: get(o, "lmStudioModel").unwrap_or(d.lm_studio_model),
-            ollama_model: get(o, "ollamaModel").unwrap_or(d.ollama_model),
-            llama_cpp_model: get(o, "llamaCppModel").unwrap_or(d.llama_cpp_model),
-            lm_studio_url: get(o, "lmStudioURL").unwrap_or(d.lm_studio_url),
-            ollama_url: get(o, "ollamaURL").unwrap_or(d.ollama_url),
-            typing_wpm: get(o, "typingWPM").unwrap_or(d.typing_wpm),
-            keep_dictation_text: get(o, "keepDictationText").unwrap_or(d.keep_dictation_text),
-            // Une valeur écrite à la main (15, -5) devient la durée proposée la plus proche : le menu la connaît toujours.
-            whisper_idle_minutes: get::<i64>(o, "whisperIdleMinutes")
-                .and_then(|v| WHISPER_IDLE_CHOICES.into_iter().min_by_key(|c| (c - v).abs()))
-                .unwrap_or(d.whisper_idle_minutes),
-            list_bullet: get(o, "listBullet").unwrap_or(d.list_bullet),
-            voice_commands_enabled: get(o, "voiceCommandsEnabled").unwrap_or(d.voice_commands_enabled),
-            voice_commands: get::<crate::commands::VoicePhrases>(o, "voiceCommands").map_or(d.voice_commands, |v| v.cleaned()),
-            // Pas une liste de textes : tout est actif (jamais une erreur de lecture). Les identifiants inconnus sont gardés ici.
-            disabled_commands: get::<Vec<String>>(o, "disabledCommands").map_or(d.disabled_commands, crate::commands::clean_disabled),
-            format_shortcuts: get::<crate::commands::FormatShortcuts>(o, "formatShortcuts").map_or(d.format_shortcuts, |v| v.cleaned()),
-            // Une commande mal écrite est écartée seule : les autres sont gardées.
-            custom_commands: o.get("customCommands").and_then(Value::as_array).map_or(d.custom_commands, |list| {
-                crate::commands::CustomCommand::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
-            }),
-            // Un site mal écrit (adresse refusée, aucune phrase…) est écarté seul : les autres sont gardés.
-            web_searches: o.get("webSearches").and_then(Value::as_array).map_or(d.web_searches, |list| {
-                crate::web_search::WebSearch::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
-            }),
-            // Un extrait mal écrit (texte vide ou trop long, aucune phrase…) est écarté seul : les autres sont gardés.
-            snippets: o.get("snippets").and_then(Value::as_array).map_or(d.snippets, |list| {
-                crate::snippet::Snippet::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
-            }),
-            // Une application mal écrite (identifiant illisible, aucune phrase…) est écartée seule : les autres sont gardées.
-            voice_apps: o.get("voiceApps").and_then(Value::as_array).map_or(d.voice_apps, |list| {
-                crate::voice_app::VoiceApp::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
-            }),
-            history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
-            llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
-            llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),
-            setup_done: get(o, "setupDone").unwrap_or(d.setup_done),
-            overlay_enabled: get(o, "overlayEnabled").unwrap_or(d.overlay_enabled),
-            dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
-            translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
-            command_keys: get(o, "commandKeys").unwrap_or(d.command_keys),
-            ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
-            theme: get(o, "theme").unwrap_or(d.theme),
-            check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
-            animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
-            active_profile: get::<String>(o, "activeProfile").filter(|id| is_profile_id(id)),
-            rewrite_consent: get(o, "rewriteConsent"),
-        };
+        let mut settings =
+            Self {
+                schema_version: get(o, "schemaVersion").unwrap_or(d.schema_version),
+                hotkey: get(o, "hotkey").unwrap_or(d.hotkey),
+                language: get(o, "language").unwrap_or(d.language),
+                transcription_engine: get(o, "transcriptionEngine").unwrap_or(d.transcription_engine),
+                transcription_model: get(o, "transcriptionModel").unwrap_or(d.transcription_model),
+                whisper_model_path: get(o, "whisperModelPath").unwrap_or(d.whisper_model_path),
+                start_sound_name: get(o, "startSoundName").unwrap_or(if legacy_start == Some(false) {
+                    none.clone()
+                } else {
+                    d.start_sound_name
+                }),
+                end_sound_name: get(o, "endSoundName").unwrap_or(if legacy_end == Some(false) { none } else { d.end_sound_name }),
+                sound_volume: get(o, "soundVolume").unwrap_or(d.sound_volume),
+                restore_clipboard: get(o, "restoreClipboard").unwrap_or(d.restore_clipboard),
+                pause_media: get(o, "pauseMedia").unwrap_or(d.pause_media),
+                trial_text: get(o, "trialText").unwrap_or(d.trial_text),
+                trial_candidates: o
+                    .get("trialCandidates")
+                    .and_then(Value::as_array)
+                    .map(|a| a.iter().filter_map(TrialCandidate::from_value).collect())
+                    .unwrap_or(d.trial_candidates),
+                cleanup_enabled: get(o, "cleanupEnabled").unwrap_or(d.cleanup_enabled),
+                rewrite_mode,
+                simple_fidelity: get(o, "simpleFidelity").unwrap_or(d.simple_fidelity),
+                speaker_gender: get(o, "speakerGender").unwrap_or(d.speaker_gender),
+                first_name: get::<String>(o, "firstName").map(|n| n.trim().to_string()).unwrap_or(d.first_name),
+                style_overrides: get(o, "styleOverrides").unwrap_or(d.style_overrides),
+                custom_modes,
+                custom_mode_id,
+                hidden_modes,
+                skip_when_clean: get(o, "skipWhenClean").unwrap_or(d.skip_when_clean),
+                microphone_uid: get(o, "microphoneUID").unwrap_or(d.microphone_uid),
+                microphone_name: get(o, "microphoneName").unwrap_or(d.microphone_name),
+                translation_language: get(o, "translationLanguage").unwrap_or(d.translation_language),
+                capture_style: get(o, "captureStyle").unwrap_or(d.capture_style),
+                capture_position: get(o, "capturePosition").unwrap_or(d.capture_position),
+                capture_color: get(o, "captureColor").unwrap_or(d.capture_color),
+                capture_opacity: get::<f64>(o, "captureOpacity").unwrap_or(d.capture_opacity).clamp(0.3, 1.0),
+                cleanup_engine: get(o, "cleanupEngine").unwrap_or(d.cleanup_engine),
+                cleanup_model: get(o, "cleanupModel").unwrap_or(d.cleanup_model),
+                lm_studio_model: get(o, "lmStudioModel").unwrap_or(d.lm_studio_model),
+                ollama_model: get(o, "ollamaModel").unwrap_or(d.ollama_model),
+                llama_cpp_model: get(o, "llamaCppModel").unwrap_or(d.llama_cpp_model),
+                lm_studio_url: get(o, "lmStudioURL").unwrap_or(d.lm_studio_url),
+                ollama_url: get(o, "ollamaURL").unwrap_or(d.ollama_url),
+                typing_wpm: get(o, "typingWPM").unwrap_or(d.typing_wpm),
+                keep_dictation_text: get(o, "keepDictationText").unwrap_or(d.keep_dictation_text),
+                // Une durée proposée est lue telle quelle ; une valeur écrite à la main (14, -5) devient la plus proche de celles de Scribe : le menu la connaît toujours.
+                whisper_idle_minutes: get::<i64>(o, "whisperIdleMinutes")
+                    .map(|v| {
+                        if IDLE_CHOICES.contains(&v) {
+                            v
+                        } else {
+                            SCRIBE_IDLE_CHOICES.into_iter().min_by_key(|c| (c - v).abs()).unwrap_or(v)
+                        }
+                    })
+                    .unwrap_or(d.whisper_idle_minutes),
+                list_bullet: get(o, "listBullet").unwrap_or(d.list_bullet),
+                voice_commands_enabled: get(o, "voiceCommandsEnabled").unwrap_or(d.voice_commands_enabled),
+                voice_commands: get::<crate::commands::VoicePhrases>(o, "voiceCommands").map_or(d.voice_commands, |v| v.cleaned()),
+                // Pas une liste de textes : tout est actif (jamais une erreur de lecture). Les identifiants inconnus sont gardés ici.
+                disabled_commands: get::<Vec<String>>(o, "disabledCommands").map_or(d.disabled_commands, crate::commands::clean_disabled),
+                format_shortcuts: get::<crate::commands::FormatShortcuts>(o, "formatShortcuts").map_or(d.format_shortcuts, |v| v.cleaned()),
+                // Une commande mal écrite est écartée seule : les autres sont gardées.
+                custom_commands: o.get("customCommands").and_then(Value::as_array).map_or(d.custom_commands, |list| {
+                    crate::commands::CustomCommand::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+                }),
+                // Un site mal écrit (adresse refusée, aucune phrase…) est écarté seul : les autres sont gardés.
+                web_searches: o.get("webSearches").and_then(Value::as_array).map_or(d.web_searches, |list| {
+                    crate::web_search::WebSearch::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+                }),
+                // Un extrait mal écrit (texte vide ou trop long, aucune phrase…) est écarté seul : les autres sont gardés.
+                snippets: o.get("snippets").and_then(Value::as_array).map_or(d.snippets, |list| {
+                    crate::snippet::Snippet::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+                }),
+                // Une application mal écrite (identifiant illisible, aucune phrase…) est écartée seule : les autres sont gardées.
+                voice_apps: o.get("voiceApps").and_then(Value::as_array).map_or(d.voice_apps, |list| {
+                    crate::voice_app::VoiceApp::cleaned(list.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+                }),
+                history_keep_days: get::<i64>(o, "historyKeepDays").map(retention::clamped),
+                llama_device: get::<String>(o, "llamaDevice").filter(|d| is_device_name(d)).unwrap_or(d.llama_device),
+                llama_idle_minutes: get::<i64>(o, "llamaIdleMinutes").map_or(d.llama_idle_minutes, |m| m.clamp(0, 24 * 60)),
+                setup_done: get(o, "setupDone").unwrap_or(d.setup_done),
+                overlay_enabled: get(o, "overlayEnabled").unwrap_or(d.overlay_enabled),
+                dictation_keys: get(o, "dictationKeys").unwrap_or(d.dictation_keys),
+                translate_keys: get(o, "translateKeys").unwrap_or(d.translate_keys),
+                command_keys: get(o, "commandKeys").unwrap_or(d.command_keys),
+                ui_language: get(o, "uiLanguage").unwrap_or(d.ui_language),
+                theme: get(o, "theme").unwrap_or(d.theme),
+                check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
+                animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
+                active_profile: get::<String>(o, "activeProfile").filter(|id| is_profile_id(id)),
+                rewrite_consent: get(o, "rewriteConsent"),
+            };
         // L'accord tombe dès que le moteur, le modèle ou l'adresse a changé depuis qu'il a été donné (décision 2 du cadrage des commandes).
         if !crate::rewrite::consent_matches(&settings) {
             settings.rewrite_consent = None;

@@ -545,6 +545,7 @@ export const en: Record<string, string> = {
   'Libérer Whisper au repos :': 'Free Whisper when idle:',
   'Jamais': 'Never',
   '{n} min': '{n} min',
+  '{n} h': '{n} h',
   'Whisper reste en mémoire (environ 1 Go) tant que Scriibe tourne.': 'Whisper stays in memory (about 1 GB) as long as Scriibe is running.',
   'Sans dictée pendant {n} min, Whisper s’arrête et rend sa mémoire ; il revient à l’appui de la touche (environ 1 s, pendant que tu parles).':
     'After {n} min without dictation, Whisper stops and gives its memory back; it comes back when you press the key (about 1 s, while you speak).',
@@ -565,10 +566,6 @@ export const en: Record<string, string> = {
   'Pour reformuler une sélection sous la touche de commande. Ce moteur n’est pas sur cet ordinateur : sans cette case, la sélection ne lui est jamais envoyée. L’accord vaut pour ce moteur, ce modèle et cette adresse, et tombe dès que l’un des trois change.': 'To rewrite a selection under the command key. This engine is not on this computer: without this box, the selection is never sent to it. The consent covers this engine, this model and this address, and falls as soon as any of the three changes.',
   'Lister les cartes': 'List the cards',
   'Garder le modèle chargé :': 'Keep the model loaded:',
-  '30 min sans dictée (comme Scribe)': '30 min without dictation (like Scribe)',
-  '2 h': '2 h',
-  '8 h': '8 h',
-  'tant que Scriibe tourne': 'as long as Scriibe is running',
 
   // Réglages : dictée
   'Langue dictée :': 'Dictation language:',
@@ -617,6 +614,13 @@ export const en: Record<string, string> = {
   'Rouge': 'Red',
   'Bleu': 'Blue',
   'Noir': 'Black',
+  'Orange': 'Orange',
+  'Vert': 'Green',
+  'Turquoise': 'Teal',
+  'Violet': 'Purple',
+  'Rose': 'Pink',
+  'Indigo': 'Indigo',
+  'Marron': 'Brown',
   'Comptes en ligne': 'Online accounts',
   'Prénom et genre': 'First name and gender',
   'Ce que Scriibe sait de la personne qui dicte : son prénom pour la salutation, son genre pour accorder les textes réécrits.': 'What Scriibe knows about the person dictating: their first name for the greeting, their gender to agree reworded texts.',
