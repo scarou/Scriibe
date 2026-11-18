@@ -47,8 +47,19 @@
     return ranges[0] ?? null;
   }
 
+  // Attend la fin de la frappe (180 ms) : sans cela, chaque lettre relit toute l'Aide et fait défiler la page vers un résultat intermédiaire (« rac », « racc »…).
+  let needle = $state('');
   $effect(() => {
-    const needle = helpSearch.needle;
+    const typed = helpSearch.needle;
+    if (!typed) {
+      needle = '';
+      return;
+    }
+    const timer = setTimeout(() => (needle = typed), 180);
+    return () => clearTimeout(timer);
+  });
+
+  $effect(() => {
     void i18n.lang;
     if (!needle) {
       clearHighlight();
@@ -116,6 +127,6 @@
 </div>
 
 <style>
-  .search { position: sticky; top: var(--page-head, 0px); z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; padding: 10px 0 8px; background: var(--bg); }
+  .search { position: sticky; top: var(--page-head, 0px); z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 0; padding: 18px 0 8px; background: var(--bg); }
   .search input { flex: 1 1 14em; max-width: 28em; }
 </style>

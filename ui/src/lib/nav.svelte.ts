@@ -52,6 +52,16 @@ class Nav {
       target = document.getElementById(anchor);
     }
     if (target) {
+      // Les cartes au-dessus peuvent encore grandir (données lues après l'affichage) : on attend que la place de la carte ne bouge plus
+      // (6 images de suite, une demi-seconde au plus) avant de défiler, sinon le défilement s'arrête à côté.
+      let last = -1;
+      let still = 0;
+      for (let i = 0; i < 40 && still < 6; i++) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const top = target.getBoundingClientRect().top + window.scrollY;
+        still = top === last ? still + 1 : 0;
+        last = top;
+      }
       // Une carte repliée se déplie pour être montrée.
       if (target.dataset.folded === 'true') target.querySelector<HTMLButtonElement>('button.fold')?.click();
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });

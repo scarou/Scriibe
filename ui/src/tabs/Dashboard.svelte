@@ -138,7 +138,7 @@
   .tile { margin: 0; padding: 14px 16px; }
   .n { font-size: 1.8rem; font-weight: 700; line-height: 1.2; }
   .n small { font-size: .8rem; font-weight: 400; color: var(--muted); }
-  .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; align-items: start; }
+  .two { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; align-items: stretch; }
   .two :global(.card) { margin: 0 0 14px; }
   @media (max-width: 760px) { .two { grid-template-columns: 1fr; } .wave { display: none; } }
   .streak { float: right; background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); border-radius: 999px; padding: 2px 12px; font-size: .85rem; font-weight: 600; }
