@@ -185,3 +185,32 @@ Sous-agent Sonnet (effort élevé), lecture seule, sur `e87b0d8..HEAD` : 1 bloqu
 - M9 : 20 px au lieu de 14 entre deux bandeaux `config_problems` (cosmétique).
 
 Limites : clippy Windows non lancé ; rien vu à l'écran pour ces corrections ; tests à relancer sur Mac : `npm test` 155 passés, `npm run check` 0 erreur, `npm run build` ok.
+
+## Essai (tâche 6, 18/11/2026)
+
+Branche temporaire `essai-c2` poussée pour amener le code sur les PC (`pilote maj` ne tire que depuis GitHub), compilée en release sur les trois machines (c385f21 : 6919a82 + les corrections de l'essai). Gestes faits par l'auteur, une étape à la fois.
+
+### Mac (Scriibe.app lancée par `open`)
+| Point | Résultat |
+|---|---|
+| Tuiles de l'Accueil | les 4 du haut égales ; **les cartes « Mots dictés par jour » et « Où je dicte » ne l'étaient pas** → `align-items: stretch` (`Dashboard.svelte`), revu : égales |
+| En-tête et champ de recherche fixes (Aide) | OK ; le champ glissait de 8 px avant de se coller (marge de 8 px sous l'en-tête) → `margin-top: -8px`, revu : fixe. Le bandeau « Salut… » n'est pas un en-tête et ne doit pas rester fixe |
+| Menu étroit | OK : bande qui défile de côté, tout accessible |
+| Textes sans autre système (Moteurs et modèles) | OK : encart Homebrew, aucun « Windows », « Vulkan » ni « Linux » |
+| Carte de sauvegarde | « Restaurer une sauvegarde… » ouvre la boîte du système, annulée : OK |
+| « Exporter… » → Mes commandes | arrivait **à côté de la carte** (cartes du dessus encore en train de grandir) → `nav.go` attend 6 images stables avant de défiler ; revu : OK. Cas « rien à exporter » (boîte) **non vu** : l'auteur a des commandes |
+| Assistant « Tout est en place » | OK avec `ggml-base.bin` (147 951 465 octets, téléchargé sur Hugging Face avec l'accord de l'auteur, rangé dans `~/Library/Application Support/Scriibe/models/`) ; réglages remis comme avant |
+
+### Windows
+Programmes « whisper-server », « llama-server (processeur) » et « (carte graphique Vulkan) » sans le mot Windows : OK. Carte d'export : « Une boîte te demande où l'enregistrer. » : OK. Restaurer : boîte du système, annulée : OK.
+
+### Linux (GNOME)
+Programmes « whisper-server », « llama-server (processeur) » : OK. Carte d'export : « Il est placé dans le dossier Documents. » : OK. Restaurer : champ du chemin avec **Annuler**, qui le ferme : OK. Touches affichées = raccourcis GNOME (Ctrl+Gauche, Ctrl+Haut, Ctrl+Bas) : OK. Aucun « + » en trop dans « Dicter avec la touche dans une application » : OK (Banc et ligne « Touche globale » non relus).
+**Piège** : Scriibe lancée par SSH n'a pas l'autorisation d'accès à l'écran (« Touche globale indisponible : écran X11 introuvable », touche par défaut fausse). Sous Linux, la lancer depuis la session graphique (Activités), jamais par SSH.
+
+## Ajouts
+1. Cartes « Mots dictés par jour » / « Où je dicte » de hauteurs différentes : traité (voir Mac).
+2. Champ de recherche de l'Aide qui bouge de 8 px : traité.
+3. Police du champ de recherche trop petite (`type="search"` hors de la règle commune de `app.css`) : traité.
+4. Recherche de l'Aide qui montre les mots intermédiaires (« rac »…) : traité, attente de 180 ms après la frappe.
+5. « Exporter… » sur Mes commandes arrive à côté de la carte : traité.
