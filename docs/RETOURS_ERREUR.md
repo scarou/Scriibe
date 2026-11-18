@@ -149,6 +149,27 @@ Ces trois comportements ne se testent pas par un test automatique (ils dépenden
 
 **Non fait ici** : rien vu à l'écran de la capsule d'erreur elle-même (pas de capture) ; Windows et Linux non essayés.
 
+## Désactiver
+
+*(Tâche 2, 18/11/2026, Mac. Code selon § Conception 6 ; écarts notés ci-dessous.)*
+
+**Fait**
+- `settings.rs` : champ `AppSettings::disabled_commands` (`disabledCommands`, `#[serde(default)]`), dans `USER_KEYS` ; `SETTINGS_SCHEMA` inchangé. Lecture tolérante : une valeur qui n'est pas une liste de textes → tout actif ; `clean_disabled` (espaces retirés, vides, doublons et identifiants de plus de 100 signes écartés, 500 au plus) ; les identifiants **inconnus sont gardés** à la lecture.
+- `FileConfig::save_settings` (`storage.rs`) : `known_disabled` retire à l'écriture les identifiants qui ne sont plus dans le catalogue (commande de la personne supprimée) ; une commande recréée sous le même identifiant naît active. La lecture n'écrit rien : l'ancien profil n'est pas réécrit.
+- `commands.rs` : `recognize_for` écarte les fiches désactivées (`all_defs` reste entier : phrases déjà prises et `is_close` voient encore les commandes coupées) ; `Route::Disabled` rendu **avant** `search_without_target` et `is_close` (même pour « nouvelle recherche <site> » dit seul avec le site coupé) ; `set_enabled`, `program_ids`, `is_disabled`.
+- `controller.rs` : `Route::Disabled` → `refuse(NotRecognised, "Commande désactivée")` (erreur qui reste, avec le son d'erreur ; journal sans les mots dits). Sans la touche, la phrase coupée est du texte collé.
+- `profile_file.rs` : `disabledCommands` dans `PREFERENCE_KEYS` (9 clés), **réduit aux commandes du programme** à l'export (rien ne part s'il n'y en a pas) ; à l'import, liste mal formée ou de plus de 100 éléments refusée, identifiants hors catalogue du programme écartés. La sauvegarde complète recopie `profile.json` : rien à faire.
+- `web/mod.rs` : `POST api/commands/enabled` (`{id, enabled}`, sous le verrou de réglages et le contrôle d'utilisateur, 400 pour un identifiant inconnu ou un interrupteur illisible) ; `commands_view` rend aussi `disabled`.
+- Page : `CommandSwitch.svelte` (case « Active » sur la ligne de chaque commande des cinq blocs : intégrées, mes sites, extraits, applications, mes commandes) ; ligne grisée mais modifiable (phrases, suppression) ; `isOff` / `setCommandEnabled` dans `shared.ts`. L'interrupteur général garde son rôle et grise toujours le bloc entier. Aide française et anglaise (puce « Désactiver une commande »), `en.ts` et `en-server.ts` (« Commande désactivée »).
+
+**Tests ajoutés** (11) : `commands.rs` `disabled_580` à `585` (ignorée sans la touche, `Route::Disabled` sous la touche, témoins non coupés, réactivation, interrupteur général inchangé et interrupteurs conservés, commandes de la personne et sites dont « site dit seul », nettoyage de lecture, retrait à l'écriture, `set_enabled`, identifiants du programme) ; `storage.rs` (ancien profil sans la clé lu tout actif **et fichier inchangé**, cinq valeurs mal formées → tout actif sans fichier refusé, inconnu gardé à la lecture puis retiré à la sauvegarde, la clé reste dans `profile.json` et jamais dans `settings.json`, deux utilisateurs = deux jeux) ; `profile_file_tests.rs` (export réduit au programme, rien sans coupure, aller-retour, identifiants de la personne et inconnus écartés à l'import, liste mal formée refusée) ; `dictation.rs` (texte collé sans la touche, erreur « Commande désactivée » avec le son sous la touche, rien lu ni collé ni gardé, témoin non coupé) ; `settings_split.rs` complété (clé classée « utilisateur », pas un test de plus).
+
+**Mesuré** (Mac, 18/11/2026) : 874 tests Rust (3 ignorés), 170 tests de l'interface ; `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `npm run check` sans erreur.
+
+**Écarts avec le § Conception** : aucun sur le fond. Précision ajoutée : `Route::Disabled` passe aussi avant `search_without_target`, sinon « nouvelle recherche YouTube chats » avec YouTube coupé aurait dit « Site de recherche inconnu ».
+
+**Non fait ici** : la page n'a pas été vue à l'écran (vérifiée par `svelte-check` et les tests de l'interface seulement) ; la reformulation de la sélection n'a pas d'interrupteur (voulu, § Conception 6).
+
 ## Relais
 
 *(Fin de la tâche 1, 18/11/2026, contexte à 32 % : relais avant la tâche 2.)*

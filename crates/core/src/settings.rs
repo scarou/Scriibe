@@ -360,6 +360,10 @@ pub struct AppSettings {
     /// Phrases de commande choisies par la personne (elles remplacent celles par défaut). Propre à Scriibe.
     #[serde(rename = "voiceCommands")]
     pub voice_commands: crate::commands::VoicePhrases,
+    /// Identifiants des commandes vocales **désactivées** une à une (`["format.gras", "perso.2"]`), sous l'interrupteur général. Une liste
+    /// de désactivées, pas d'actives : un profil sans la clé a toutes ses commandes actives. Propre à Scriibe.
+    #[serde(rename = "disabledCommands", default)]
+    pub disabled_commands: Vec<String>,
     /// Raccourcis de l'appli appuyés par les commandes gras, italique et souligné (« Mod+B » : ⌘B sur Mac, Ctrl+B ailleurs). Propre à Scriibe.
     #[serde(rename = "formatShortcuts")]
     pub format_shortcuts: crate::commands::FormatShortcuts,
@@ -477,6 +481,7 @@ impl Default for AppSettings {
             list_bullet: ListBullet::Dash,
             voice_commands_enabled: true,
             voice_commands: Default::default(),
+            disabled_commands: Vec::new(),
             format_shortcuts: Default::default(),
             custom_commands: Vec::new(),
             web_searches: Vec::new(),
@@ -526,6 +531,7 @@ pub const USER_KEYS: &[&str] = &[
     "snippets",
     "voiceCommandsEnabled",
     "voiceCommands",
+    "disabledCommands",
     "listBullet",
     "keepDictationText",
     "historyKeepDays",
@@ -700,6 +706,8 @@ impl AppSettings {
             list_bullet: get(o, "listBullet").unwrap_or(d.list_bullet),
             voice_commands_enabled: get(o, "voiceCommandsEnabled").unwrap_or(d.voice_commands_enabled),
             voice_commands: get::<crate::commands::VoicePhrases>(o, "voiceCommands").map_or(d.voice_commands, |v| v.cleaned()),
+            // Pas une liste de textes : tout est actif (jamais une erreur de lecture). Les identifiants inconnus sont gardés ici.
+            disabled_commands: get::<Vec<String>>(o, "disabledCommands").map_or(d.disabled_commands, crate::commands::clean_disabled),
             format_shortcuts: get::<crate::commands::FormatShortcuts>(o, "formatShortcuts").map_or(d.format_shortcuts, |v| v.cleaned()),
             // Une commande mal écrite est écartée seule : les autres sont gardées.
             custom_commands: o.get("customCommands").and_then(Value::as_array).map_or(d.custom_commands, |list| {

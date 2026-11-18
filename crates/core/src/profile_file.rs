@@ -29,7 +29,7 @@ use std::collections::{BTreeMap, HashMap};
 /// Les réglages de personne exportés avec la case « Réglages de personne » (clés des fichiers de réglages). `firstName` n'y est pas : il a
 /// sa propre case (identité) ; `customModeID` et `customModes` suivent la case des modes ; `hiddenModes` en fait partie, sans les identifiants
 /// de modes personnels quand les modes ne partent pas.
-pub const PREFERENCE_KEYS: [&str; 8] = [
+pub const PREFERENCE_KEYS: [&str; 9] = [
     "language",
     "translationLanguage",
     "speakerGender",
@@ -38,6 +38,7 @@ pub const PREFERENCE_KEYS: [&str; 8] = [
     "listBullet",
     "voiceCommandsEnabled",
     "voiceCommands",
+    "disabledCommands",
 ];
 
 /// Longueur maximale (en caractères) du nom affiché et du prénom.
@@ -149,6 +150,7 @@ fn preference_label(key: &str) -> &'static str {
         "listBullet" => "puce des listes",
         "voiceCommandsEnabled" => "commandes vocales (interrupteur)",
         "voiceCommands" => "phrases des commandes vocales",
+        "disabledCommands" => "commandes vocales désactivées",
         _ => "réglage",
     }
 }
@@ -160,6 +162,15 @@ fn preference_entries(settings: &AppSettings) -> Map<String, Value> {
     for key in PREFERENCE_KEYS {
         if let Some(value) = all.get(key) {
             if key == "voiceCommands" && *value == json!(VoicePhrases::default()) {
+                continue;
+            }
+            // Seuls les interrupteurs des commandes du programme voyagent : les identifiants de celles de la personne sont renumérotés.
+            if key == "disabledCommands" {
+                let program = crate::commands::program_ids();
+                let kept: Vec<&String> = settings.disabled_commands.iter().filter(|id| program.contains(id)).collect();
+                if !kept.is_empty() {
+                    out.insert(key.to_string(), json!(kept));
+                }
                 continue;
             }
             out.insert(key.to_string(), value.clone());
@@ -446,6 +457,9 @@ pub fn parse_profile(text: &str) -> Result<Incoming, String> {
                 if key == "voiceCommands" {
                     check_voice_commands(value)?;
                 }
+                if key == "disabledCommands" {
+                    id_list(value, "la liste des commandes désactivées")?;
+                }
                 incoming.preferences.insert(key.to_string(), value.clone());
             }
         }
@@ -649,6 +663,11 @@ pub fn build(incoming: &Incoming, take: Categories) -> Built {
                 "listBullet" => settings.list_bullet = parsed.list_bullet,
                 "voiceCommandsEnabled" => settings.voice_commands_enabled = parsed.voice_commands_enabled,
                 "voiceCommands" => settings.voice_commands = parsed.voice_commands.clone(),
+                // Un identifiant qui n'est pas dans le catalogue du programme est écarté.
+                "disabledCommands" => {
+                    let program = crate::commands::program_ids();
+                    settings.disabled_commands = parsed.disabled_commands.iter().filter(|id| program.contains(id)).cloned().collect();
+                }
                 _ => continue,
             }
             keys.push(key.as_str());

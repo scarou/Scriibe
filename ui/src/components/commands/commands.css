@@ -18,3 +18,5 @@
 .vc .inline { display: inline-flex; align-items: center; gap: 6px; }
 .vc .error.nomargin { margin-left: 0; }
 .vc .newcommand { margin-top: 10px; }
+.vc .command.off > :not(.head), .vc .command.off .head > b { opacity: 0.55; }
+.vc .head .switch { margin-left: auto; }

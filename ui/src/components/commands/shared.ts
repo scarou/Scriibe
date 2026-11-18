@@ -1,5 +1,6 @@
 import { api } from '../../lib/api';
 import { settings } from '../../lib/settings.svelte';
+import { notice } from '../../lib/dialog.svelte';
 import { t, tx } from '../../lib/i18n.svelte';
 
 export type Check = { ok: boolean; phrase?: string; error?: 'too_short' | 'taken' | 'unknown'; other?: string };
@@ -62,4 +63,17 @@ export const badShortcutMessage = () => t('Raccourci illisible : écris par exem
 
 export async function shortcutLabel(text: string): Promise<{ ok: boolean; label?: string }> {
   return api<{ ok: boolean; label?: string }>('commands/validate-shortcut', { text });
+}
+
+/** La commande `id` est-elle désactivée (son interrupteur propre, sous l'interrupteur général) ? */
+export const isOff = (id: string) => (settings.value?.disabledCommands ?? []).includes(id);
+
+/** Active ou désactive la commande `id` : le serveur écrit sous son verrou, puis la page relit les réglages. */
+export async function setCommandEnabled(id: string, enabled: boolean): Promise<void> {
+  const out = await api<{ ok: boolean; error?: string }>('commands/enabled', { id, enabled });
+  if (!out.ok) {
+    void notice(out.error ?? t('réglage refusé'));
+    return;
+  }
+  await settings.load();
 }

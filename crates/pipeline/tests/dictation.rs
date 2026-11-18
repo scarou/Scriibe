@@ -2349,3 +2349,44 @@ fn no_error_sound_when_the_person_has_turned_the_sounds_off() {
     r.dictate_under_key();
     assert_eq!(error_sounds(&r), 1);
 }
+
+// ---- Chantier 5, tâche 2 : une commande désactivée (docs/RETOURS_ERREUR.md § Désactiver) ----
+
+/// Sans la touche, la phrase d'une commande désactivée est du texte à coller (rien n'est lu ni exécuté) ; les autres commandes marchent.
+#[test]
+fn a_disabled_command_is_pasted_as_text_without_the_key_and_the_others_still_work() {
+    let settings = AppSettings { disabled_commands: vec!["dictionnaire.ajouter".into()], ..command_settings() };
+    let r = rig_with(settings.clone(), "Ajoute au dictionnaire", "Ajoute au dictionnaire.", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_without_command();
+    assert_eq!(r.paster.pasted().len(), 1, "la phrase est collée comme du texte");
+    assert!(r.commands.heard.lock().unwrap().is_empty());
+    assert_eq!(r.paster.selected_reads(), 0);
+    assert!(r.indicator.failures().is_empty() && error_sounds(&r) == 0);
+    // Témoin : une autre commande, non coupée, agit.
+    let r = rig_with(settings, "Ajoute au dictionnaire", "x", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert!(r.commands.heard.lock().unwrap().is_empty(), "sous la touche aussi, la commande coupée ne s'exécute pas");
+}
+
+/// Sous la touche, la commande désactivée donne l'erreur « Commande désactivée » (qui reste, avec le son), sans rien coller, lire ni garder.
+#[test]
+fn under_the_key_a_disabled_command_says_so_stays_on_screen_and_does_nothing() {
+    let settings = AppSettings { disabled_commands: vec!["format.gras".into()], ..command_settings() };
+    let r = rig_with(settings.clone(), "Mets en gras", "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert_eq!(r.indicator.failures(), vec![failure(FailureKind::NotRecognised, "Commande désactivée")]);
+    assert_eq!(error_sounds(&r), 1);
+    assert!(r.paster.pasted().is_empty() && r.paster.shortcuts().is_empty() && r.history.items().is_empty());
+    assert!(r.cleanup_requests().is_empty());
+    assert_eq!(r.paster.selected_reads(), 0, "la sélection n'est pas lue");
+    nothing_said_or_selected_in(&r);
+    // Témoin : l'italique, non coupé, s'exécute.
+    let r = rig_with(settings, "Mets en italique", "ne doit pas servir", true);
+    r.paster.set_selected(FakeSelected::Text("cri be".into()));
+    r.dictate_under_key();
+    assert!(r.indicator.failures().is_empty());
+    assert_eq!(r.paster.shortcuts().len(), 1);
+}

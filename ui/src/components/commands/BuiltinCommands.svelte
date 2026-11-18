@@ -6,7 +6,8 @@
   import '../commands/commands.css';
   import ShortcutField from '../ShortcutField.svelte';
   import { onMount } from 'svelte';
-  import { groups, labelOf, type Check } from './shared';
+  import { groups, isOff, labelOf, type Check } from './shared';
+  import CommandSwitch from './CommandSwitch.svelte';
 
   type Lang = 'fr' | 'en';
   type Command = { id: string; fr_default: string[]; en_default: string[]; fr: string[]; en: string[] };
@@ -109,10 +110,11 @@
       {#each group.commands as def (def.id)}
         {@const c = byId(def.id)}
         {#if c}
-          <div class="command">
+          <div class="command" class:off={isOff(def.id)}>
             <div class="head">
               <b>{t(def.label)}</b>
               {#if customized(c)}<button class="link" onclick={() => restore(c)}>{t('Rétablir')}</button>{/if}
+              <CommandSwitch id={def.id} />
             </div>
             {#each [i18n.lang] as lang (lang)}
               <div class="langrow">

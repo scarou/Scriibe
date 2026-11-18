@@ -125,6 +125,8 @@ export interface Settings {
   /** Commandes vocales sur du texte sélectionné : interrupteur, phrases choisies (par langue puis par commande) et raccourcis de gras, italique, souligné. */
   voiceCommandsEnabled: boolean;
   voiceCommands: { fr: Record<string, string[]>; en: Record<string, string[]> };
+  /** Identifiants des commandes désactivées une à une (sous l'interrupteur général) ; absent ou vide : toutes actives. */
+  disabledCommands: string[];
   customCommands: { id: string; name: string; phrases: string[]; shortcut: string; needsSelection: boolean }[];
   /** Sites de recherche de la personne (« nouvelle recherche <site> … » sous la touche de commande) : adresse https avec {q}. */
   webSearches: { id: string; name: string; url: string; phrases: string[] }[];

@@ -306,6 +306,8 @@ export const en: Record<string, string> = {
   'Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.':
     'Give a title to a phrase that presses a shortcut of the active app, for example ⌘⇧X on Mac. Click the shortcut field, then press the combination you want. A shortcut that already exists in an app can be called by voice this way.',
   'Seulement si du texte est sélectionné': 'Only when text is selected',
+  'Active': 'On',
+  'Désactiver une commande la retire : sa phrase redevient du texte sans la touche de commande.': 'Turning a command off removes it: without the command key, its phrase goes back to being plain text.',
   'Aucune commande à toi pour l’instant.': 'No command of your own yet.',
   'Nouvelle commande': 'New command',
   'Titre (ex. : Barré)': 'Title (e.g. Strikethrough)',

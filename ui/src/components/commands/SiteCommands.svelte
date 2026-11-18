@@ -4,7 +4,8 @@
   import { settings } from '../../lib/settings.svelte';
   import { i18n, t } from '../../lib/i18n.svelte';
   import '../commands/commands.css';
-  import { takenMessage, wordsIn, type Check, type Site } from './shared';
+  import { isOff, takenMessage, wordsIn, type Check, type Site } from './shared';
+  import CommandSwitch from './CommandSwitch.svelte';
 
   let v = $derived(settings.value);
   let drafts = $state<Record<string, string>>({});
@@ -76,11 +77,12 @@
 <div class="vc">
     <p class="muted">{t('Ajoute un site de recherche : dis ta phrase suivie de ce que tu cherches, et l’adresse s’ouvre dans ton navigateur, avec ce texte à la place de {q}. L’adresse doit commencer par https:// et le nom du site doit être fixe : {q} ne peut pas être avant le premier /. Ça ne marche que sous la touche de commande.', { q: '{q}' })}</p>
     {#each sites as s (s.id)}
-      <div class="command">
+      <div class="command" class:off={isOff(s.id)}>
         <div class="head">
           <b>{s.name}</b>
           <span class="muted">{t('Ouvre {host}', { host: siteHosts[s.id] ?? '' })}</span>
           <button class="link" onclick={() => removeSite(s.id)}>{t('Supprimer')}</button>
+          <CommandSwitch id={s.id} />
         </div>
         <div class="langrow">
           <span class="lang muted">{t('Phrases')}</span>

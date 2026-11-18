@@ -520,6 +520,9 @@ impl FileConfig {
     /// et l'erreur dit pourquoi. Sans utilisateur rangé à part, tout va dans `settings.json`. Avec un utilisateur, chaque clé va dans le
     /// fichier de son propriétaire (`settings.json` : l'ordinateur ; `profile.json` : l'utilisateur), selon la décision 1.
     pub fn save_settings(&self, settings: &AppSettings) -> std::io::Result<()> {
+        // Les interrupteurs de commandes qui n'existent plus (commande de la personne supprimée) ne sont pas écrits.
+        let pruned = scriibe_core::commands::known_disabled(settings);
+        let settings = &AppSettings { disabled_commands: pruned, ..settings.clone() };
         let (_, problems) = self.view();
         if let Some(problem) = problems.first() {
             return Err(problem.refuse_write());
@@ -1137,6 +1140,56 @@ mod tests {
         // l'utilisateur (la première sauvegarde avec un utilisateur les en a retirées) : le retour en arrière n'est pas une fonction.
         assert_eq!(config.dictionary().words, vec!["racine".to_string()]);
         assert_eq!(config.settings().first_name, "");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// Désactiver une commande (chantier 5, tâche 2) : un profil sans la clé a toutes ses commandes actives et son fichier n'est pas réécrit
+    /// à la lecture ; une clé malformée vaut « tout actif » ; un identifiant inconnu est gardé à la lecture et retiré à l'écriture ; chaque
+    /// utilisateur a son jeu de commandes.
+    #[test]
+    fn disabled_commands_follow_the_user_and_an_old_profile_is_read_as_all_active_without_being_rewritten() {
+        let dir = temp("disabled-commands");
+        let config = FileConfig::new(dir.clone());
+        config.save_settings(&first_run_settings()).unwrap();
+        let (a, b) = (dir.join("utilisateurs").join("A"), dir.join("utilisateurs").join("B"));
+        config.switch_profile(Some(a.clone()));
+        config.save_settings(&config.settings()).unwrap();
+
+        // Ancien profil : pas de clé. Tout est actif, et lire n'écrit rien.
+        let old = r#"{"firstName":"Alice","voiceCommandsEnabled":true}"#;
+        std::fs::write(a.join("profile.json"), old).unwrap();
+        config.profile.forget();
+        assert!(config.settings().disabled_commands.is_empty());
+        assert_eq!(config.settings().first_name, "Alice");
+        assert_eq!(std::fs::read_to_string(a.join("profile.json")).unwrap(), old, "la lecture ne réécrit pas le profil");
+
+        // Clé malformée : tout est actif, aucune erreur de lecture, rien n'est refusé.
+        for bad in [r#""format.gras""#, r#"{"format.gras":true}"#, r#"[1,2]"#, "null", "true"] {
+            std::fs::write(a.join("profile.json"), format!(r#"{{"firstName":"Alice","disabledCommands":{bad}}}"#)).unwrap();
+            config.profile.forget();
+            assert!(config.settings().disabled_commands.is_empty(), "{bad}");
+            assert!(config.problems().is_empty(), "{bad}");
+        }
+
+        // Identifiant inconnu : gardé à la lecture (profil recopié d'une version plus récente), retiré à la première sauvegarde.
+        std::fs::write(a.join("profile.json"), r#"{"firstName":"Alice","disabledCommands":["format.gras","futur.commande"]}"#).unwrap();
+        config.profile.forget();
+        assert_eq!(config.settings().disabled_commands, vec!["format.gras".to_string(), "futur.commande".to_string()]);
+        config.save_settings(&config.settings()).unwrap();
+        assert_eq!(user_json(&config, "profile.json")["disabledCommands"], serde_json::json!(["format.gras"]));
+        assert_eq!(config.settings().disabled_commands, vec!["format.gras".to_string()]);
+        let computer: Value = serde_json::from_str(&std::fs::read_to_string(config.settings_path()).unwrap()).unwrap();
+        assert!(computer.get("disabledCommands").is_none(), "la clé suit l'utilisateur, pas l'ordinateur");
+
+        // Un autre utilisateur a son propre jeu de commandes.
+        config.switch_profile(Some(b.clone()));
+        assert!(config.settings().disabled_commands.is_empty());
+        config.save_settings(&AppSettings { disabled_commands: vec!["entourer.crochets".into()], ..config.settings() }).unwrap();
+        assert_eq!(config.settings().disabled_commands, vec!["entourer.crochets".to_string()]);
+        config.switch_profile(Some(a));
+        assert_eq!(config.settings().disabled_commands, vec!["format.gras".to_string()]);
+        config.switch_profile(Some(b));
+        assert_eq!(config.settings().disabled_commands, vec!["entourer.crochets".to_string()]);
         let _ = std::fs::remove_dir_all(dir);
     }
 

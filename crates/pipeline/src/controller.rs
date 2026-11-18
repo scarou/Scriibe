@@ -814,6 +814,10 @@ impl Controller {
                 ));
                 self.refuse(FailureKind::NotRecognised, "Commande trop longue");
             }
+            Route::Disabled => {
+                deps.log.write("commande: phrase d'une commande désactivée — rien n'est fait");
+                self.refuse(FailureKind::NotRecognised, "Commande désactivée");
+            }
             Route::EmptySearch => {
                 deps.log.write("commande: recherche sans rien à chercher — rien n'est ouvert");
                 self.refuse(FailureKind::NotDone, "Rien à chercher");

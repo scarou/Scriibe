@@ -46,7 +46,7 @@ fn the_decision_one_table_is_followed() {
     {
         assert_eq!(owner_of(key), Some(Owner::User), "{key}");
     }
-    for key in ["styleOverrides", "customCommands", "voiceCommandsEnabled", "voiceCommands", "listBullet"] {
+    for key in ["styleOverrides", "customCommands", "voiceCommandsEnabled", "voiceCommands", "disabledCommands", "listBullet"] {
         assert_eq!(owner_of(key), Some(Owner::User), "{key}");
     }
     // L'historique et les statistiques suivent l'utilisateur, avec leurs trois réglages (relecture C1).

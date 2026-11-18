@@ -5,7 +5,8 @@
   import { i18n, t } from '../../lib/i18n.svelte';
   import '../commands/commands.css';
   import { onMount } from 'svelte';
-  import { takenMessage, snippetPhraseMessage, type Check, type VoiceApp } from './shared';
+  import { isOff, takenMessage, snippetPhraseMessage, type Check, type VoiceApp } from './shared';
+  import CommandSwitch from './CommandSwitch.svelte';
 
   let v = $derived(settings.value);
   let drafts = $state<Record<string, string>>({});
@@ -68,10 +69,11 @@
 <div class="vc">
     <p class="muted">{t('Choisis une application installée sur cet ordinateur et une phrase : dite sous la touche de commande, elle ouvre l’application. Seules les applications de cette liste peuvent s’ouvrir, sans rien d’autre (ni commande, ni option). Cette liste reste sur cet ordinateur : elle n’est pas exportée avec l’utilisateur.')}</p>
     {#each voiceApps as a (a.id)}
-      <div class="command">
+      <div class="command" class:off={isOff(a.id)}>
         <div class="head">
           <b>{a.name}</b>
           <button class="link" onclick={() => removeApp(a.id)}>{t('Supprimer')}</button>
+          <CommandSwitch id={a.id} />
         </div>
         <div class="langrow">
           <span class="lang muted">{t('Phrases')}</span>

@@ -4,7 +4,8 @@
   import { settings } from '../../lib/settings.svelte';
   import { i18n, t } from '../../lib/i18n.svelte';
   import '../commands/commands.css';
-  import { takenMessage, snippetPhraseMessage, type Check, type Snippet } from './shared';
+  import { isOff, takenMessage, snippetPhraseMessage, type Check, type Snippet } from './shared';
+  import CommandSwitch from './CommandSwitch.svelte';
 
   let v = $derived(settings.value);
   let drafts = $state<Record<string, string>>({});
@@ -75,11 +76,12 @@
 <div class="vc">
     <p class="muted">{t('Un extrait est un texte que tu colles en disant une phrase : « insérer mon adresse email » colle ton adresse. Il est collé tel quel (plusieurs lignes permises, 5 000 signes au plus), jamais gardé dans l’historique, et le presse-papiers d’avant est remis. Ça ne marche que sous la touche de commande ; dite sans elle, la phrase reste du texte. Un extrait peut contenir une adresse ou un IBAN : il n’est exporté que si tu le coches.')}</p>
     {#each snippets as s (s.id)}
-      <div class="command">
+      <div class="command" class:off={isOff(s.id)}>
         <div class="head">
           <b>{s.name}</b>
           <span class="muted">{t('{n} signe(s)', { n: s.text.length })}</span>
           <button class="link" onclick={() => removeSnippet(s.id)}>{t('Supprimer')}</button>
+          <CommandSwitch id={s.id} />
         </div>
         <div class="langrow">
           <span class="lang muted">{t('Phrases')}</span>

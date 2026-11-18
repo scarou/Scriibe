@@ -263,6 +263,19 @@ fn handle(ctx: &Context, mut request: Request) {
                 Ok(commands_io::outcome_json(&outcome))
             })(),
         ),
+        // L'interrupteur d'une commande (page Commandes vocales) : écrit sous le verrou de réglages, chez l'utilisateur actif.
+        (Method::Post, "api/commands/enabled") => guarded(
+            request,
+            (|| {
+                let _guard = guard(&ctx.app.config, given(&input))?;
+                let enabled = input["enabled"].as_bool().ok_or_else(|| Failure::Refused("interrupteur illisible".into()))?;
+                let mut settings = ctx.app.config.settings();
+                scriibe_core::commands::set_enabled(&mut settings, input["id"].as_str().unwrap_or(""), enabled)
+                    .map_err(Failure::Refused)?;
+                ctx.app.config.save_settings(&settings).map_err(|e| Failure::Failed(e.to_string()))?;
+                Ok(json!({"ok": true, "disabled": ctx.app.config.settings().disabled_commands}))
+            })(),
+        ),
         (Method::Post, "api/commands/import/cancel") => ok(request, commands_io::cancel()),
         // Un modèle d'adresse de site de recherche : l'hôte qu'il fixe, ou la raison (texte fixe, traduit par la page) du refus.
         (Method::Post, "api/web-searches/check") => ok(
@@ -1480,7 +1493,7 @@ fn commands_view(settings: &scriibe_core::settings::AppSettings) -> Value {
             })
         })
         .collect();
-    json!({"enabled": settings.voice_commands_enabled, "commands": commands})
+    json!({"enabled": settings.voice_commands_enabled, "disabled": settings.disabled_commands, "commands": commands})
 }
 
 /// Contrôle d'une phrase que la personne veut donner à une commande : au moins deux mots, pas déjà prise par une autre commande.

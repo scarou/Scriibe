@@ -8,7 +8,8 @@
   import { i18n, t } from '../../lib/i18n.svelte';
   import '../commands/commands.css';
   import ShortcutField from '../ShortcutField.svelte';
-  import { takenMessage, tooShortMessage, badShortcutMessage, shortcutLabel, type Check, type Custom } from './shared';
+  import { isOff, takenMessage, tooShortMessage, badShortcutMessage, shortcutLabel, type Check, type Custom } from './shared';
+  import CommandSwitch from './CommandSwitch.svelte';
 
   let v = $derived(settings.value);
   let drafts = $state<Record<string, string>>({});
@@ -163,7 +164,7 @@
 <div class="vc">
     <p class="muted">{t('Donne un titre à une phrase qui appuie un raccourci de l’appli active, par exemple ⌘⇧X sur Mac. Clique dans le champ du raccourci, puis appuie sur la combinaison voulue. Un raccourci qui existe déjà dans une appli s’appelle ainsi par la voix.')}</p>
     {#each customs as c (c.id)}
-      <div class="command">
+      <div class="command" class:off={isOff(c.id)}>
         <div class="head">
           <b>{c.name}</b>
           <label class="inline">
@@ -171,6 +172,7 @@
             {t('Seulement si du texte est sélectionné')}
           </label>
           <button class="link" onclick={() => removeCustom(c.id)}>{t('Supprimer')}</button>
+          <CommandSwitch id={c.id} />
         </div>
         <div class="langrow">
           <span class="lang muted">{t('Phrases')}</span>

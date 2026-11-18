@@ -279,6 +279,62 @@ pub fn all_defs(settings: &AppSettings) -> Vec<CommandDef> {
     defs
 }
 
+/// Nombre maximal d'identifiants de commandes désactivées gardés à la lecture, et longueur maximale d'un identifiant (en caractères).
+pub const MAX_DISABLED: usize = 500;
+pub const MAX_DISABLED_ID: usize = 100;
+
+/// La liste des commandes désactivées lue dans un fichier : espaces retirés, vides et doublons écartés, identifiants trop longs écartés,
+/// 500 au plus. Les identifiants **inconnus sont gardés** (un profil recopié d'une version plus récente garde ses interrupteurs) ;
+/// [`known_disabled`] les retire à l'écriture.
+pub fn clean_disabled(list: Vec<String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for id in list {
+        let id = id.trim();
+        if !id.is_empty() && id.chars().count() <= MAX_DISABLED_ID && !out.iter().any(|o| o == id) {
+            out.push(id.to_string());
+        }
+    }
+    out.truncate(MAX_DISABLED);
+    out
+}
+
+/// La liste à écrire : celle des réglages sans les identifiants qui ne sont plus dans le catalogue en vigueur (une commande de la personne
+/// supprimée retire aussi son interrupteur : une commande créée plus tard sous le même identifiant ne naît pas désactivée).
+pub fn known_disabled(settings: &AppSettings) -> Vec<String> {
+    if settings.disabled_commands.is_empty() {
+        return Vec::new();
+    }
+    let known: Vec<String> = all_defs(settings).into_iter().map(|d| d.id).collect();
+    settings.disabled_commands.iter().filter(|id| known.contains(id)).cloned().collect()
+}
+
+/// Les identifiants des commandes **du programme** (livrées, sites livrés, nouveau mail) : les seules dont l'interrupteur voyage dans
+/// l'export d'un profil (les identifiants des commandes de la personne sont renumérotés à l'import).
+pub fn program_ids() -> Vec<String> {
+    let mut ids: Vec<String> = builtin().into_iter().map(|d| d.id).collect();
+    ids.extend(crate::web_search::builtin_defs().into_iter().map(|d| d.id));
+    ids.extend(crate::mail::defs().into_iter().map(|d| d.id));
+    ids
+}
+
+/// Active ou désactive la commande `id` (son interrupteur propre ; l'interrupteur général n'est pas touché). `Err` : identifiant qui
+/// n'est pas une commande en vigueur.
+pub fn set_enabled(settings: &mut AppSettings, id: &str, enabled: bool) -> Result<(), String> {
+    if !all_defs(settings).iter().any(|d| d.id == id) {
+        return Err("commande inconnue".into());
+    }
+    settings.disabled_commands.retain(|d| d != id);
+    if !enabled {
+        settings.disabled_commands.push(id.to_string());
+    }
+    Ok(())
+}
+
+/// La commande `id` est-elle désactivée (par son interrupteur propre) ?
+pub fn is_disabled(settings: &AppSettings, id: &str) -> bool {
+    settings.disabled_commands.iter().any(|d| d == id)
+}
+
 /// Les phrases (normalisées, deux langues) de toutes les commandes **du programme** : celles qu'un extrait ou une application de la
 /// personne ne peuvent pas reprendre (commandes d'avant le chantier 6, sites livrés, « nouveau mail »).
 pub(crate) fn program_phrases() -> Vec<String> {
@@ -583,7 +639,17 @@ pub fn recognize_for(raw: &str, settings: &AppSettings, context: Context) -> Opt
     if context == Context::NoKey && !settings.voice_commands_enabled {
         return None;
     }
-    recognize(raw, &all_defs(settings), &settings.voice_commands, settings.language, context)
+    let defs: Vec<CommandDef> = all_defs(settings).into_iter().filter(|d| !is_disabled(settings, &d.id)).collect();
+    recognize(raw, &defs, &settings.voice_commands, settings.language, context)
+}
+
+/// Sous la touche : la phrase correspondrait à une commande **désactivée** (reconnue comme le ferait [`recognize_for`] sans l'interrupteur).
+fn matches_disabled(raw: &str, settings: &AppSettings) -> bool {
+    if settings.disabled_commands.is_empty() {
+        return false;
+    }
+    let defs: Vec<CommandDef> = all_defs(settings).into_iter().filter(|d| is_disabled(settings, &d.id)).collect();
+    recognize(raw, &defs, &settings.voice_commands, settings.language, Context::UnderKey).is_some()
 }
 
 /// Sous la touche, une phrase qui n'est ni une commande ni proche d'une commande peut être une consigne de reformulation (étape 4) :
@@ -603,6 +669,9 @@ pub enum Route {
     TooLong,
     /// « nouvelle recherche <site> » dit **sans rien à chercher** : la phrase d'un site connu, seule. Message fixe, rien n'est ouvert.
     EmptySearch,
+    /// La phrase est celle d'une commande que la personne a **désactivée** (son interrupteur, page Commandes vocales) : message fixe, rien
+    /// n'est fait, ni consigne ni dictée. Distinct de [`Route::Close`] : la commande existe, elle est coupée.
+    Disabled,
     /// « nouvelle recherche … » avec un site que la personne n'a pas (ni livré, ni ajouté). Message fixe, rien n'est ouvert ni envoyé
     /// au modèle : la recherche sur internet commence par « nouvelle recherche » (décision de l'auteur), ce n'est jamais une consigne.
     UnknownSearch,
@@ -685,11 +754,11 @@ fn search_without_target(raw: &str, settings: &AppSettings) -> Option<Route> {
         return None;
     }
     let langs = catalogues(settings.language);
-    let alone = crate::web_search::defs(settings).iter().any(|def| {
+    let alone = crate::web_search::defs(settings).into_iter().find(|def| {
         langs.iter().any(|lang| effective_phrases(def, &settings.voice_commands, *lang).iter().any(|phrase| normalize(phrase) == spoken))
     });
-    if alone {
-        return Some(Route::EmptySearch);
+    if let Some(def) = alone {
+        return Some(if is_disabled(settings, &def.id) { Route::Disabled } else { Route::EmptySearch });
     }
     let leads =
         crate::web_search::SEARCH_LEADS.iter().any(|lead| spoken == *lead || spoken.strip_prefix(lead).is_some_and(|r| r.starts_with(' ')));
@@ -701,6 +770,9 @@ fn search_without_target(raw: &str, settings: &AppSettings) -> Option<Route> {
 pub fn route_under_key(raw: &str, settings: &AppSettings) -> Route {
     if let Some(command) = recognize_for(raw, settings, Context::UnderKey) {
         return Route::Command(command);
+    }
+    if matches_disabled(raw, settings) {
+        return Route::Disabled;
     }
     if let Some(route) = search_without_target(raw, settings) {
         return route;
@@ -1263,5 +1335,121 @@ mod tests {
                 }
             }
         }
+    }
+
+    // ---- Chantier 5, tâche 2 : désactiver une commande (docs/RETOURS_ERREUR.md § Désactiver) ----
+
+    fn off(ids: &[&str]) -> AppSettings {
+        AppSettings { disabled_commands: ids.iter().map(|s| s.to_string()).collect(), ..AppSettings::default() }
+    }
+
+    /// Une commande désactivée n'est plus reconnue : sans la touche sa phrase redevient du texte, sous la touche c'est `Route::Disabled`
+    /// (pas `Close`, pas une consigne) ; les autres commandes marchent encore.
+    #[test]
+    fn disabled_580_a_disabled_command_is_ignored_without_the_key_and_says_so_under_the_key() {
+        let settings = off(&["format.gras"]);
+        assert!(recognize_for("Mettre en gras.", &AppSettings::default(), Context::NoKey).is_some(), "témoin : active par défaut");
+        assert!(recognize_for("Mettre en gras.", &settings, Context::NoKey).is_none());
+        assert!(recognize_for("Mettre en gras.", &settings, Context::UnderKey).is_none());
+        assert_eq!(route_under_key("mets en gras", &settings), Route::Disabled);
+        assert_eq!(route_under_key("Mettre en gras", &settings), Route::Disabled);
+        // Les autres commandes ne changent pas.
+        assert!(recognize_for("Mettre en italique.", &settings, Context::NoKey).is_some());
+        assert!(matches!(route_under_key("mets en italique", &settings), Route::Command(c) if c.id == "format.italique"));
+        // Une phrase qui n'est pas celle de la commande coupée garde son aiguillage (proche d'une commande : « Close »).
+        assert_eq!(route_under_key("mets en rouge", &settings), Route::Close);
+        // Réactivée, elle redevient une commande.
+        let mut back = settings.clone();
+        set_enabled(&mut back, "format.gras", true).unwrap();
+        assert!(back.disabled_commands.is_empty());
+        assert!(matches!(route_under_key("mets en gras", &back), Route::Command(c) if c.id == "format.gras"));
+    }
+
+    /// L'interrupteur général garde son rôle, au-dessus : coupé, rien ne marche sans la touche ; sous la touche il ne s'applique pas, et les
+    /// interrupteurs par commande continuent d'agir. Les interrupteurs par commande sont conservés quand il est coupé.
+    #[test]
+    fn disabled_581_the_general_switch_is_unchanged_and_keeps_the_per_command_switches() {
+        let settings =
+            AppSettings { voice_commands_enabled: false, disabled_commands: vec!["format.gras".into()], ..AppSettings::default() };
+        assert!(recognize_for("Mettre en italique.", &settings, Context::NoKey).is_none());
+        assert!(matches!(route_under_key("mets en italique", &settings), Route::Command(_)));
+        assert_eq!(route_under_key("mets en gras", &settings), Route::Disabled);
+        assert_eq!(settings.disabled_commands, vec!["format.gras".to_string()]);
+    }
+
+    /// Les commandes de la personne et les sites suivent la même liste ; un site coupé, dit sans rien à chercher, est « désactivé » aussi
+    /// (pas « rien à chercher » ni « site inconnu »).
+    #[test]
+    fn disabled_582_custom_commands_and_sites_follow_the_same_list() {
+        use crate::web_search::WebSearch;
+        let base = AppSettings {
+            custom_commands: vec![CustomCommand {
+                id: "perso.2".into(),
+                name: "Barrer".into(),
+                phrases: vec!["barre ça".into()],
+                shortcut: "Mod+Shift+X".into(),
+                needs_selection: true,
+            }],
+            web_searches: vec![WebSearch {
+                id: "recherche.10".into(),
+                name: "Amazon".into(),
+                url: "https://www.amazon.fr/s?k={q}".into(),
+                phrases: vec!["nouvelle recherche amazon".into()],
+            }],
+            ..AppSettings::default()
+        };
+        assert!(matches!(route_under_key("barre ça", &base), Route::Command(c) if c.id == "perso.2"));
+        let settings = AppSettings { disabled_commands: vec!["perso.2".into(), "recherche.2".into(), "recherche.10".into()], ..base };
+        assert_eq!(route_under_key("barre ça", &settings), Route::Disabled);
+        assert!(recognize_for("barre ça", &settings, Context::NoKey).is_none());
+        assert_eq!(route_under_key("nouvelle recherche youtube chats", &settings), Route::Disabled);
+        assert_eq!(route_under_key("nouvelle recherche youtube", &settings), Route::Disabled);
+        assert_eq!(route_under_key("nouvelle recherche amazon lampes", &settings), Route::Disabled);
+        // Google n'est pas coupé.
+        assert!(matches!(route_under_key("nouvelle recherche google chats", &settings), Route::Command(c) if c.id == "recherche.1"));
+        // Un site réellement inconnu garde son message.
+        assert_eq!(route_under_key("nouvelle recherche bing chats", &settings), Route::UnknownSearch);
+    }
+
+    /// Lecture tolérante : espaces retirés, doublons, vides et identifiants trop longs écartés, 500 au plus ; les inconnus sont gardés.
+    #[test]
+    fn disabled_583_the_list_is_cleaned_at_reading_and_unknown_ids_are_kept() {
+        let long = "x".repeat(MAX_DISABLED_ID + 1);
+        let cleaned =
+            clean_disabled(vec![" format.gras ".into(), "format.gras".into(), "".into(), "   ".into(), long, "futur.commande".into()]);
+        assert_eq!(cleaned, vec!["format.gras".to_string(), "futur.commande".to_string()]);
+        assert_eq!(clean_disabled((0..800).map(|n| format!("perso.{n}")).collect()).len(), MAX_DISABLED);
+    }
+
+    /// À l'écriture, l'interrupteur d'une commande qui n'existe plus est retiré ; une commande recréée sous le même identifiant naît active.
+    #[test]
+    fn disabled_584_unknown_ids_are_dropped_at_writing_and_set_enabled_refuses_them() {
+        let settings = AppSettings {
+            custom_commands: vec![CustomCommand {
+                id: "perso.2".into(),
+                name: "Barrer".into(),
+                phrases: vec!["barre ça".into()],
+                shortcut: "Mod+Shift+X".into(),
+                needs_selection: true,
+            }],
+            disabled_commands: vec!["perso.2".into(), "perso.3".into(), "futur.commande".into(), "format.gras".into()],
+            ..AppSettings::default()
+        };
+        assert_eq!(known_disabled(&settings), vec!["perso.2".to_string(), "format.gras".to_string()]);
+        let mut deleted = AppSettings { custom_commands: vec![], ..settings };
+        assert_eq!(known_disabled(&deleted), vec!["format.gras".to_string()]);
+        assert_eq!(set_enabled(&mut deleted, "perso.2", false), Err("commande inconnue".to_string()));
+        assert_eq!(set_enabled(&mut deleted, "format.gras", false), Ok(()));
+        assert_eq!(deleted.disabled_commands.iter().filter(|d| *d == "format.gras").count(), 1, "pas de doublon");
+    }
+
+    /// Les commandes du programme : livrées, sites livrés, nouveau mail ; ni celles de la personne, ni un identifiant inventé.
+    #[test]
+    fn disabled_585_program_ids_are_the_built_in_ones_only() {
+        let ids = program_ids();
+        for id in ["format.gras", "dictionnaire.ajouter", "entourer.crochets", "recherche.1", "recherche.4", "mail.nouveau"] {
+            assert!(ids.iter().any(|i| i == id), "{id}");
+        }
+        assert!(!ids.iter().any(|i| i.starts_with("perso.") || i.starts_with("extrait.") || i.starts_with("appli.")));
     }
 }

@@ -613,3 +613,47 @@ fn a_file_with_too_many_or_malformed_snippets_is_refused() {
     let long = "x".repeat(MAX_PHRASE + 1);
     assert!(with(json!([{"name": "A", "phrases": [long], "text": "t"}])).unwrap_err().contains("trop longue"));
 }
+
+// ---- Chantier 5, tâche 2 : l'interrupteur par commande dans l'export et l'import d'un profil ----
+
+/// Seuls les interrupteurs des commandes **du programme** partent (les identifiants des commandes de la personne sont renumérotés à
+/// l'import) ; rien ne part quand rien n'est coupé.
+#[test]
+fn only_the_switches_of_program_commands_leave_and_nothing_leaves_when_nothing_is_off() {
+    let mut user = full_user();
+    let plain = export_profile("Léa", &user, &dictionary(), Categories::export_default(), "0.5.0", DAY);
+    assert!(content_of(&plain).get("disabledCommands").is_none());
+    user.disabled_commands = vec!["format.gras".into(), "perso.1".into(), "recherche.2".into(), "extrait.1".into(), "futur.x".into()];
+    let file = export_profile("Léa", &user, &dictionary(), Categories::export_default(), "0.5.0", DAY);
+    assert_eq!(content_of(&file)["disabledCommands"], json!(["format.gras", "recherche.2"]));
+    assert!(contents("Léa", &user, &dictionary()).preferences.iter().any(|p| p == "commandes vocales désactivées"));
+    // Sans la case des réglages de personne, rien ne part.
+    let none = export_profile("Léa", &user, &dictionary(), Categories { preferences: false, ..Categories::export_default() }, "0.5.0", DAY);
+    assert!(content_of(&none).get("disabledCommands").is_none());
+}
+
+/// À l'import : un aller-retour garde les interrupteurs du programme ; un identifiant qui n'est pas dans le catalogue est écarté ; un
+/// fichier sans la clé laisse tout actif ; une valeur qui n'est pas une liste de textes est refusée sans effet.
+#[test]
+fn the_import_keeps_program_switches_drops_unknown_ids_and_refuses_a_malformed_list() {
+    let mut user = full_user();
+    user.disabled_commands = vec!["format.italique".into(), "mail.nouveau".into()];
+    let file = export_profile("Léa", &user, &dictionary(), Categories::export_default(), "0.5.0", DAY);
+    let incoming = parse_profile(&file.to_string()).unwrap();
+    let back = read_back(&build(&incoming, Categories::import_default()), "Importé");
+    assert_eq!(back.disabled_commands, vec!["format.italique".to_string(), "mail.nouveau".to_string()]);
+
+    let with = |value: Value| {
+        let mut file = export_profile("Léa", &full_user(), &dictionary(), Categories::export_default(), "0.5.0", DAY);
+        file["content"]["disabledCommands"] = value;
+        parse_profile(&file.to_string())
+    };
+    let tampered = with(json!(["format.gras", "perso.1", "inventé.1", "extrait.4"])).unwrap();
+    let back = read_back(&build(&tampered, Categories::import_default()), "Importé");
+    assert_eq!(back.disabled_commands, vec!["format.gras".to_string()], "les commandes de la personne et les inconnues sont écartées");
+    assert!(with(json!("format.gras")).is_err());
+    assert!(with(json!([1, 2])).is_err());
+    assert!(with(json!((0..=MAX_LISTED).map(|n| format!("c.{n}")).collect::<Vec<_>>())).is_err());
+    let plain = parse_profile(&export_profile("Léa", &full_user(), &dictionary(), Categories::export_default(), "0.5.0", DAY).to_string());
+    assert!(read_back(&build(&plain.unwrap(), Categories::import_default()), "Importé").disabled_commands.is_empty());
+}
