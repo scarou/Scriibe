@@ -534,7 +534,7 @@ pub fn key(kind: Option<&str>) -> Result<(), String> {
         Some("openrouter") => KeyKind::OpenRouter,
         _ => return Err("usage : scriibe cle deepgram|openrouter (puis colle la clé et valide)".into()),
     };
-    if !cfg!(any(windows, target_os = "macos")) {
+    if !cfg!(any(windows, target_os = "macos", target_os = "linux")) {
         return Err(format!(
             "pas encore pris en charge ici : définis la variable d'environnement {}",
             scriibe_platform::secrets::env_name(kind)

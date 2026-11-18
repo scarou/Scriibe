@@ -456,7 +456,7 @@ pub trait Effects {
     fn trash(&mut self, path: &Path) -> Result<(), String>;
     /// Efface un fichier jetable (sons temporaires) directement.
     fn remove_file(&mut self, path: &Path) -> Result<(), String>;
-    /// Efface les clés d'API : `(nom, résultat)` ; `Ok(false)` : absente. Vide si le système n'a pas de coffre.
+    /// Efface les clés d'API : `(nom, résultat)` ; `Ok(false)` : absente. Vide si le système n'a pas de coffre (Linux : le trousseau du bureau).
     fn delete_keys(&mut self) -> Vec<(String, Result<bool, String>)>;
     fn reset_permissions(&mut self) -> Result<(), String>;
 }

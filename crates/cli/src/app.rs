@@ -78,6 +78,17 @@ pub fn build(config: Arc<FileConfig>, log: Arc<FileLog>, platform: Platform, cho
 
     platform.media.set_log(log_dyn.clone());
     let secrets: Arc<dyn Secrets> = platform.secrets.clone();
+    // Sous Linux, le trousseau du bureau se lit une première fois ici, hors du chemin d'une dictée : un trousseau fermé y montre sa demande de
+    // déverrouillage au lancement, pas pendant une prise de parole (relecture du chantier 6).
+    #[cfg(target_os = "linux")]
+    {
+        let warm = secrets.clone();
+        std::thread::spawn(move || {
+            for kind in [scriibe_engines::runtime::KeyKind::Deepgram, scriibe_engines::runtime::KeyKind::OpenRouter] {
+                let _ = warm.get(kind);
+            }
+        });
+    }
     let whisper_models = {
         let (fs, models) = (fs.clone(), models.clone());
         Arc::new(move || detect_whisper_models(fs.as_ref(), &models))

@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { caption, colors, gradient, listeningOpacity, listeningText } from './appearance';
 
+/** Rapport de contraste WCAG d'une teinte `#RRGGBB` avec le blanc. */
+function contrastWithWhite(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+}
+
 describe('apparence de l’indicateur', () => {
+  it('garde le texte blanc lisible (4,5 : 1) sur les sept couleurs ajoutées, aux deux bouts du dégradé', () => {
+    for (const id of ['orange', 'green', 'teal', 'purple', 'pink', 'indigo', 'brown']) {
+      for (const hex of colors.find((c) => c.id === id)!.hex) expect(contrastWithWhite(hex), `${id} ${hex}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
   it('reprend les cinq couleurs de Scribe, suivies de sept autres', () => {
     expect(colors.map((c) => c.id)).toEqual(['scribe', 'gray', 'red', 'blue', 'black', 'orange', 'green', 'teal', 'purple', 'pink', 'indigo', 'brown']);
     expect(gradient('red')).toBe('linear-gradient(to right, #E5484D, #C62F35)');

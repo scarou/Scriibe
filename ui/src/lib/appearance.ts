@@ -25,14 +25,14 @@ export const colors: { id: CaptureColor; label: string; hex: [string, string] }[
   { id: 'red', label: tx('Rouge'), hex: ['#E5484D', '#C62F35'] },
   { id: 'blue', label: tx('Bleu'), hex: ['#3B82F6', '#2563EB'] },
   { id: 'black', label: tx('Noir'), hex: ['#2C2C2E', '#1C1C1E'] },
-  // Sept teintes de plus, assez soutenues pour que le texte blanc reste lisible sur un fond clair comme sur un fond sombre.
-  { id: 'orange', label: tx('Orange'), hex: ['#E8590C', '#C2410C'] },
-  { id: 'green', label: tx('Vert'), hex: ['#2F9E62', '#1F7A4A'] },
-  { id: 'teal', label: tx('Turquoise'), hex: ['#12A594', '#0E8074'] },
+  // Sept teintes de plus, chacune a un rapport de contraste d'au moins 4,5 : 1 avec le texte blanc à ses deux extrémités (testé), sur fond clair comme sur fond sombre.
+  { id: 'orange', label: tx('Orange'), hex: ['#C94D0A', '#A63A06'] },
+  { id: 'green', label: tx('Vert'), hex: ['#278653', '#1B6B40'] },
+  { id: 'teal', label: tx('Turquoise'), hex: ['#0E8376', '#0A665C'] },
   { id: 'purple', label: tx('Violet'), hex: ['#8E4EC6', '#6E3AA8'] },
-  { id: 'pink', label: tx('Rose'), hex: ['#D6409F', '#B02A80'] },
+  { id: 'pink', label: tx('Rose'), hex: ['#CB3C97', '#A82A78'] },
   { id: 'indigo', label: tx('Indigo'), hex: ['#5B5BD6', '#4040B0'] },
-  { id: 'brown', label: tx('Marron'), hex: ['#A2845E', '#7D6347'] },
+  { id: 'brown', label: tx('Marron'), hex: ['#8B7150', '#6E5940'] },
 ];
 
 export function gradient(color: CaptureColor): string {
