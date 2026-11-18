@@ -33,24 +33,19 @@ Scriibe is the cross-platform successor of [Scribe](https://github.com/scarou/sc
 
 ## Install
 
-Step by step, for someone who has never built a program:
+Download the latest version from [Releases](https://github.com/scarou/Scriibe/releases), then follow the step-by-step guide for your system:
+
+- **Mac**: [guide](docs/INSTALLATION_MACOS.en.md)
+- **Windows**: [guide](docs/INSTALLATION_WINDOWS.en.md)
+- **Linux**: [guide](docs/INSTALLATION_LINUX.en.md)
+
+All guides, including those for experienced users. Step by step, for someone who has never built a program:
 
 - **Mac** (Apple silicon, macOS 14 or later): [step by step for beginners](docs/INSTALLATION_MACOS.en.md) · [français](docs/INSTALLATION_MACOS.md) · [guide for experienced users](docs/INSTALLATION_MACOS_EXPERT.en.md) · [français](docs/INSTALLATION_MACOS_EXPERT.md)
 - **Windows** (10 or 11, 64-bit): [step by step for beginners](docs/INSTALLATION_WINDOWS.en.md) · [français](docs/INSTALLATION_WINDOWS.md) · [guide for experienced users](docs/INSTALLATION_WINDOWS_EXPERT.en.md) · [français](docs/INSTALLATION_WINDOWS_EXPERT.md)
-- **Linux** (Ubuntu 25.04+ with GNOME, or an X11 session; experimental): [step by step for beginners](docs/INSTALLATION_LINUX.en.md) · [français](docs/INSTALLATION_LINUX.md) · [guide for experienced users](docs/INSTALLATION_LINUX_EXPERT.en.md) · [français](docs/INSTALLATION_LINUX_EXPERT.md); the state of the trial is in [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md) (French), and you can also build it yourself (see below).
+- **Linux** (Ubuntu 25.04+ with GNOME, or an X11 session; experimental): [step by step for beginners](docs/INSTALLATION_LINUX.en.md) · [français](docs/INSTALLATION_LINUX.md) · [guide for experienced users](docs/INSTALLATION_LINUX_EXPERT.en.md) · [français](docs/INSTALLATION_LINUX_EXPERT.md); the state of the trial is in [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md) (French), and you can also build it yourself (see “For developers”).
 
-Downloads are on the [Releases](https://github.com/scarou/Scriibe/releases) page. The local engines (Whisper, llama.cpp) are installed or downloaded from within the application, with your consent for every download; the online engines (Deepgram, OpenRouter) need a personal key.
-
-### Build it yourself
-
-Prerequisites: [Rust](https://rustup.rs) and [Node.js](https://nodejs.org). The order matters (the interface is embedded in the executable):
-
-```bash
-cd ui && npm ci && npm run build && cd ..
-cargo build --release
-```
-
-The executable is `target/release/scriibe` (`scriibe.exe` on Windows). On a Mac, `tools/faire_app_macos.sh` turns it into a signed `Scriibe.app` (it expects a local code-signing certificate; see the script's header). On Linux the build needs at least `libasound2-dev`.
+The local engines (Whisper, llama.cpp) are installed or downloaded from within the application, with your consent for every download; the online engines (Deepgram, OpenRouter) need a personal key.
 
 ## Principles
 
@@ -59,6 +54,15 @@ The executable is `target/release/scriibe` (`scriibe.exe` on Windows). On a Mac,
 - **Open**: MIT licence; interface in French and English.
 
 ## For developers
+
+**Build it yourself.** Prerequisites: [Rust](https://rustup.rs) and [Node.js](https://nodejs.org). The order matters (the interface is embedded in the executable):
+
+```bash
+cd ui && npm ci && npm run build && cd ..
+cargo build --release
+```
+
+The executable is `target/release/scriibe` (`scriibe.exe` on Windows). On a Mac, `tools/faire_app_macos.sh` turns it into a signed `Scriibe.app` (it expects a local code-signing certificate; see the script's header). On Linux the build needs at least `libasound2-dev`.
 
 The workspace is split into `crates/core` (pure text logic), `crates/engines` (Whisper and model processes, HTTP clients), `crates/platform` (per-system layer: key, paste, microphone, sounds, secrets), `crates/pipeline` (the dictation controller) and `crates/cli` (the `scriibe` executable, local web server, Tauri window). The interface is in `ui/` (Svelte 5 + TypeScript). Before a commit: `cargo fmt --all`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`, and `cd ui && npm run check && npm test && npm run build`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (French) for the plan, [ROADMAP.md](ROADMAP.md) for the steps and [CHANGELOG.md](CHANGELOG.md) for the history.
 
