@@ -94,3 +94,32 @@ Bilan : **0 bloquant, 2 importants, 8 mineurs**. Les 2 importants sont corrigés
 ### Contrôles après corrections
 
 `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` (845 réussis, 0 échec ; 12 tests de `ui_state`), `npm run check` (0 erreur), `npm test` (170, dont 15 pour les états : 7 de la tâche 1 et 8 de la relecture), `npm run build` : sans erreur.
+
+## Essai
+
+*(Tâche 3, 18/11/2026. Version : 33d5226 (tâche 2), compilée en release sur les 3 machines.)*
+
+**Résultat : les trois états sont retrouvés après avoir quitté et relancé Scriibe, sur Mac, Windows et Linux.** `ui-state.json` a été relu après chaque geste (écriture immédiate constatée), puis la page relue après relance par l'auteur.
+
+| Machine | Fichier | Case « Comparer » | Plis | Hauteur du Dictionnaire | Après relance |
+|---|---|---|---|---|---|
+| Mac | `~/Library/Application Support/Scriibe/ui-state.json` | décochée | 17 et 18/11 repliées | 742 px | tout retrouvé |
+| Windows | `%APPDATA%\Scriibe\ui-state.json` | décochée | 17/11 repliée, 15/11 dépliée explicitement | 731 px | tout retrouvé |
+| Linux | `~/.local/share/scriibe/ui-state.json` | décochée | 16 et 17/11 repliées | 541 px | tout retrouvé |
+
+### Déroulé
+
+- **Mise à jour des PC** : les 14 commits du chantier 3 n'étaient pas poussés (`pilote maj` passe par GitHub). Sur l'accord de l'auteur, un paquet `git bundle` (d731136..HEAD) a été copié sur chaque PC et appliqué par `git pull --ff-only` ; rien publié, aucun push.
+- **Compilation** : `pilote compiler tous --mode release`. Windows a d'abord échoué (`scriibe.exe` en cours d'exécution, accès refusé) : arrêt du processus par `taskkill`, nouvelle compilation réussie. Mac : `npm run build`, `cargo build --release`, `tools/faire_app_macos.sh`, lancement par `open`.
+- **Lancement** : Mac par `open`, Windows par le raccourci `scriibe.exe` du bureau (l'autre raccourci, `scriibe`, vise `C:\scriibe` : ancienne version), Linux par Activités (l'ancienne version tournait encore, binaire remplacé : fermée et relancée par l'auteur).
+- Aucune capture n'a été nécessaire : le fichier d'états suffit comme preuve.
+
+### Constats
+
+- **Pli « dépliée » sur Windows** : l'auteur a cru avoir replié 2 cartes, une seule l'était. Le fichier montre `historique-2026-11-15: false` : une carte repliée par défaut (carte ancienne) a été dépliée par le clic, et l'état « déplié » est bien retenu. Comportement conforme, pas un défaut.
+- **Linux** : le fichier contenait déjà les trois états avant l'étape annoncée, l'auteur ayant avancé ses gestes ; sans incidence sur le résultat.
+- Piège de procédure : sur un PC, une compilation échoue si l'ancien exécutable tourne ; fermer Scriibe d'abord.
+
+## Ajouts
+
+Aucune nouvelle demande pendant l'essai.
