@@ -13,7 +13,7 @@ Dictée vocale pour Windows, macOS et Linux. Maintenir une touche, parler, relâ
 
 Scriibe est la suite multiplateforme de [Scribe](https://github.com/scarou/scribe) (macOS, Swift), qui reste la **version de référence** du comportement. Le but est la même expérience sur les trois systèmes, avec un code unique (Rust + Tauri).
 
-> **État : version 0.10.1 publiée (Mac, Windows ; Linux expérimental).** Détail des versions : [CHANGELOG.md](CHANGELOG.md) ; plan : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ; étapes : [ROADMAP.md](ROADMAP.md) ; essais par système : [docs/ESSAI_WINDOWS.md](docs/ESSAI_WINDOWS.md), [docs/ESSAI_MACOS.md](docs/ESSAI_MACOS.md), [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md).
+> **État : version 0.10.1 publiée.** Détail des versions : [CHANGELOG.md](CHANGELOG.md) ; plan : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ; étapes : [ROADMAP.md](ROADMAP.md) ; essais par système : [docs/ESSAI_WINDOWS.md](docs/ESSAI_WINDOWS.md), [docs/ESSAI_MACOS.md](docs/ESSAI_MACOS.md), [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md).
 
 ## Installer
 
@@ -23,7 +23,7 @@ Télécharge la dernière version sur les [Releases](https://github.com/scarou/S
 - **Windows** : [guide](docs/INSTALLATION_WINDOWS.md)
 - **Linux** : [guide](docs/INSTALLATION_LINUX.md)
 
-Pas à pas, pour une personne qui n'a jamais compilé de programme :
+Tous les guides, pour débutants et pour connaisseurs :
 
 - **Mac** (puce Apple, macOS 14 ou plus) : [pas à pas pour débutants](docs/INSTALLATION_MACOS.md) ([English](docs/INSTALLATION_MACOS.en.md)) · [guide pour connaisseurs](docs/INSTALLATION_MACOS_EXPERT.md) ([English](docs/INSTALLATION_MACOS_EXPERT.en.md)).
 - **Windows** (10 ou 11, 64 bits) : [pas à pas pour débutants](docs/INSTALLATION_WINDOWS.md) ([English](docs/INSTALLATION_WINDOWS.en.md)) · [guide pour connaisseurs](docs/INSTALLATION_WINDOWS_EXPERT.md) ([English](docs/INSTALLATION_WINDOWS_EXPERT.en.md)).
