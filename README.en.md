@@ -39,7 +39,7 @@ Download the latest version from [Releases](https://github.com/scarou/Scriibe/re
 - **Windows**: [guide](docs/INSTALLATION_WINDOWS.en.md)
 - **Linux**: [guide](docs/INSTALLATION_LINUX.en.md)
 
-All guides, including those for experienced users. Step by step, for someone who has never built a program:
+All guides, for beginners and for experienced users:
 
 - **Mac** (Apple silicon, macOS 14 or later): [step by step for beginners](docs/INSTALLATION_MACOS.en.md) · [français](docs/INSTALLATION_MACOS.md) · [guide for experienced users](docs/INSTALLATION_MACOS_EXPERT.en.md) · [français](docs/INSTALLATION_MACOS_EXPERT.md)
 - **Windows** (10 or 11, 64-bit): [step by step for beginners](docs/INSTALLATION_WINDOWS.en.md) · [français](docs/INSTALLATION_WINDOWS.md) · [guide for experienced users](docs/INSTALLATION_WINDOWS_EXPERT.en.md) · [français](docs/INSTALLATION_WINDOWS_EXPERT.md)

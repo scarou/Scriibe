@@ -121,7 +121,6 @@
       <button onclick={() => nav.go('history', 'conservation')}>{t('Régler la conservation →')}</button>
     </li>
   </ul>
-  {#if nav.transferNotice}<p role="status" class="warn">{nav.transferNotice}</p>{/if}
   <p class="muted">{t('L’historique et les statistiques ne partent que dans la sauvegarde complète.')}</p>
 </Card>
 

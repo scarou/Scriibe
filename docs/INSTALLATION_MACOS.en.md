@@ -136,7 +136,7 @@ Wait for it to finish, the same way.
 2. Click **Settings**, then the **Engines** tab. Find the **Installation status** card: it says what is missing.
 3. Further down, in the **Recommended models** card, find the **Whisper “base” model**. Click **See the size and source**, read, then click **Download**. Wait for the progress bar to finish.
 4. In the same card, do the same for a cleanup model: **“Qwen 2.5 1.5 B”** (about 1 GB) is fine to start with.
-5. **Ignore the “Programs” card**: it mostly offers programs for Windows and Linux, already replaced here by step 5.
+5. **The “Programs” card** shows the two Homebrew commands of step 5: nothing is downloaded there.
 6. Higher up in the same **Engines** tab, choose **Whisper** for transcription and **llama.cpp** for cleanup.
 
 **It worked when** the **Installation status** card no longer reports anything missing.

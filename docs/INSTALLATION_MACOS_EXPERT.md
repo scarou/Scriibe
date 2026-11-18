@@ -15,7 +15,7 @@ brew install whisper-cpp
 brew install llama.cpp
 ```
 
-Scriibe les cherche dans le `PATH` de Homebrew (`/opt/homebrew/bin` sur puce Apple). La carte **Les programmes** de **Réglages → Moteurs** ne propose pas de téléchargement pour Mac (elle liste des programmes Windows et Linux) : sur Mac, les programmes viennent de Homebrew. Les modèles se téléchargent depuis les cartes **Modèles recommandés** et **Ajouter un modèle depuis Hugging Face**, ou se déposent à la main dans `~/Library/Application Support/Scriibe/models/`. Les fichiers au format GGUF servent à la mise au propre, au format `ggml-….bin` à Whisper.
+Scriibe les cherche dans le `PATH` de Homebrew (`/opt/homebrew/bin` sur puce Apple). La carte **Les programmes** de **Réglages → Moteurs** ne télécharge rien sur Mac (elle affiche les commandes Homebrew) : sur Mac, les programmes viennent de Homebrew. Les modèles se téléchargent depuis les cartes **Modèles recommandés** et **Ajouter un modèle depuis Hugging Face**, ou se déposent à la main dans `~/Library/Application Support/Scriibe/models/`. Les fichiers au format GGUF servent à la mise au propre, au format `ggml-….bin` à Whisper.
 
 ## Moteurs en ligne (dépannage)
 

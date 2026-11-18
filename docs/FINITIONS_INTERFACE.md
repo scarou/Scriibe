@@ -161,3 +161,27 @@ Tests : `npm run check`, `npm test` (148 passés, 2 nouveaux dans `lib/textes.te
 | 15. « Annuler » au chemin à taper | Bouton ajouté aux 4 endroits : `BackupTransfer` (ferme sans appel serveur : rien n'a été lu), `Modes` et `Dictionary` (`closeImport`), `UserImport` (`cancel`). `CustomCommands` l'avait déjà |
 
 Tests : `lib/transfer.test.ts` (6 cas : minuteur deux clics, effacement à 4 s, message puis effacé, effacement à 8 s, pages et carte câblées, « Annuler » dans chaque bloc de chemin). Il n'y a pas de banc de composants dans le projet : le câblage des pages est vérifié sur le texte des sources (comme `links.test.ts`). `npm test` 154 passés, `npm run check` 0 erreur. Pas vu à l'écran.
+
+## README (tâche 4, 18/11/2026)
+
+`README.md` et `README.en.md` : « Installer » s'ouvre sur 3 lignes (Mac, Windows, Linux : télécharger sur les Releases, puis suivre le guide) ; « Compiler soi-même » est déplacé dans « Pour les développeurs » (créée dans le README français) ; le bloc « État » est réduit à une ligne avec renvois (CHANGELOG, ARCHITECTURE, ROADMAP, ESSAI_*), l'ancien texte reste dans l'historique git.
+
+## Relecture (tâche 5, 18/11/2026)
+
+Sous-agent Sonnet (effort élevé), lecture seule, sur `e87b0d8..HEAD` : 1 bloquant, 3 importants, 9 mineurs. Tests de départ : `npm test` (154), `npm run check`, `cargo test --workspace` verts.
+
+**Corrigés** (tests dans `lib/transfer.test.ts`)
+- **Bloquant B1** : le message « rien à exporter » était posé dans la carte de la page Données, démontée dès que `nav.transfer` change de page : toujours muet. `transferNothing` ouvre maintenant une boîte (`dialog.notice`) sur la page d'arrivée ; `transferNotice` et son affichage dans `BackupTransfer` sont supprimés. Test : la boîte est appelée et la demande vidée. (Le test d'origine vérifiait seulement le texte des sources : il ne pouvait pas voir ce défaut.)
+- **I1** : guides Mac (débutant et expert, FR et EN) : la carte « Les programmes » montre les commandes Homebrew, elle ne propose plus de programmes Windows et Linux.
+- **I2** : « Un fichier qui existe déjà n'est jamais écrasé » remis dans `{#if linux}` (Aide FR et EN, 3 passages chacune) ; vrai seulement avec le chemin Linux, la boîte du système permettant de remplacer. Test sur les sources.
+- **I3** : touche de traduction vide (GNOME) : Aide FR et EN (`{#if translate}`, sinon phrase sans touche) et rapport (`report.ts`, plus de « (traduction : ) »). Test pour le rapport.
+- M1 (test « Annuler » creux pour `BackupTransfer`) : borné au bloc du chemin. M2 et M3 (minuteur du message, style) : sans objet avec la boîte. M6 : intitulé anglais du README.
+
+**Mineurs restants**
+- M4 : la carte « Mes commandes » est dans une zone `inert` quand les commandes vocales sont décochées : un export lancé depuis Données y ouvre une carte inerte.
+- M5 : « Réglages → Moteurs » (menu devenu « Moteurs et modèles » depuis 0.9.0) dans les guides Windows, Mac et Linux (débutant et expert) : défaut ancien, à corriger en bloc.
+- M7 : « version 0.10.1 publiée » en dur dans les README : à ajouter à la liste de clôture (`docs/CLOTURE.md`).
+- M8 : Linux, la chaîne « gpu » de l'assistant promet une carte graphique alors que seule la version processeur est proposée (déjà noté).
+- M9 : 20 px au lieu de 14 entre deux bandeaux `config_problems` (cosmétique).
+
+Limites : clippy Windows non lancé ; rien vu à l'écran pour ces corrections ; tests à relancer sur Mac : `npm test` 155 passés, `npm run check` 0 erreur, `npm run build` ok.

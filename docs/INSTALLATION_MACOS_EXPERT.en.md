@@ -15,7 +15,7 @@ brew install whisper-cpp
 brew install llama.cpp
 ```
 
-Scriibe looks for them in Homebrew's `PATH` (`/opt/homebrew/bin` on Apple silicon). The **Programs** card in **Settings → Engines** offers no download for Mac (it lists Windows and Linux programs): on a Mac the programs come from Homebrew. Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into `~/Library/Application Support/Scriibe/models/`. GGUF files are for cleanup, `ggml-….bin` files for Whisper.
+Scriibe looks for them in Homebrew's `PATH` (`/opt/homebrew/bin` on Apple silicon). The **Programs** card in **Settings → Engines** downloads nothing on a Mac (it shows the Homebrew commands): on a Mac the programs come from Homebrew. Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into `~/Library/Application Support/Scriibe/models/`. GGUF files are for cleanup, `ggml-….bin` files for Whisper.
 
 ## Online engines (fallback)
 

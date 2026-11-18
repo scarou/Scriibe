@@ -2,6 +2,7 @@ import { tick } from 'svelte';
 import { defaultHelpSection, type HelpId } from './help';
 import { tabs, type MainTab, type TabId } from './tabs';
 import { helpSearch } from './helpSearch.svelte';
+import { dialog } from './dialog.svelte';
 
 function saved<T extends string>(key: string, allowed: readonly { id: T }[], fallback: T): T {
   try {
@@ -63,7 +64,6 @@ class Nav {
   /** Ouvre la page concernée et y demande la même carte secondaire que ses propres boutons. */
   async transfer(kind: TransferKind): Promise<void> {
     const id = ++this.#seq;
-    this.transferNotice = '';
     this.transferRequest = kind;
     const { tab, anchor } = transferTargets[kind];
     await this.go(tab, anchor);
@@ -77,17 +77,11 @@ class Nav {
   /** Numéro de la dernière demande de transfert. */
   #seq = 0;
 
-  /** Message de la carte « Sauvegarder et transférer » quand la page visée n'a rien à exporter ; vide sinon. */
-  transferNotice = $state('');
-
-  /** La page visée prend la demande et dit pourquoi elle n'a rien à ouvrir : la carte l'affiche. */
+  /** La page visée prend la demande et dit pourquoi elle n'a rien à ouvrir. La carte « Sauvegarder et transférer » n'est plus à l'écran
+   * (on a changé de page) : le message s'affiche donc dans une boîte, sur la page d'arrivée. */
   transferNothing(message: string): void {
     this.transferRequest = null;
-    this.transferNotice = message;
-    const id = this.#seq;
-    setTimeout(() => {
-      if (this.#seq === id && this.transferNotice === message) this.transferNotice = '';
-    }, 8000);
+    void dialog.notice(message);
   }
 
   /** Demande l'ouverture de l'assistant de premier lancement ; l'Accueil la prend en compte à son affichage. */
