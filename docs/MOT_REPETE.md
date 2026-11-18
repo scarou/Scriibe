@@ -34,3 +34,13 @@ Les deux sont rouges (`cargo test -p scriibe-engines --test services`) ; les aut
 
 - Une répétition de 1 à 3 mots **deux fois seulement** (« Skribet, Skribet, », « Lance yogurt. Lance yogurt. ») est ambiguë : voulue ou boucle ? Il ne faut pas tronquer « très très bien » ni « oui, oui » ; le plus sûr est de ne déclencher la seconde transcription qu'à partir de **3 répétitions** pour les passages courts, ce qui ne coûte qu'une seconde en cas de fausse alerte.
 - Le garde-fou ne joue que sur le serveur court ; le serveur normal n'a pas bouclé au banc.
+
+## Correctif
+
+Étage : le garde-fou de la tâche S13, `whisper::repeats_itself` (`crates/engines/src/whisper.rs`). Une boucle est maintenant : un passage de 4 mots ou plus répété **2 fois** de suite (inchangé), ou un passage de **1 à 3 mots** répété **3 fois** de suite (`SHORT_LOOP_REPEATS`). Le serveur court (`-ac 512`) est donc refait sur le serveur normal pour « Fé. Fé. Fé. Fé. », « C'est fait. » ×3 ou « 正 » ×6.
+
+**Pourquoi 3 et pas 2** : « très très bien », « oui, oui » ou « Lance yogurt. Lance yogurt. » sont des répétitions possibles de la personne qui dicte ; les deux fois ne déclenchent rien (le texte reste tel quel, une seule transcription). Une boucle de Whisper va jusqu'à 3 à 6 exemplaires dans les cas relevés. Coût d'une fausse alerte (« non non non » voulu) : environ une seconde de plus, et c'est le serveur normal, qui n'a pas bouclé au banc, qui répond.
+
+**Limite connue** : une boucle de 2 exemplaires d'un mot isolé (« の\nの » au banc) n'est pas rattrapée. Indistinguable d'un « oui, oui » voulu sans autre indice.
+
+Tests (`crates/engines/tests/services.rs`) : les deux tests rouges de la tâche 0 passent au vert ; `a_wanted_short_repetition_is_kept_untouched` montre que « Très très bien. », « Oui, oui, c'est très très bien. » et « Lance yogurt. Lance yogurt. » ne sont pas refaits ni tronqués. `cargo fmt`, `clippy -D warnings` et `cargo test --workspace` sans erreur.

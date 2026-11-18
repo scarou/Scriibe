@@ -296,6 +296,26 @@ fn a_short_phrase_repeated_three_times_or_more_is_a_loop() {
     assert!(whisper::repeats_itself("正\n正\n正\n正\n正\n正"));
 }
 
+/// Une répétition voulue (deux fois un mot ou un court passage) n'est pas une boucle : pas de seconde transcription, texte intact.
+#[test]
+fn a_wanted_short_repetition_is_kept_untouched() {
+    for said in ["Très très bien.", "Oui, oui, c'est très très bien.", "Lance yogurt. Lance yogurt.", "Non non non"] {
+        let expect_redo = said == "Non non non";
+        let world = FakeWorld::new();
+        world.route(":8177/inference", move |_| Ok(HttpResponse { status: 200, body: json!({"text": said}).to_string().into_bytes() }));
+        world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Non."}).to_string().into_bytes() }));
+        let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+        let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+        let got = t.transcribe(&wav_of(1.5), &settings, &[]).unwrap();
+        let calls = world.requests().iter().filter(|r| r.url.ends_with("/inference")).count();
+        if expect_redo {
+            assert_eq!((calls, got.as_str()), (2, "Non."));
+        } else {
+            assert_eq!((calls, got.as_str()), (1, said), "« {said} » ne doit pas être refait");
+        }
+    }
+}
+
 #[test]
 fn a_clean_answer_from_the_short_server_is_not_redone() {
     let world = whisper_world();

@@ -225,17 +225,26 @@ impl Launcher for WhisperLauncher {
     }
 }
 
-/// Vrai si le texte contient un passage d'au moins `MIN_LOOP_WORDS` mots répété tel quel, deux fois de suite (majuscules et
-/// ponctuation ignorées) : la boucle de Whisper sur une prise courte. Une vraie répétition de la personne qui dicte y répond aussi ;
-/// le seul effet est alors une seconde transcription, sur le serveur normal.
+/// Vrai si le texte contient une boucle (majuscules et ponctuation ignorées) : un passage d'au moins `MIN_LOOP_WORDS` mots répété tel
+/// quel deux fois de suite, ou un passage plus court (un à trois mots) répété `SHORT_LOOP_REPEATS` fois de suite. C'est la boucle de
+/// Whisper sur une prise courte. Une vraie répétition de la personne qui dicte y répond aussi ; le seul effet est alors une seconde
+/// transcription, sur le serveur normal.
 pub fn repeats_itself(text: &str) -> bool {
     let words: Vec<String> =
         text.split(|c: char| !c.is_alphanumeric() && c != '\'').filter(|w| !w.is_empty()).map(|w| w.to_lowercase()).collect();
-    (MIN_LOOP_WORDS..=words.len() / 2).any(|len| (0..=words.len() - 2 * len).any(|at| words[at..at + len] == words[at + len..at + 2 * len]))
+    let repeated = |len: usize, times: usize| {
+        words.len() >= len * times
+            && (0..=words.len() - len * times).any(|at| (1..times).all(|k| words[at..at + len] == words[at + k * len..at + (k + 1) * len]))
+    };
+    (MIN_LOOP_WORDS..=words.len() / 2).any(|len| repeated(len, 2)) || (1..MIN_LOOP_WORDS).any(|len| repeated(len, SHORT_LOOP_REPEATS))
 }
 
-/// Longueur minimale (en mots) d'un passage répété pour être pris pour une boucle : « oui, oui » ou « très très bien » n'en sont pas.
+/// Longueur minimale (en mots) d'un passage répété deux fois pour être pris pour une boucle : « oui, oui » ou « très très bien » n'en sont pas.
 const MIN_LOOP_WORDS: usize = 4;
+
+/// Nombre de répétitions de suite à partir duquel un passage de moins de `MIN_LOOP_WORDS` mots est pris pour une boucle (chantier 4,
+/// `docs/MOT_REPETE.md` : « Fé. » ×4, « C'est fait. » ×3). Deux fois reste une répétition possible de la personne qui dicte.
+const SHORT_LOOP_REPEATS: usize = 3;
 
 /// Whisper sur cet ordinateur : les serveurs et la transcription.
 ///
