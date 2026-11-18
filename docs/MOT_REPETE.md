@@ -63,3 +63,29 @@ Sous-agent relecteur Sonnet (effort élevé) sur le commit `0ad43f7` : 0 bloquan
 - M4 : trois exemplaires voulus (« très très très bien », « ha ha ha ») refaits ; texte jamais altéré.
 - Si le serveur normal boucle à son tour, sa réponse est gardée telle quelle (0 boucle en 48 prises au banc).
 - Test `instance::tests::a_second_instance_is_refused_until_the_first_ends` (crate `cli`, sans lien avec ce chantier) : échec une fois sur trois passages du workspace, passé aux autres ; à surveiller.
+
+## Essai
+
+Essai réel du 18/11/2026, build `22d746b` (release) sur les trois systèmes. Décompte fait d'après `history.json` (texte brut `rawText` et final) et le journal `scriibe.log` de chaque machine ; l'auteur n'a fait que dicter. Mise à jour des PC par `git bundle` (les commits n'étant pas poussés), compilation par `pilote compiler`, Windows après `taskkill` de l'ancien `scriibe.exe`.
+
+| Système | Moteur de transcription | « fait » | « oui » | « non » | Phrases | Mot collé 3 fois ou plus | Mot doublé (2 exemplaires) |
+|---|---|---|---|---|---|---|---|
+| Mac | `large-v3-turbo-q8_0`, mise au propre llama.cpp | 9 | 29 | 12 | 5, dites librement (8 à 14 s), intactes | 0 | 3 (« Oui, oui. ») |
+| Windows | `small` (serveur court), mise au propre OpenRouter | 11 | 12 | 12 | 3, intactes | 0 | 0 |
+| Linux | serveur court, mise au propre llama.cpp `qwen2.5-1.5b` | 10 | 10 | 10 | 3, intactes | 0 | 0 |
+
+**Résultat : aucune boucle de répétition sur 3 systèmes et environ 130 dictées de mots isolés ; phrases intactes.** Critère « aucun mot collé deux fois » : tenu sauf trois « Oui, oui. » au Mac (voir ci-dessous).
+
+- **Lecture des écarts** : les « Oui, oui. » (2 exemplaires, prises de 1,3 à 1,7 s) sont le cas déjà documenté comme limite connue (§ Correctif), indiscernable d'un « oui, oui » dit par la personne ; le journal ne dit pas si le garde-fou a joué (aucune ligne de journal quand il refait la transcription : le seul indice est une durée de transcription plus longue). L'essai ne prouve donc pas que le correctif a rattrapé une vraie boucle : il montre l'absence de régression et l'absence de boucle visible au Mac, sur Windows et sur Linux. Le « Fé. Fé. Fé. Fé. » du 13/11 ne s'est pas reproduit.
+- **Mac, « fait »** : 9 dictées et non 10 (une prise au Mac sans collage compte pour le premier appui dans Scriibe elle-même).
+- **Reconnaissance, hors sujet mais mesurée** : sur un mot isolé, la reconnaissance reste fragile (« Fé », « Fais », « Faye », « We » pour « oui » sur Windows presque à chaque fois avec `small`, « Wheat », « Yes, »). Sans lien avec la répétition.
+- **Hallucination sur 1,1 s** (Mac, dernière dictée de « fait ») : « 3, 2, 3, 4, 5, 6, 7, 8 et 10. », déjà dans le brut de Whisper. Voir Ajout 1.
+- **Mise au propre** : sur Linux, « Très très bien » (brut) est sorti « Très bien » (mise au propre par le petit modèle) ; sur Windows Whisper a déjà rendu « Très bien ». Voir Ajout 3.
+- **Hypothèse de l'auteur (parler trop tôt, au moment de l'appui)** : testée au Mac par 25 dictées de « non » et « oui » dites dès l'appui : 0 boucle, 1 « Oui, oui. ». Non concluant (les boucles ne se voient pas non plus quand la parole est tardive).
+
+## Ajouts
+
+1. **Hallucination en suite de chiffres** sur une prise courte (Mac, « fait » dit, sortie « 3, 2, 3, 4, 5, 6, 7, 8 et 10. »). Pas une répétition de mot ; non traitée. À ranger au carnet : à mesurer si elle revient (prise de 1 s environ, `large-v3-turbo` en `-ac 512` ?).
+2. **Hypothèse « parler trop tôt au moment de l'appui »** : non concluante (voir Essai). À reprendre seulement si une boucle réelle revient, avec le journal de l'appui à la première parole (délai entre l'appui et le début du son, aujourd'hui non journalisé).
+3. **« Très très bien » devient « Très bien »** à la mise au propre sur Linux (modèle `qwen2.5-1.5b`) : probablement le retrait de répétitions voulu par la mise au propre ; à confirmer avec le comportement de Scribe avant d'en faire un écart. À ranger au carnet.
+4. **Journal du garde-fou** : rien n'est écrit quand `repeats_itself` refait une transcription ; l'essai ne peut donc pas compter les déclenchements. Une ligne de journal (« whisper: boucle vue, seconde transcription ») ferait ce travail, quelques minutes de code ; non faite ici (hors consigne de la tâche 3).
