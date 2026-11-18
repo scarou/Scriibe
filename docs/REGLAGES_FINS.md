@@ -49,3 +49,30 @@ Relecteur : sous-agent Sonnet (effort élevé), qui n'a pas écrit le code, sur 
 - Désinstallation sur trousseau fermé : jusqu'à 3 × 8 s d'attente, et le message ne dit pas « déverrouille le trousseau ».
 - Échec d'écriture sur l'entrée de `secret-tool` : message générique sans le code de sortie ; fenêtre de déverrouillage éventuellement laissée ouverte après le délai de 60 s.
 - Pastille en fond sombre : indigo et violet y perdent leur forme (ombre quasi invisible) ; « Noir » est invisible sur fond noir (hérité de Scribe). Une fine bordure claire règlerait les deux.
+
+## Essai (tâche 3, 18/11/2026)
+
+*Code au commit `2034c90`, **poussé sur `main` pour l'occasion** (accord de l'auteur : les PC ne tirent que de GitHub), puis `pilote maj tous` et `pilote compiler --mode release` (Linux et Windows : OK ; Windows a d'abord échoué, un ancien `scriibe.exe` verrouillait la compilation, arrêté puis recompilé). Mac : copie d'essai `Scriibe-essai-c6.app` sur une copie des données (`Scriibe-essai-c6`), lancée par `open`. Windows : lancé dans la session de l'auteur par une tâche planifiée temporaire (supprimée), sur la copie `C:\essai-refonte-lot2`. Linux : lancé par l'auteur depuis Activités, sur ses vraies données (réglages remis ensuite : veille 30/30, couleur Scriibe, moteur llama.cpp). Réglages faits par l'auteur ; journaux lus par l'assistant. Pas de capture : l'auteur a vu l'indicateur lui-même.*
+
+| Cas | Mac | Windows | Linux |
+|---|---|---|---|
+| Whisper à 1 min : moteur déchargé | OK (« serveur arrêté après 1 min sans dictée ») | OK | OK |
+| llama.cpp à 1 min : moteur déchargé | OK | non essayé (pas de llama.cpp sur ce PC) | OK |
+| « Jamais » : dictée puis 2 min 30 à 2 min 45, aucun arrêt | OK (Whisper et llama.cpp) | OK (Whisper) | OK (Whisper et llama.cpp) |
+| 3 nouvelles couleurs (orange, violet, marron), thème clair | lisibles | lisibles | lisibles |
+| Mêmes couleurs, thème sombre | lisibles | lisibles | lisibles |
+| Clé OpenRouter : enregistrement, relance, « présente » | sans objet | sans objet | OK (voir ci-dessous) |
+| Reformulation avec la clé gardée | sans objet | sans objet | OK (OpenRouter `anthropic/claude-haiku-4.5`, 1,15 s) |
+| Clé absente des journaux et de `ps` | OK (rien trouvé) | OK | OK (recherche de la valeur exacte des deux clés dans `scriibe.log`, `llama-server.log`, journaux de l'essai, `journalctl`, `ps` : 0) |
+
+**Linux, clé** : `secret-tool` était **absent** du PC. Premier essai (clé Deepgram collée) : message attendu et exact (« l'outil secret-tool est absent : installe le paquet libsecret-tools … Rien n'a été enregistré. »), rien d'écrit. Après `sudo apt install libsecret-tools` : les deux clés enregistrées sans question de GNOME (trousseau déjà ouvert à la session), journal « clés: openrouter enregistrée dans le trousseau du bureau », entrées vérifiées (`secret-tool lookup`, code de sortie seul), « présente » encore affichée après relance de Scriibe. **Le paquet manque donc sur une installation courante** : la décision de § Clé Linux (remplacer `secret-tool` par un module Rust si le paquet manque souvent) reste à prendre : un seul PC vu, le message guide bien ; à reprendre au carnet.
+
+**Observations**
+- Un moteur à 1 min s'arrête 1 à 2 min après la dernière activité (contrôle toutes les minutes, ex. Mac : réglé à 20:59, arrêt à 21:00:26).
+- Sur le Mac, le Whisper chargé à 20:58 a été déchargé avant la première dictée : le premier appui recharge le moteur (≈ 1 s), sans défaut.
+- Windows : un `scriibe.exe` oublié bloque `pilote compiler` (déjà dans `docs/PIEGES.md`).
+- Non essayé : indigo, rose, vert, turquoise, orange sur sombre au-delà des trois choisies ; Linux sans trousseau ouvert (trousseau verrouillé : couvert par test).
+
+## Ajouts
+
+Aucune nouvelle demande de l'auteur pendant l'essai.
