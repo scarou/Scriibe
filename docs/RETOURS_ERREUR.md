@@ -148,3 +148,13 @@ Ces trois comportements ne se testent pas par un test automatique (ils dépenden
 **Écarts avec le § Conception** : aucun sur le fond. `shape` est posée sur la capsule +1 px ; la fenêtre normale reste à `BOTTOM_GAP`, la fenêtre réduite se place 12 px plus haut (`STAGE_PADDING`) pour que la capsule ne bouge pas à l'écran.
 
 **Non fait ici** : rien vu à l'écran de la capsule d'erreur elle-même (pas de capture) ; Windows et Linux non essayés.
+
+## Relais
+
+*(Fin de la tâche 1, 18/11/2026, contexte à 32 % : relais avant la tâche 2.)*
+
+- **Fait** : v0.11.0 publiée (avant le chantier) ; tâche 0 (`2d99b83`) ; tâche 1 (`04c40ca`). Commits locaux, **non poussés** (le dernier poussé est `1d10a99`). Tests mesurés : 863 Rust (3 ignorés), 170 interface, fmt/clippy/check verts.
+- **En cours** : rien ; arbre propre.
+- **Prochain pas** : tâche 2 (désactiver une commande), d'après § Conception 6 : `disabledCommands` dans `USER_KEYS` et `AppSettings` (lecture tolérante, retrait des identifiants inconnus à l'écriture), `recognize_for` écarte les désactivées, `Route::Disabled` avant `is_close` (message « Commande désactivée », genre `NotRecognised`, à traduire), `POST api/commands/enabled`, `commands_view`, interrupteur sur chaque ligne des six blocs de `ui/src/components/commands/`, export/import (commandes du programme seulement, `profile_file.rs`), Aide FR/EN, tests listés au § 7.
+- **Pièges** : `all_defs` reste entier (phrases déjà prises, `is_close`) ; ne pas bumper `SETTINGS_SCHEMA` ; `AppSettings` écrit tous ses champs (la clé `[]` apparaît à la première sauvegarde) ; un `Failure` neuf passe par `fail_command` (jamais `flash` direct) ; texte français ajouté = traduction dans `en.ts`/`en-server.ts` (`i18n.test.ts`) et Aide FR **et** EN ; `cd ui` change le dossier courant du shell : utiliser des chemins absolus.
+- **Reste du clic** : Windows et Linux, et la frappe dans l'appli après le clic, à l'essai de la tâche 4.
