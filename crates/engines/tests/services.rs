@@ -272,8 +272,8 @@ fn a_looping_answer_from_the_short_server_is_redone_on_the_normal_server() {
 }
 
 /// Chantier 4 (mot dicté collé plusieurs fois, `docs/MOT_REPETE.md`) : « fait » dit seul revient « Fé. Fé. Fé. Fé. » dans le texte brut de
-/// Whisper (historique du 13/11, prise de 1,2 s). La boucle d'un seul mot échappe à `repeats_itself`, qui exige 4 mots : la réponse
-/// du serveur court est collée telle quelle au lieu d'être refaite sur le serveur normal.
+/// Whisper (historique du 13/11, prise de 1,2 s). Avant le correctif, la boucle d'un seul mot échappait à `repeats_itself` (4 mots exigés) : la
+/// réponse du serveur court était collée telle quelle au lieu d'être refaite sur le serveur normal.
 #[test]
 fn a_single_word_looping_on_the_short_server_is_redone_on_the_normal_server() {
     let world = FakeWorld::new();
@@ -296,23 +296,56 @@ fn a_short_phrase_repeated_three_times_or_more_is_a_loop() {
     assert!(whisper::repeats_itself("正\n正\n正\n正\n正\n正"));
 }
 
-/// Une répétition voulue (deux fois un mot ou un court passage) n'est pas une boucle : pas de seconde transcription, texte intact.
+/// Joue une réponse du serveur court de `said` sur une prise de 1,5 s ; rend le texte final et le nombre de requêtes `/inference`.
+fn transcribe_short(said: &'static str) -> (String, usize, usize) {
+    let world = FakeWorld::new();
+    world.route(":8177/inference", move |_| Ok(HttpResponse { status: 200, body: json!({"text": said}).to_string().into_bytes() }));
+    world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Non."}).to_string().into_bytes() }));
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    let got = t.transcribe(&wav_of(1.5), &settings, &[]).unwrap();
+    let calls = world.requests().iter().filter(|r| r.url.ends_with("/inference")).count();
+    (got, calls, world.spawns().len())
+}
+
+/// Une répétition voulue (deux fois un mot ou un court passage) n'est pas une boucle : texte intact, une seule transcription, le
+/// serveur normal ne démarre pas.
 #[test]
 fn a_wanted_short_repetition_is_kept_untouched() {
-    for said in ["Très très bien.", "Oui, oui, c'est très très bien.", "Lance yogurt. Lance yogurt.", "Non non non"] {
-        let expect_redo = said == "Non non non";
-        let world = FakeWorld::new();
-        world.route(":8177/inference", move |_| Ok(HttpResponse { status: 200, body: json!({"text": said}).to_string().into_bytes() }));
-        world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Non."}).to_string().into_bytes() }));
-        let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
-        let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
-        let got = t.transcribe(&wav_of(1.5), &settings, &[]).unwrap();
-        let calls = world.requests().iter().filter(|r| r.url.ends_with("/inference")).count();
-        if expect_redo {
-            assert_eq!((calls, got.as_str()), (2, "Non."));
-        } else {
-            assert_eq!((calls, got.as_str()), (1, said), "« {said} » ne doit pas être refait");
-        }
+    for said in [
+        "Très très bien.",
+        "Oui, oui, c'est très très bien.",
+        "Lance yogurt. Lance yogurt.",
+        "C'est fait. C'est fait.",
+        "Un deux trois. Un deux trois.",
+    ] {
+        assert_eq!(transcribe_short(said), (said.to_string(), 1, 1), "« {said} » ne doit pas être refait");
+    }
+}
+
+/// Trois fois de suite, c'est une boucle même si la personne l'a voulue : seconde transcription (coût assumé, `docs/MOT_REPETE.md`).
+#[test]
+fn a_short_phrase_said_three_times_is_redone() {
+    assert_eq!(transcribe_short("Non non non"), ("Non.".to_string(), 2, 2));
+}
+
+/// Bornes de `repeats_itself` : 2 ou 3 exemplaires, 3 ou 4 mots, apostrophes, traits d'union, boucle encadrée, sauts de ligne.
+#[test]
+fn the_edges_of_the_loop_rule() {
+    for not_a_loop in [
+        "Fé. Fé.",
+        "C'est fait. C'est fait.",
+        "C'est fait. C'est fait. C'est",
+        "Fé. Fait. Fé. Fait.",
+        "C’est-à-dire, c’est-à-dire",
+        "L’un l’autre, l’un l’autre",
+    ] {
+        assert!(!whisper::repeats_itself(not_a_loop), "« {not_a_loop} » n'est pas une boucle");
+    }
+    for a_loop in
+        ["Alors fé fé fé merci", "の\nの\nの", "C’est fait. C’est fait. C’est fait.", "Fé - Fé - Fé", "Une page en HTML. Une page en HTML."]
+    {
+        assert!(whisper::repeats_itself(a_loop), "« {a_loop} » est une boucle");
     }
 }
 

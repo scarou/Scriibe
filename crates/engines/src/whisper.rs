@@ -230,8 +230,14 @@ impl Launcher for WhisperLauncher {
 /// Whisper sur une prise courte. Une vraie répétition de la personne qui dicte y répond aussi ; le seul effet est alors une seconde
 /// transcription, sur le serveur normal.
 pub fn repeats_itself(text: &str) -> bool {
-    let words: Vec<String> =
-        text.split(|c: char| !c.is_alphanumeric() && c != '\'').filter(|w| !w.is_empty()).map(|w| w.to_lowercase()).collect();
+    // L'apostrophe typographique vaut l'apostrophe droite ; apostrophe et trait d'union restent dans le mot (« c'est-à-dire »).
+    let text = text.replace('\u{2019}', "'");
+    let words: Vec<String> = text
+        .split(|c: char| !c.is_alphanumeric() && c != '\'' && c != '-')
+        .map(|w| w.trim_matches(|c| c == '\'' || c == '-'))
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_lowercase())
+        .collect();
     let repeated = |len: usize, times: usize| {
         words.len() >= len * times
             && (0..=words.len() - len * times).any(|at| (1..times).all(|k| words[at..at + len] == words[at + k * len..at + (k + 1) * len]))
@@ -299,7 +305,7 @@ impl Whisper {
     /// suivre un changement.
     ///
     /// Le contexte audio réduit du serveur court fait parfois boucler Whisper : la phrase revient deux à quatre fois dans le texte
-    /// (S13, 7 dictées sur 74 le 01/11/2026, aucune sur le serveur normal). Si la réponse du serveur court se répète, la prise est
+    /// (S13, 7 dictées sur 74 le 01/11/2026, aucune sur le serveur normal). Si la réponse du serveur court se répète (`repeats_itself` : 4 mots ou plus deux fois, 1 à 3 mots trois fois), la prise est
     /// refaite sur le serveur normal ; si celui-ci échoue, on garde la première réponse.
     pub fn transcribe(
         &self,

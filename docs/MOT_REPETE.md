@@ -39,8 +39,27 @@ Les deux sont rouges (`cargo test -p scriibe-engines --test services`) ; les aut
 
 Étage : le garde-fou de la tâche S13, `whisper::repeats_itself` (`crates/engines/src/whisper.rs`). Une boucle est maintenant : un passage de 4 mots ou plus répété **2 fois** de suite (inchangé), ou un passage de **1 à 3 mots** répété **3 fois** de suite (`SHORT_LOOP_REPEATS`). Le serveur court (`-ac 512`) est donc refait sur le serveur normal pour « Fé. Fé. Fé. Fé. », « C'est fait. » ×3 ou « 正 » ×6.
 
-**Pourquoi 3 et pas 2** : « très très bien », « oui, oui » ou « Lance yogurt. Lance yogurt. » sont des répétitions possibles de la personne qui dicte ; les deux fois ne déclenchent rien (le texte reste tel quel, une seule transcription). Une boucle de Whisper va jusqu'à 3 à 6 exemplaires dans les cas relevés. Coût d'une fausse alerte (« non non non » voulu) : environ une seconde de plus, et c'est le serveur normal, qui n'a pas bouclé au banc, qui répond.
+**Pourquoi 3 et pas 2** : « très très bien », « oui, oui » ou « Lance yogurt. Lance yogurt. » sont des répétitions possibles de la personne qui dicte ; les deux fois ne déclenchent rien (le texte reste tel quel, une seule transcription). Une boucle de Whisper va jusqu'à 3 à 6 exemplaires dans les cas relevés. Coût d'une fausse alerte (« non non non » voulu) : une seconde de plus si le serveur normal tourne déjà ; à froid, il faut charger le modèle (0,6 s sur le Mac de l'auteur d'après le journal du 18/11 ; non mesuré sur les PC). C'est le serveur normal, qui n'a pas bouclé au banc, qui répond.
 
 **Limite connue** : une boucle de 2 exemplaires d'un mot isolé (« の\nの » au banc) n'est pas rattrapée. Indistinguable d'un « oui, oui » voulu sans autre indice.
 
 Tests (`crates/engines/tests/services.rs`) : les deux tests rouges de la tâche 0 passent au vert ; `a_wanted_short_repetition_is_kept_untouched` montre que « Très très bien. », « Oui, oui, c'est très très bien. » et « Lance yogurt. Lance yogurt. » ne sont pas refaits ni tronqués. `cargo fmt`, `clippy -D warnings` et `cargo test --workspace` sans erreur.
+
+## Relecture
+
+Sous-agent relecteur Sonnet (effort élevé) sur le commit `0ad43f7` : 0 bloquant, 1 important, 6 mineurs. Aucune panique ni débordement (300 000 textes aléatoires), coût négligeable (2 ms pour 2 000 mots).
+
+**Important, traité (documentation)**
+- I1 : une alerte démarre à froid le serveur normal ; le doc annonçait « environ une seconde ». Mesuré au journal du 18/11 : 0,6 s de démarrage sur le Mac ; non mesuré sur les PC. § Correctif corrigé. Pas de changement de code : la règle nouvelle déclenche 13 fois de plus que l'ancienne sur 2 187 dictées réelles (0,6 %), pour un coût de l'ordre d'une seconde.
+
+**Mineurs corrigés (avec test)**
+- M2 : `’` valait une coupure de mot alors que `'` non ; le trait d'union coupait aussi (« C’est-à-dire, c’est-à-dire » refait à tort). Les deux restent maintenant dans le mot (`the_edges_of_the_loop_rule`).
+- M5 : test « voulu » séparé du test « refait » (`a_wanted_short_repetition_is_kept_untouched`, `a_short_phrase_said_three_times_is_redone`), cas de frontière ajoutés (3 mots ×2, 4 mots ×2, 2 exemplaires, boucle tronquée, boucle encadrée, saut de ligne), et le serveur normal ne démarre pas pour une répétition voulue.
+- M6 : `docs/ECARTS.md`, commentaires de `transcribe` et du test remis à jour. L'entrée du `CHANGELOG.md` viendra à la publication de la 0.11.0.
+
+**Mineurs restants (non corrigés, notés)**
+- M1 : boucle CJK sans séparateur (« ありがとうありがとうありがとう ») non vue ; les boucles avec sauts de ligne, seules relevées au banc, sont vues.
+- M3 : boucle tronquée en son milieu (« C'est fait. C'est fait. C'est ») ou motif alterné deux fois non vue.
+- M4 : trois exemplaires voulus (« très très très bien », « ha ha ha ») refaits ; texte jamais altéré.
+- Si le serveur normal boucle à son tour, sa réponse est gardée telle quelle (0 boucle en 48 prises au banc).
+- Test `instance::tests::a_second_instance_is_refused_until_the_first_ends` (crate `cli`, sans lien avec ce chantier) : échec une fois sur trois passages du workspace, passé aux autres ; à surveiller.
