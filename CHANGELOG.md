@@ -2,6 +2,15 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## 0.12.0 — 2026-11-19 · Retours d'erreur et commandes vocales, réglages fins
+
+- Version publiée : réunit les chantiers 5 et 6 (12 commits depuis la 0.11.0, dont ceux de suivi du `CLAUDE.md`). Détail : `docs/RETOURS_ERREUR.md`, `docs/REGLAGES_FINS.md`.
+- **Chantier 5, retours d'erreur et commandes vocales** : une erreur reste affichée sur la pastille jusqu'au clic sur sa croix (la croix ne prend pas le focus : la frappe retourne dans l'appli d'origine) ; son d'erreur grave pour une commande non reconnue, non faite ou désactivée ; interrupteur par commande vocale (gardé dans le profil), « Commande désactivée » quand on dit une commande coupée. Sur Mac, le clic sur la croix activait Scriibe (sa fenêtre passait devant, la frappe se perdait) : corrigé à l'essai. Relecture : une erreur identique répétée ne laisse plus la fenêtre insensible à la souris ; l'Aide ne promet plus le focus sans condition.
+- **Chantier 6, réglages fins** : mêmes durées de veille pour Whisper et llama.cpp (1, 2, 5, 10, 15, 30, 60 min et « Jamais »), anciens réglages relus tels quels ; douze couleurs d'indicateur (les cinq de Scribe et sept ajouts, contraste d'au moins 4,5 : 1 avec le texte blanc, testé). **Linux** : les clés OpenRouter et Deepgram vont dans le trousseau du bureau (Secret Service, par l'outil `secret-tool` du paquet `libsecret-tools`), jamais en clair ; sans trousseau, rien n'est écrit et le message nomme la variable d'environnement. Relecture : trousseau fermé (pas de lecture bloquante pendant une dictée), course lecture/écriture d'une clé, contraste des couleurs, `scriibe cle` sous Linux.
+- **Essayé avant publication** : chantier 5 sur Mac, Windows et Linux (18/11) ; chantier 6 sur les trois systèmes (veille à 1 min et « Jamais », couleurs en clair et en sombre, clé Linux, clé absente des journaux et de `ps`). Chaque chantier a eu sa relecture par un agent distinct ; les bloquants et importants sont corrigés.
+- **Connu, non corrigé** : lecture de la sélection impossible sous Linux (« sélection illisible ») ; une commande ratée sans la touche peut perdre sa note (M1/M2 de `docs/RETOURS_ERREUR.md`) ; saut de 12 px à l'apparition de la capsule d'erreur ; double écran non essayé ; `secret-tool` est cherché dans le `PATH` ; pastille sur fond sombre : indigo, violet et « Noir » peu visibles ; `scriibe.exe` en cours verrouille la compilation sous Windows (`docs/PIEGES.md`).
+- **Tests** (mesurés sur le Mac, 19/11/2026) : 889 tests Rust passés (3 ignorés, 0 échec) ; 173 tests de l'interface ; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `npm run check` sans erreur.
+
 ## 0.11.0 — 2026-11-18 · Finitions de l'interface, états de la fenêtre gardés, mot dicté collé plusieurs fois
 
 - Version publiée : réunit les chantiers 2, 3 et 4 (21 commits depuis la 0.10.1, dont ceux de suivi du `CLAUDE.md`). Détail : `docs/FINITIONS_INTERFACE.md`, `docs/ETATS_FENETRE.md`, `docs/MOT_REPETE.md`.
