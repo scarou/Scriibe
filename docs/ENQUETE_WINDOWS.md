@@ -64,3 +64,40 @@ Essais faits :
 ### Ce qui reste (non traité dans cette tâche)
 
 Les deux autres lignes du carnet rattachées au chantier 7 (reformulation copiée seule et sa présence dans Win+V ; « Lancer à l'ouverture de session » sous Windows) ne sont pas touchées ici : tâches suivantes du découpage.
+
+## Correctifs
+
+*(Tâche 1, 19/11/2026, commit `16b595d`, local, non poussé. Code envoyé au PC par `git bundle` sur une branche `essai-c7` (pas de push), compilé et testé sur place par `pilote` puis par `cargo test` en SSH, branche supprimée et PC remis sur `main` ensuite.)*
+
+### Bug 1 · pastille bloquée : corrigé
+
+- **Page** (`ui/src/lib/keyrelay.ts`) : `up` relaie aussi le relâchement d'une touche qu'elle n'a pas vue s'enfoncer. Le test qui figeait le contraire (« ignore le relâchement d'une touche appuyée avant d'arriver dans la fenêtre ») est supprimé ; celui de la tâche 0 (`it.fails`) devient un `it` ordinaire.
+- **Contrôleur** (`Controller::handle_page_key`) : un relâchement que la page n'a pas vu s'enfoncer est appliqué **seulement si une dictée est en cours** (`monitor.is_down()`) ; sinon ignoré comme avant. Tests : `a_key_pressed_before_the_page_got_the_focus_ends_the_dictation_when_the_page_sees_it_released` (le test de la tâche 0, plus ignoré, au vert) et `a_release_seen_only_by_the_page_is_ignored_without_a_dictation` (sans dictée, ou autre touche : rien ne change).
+- **Crochet Windows** (`crates/platform/src/windows/keyboard.rs`) : un appui sur une touche que le crochet croit déjà tenue alors que `GetAsyncKeyState` la dit relâchée est un relâchement jamais vu : il est rattrapé (événement de relâchement envoyé avant l'appui) au lieu de prendre l'appui pour une répétition. Sans cela, après la correction, **le premier appui suivant sur la touche de dictée aurait été perdu** (le crochet gardait la touche pour tenue). Les touches retenues par le crochet (jamais enfoncées pour le système) sont exclues. **Pas de test automatique** (le crochet ne s'exécute pas sans vrai clavier) : compilé et passé à clippy sur le PC ; **à essayer à la main à la tâche 3** (appuyer sur Ctrl droit juste après avoir relâché dans la fenêtre de Scriibe, la dictée doit partir au premier appui).
+- **Pas traité** : la cause du silence du crochet quand la fenêtre de Scriibe a le focus (S06) reste inconnue ; la correction l'évite sans la lever. La fenêtre en administrateur au premier plan n'a pas été essayée.
+
+### Bug 2 · message des touches : journal ajouté (non reproduit)
+
+- **Captures refusées** (`crates/cli/src/web/mod.rs`, `capture_view`) : une ligne par capture refusée, `capture des touches: refusée (dictation|translate|command) — touches vues : <noms> — <refus>`, une seule fois par capture (la page relit l'état plusieurs fois par seconde). Seuls les noms des touches vues et le message de refus y figurent.
+- **Écoute longue** (`Controller::tick`, `note_long_dictation`) : une ligne par écoute de plus de 15 s : âge du dernier événement du crochet, touches tenues vues par la page, nombre d'événements du clavier reçus du système depuis le lancement, appli au premier plan. Ni les mots dits, ni les touches. Test `a_long_listening_leaves_one_journal_line` (une ligne, pas avant 15 s, une par dictée).
+- **Annulation par une autre touche** (`Controller::cancel`) : la ligne donne la durée d'écoute (« … après 21.5 s d'écoute »), sans nommer la touche tapée. Test `a_cancelled_dictation_says_how_long_it_listened`.
+- **Affichage** : le nom de la touche n'est plus écrit deux fois (« AltGr (Alt droit) — AltGr (Alt droit) ne peut pas… ») : `ui/src/lib/keyrefusal.ts` (`refusalLine`) garde le préfixe seulement quand le refus ne nomme pas la touche (« une seule touche pour traduire »). 3 tests dans `keyrefusal.test.ts`.
+
+### Reformulation copiée seule et Win+V
+
+Test automatisé `crates/platform/tests/windows_clipboard.rs` (un seul test, Windows seulement) :
+1. **Marques** : une copie ordinaire n'a aucune des trois marques ; `copy_transient` met le texte dans le presse-papiers avec `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory` et `CanUploadToCloudClipboard` à 0.
+2. **Historique** : interrogé par WinRT (`Clipboard.GetHistoryItemsAsync`, par PowerShell), le texte copié ordinairement y entre (témoin), le texte copié seul n'y entre pas. Il demande une session ouverte et l'historique activé ; sinon il le dit et ne conclut pas (jamais de réglage système modifié par le test). Sans session interactive (SSH), tout le test se saute en le disant.
+
+**Résultat sur le PC de l'auteur** (dans sa session, par une tâche planifiée temporaire supprimée ensuite) : historique désactivé au premier passage → marques vérifiées, historique « non vérifié » ; l'auteur l'active (réglage de son PC, à lui de le laisser ou non) ; second passage : « historique Win+V vérifié : le texte ordinaire y est, le texte copié seul n'y est pas (2 éléments lus) », test vert. Sur l'intégration continue ou en SSH, l'essai se saute (pas de session) : il se lance dans la session de l'auteur.
+
+### Tests
+
+- **Mac** : 893 tests Rust (3 ignorés), 176 tests de l'interface ; `cargo fmt --check`, `clippy --workspace --all-targets -D warnings`, `npm run check` sans erreur.
+- **PC Windows** (`cargo test --workspace`, SSH) : 877 tests Rust passés, 0 échec, 1 ignoré. Un test de `scriibe-platform --lib` a échoué au premier passage (lancé par `pilote compiler --mode tests`, qui n'imprime pas le détail) puis réussi aux deux relances : échec ponctuel, test non identifié (le piège de `instance::tests::a_second_instance_is_refused_until_the_first_ends` est déjà noté au journal 0.11.0) ; à surveiller.
+- Clippy pour la cible `x86_64-pc-windows-gnu` : impossible sur ce Mac (pas de `x86_64-w64-mingw32-gcc`) ; le code Windows est compilé sur le PC même.
+
+### Reste pour la tâche 2 et la tâche 3
+
+- Relecture du code ci-dessus par un sous-agent (tâche 2), en particulier le rattrapage du crochet (`GetAsyncKeyState` à l'appui) et le fait que le journal n'écrit rien de dicté ni de tapé.
+- Essai à la main des gestes sur le PC (tâche 3) : 10 essais de « tenir Ctrl droit, cliquer sur Scriibe, relâcher » ; appui sur Ctrl droit au premier essai juste après ; AltGr dans la page des touches (nom écrit une fois, ligne de refus au journal).
