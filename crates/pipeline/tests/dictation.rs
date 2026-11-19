@@ -962,10 +962,8 @@ fn losing_the_focus_releases_the_keys_relayed_by_the_page() {
 
 /// Bug Windows de l'enquête C7 (docs/ENQUETE_WINDOWS.md § Enquête) : la touche de dictée est enfoncée **avant** que la fenêtre de Scriibe prenne
 /// le focus (le crochet voit l'appui), puis relâchée **dedans** (le crochet se tait, la page ne l'avait pas vue s'enfoncer). Le relâchement
-/// n'arrive jamais : la pastille reste sur « j'écoute » jusqu'à l'appui d'une autre touche. Ce test décrit le comportement voulu ; il échoue
-/// aujourd'hui, donc il est ignoré (lancer `cargo test -p scriibe-pipeline --test dictation -- --ignored` pour le voir échouer).
+/// n'arrive jamais : la pastille restait sur « j'écoute » jusqu'à l'appui d'une autre touche. Corrigé : la page relaie aussi ce relâchement.
 #[test]
-#[ignore = "bug Windows non corrigé : docs/ENQUETE_WINDOWS.md § Enquête"]
 fn a_key_pressed_before_the_page_got_the_focus_ends_the_dictation_when_the_page_sees_it_released() {
     let r = rig("x", "x");
     r.key_down();
@@ -974,6 +972,55 @@ fn a_key_pressed_before_the_page_got_the_focus_ends_the_dictation_when_the_page_
     r.clock.advance(Duration::from_millis(1100));
     r.controller.handle_page_key(RIGHT_CONTROL_VK, false);
     assert!(!r.controller.is_recording(), "le relâchement vu par la page doit finir la dictée commencée par le crochet");
+}
+
+/// Le relâchement relayé d'une touche inconnue de la page ne sert à rien quand aucune dictée n'est en cours : il est ignoré (et ne change rien).
+#[test]
+fn a_release_seen_only_by_the_page_is_ignored_without_a_dictation() {
+    let r = rig("x", "x");
+    assert!(!r.controller.handle_page_key(RIGHT_CONTROL_VK, false));
+    assert!(!r.controller.is_recording());
+    // Une touche qui n'est pas celle de la dictée, relâchée pendant une dictée : la dictée continue.
+    r.key_down();
+    r.clock.advance(Duration::from_millis(1100));
+    r.controller.handle_page_key(Key::Vk(0x41), false);
+    assert!(r.controller.is_recording());
+}
+
+/// Journal ajouté par l'enquête C7 : une écoute de plus de 15 s laisse **une** ligne (état du crochet et de la page, appli au premier plan),
+/// sans rien de ce qui est dit ni des touches tapées.
+#[test]
+fn a_long_listening_leaves_one_journal_line() {
+    let r = rig("x", "x");
+    r.key_down();
+    r.clock.advance(Duration::from_secs(5));
+    r.controller.tick();
+    assert!(!r.world.log.lines().join("\n").contains("écoute depuis plus de 15 s"), "pas avant 15 s");
+    r.clock.advance(Duration::from_secs(11));
+    r.controller.tick();
+    r.controller.tick();
+    let log = r.world.log.lines().join("\n");
+    assert_eq!(log.matches("écoute depuis plus de 15 s").count(), 1, "une seule fois par dictée");
+    assert!(log.contains("dernier événement du crochet il y a 16 s"));
+    assert!(log.contains("touches tenues vues par la page : 0"));
+    // Une dictée suivante a droit à sa ligne.
+    r.key_up();
+    r.key_down();
+    r.clock.advance(Duration::from_secs(16));
+    r.controller.tick();
+    assert_eq!(r.world.log.lines().join("\n").matches("écoute depuis plus de 15 s").count(), 2);
+}
+
+/// La dictée annulée par une autre touche dit depuis combien de temps elle écoutait (sans nommer la touche tapée).
+#[test]
+fn a_cancelled_dictation_says_how_long_it_listened() {
+    let r = rig("x", "x");
+    r.key_down();
+    r.clock.advance(Duration::from_millis(21_500));
+    r.controller.handle_key(KeyEvent::Changed { changed: Key::Vk(0x41), down: true, held: vec![Key::RightControl, Key::Vk(0x41)] });
+    assert!(!r.controller.is_recording());
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("dictée: annulée (une autre touche a été tapée) après 21.5 s d'écoute"), "{log}");
 }
 
 // --- Espace entre deux dictées (docs/ESPACEMENT.md). La règle elle-même est testée dans `scriibe_core::spacing` ;

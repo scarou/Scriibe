@@ -4,6 +4,7 @@
   import { settings } from '../lib/settings.svelte';
   import { status } from '../lib/status.svelte';
   import { keyName, t } from '../lib/i18n.svelte';
+  import { refusalLine } from '../lib/keyrefusal';
 
   type Kind = 'dictation' | 'translate' | 'command';
   /** Les touches que ce sélecteur montre : Dicter montre la dictée et la traduction, Commandes vocales la touche de commande. */
@@ -173,7 +174,7 @@
         {/if}
         <div class="row"><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else if capture.error}
-        <div class="bad">{capture.labels?.map(keyName).join(' + ')} — {t(capture.error)}</div>
+        <div class="bad">{refusalLine(capture.labels?.map(keyName).join(' + ') ?? '', t(capture.error))}</div>
         <div class="row"><button onclick={() => begin(kind!)}>{t('Réessayer')}</button><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else}
         <div>{t('Nouvelle touche :')} <b>{capture.labels?.map(keyName).join(' + ')}</b></div>

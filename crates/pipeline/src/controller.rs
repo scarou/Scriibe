@@ -33,6 +33,9 @@ const MIN_DURATION: f64 = 0.3;
 const TRANSLATION_WARM_UP_DELAY: Duration = Duration::from_millis(400);
 /// Au bout de ce temps sans son assez fort, l'indicateur dit « Je n'entends rien… ».
 const MIC_WATCH_AFTER: Duration = Duration::from_secs(2);
+/// Une écoute qui dure autant laisse une ligne au journal (une seule) : état des touches vu par le crochet et par la page, pour comprendre une
+/// touche dont le relâchement n'arrive pas (enquête C7, docs/ENQUETE_WINDOWS.md).
+const LONG_DICTATION_NOTE_AFTER: Duration = Duration::from_secs(15);
 
 /// Là où une commande vocale agit hors du collage (l'interface de Scriibe). Rien n'y est écrit sur disque ni journalisé.
 pub trait CommandSink: Send + Sync {
@@ -105,6 +108,8 @@ struct State {
     commanding: bool,
     target: AppInfo,
     started_at: Duration,
+    /// La ligne « écoute longue » est déjà écrite pour cette dictée.
+    long_noted: bool,
     /// Quand charger le modèle de traduction (400 ms après l'ajout de la touche).
     translation_warm_up_due: Option<Duration>,
     input_description: String,
@@ -206,6 +211,7 @@ impl Controller {
             commanding: false,
             target: AppInfo::unknown(),
             started_at: Duration::ZERO,
+            long_noted: false,
             translation_warm_up_due: None,
             input_description: String::new(),
             mic_warned: false,
@@ -253,7 +259,19 @@ impl Controller {
         if self.capture().is_some() || self.hook_spoke_recently() {
             return false;
         }
-        let event = scriibe_platform::keys::translate_key(&mut lock(&self.inner.page_held), key, down);
+        let event = {
+            let mut held = lock(&self.inner.page_held);
+            match scriibe_platform::keys::translate_key(&mut held, key, down) {
+                Some(event) => Some(event),
+                // Le relâchement d'une touche que la page n'a pas vue s'enfoncer : la dictée a commencé par le crochet avant que la fenêtre
+                // de Scriibe prenne le focus, et ce relâchement est le seul qui reste (enquête C7, docs/ENQUETE_WINDOWS.md). Sans lui, la
+                // dictée dure jusqu'à l'appui d'une autre touche. Sans dictée en cours, il ne sert à rien : ignoré comme avant.
+                None if !down && lock(&self.inner.state).monitor.is_down() => {
+                    Some(KeyEvent::Changed { changed: key, down: false, held: held.clone() })
+                }
+                None => None,
+            }
+        };
         let Some(event) = event else { return false };
         self.announce_page_keys();
         self.dispatch_key(event);
@@ -512,17 +530,24 @@ impl Controller {
         let deps = &self.inner.deps;
         let now = deps.clock.now();
         self.refresh_preload(now);
-        let (warm_translation, watch_mic) = {
+        let (warm_translation, watch_mic, note_long) = {
             let mut state = lock(&self.inner.state);
             if !state.recording {
                 return;
+            }
+            let note_long = !state.long_noted && now.saturating_sub(state.started_at) >= LONG_DICTATION_NOTE_AFTER;
+            if note_long {
+                state.long_noted = true;
             }
             let warm = state.translation_warm_up_due.filter(|due| now >= *due).is_some();
             if warm {
                 state.translation_warm_up_due = None;
             }
-            (warm && state.translating, now.saturating_sub(state.started_at) >= MIC_WATCH_AFTER)
+            (warm && state.translating, now.saturating_sub(state.started_at) >= MIC_WATCH_AFTER, note_long)
         };
+        if note_long {
+            self.note_long_dictation(now);
+        }
         if warm_translation {
             let settings = deps.config.settings();
             let words = deps.config.dictionary().words;
@@ -541,6 +566,22 @@ impl Controller {
                 deps.indicator.set_mic_level(level);
             }
         }
+    }
+
+    /// Une seule ligne par écoute de plus de 15 s : ce que voient le crochet du système (dernier événement) et la page (touches tenues), et si
+    /// la fenêtre de Scriibe est au premier plan. Ni les mots dits ni les touches elles-mêmes.
+    fn note_long_dictation(&self, now: Duration) {
+        let deps = &self.inner.deps;
+        let hook = match *lock(&self.inner.last_hook_event) {
+            Some(at) => format!("dernier événement du crochet il y a {:.0} s", now.saturating_sub(at).as_secs_f32()),
+            None => "aucun événement du crochet depuis le lancement".to_string(),
+        };
+        let page_keys = lock(&self.inner.page_held).len();
+        deps.log.write(&format!(
+            "dictée: écoute depuis plus de 15 s — {hook} ; touches tenues vues par la page : {page_keys} ; {} événements du clavier reçus du système depuis le lancement ; appli au premier plan : {}",
+            self.key_event_count(),
+            deps.apps.current().name
+        ));
     }
 
     /// `command_first` : la touche de commande était déjà tenue à l'appui, donc la mise au propre ne servira pas : pas de préchauffage.
@@ -575,6 +616,7 @@ impl Controller {
             state.mic_warned = false;
             state.target = app;
             state.started_at = deps.clock.now();
+            state.long_noted = false;
             state.input_description = info.description;
         }
         deps.indicator.show(IndicatorState::Listening);
@@ -695,6 +737,7 @@ impl Controller {
     /// Une autre touche pendant l'appui : c'est un raccourci, pas une dictée.
     fn cancel(&self) {
         let deps = &self.inner.deps;
+        let started_at;
         {
             let mut state = lock(&self.inner.state);
             if !state.recording {
@@ -702,8 +745,12 @@ impl Controller {
             }
             state.recording = false;
             state.translation_warm_up_due = None;
+            started_at = state.started_at;
         }
-        deps.log.write("dictée: annulée (une autre touche a été tapée)");
+        deps.log.write(&format!(
+            "dictée: annulée (une autre touche a été tapée) après {:.1} s d'écoute",
+            deps.clock.now().saturating_sub(started_at).as_secs_f32()
+        ));
         deps.recorder.stop();
         deps.media.resume_if_paused();
         deps.indicator.show(IndicatorState::Hidden);

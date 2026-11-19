@@ -23,7 +23,9 @@ export function createKeyRelay(send: (body: { code?: string; down?: boolean; rel
       post({ code: e.code, down: true });
     },
     up(e) {
-      if (!pressed.delete(e.code)) return;
+      // Le relâchement d'une touche appuyée avant la fenêtre est relayé aussi : la dictée a pu commencer par le crochet du système avant
+      // que la fenêtre prenne le focus, et ce relâchement est alors le seul qui reste (le programme l'ignore s'il ne sert à rien).
+      pressed.delete(e.code);
       post({ code: e.code, down: false });
     },
     blur() {

@@ -78,6 +78,9 @@ pub struct Context {
     capture_kind: Mutex<String>,
     /// Les touches que la page dit tenues pendant une capture (la fenêtre de Scriibe ne reçoit rien du crochet quand elle a le focus).
     capture_held: Mutex<Vec<scriibe_core::hotkey::Key>>,
+    /// La dernière capture refusée écrite au journal (type, touches, refus) : la page relit l'état plusieurs fois par seconde, le refus
+    /// n'est noté qu'une fois par capture.
+    capture_refusal_logged: Mutex<String>,
 }
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -122,6 +125,7 @@ pub fn start(
         machine: Mutex::new(None),
         capture_kind: Mutex::new("dictation".into()),
         capture_held: Mutex::new(Vec::new()),
+        capture_refusal_logged: Mutex::new(String::new()),
     });
     let shared = context.clone();
     std::thread::Builder::new()
@@ -364,6 +368,7 @@ fn handle(ctx: &Context, mut request: Request) {
                 _ => "dictation".into(),
             };
             lock(&ctx.capture_held).clear();
+            lock(&ctx.capture_refusal_logged).clear();
             ctx.app.controller.start_capture();
             ok(request, json!({"ok": true}))
         }
@@ -981,6 +986,19 @@ fn capture_view(ctx: &Context) -> Value {
             Some(ids) if kind == "command" => keys::validate(&settings.dictation_keys, &settings.translate_keys, ids).err(),
             Some(ids) => keys::validate(ids, &settings.translate_keys, &settings.command_keys).err(),
         };
+    }
+    // Une capture refusée laisse une trace (enquête C7, docs/ENQUETE_WINDOWS.md : le 16/11 un refus n'a pas pu être retrouvé) : le type, les
+    // touches vues (leurs noms, jamais autre chose) et le refus, une seule fois par capture.
+    if let Some(message) = &error {
+        let line = format!(
+            "capture des touches: refusée ({kind}) — touches vues : {} — {message}",
+            if labels.is_empty() { "aucune".to_string() } else { labels.join(" + ") }
+        );
+        let mut logged = lock(&ctx.capture_refusal_logged);
+        if *logged != line {
+            ctx.app.log.write(&line);
+            *logged = line;
+        }
     }
     json!({"active": true, "kind": kind, "finished": capture.finished, "labels": labels, "ids": ids, "error": error})
 }

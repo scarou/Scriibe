@@ -13,7 +13,9 @@ use std::thread::JoinHandle;
 use windows_sys::Win32::Foundation::{GetLastError, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HC_ACTION,
     KBDLLHOOKSTRUCT, LLKHF_INJECTED, MSG, WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
@@ -47,6 +49,14 @@ fn mask_menu_key() {
     }
 }
 
+/// Le clavier dit-il cette touche relâchée ? Au moment de son appui, l'état du système est encore celui d'avant : une touche que ce crochet
+/// croit tenue (son relâchement a eu lieu pendant que la fenêtre de Scriibe avait le focus, où le crochet ne reçoit rien) mais que le
+/// système dit relâchée est donc une touche dont le relâchement n'a jamais été vu, pas une répétition automatique.
+fn key_is_up(vk: u32) -> bool {
+    // SAFETY : lecture de l'état d'une touche, sans effet de bord.
+    unsafe { GetAsyncKeyState(vk as i32) as u16 & 0x8000 == 0 }
+}
+
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code == HC_ACTION as i32 {
         // SAFETY : pour HC_ACTION, `lparam` pointe vers une KBDLLHOOKSTRUCT valide pendant l'appel.
@@ -60,8 +70,21 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                 let rules = current_hook_rules();
                 let mut swallow = false;
                 let mut mask_command = false;
-                let event = HELD.with(|held| {
+                let (stale_release, event) = HELD.with(|held| {
                     let mut held = held.borrow_mut();
+                    // Un appui sur une touche que ce crochet croit déjà tenue, alors que le système la dit relâchée : son relâchement n'a
+                    // jamais été vu (enquête C7, docs/ENQUETE_WINDOWS.md). On le rattrape avant de traiter cet appui comme un appui neuf ;
+                    // sans cela l'appui serait pris pour une répétition et la dictée ne partirait qu'au deuxième essai. Les touches retenues
+                    // par ce crochet ne sont jamais enfoncées pour le système : elles sont exclues.
+                    let stale_release = if down
+                        && held.contains(&key_of(code))
+                        && !SWALLOWED.with(|taken| taken.borrow().contains(&code))
+                        && key_is_up(code)
+                    {
+                        translate_vk(&mut held, code, false)
+                    } else {
+                        None
+                    };
                     // Un appui qui n'est qu'une répétition automatique (touche déjà tenue avant la dictée) n'est jamais retenu : sinon
                     // le relâchement le serait aussi et Windows garderait la touche « enfoncée ».
                     let first_press = !held.contains(&key_of(code));
@@ -101,14 +124,14 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                     }
                     let event = translate_vk(&mut held, code, down);
                     mask_command = COMMAND_MENU.with(|mask| mask.borrow_mut().event(&rules, &held, code, down));
-                    event
+                    (stale_release, event)
                 });
                 if up && (mask_command || rules.mask_menu) && [VK_LMENU, VK_LWIN, VK_RWIN].contains(&code) {
                     mask_menu_key();
                 }
-                if let Some(event) = event {
-                    if let Ok(sink) = SINK.lock() {
-                        if let Some(sink) = sink.as_ref() {
+                if let Ok(sink) = SINK.lock() {
+                    if let Some(sink) = sink.as_ref() {
+                        for event in stale_release.into_iter().chain(event) {
                             let _ = sink.send(event);
                         }
                     }
