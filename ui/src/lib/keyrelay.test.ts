@@ -36,6 +36,16 @@ describe('le relais des touches de la fenêtre', () => {
     expect(sent).toEqual([]);
   });
 
+  // Bug Windows de l'enquête C7 (docs/ENQUETE_WINDOWS.md § Enquête) : le test précédent fige l'ignorance du relâchement d'une touche
+  // appuyée avant la fenêtre ; or la dictée peut avoir commencé par le crochet avant le focus, et ce relâchement est le seul qui reste.
+  // `it.fails` : réussit tant que le défaut existe, échoue (donc à retourner en `it`) dès qu'il est corrigé.
+  it.fails('relaie le relâchement d’une touche appuyée avant la fenêtre quand la dictée est en cours', async () => {
+    const { sent, relay, flush } = rig();
+    relay.up({ code: 'ControlRight' });
+    await flush();
+    expect(sent).toEqual([{ code: 'ControlRight', down: false }]);
+  });
+
   it('relâche ce qui est tenu quand la fenêtre perd le focus, une seule fois', async () => {
     const { sent, relay, flush } = rig();
     relay.down({ code: 'ControlRight', repeat: false });

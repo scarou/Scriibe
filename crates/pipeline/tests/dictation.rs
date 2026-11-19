@@ -960,6 +960,22 @@ fn losing_the_focus_releases_the_keys_relayed_by_the_page() {
     r.controller.release_page_keys();
 }
 
+/// Bug Windows de l'enquête C7 (docs/ENQUETE_WINDOWS.md § Enquête) : la touche de dictée est enfoncée **avant** que la fenêtre de Scriibe prenne
+/// le focus (le crochet voit l'appui), puis relâchée **dedans** (le crochet se tait, la page ne l'avait pas vue s'enfoncer). Le relâchement
+/// n'arrive jamais : la pastille reste sur « j'écoute » jusqu'à l'appui d'une autre touche. Ce test décrit le comportement voulu ; il échoue
+/// aujourd'hui, donc il est ignoré (lancer `cargo test -p scriibe-pipeline --test dictation -- --ignored` pour le voir échouer).
+#[test]
+#[ignore = "bug Windows non corrigé : docs/ENQUETE_WINDOWS.md § Enquête"]
+fn a_key_pressed_before_the_page_got_the_focus_ends_the_dictation_when_the_page_sees_it_released() {
+    let r = rig("x", "x");
+    r.key_down();
+    assert!(r.controller.is_recording());
+    // Le crochet se tait : la fenêtre de Scriibe a pris le focus pendant l'appui.
+    r.clock.advance(Duration::from_millis(1100));
+    r.controller.handle_page_key(RIGHT_CONTROL_VK, false);
+    assert!(!r.controller.is_recording(), "le relâchement vu par la page doit finir la dictée commencée par le crochet");
+}
+
 // --- Espace entre deux dictées (docs/ESPACEMENT.md). La règle elle-même est testée dans `scriibe_core::spacing` ;
 // ici, le branchement : espace après le collage, historique intact, sélection, collage manqué, appli inconnue.
 
