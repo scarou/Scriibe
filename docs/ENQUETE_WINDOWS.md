@@ -133,6 +133,32 @@ Verrous (`page_held` puis `state` : jamais l'inverse, pas d'interblocage) ; `Get
 - **Mac** : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` sans erreur après les corrections.
 - **PC Windows** (code envoyé par `git bundle` sur une branche `essai-c7`, supprimée ensuite, PC remis sur `main` `276f4d6`, bundle effacé) : `cargo clippy --workspace --all-targets -- -D warnings` sans avertissement ; `cargo test --workspace` sans échec (le test Win+V est ignoré : 1 ignoré de plus). **Le test Win+V modifié et le rattrapage du crochet ne sont compilés que là ; le test n'a pas été relancé dans la session de l'auteur** (tâche 3 : `-- --ignored --nocapture`, attendre la ligne `RESULTAT WIN+V : VERIFIE`).
 
+## Essai
+
+*(Tâche 3, 19/11/2026. Code `666063e` (local, non poussé), envoyé par `git bundle` sur une branche `essai-c7` des deux PC, compilé en release par `pilote compiler tous --mode release`, branches supprimées et PC remis sur `main` ensuite. Windows : copie des données d'essai `C:\essai-enq\donnees`, lancée dans la session de l'auteur par une tâche planifiée temporaire (supprimée). Mac : `Scriibe.app` recompilée et réinstallée (`tools/faire_app_macos.sh`), lancée par `open`. Linux : lancée par Activités. L'auteur seul aux gestes ; les résultats viennent de ses réponses et des journaux. Aucune capture d'écran (la pastille a été jugée par l'auteur).)*
+
+| Cas | Système | Résultat | Preuve |
+|---|---|---|---|
+| Bug 1 : tenir Ctrl droit, cliquer sur Scriibe, relâcher, ×10 | Windows | **10/10 bons** : pastille jamais bloquée, chaque appui suivant a lancé la dictée (rattrapage du crochet non perdu) | journal : 10 appuis, 10 relâchements, 10 collages, 0 annulation, aucune ligne « écoute longue » |
+| Bug 2 : AltGr dans « Changer… » de la touche de dictée, ×10 | Windows | **10/10 bons** : « AltGr (Alt droit) ne peut pas lancer la dictée : elle sert à taper », nom écrit une seule fois, aucun autre message | journal : 10 lignes « capture des touches: refusée (dictation) … » (noms de touches seulement) |
+| Test Win+V (`windows_clipboard`, `-- --ignored`) | Windows | **vérifié** : le texte ordinaire est dans l'historique, le texte copié seul n'y est pas (4 éléments lus), presse-papiers remis | ligne « RESULTAT WIN+V : VERIFIE » |
+| « Lancer à l'ouverture de session » | Windows | **marche** : déconnexion puis reconnexion, Scriibe et `whisper-server` démarrés seuls à 11:38:13 | processus et entrée `HKCU\…\Run` lus par SSH ; entrée retirée ensuite |
+| Dictée (Option droite) | Mac | **comme avant** : pastille, texte collé dans Notes | journal |
+| Commande (Ctrl gauche : « mettre entre guillemets ») | Mac | **comme avant** : texte sélectionné entouré de guillemets | gestes de l'auteur |
+| Dictée (Ctrl+Gauche, raccourci GNOME) | Linux | **comme avant** : pastille, texte collé | gestes de l'auteur |
+| Commande (Ctrl+Bas : « mettre entre guillemets ») | Linux | **comme avant** : « sélection illisible », rien collé (GNOME Wayland ne lit pas la sélection : même ligne au journal du 18/11) | journal : `commande: entourer.guillemets ignorée (sélection illisible)` |
+
+### À savoir
+
+- **Case « Lancer à l'ouverture de session » grisée** au premier essai : voulu, Scriibe refuse le démarrage automatique quand elle est lancée depuis un dossier `target\` ou un dépôt git (`launch_location_problem`). Il a fallu la copier hors du dépôt (`C:\essai-enq\prog`, supprimée ensuite). Une fois lancée ainsi, la case se coche, `Scriibe` entre dans `Run` (`"…\scriibe.exe" lancer --sans-navigateur`) et n'est pas désactivée par Windows. Au démarrage automatique, Scriibe prend les données **normales** de l'utilisateur (pas la variable `SCRIIBE_DATA` de l'essai).
+- **Non essayé** : fenêtre administrateur au premier plan ; le point M4 de la relecture (Linux Wayland, relâchement d'Alt après Alt+Tab pendant un raccourci tenu) ; Mac et Linux n'ont pas pu confirmer le rattrapage du crochet (code `cfg(windows)`), seulement l'absence de changement visible.
+- **Collage vers Scriibe** : pendant les 10 essais du bug 1 l'auteur est resté sur la fenêtre de Scriibe, donc les textes sont partis dans Scriibe et non dans le Bloc-notes (sans conséquence pour la pastille ni le crochet).
+- **Mac** : la recompilation redemande les trois accès au trousseau (connu).
+
+### Ajouts
+
+Aucune nouvelle demande de l'auteur pendant l'essai.
+
 ## Relais
 
 *(Fin de la tâche 1, 19/11/2026, contexte à 30 % : relais décidé par la règle du `CLAUDE.md` (25 % ou plus en fin de tâche : la tâche suivante part d'une nouvelle session). Ne change ni l'ordre ni les consignes.)*
