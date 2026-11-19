@@ -990,9 +990,13 @@ fn capture_view(ctx: &Context) -> Value {
     // Une capture refusée laisse une trace (enquête C7, docs/ENQUETE_WINDOWS.md : le 16/11 un refus n'a pas pu être retrouvé) : le type, les
     // touches vues (leurs noms, jamais autre chose) et le refus, une seule fois par capture.
     if let Some(message) = &error {
+        // Seules les touches de la liste (modificateurs, F1 à F24…) sont nommées : une lettre, un chiffre, Espace ou Entrée tapés pendant la
+        // capture ne vont jamais au journal (relecture C7, I3). Le message de refus à l'écran, lui, garde les noms.
+        let seen_names: Vec<String> = seen.iter().map(|k| keys::loggable_label(*k)).collect();
         let line = format!(
-            "capture des touches: refusée ({kind}) — touches vues : {} — {message}",
-            if labels.is_empty() { "aucune".to_string() } else { labels.join(" + ") }
+            "capture des touches: refusée ({kind}) — touches vues : {} — {}",
+            if seen_names.is_empty() { "aucune".to_string() } else { seen_names.join(" + ") },
+            if ids.is_some() { message.as_str() } else { "combinaison refusée (touche hors liste)" }
         );
         let mut logged = lock(&ctx.capture_refusal_logged);
         if *logged != line {

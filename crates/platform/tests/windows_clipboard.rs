@@ -3,10 +3,13 @@
 //!    `CanIncludeInClipboardHistory`, `CanUploadToCloudClipboard`, toutes à 0) ; une copie ordinaire n'en porte aucune ;
 //! 2. **l'historique** : interrogé par WinRT (`Clipboard.GetHistoryItemsAsync`, via PowerShell), le texte copié ordinairement y entre, le texte
 //!    copié seul n'y entre pas. Ce second essai demande une session ouverte et l'historique activé (Paramètres → Système → Presse-papiers) ;
-//!    sinon il le dit et ne conclut pas (jamais de réglage du système modifié par un test).
+//!    sinon le test **échoue** en le disant (jamais de réglage du système modifié par un test, jamais de vert qui n'a rien vérifié).
 //!
-//! Sans session interactive (SSH, service) le presse-papiers n'est pas joignable : l'essai se saute en le disant. Lancement dans la session de
-//! l'auteur : tâche planifiée temporaire (voir `docs/ENQUETE_WINDOWS.md` § Correctifs). Les deux essais partagent le presse-papiers : un seul test.
+//! Ce test écrase le presse-papiers de la session et y laisse des textes d'essai dans l'historique Win+V : il est `#[ignore]` et se lance
+//! à la demande (`cargo test -p scriibe-platform --test windows_clipboard -- --ignored --nocapture`), dans la session de l'auteur (tâche
+//! planifiée temporaire, voir `docs/ENQUETE_WINDOWS.md` § Correctifs). Sans session interactive (SSH, service) le presse-papiers n'est pas
+//! joignable : il échoue en le disant. Le texte qu'il y avait au départ est remis à la fin (texte seulement : une image ou des fichiers
+//! copiés sont perdus). Les deux essais partagent le presse-papiers : un seul test.
 #![cfg(windows)]
 
 use std::process::Command;
@@ -22,7 +25,8 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// La marque `name` du presse-papiers : `None` si absente, sinon sa valeur (un entier de 4 octets).
+/// La marque `name` du presse-papiers : `None` si absente, sinon sa valeur (un entier de 4 octets). Panique si le presse-papiers ne s'ouvre
+/// pas : « absente » ne doit jamais vouloir dire « pas pu regarder ».
 fn mark(name: &str) -> Option<u32> {
     let format = unsafe { RegisterClipboardFormatW(wide(name).as_ptr()) };
     for _ in 0..20 {
@@ -46,7 +50,7 @@ fn mark(name: &str) -> Option<u32> {
         }
         std::thread::sleep(Duration::from_millis(10));
     }
-    None
+    panic!("le presse-papiers n'a pas pu être ouvert pour lire la marque {name} (tenu par un autre programme ?)");
 }
 
 /// Le texte actuel du presse-papiers (format Unicode).
@@ -122,17 +126,31 @@ fn history() -> History {
     }
 }
 
+/// Remet le texte qu'avait le presse-papiers au départ, même si une assertion échoue.
+struct Restore<'a> {
+    paster: &'a dyn scriibe_platform::paste::Paster,
+    original: String,
+}
+
+impl Drop for Restore<'_> {
+    fn drop(&mut self) {
+        self.paster.copy(&self.original);
+    }
+}
+
 #[test]
+#[ignore = "écrase le presse-papiers de la session et laisse des textes d'essai dans Win+V : cargo test -p scriibe-platform --test windows_clipboard -- --ignored --nocapture"]
 fn a_reformulation_copied_alone_carries_the_marks_and_stays_out_of_win_v() {
     let paster = scriibe_platform::windows::platform().paster;
     let id = std::process::id();
     let ordinary = format!("SCRIIBE-ESSAI-WINV-{id}-ordinaire");
     let alone = format!("SCRIIBE-ESSAI-WINV-{id}-copie-seule");
 
-    if !paster.copy(&ordinary) {
-        eprintln!("essai Win+V sauté : le presse-papiers n'est pas joignable (pas de session interactive ?)");
-        return;
-    }
+    let _restore = Restore { paster: &*paster, original: clipboard_text().unwrap_or_default() };
+    assert!(
+        paster.copy(&ordinary),
+        "le presse-papiers n'est pas joignable (pas de session interactive ? lancer par une tâche planifiée /IT dans la session de l'auteur)"
+    );
 
     // 1. Les marques. Une copie ordinaire n'en porte aucune.
     assert_eq!(clipboard_text().as_deref(), Some(ordinary.as_str()));
@@ -153,23 +171,21 @@ fn a_reformulation_copied_alone_carries_the_marks_and_stays_out_of_win_v() {
     std::thread::sleep(Duration::from_millis(2500));
     match history() {
         History::Unavailable(reason) => {
-            eprintln!("historique Win+V non vérifié : {reason} (les marques, elles, sont vérifiées)");
+            panic!(
+                "RESULTAT WIN+V : NON VERIFIE : {reason} (les marques, elles, sont vérifiées ; activer l'historique, réglage de l'auteur)"
+            )
         }
         History::Items(items) => {
-            if !items.iter().any(|item| item == &ordinary) {
-                eprintln!(
-                    "historique Win+V non concluant : le texte copié ordinairement n'y est pas ({} éléments lus) ; le témoin manque, rien n'est conclu",
-                    items.len()
-                );
-            } else {
-                assert!(!items.iter().any(|item| item == &alone), "le texte copié seul est entré dans l'historique Win+V");
-                eprintln!(
-                    "historique Win+V vérifié : le texte ordinaire y est, le texte copié seul n'y est pas ({} éléments lus)",
-                    items.len()
-                );
-            }
+            assert!(
+                items.iter().any(|item| item == &ordinary),
+                "RESULTAT WIN+V : NON VERIFIE : le texte copié ordinairement n'est pas dans l'historique ({} éléments lus), le témoin manque",
+                items.len()
+            );
+            assert!(!items.iter().any(|item| item == &alone), "le texte copié seul est entré dans l'historique Win+V");
+            eprintln!(
+                "RESULTAT WIN+V : VERIFIE : le texte ordinaire y est, le texte copié seul n'y est pas ({} éléments lus)",
+                items.len()
+            );
         }
     }
-    // Ne laisse pas nos textes d'essai dans le presse-papiers.
-    paster.copy("");
 }

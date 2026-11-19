@@ -256,10 +256,21 @@ impl Controller {
     /// et la page relaie alors le clavier (`key` : la touche, d'après `KeyboardEvent.code`). Ignorée pendant la capture d'une combinaison (la
     /// capture a son propre relais) et tant que le crochet parle encore (doublon). Rend vrai si la touche a servi.
     pub fn handle_page_key(&self, key: Key, down: bool) -> bool {
-        if self.capture().is_some() || self.hook_spoke_recently() {
+        if self.capture().is_some() {
             return false;
         }
-        let event = {
+        let event = if self.hook_spoke_recently() {
+            // Le crochet parle encore : la touche relayée est en principe un doublon. Une seule exception, le relâchement d'une touche de la
+            // dictée en cours : un appui court (tenir, cliquer sur Scriibe, relâcher en moins d'une seconde) a le crochet muet depuis moins
+            // d'une seconde, et ce relâchement est le seul qui reste (relecture C7, I1). Un vrai doublon est inoffensif : le second relâchement
+            // trouve la dictée déjà finie.
+            let held = lock(&self.inner.page_held).clone();
+            let ends_dictation = !down && {
+                let state = lock(&self.inner.state);
+                state.monitor.is_down() && state.monitor.binding.dictation.contains(&key)
+            };
+            ends_dictation.then(|| KeyEvent::Changed { changed: key, down: false, held: held.into_iter().filter(|k| *k != key).collect() })
+        } else {
             let mut held = lock(&self.inner.page_held);
             match scriibe_platform::keys::translate_key(&mut held, key, down) {
                 Some(event) => Some(event),

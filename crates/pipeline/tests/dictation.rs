@@ -974,6 +974,25 @@ fn a_key_pressed_before_the_page_got_the_focus_ends_the_dictation_when_the_page_
     assert!(!r.controller.is_recording(), "le relâchement vu par la page doit finir la dictée commencée par le crochet");
 }
 
+/// Relecture C7, I1 : un appui court (tenir, cliquer sur Scriibe, relâcher en moins d'une seconde) laisse le crochet muet depuis moins de la
+/// fenêtre d'écho : le relâchement relayé de la touche de dictée doit quand même finir la dictée.
+#[test]
+fn a_short_press_released_in_the_page_within_a_second_ends_the_dictation() {
+    let r = rig("x", "x");
+    r.key_down();
+    assert!(r.controller.is_recording());
+    r.clock.advance(Duration::from_millis(300));
+    assert!(r.controller.handle_page_key(RIGHT_CONTROL_VK, false));
+    assert!(!r.controller.is_recording(), "le crochet avait parlé 300 ms plus tôt : le relâchement de la page compte quand même");
+    // Une touche qui n'est pas celle de la dictée ne finit rien dans la fenêtre d'écho.
+    r.key_down();
+    r.clock.advance(Duration::from_millis(300));
+    assert!(!r.controller.handle_page_key(Key::Vk(0x41), false));
+    assert!(r.controller.is_recording());
+    // Un appui relayé dans la fenêtre d'écho reste un doublon ignoré.
+    assert!(!r.controller.handle_page_key(RIGHT_CONTROL_VK, true));
+}
+
 /// Le relâchement relayé d'une touche inconnue de la page ne sert à rien quand aucune dictée n'est en cours : il est ignoré (et ne change rien).
 #[test]
 fn a_release_seen_only_by_the_page_is_ignored_without_a_dictation() {

@@ -680,6 +680,29 @@ pub fn label_of(key: Key) -> String {
     layout().label_of(key)
 }
 
+/// Le nom d'une touche pour le **journal** : celui de la liste (modificateurs, F1 à F24…), sinon « touche hors liste ». Jamais la lettre, le
+/// chiffre, Espace ou Entrée : ce que la personne tape ne s'écrit pas au journal.
+pub fn loggable_label(key: Key) -> String {
+    if id_of(key).is_some() {
+        label_of(key)
+    } else {
+        "une touche hors liste".to_string()
+    }
+}
+
+/// Plus long écart entre deux appuis automatiques d'une même touche tenue (le délai de répétition de Windows va jusqu'à 1 s) ; au-delà,
+/// un appui sur une touche réputée tenue est un appui neuf dont le relâchement n'a pas été vu.
+pub const AUTO_REPEAT_MAX_GAP_MS: u32 = 1200;
+
+/// Rattrapage du crochet Windows : le relâchement d'une touche a-t-il été manqué ? Il faut que le système dise la touche relâchée **et** que le
+/// dernier événement de cette touche soit plus ancien qu'une répétition automatique possible : une touche retenue par un autre crochet
+/// (PowerToys, AutoHotkey, bureau à distance) paraît relâchée au système pendant qu'elle est tenue, et chacune de ses répétitions serait
+/// sinon prise pour un relâchement suivi d'un appui (relecture C7, I2). Les heures sont celles du système, en millisecondes (le compteur
+/// repasse par zéro environ tous les 49 jours : la soustraction se fait modulo 2^32).
+pub fn release_was_missed(last_event_ms: Option<u32>, now_ms: u32, system_says_up: bool) -> bool {
+    system_says_up && last_event_ms.is_none_or(|last| now_ms.wrapping_sub(last) > AUTO_REPEAT_MAX_GAP_MS)
+}
+
 /// Les touches vues pendant une capture, sans le Ctrl gauche fictif que Windows envoie avec AltGr (Ctrl gauche + Alt droit) : la personne
 /// n'a appuyé que sur AltGr. Sur Mac et Linux, rien n'est changé (pas de Ctrl fictif).
 pub fn without_altgr_ctrl(keys: &[Key]) -> Vec<Key> {
@@ -780,6 +803,34 @@ pub fn label(ids: &[String]) -> String {
 mod tests {
     use super::*;
     use scriibe_core::hotkey::{HotkeyEvent, HotkeyMonitor};
+
+    // Relecture C7, I2 : le rattrapage d'un relâchement manqué ne se déclenche pas sur une répétition automatique.
+    #[test]
+    fn a_missed_release_needs_the_system_to_say_up_and_a_gap_longer_than_an_auto_repeat() {
+        assert!(
+            release_was_missed(Some(1_000), 1_000 + AUTO_REPEAT_MAX_GAP_MS + 1, true),
+            "touche tenue depuis longtemps, système : relâchée"
+        );
+        assert!(release_was_missed(None, 5, true), "aucun événement connu");
+        assert!(
+            !release_was_missed(Some(1_000), 1_500, true),
+            "répétition automatique : l'écart est court, même si le système dit relâchée"
+        );
+        assert!(!release_was_missed(Some(1_000), 1_000 + AUTO_REPEAT_MAX_GAP_MS, true), "pile à la limite : encore une répétition");
+        assert!(!release_was_missed(Some(1_000), 60_000, false), "le système dit la touche tenue : rien à rattraper");
+        // Le compteur du système repasse par zéro : l'écart se compte modulo 2^32.
+        assert!(!release_was_missed(Some(u32::MAX - 100), 300, true), "401 ms de part et d'autre du zéro");
+        assert!(release_was_missed(Some(u32::MAX - 5_000), 300, true), "5,3 s de part et d'autre du zéro");
+    }
+
+    // Relecture C7, I3 : le journal ne nomme que les touches de la liste.
+    #[test]
+    fn the_journal_names_listed_keys_only() {
+        assert_eq!(loggable_label(Key::RightControl), label_of(Key::RightControl));
+        for typed in [Key::Vk(0x41), Key::Vk(0x37), Key::Vk(0x20), Key::Vk(0x0D), Key::Vk(0xE8)] {
+            assert_eq!(loggable_label(typed), "une touche hors liste", "{typed:?}");
+        }
+    }
 
     // Les tests existants décrivent la disposition de Windows et de Linux, quel que soit le système qui les exécute ; ceux du Mac ont leurs
     // propres fonctions (`mac_*`).

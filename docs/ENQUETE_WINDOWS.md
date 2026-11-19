@@ -89,7 +89,7 @@ Test automatisé `crates/platform/tests/windows_clipboard.rs` (un seul test, Win
 1. **Marques** : une copie ordinaire n'a aucune des trois marques ; `copy_transient` met le texte dans le presse-papiers avec `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory` et `CanUploadToCloudClipboard` à 0.
 2. **Historique** : interrogé par WinRT (`Clipboard.GetHistoryItemsAsync`, par PowerShell), le texte copié ordinairement y entre (témoin), le texte copié seul n'y entre pas. Il demande une session ouverte et l'historique activé ; sinon il le dit et ne conclut pas (jamais de réglage système modifié par le test). Sans session interactive (SSH), tout le test se saute en le disant.
 
-**Résultat sur le PC de l'auteur** (dans sa session, par une tâche planifiée temporaire supprimée ensuite) : historique désactivé au premier passage → marques vérifiées, historique « non vérifié » ; l'auteur l'active (réglage de son PC, à lui de le laisser ou non) ; second passage : « historique Win+V vérifié : le texte ordinaire y est, le texte copié seul n'y est pas (2 éléments lus) », test vert. Sur l'intégration continue ou en SSH, l'essai se saute (pas de session) : il se lance dans la session de l'auteur.
+**Résultat sur le PC de l'auteur** (dans sa session, par une tâche planifiée temporaire supprimée ensuite) : historique désactivé au premier passage → marques vérifiées, historique « non vérifié » ; l'auteur l'active (réglage de son PC, à lui de le laisser ou non) ; second passage : « historique Win+V vérifié : le texte ordinaire y est, le texte copié seul n'y est pas (2 éléments lus) », test vert. *(Modifié par la relecture, § Relecture I4 : le test est désormais `#[ignore]`, remet le presse-papiers et échoue au lieu de se sauter ; il se lance à la demande dans la session de l'auteur.)*
 
 ### Tests
 
@@ -102,6 +102,37 @@ Test automatisé `crates/platform/tests/windows_clipboard.rs` (un seul test, Win
 - Relecture du code ci-dessus par un sous-agent (tâche 2), en particulier le rattrapage du crochet (`GetAsyncKeyState` à l'appui) et le fait que le journal n'écrit rien de dicté ni de tapé.
 - Essai à la main des gestes sur le PC (tâche 3) : 10 essais de « tenir Ctrl droit, cliquer sur Scriibe, relâcher » ; appui sur Ctrl droit au premier essai juste après ; AltGr dans la page des touches (nom écrit une fois, ligne de refus au journal).
 
+## Relecture
+
+*(Tâche 2, 19/11/2026. Sous-agent relecteur Sonnet · Élevé, qui n'a pas écrit le code, sur `0f7b325..8ad156e`, lecture seule ; détail et scénarios dans son rapport du dossier temporaire de la session. Résultat : 0 bloquant, 4 importants, 5 mineurs.)*
+
+### Importants, tous corrigés
+
+| # | Défaut | Correction | Test |
+|---|---|---|---|
+| I1 | `handle_page_key` jetait tout relâchement relayé par la page si le crochet avait parlé moins d'1 s avant : un appui court (tenir Ctrl droit, cliquer sur Scriibe, relâcher en moins d'1 s) laissait la pastille bloquée ; le test de la tâche 1 contournait le cas par une pause de 1,1 s | Dans la fenêtre d'écho, le relâchement d'une **touche de la dictée en cours** est appliqué (un doublon est inoffensif : la dictée est déjà finie) ; appuis et autres touches restent ignorés (`controller.rs`) | `a_short_press_released_in_the_page_within_a_second_ends_the_dictation` (à 300 ms, touche étrangère, appui doublon) |
+| I2 | Rattrapage `GetAsyncKeyState` : une touche retenue par un autre crochet (PowerToys, AutoHotkey, bureau à distance) paraît relâchée au système pendant qu'elle est tenue ; chaque répétition automatique serait devenue « relâchement + nouvel appui » (dictée coupée et relancée en boucle). Spéculatif (pas de ces logiciels sur le PC), mais sans coût à éviter | Le rattrapage exige en plus que le dernier événement de la touche soit plus ancien que **1,2 s** (délai de répétition maximal de Windows : 1 s) : `release_was_missed` (`keys.rs`), heure `info.time` par touche tenue (`windows/keyboard.rs`) | `a_missed_release_needs_the_system_to_say_up_and_a_gap_longer_than_an_auto_repeat` (dont le passage du compteur par zéro) |
+| I3 | La ligne « capture des touches: refusée » écrivait au journal les lettres, chiffres, Espace et Entrée tapés pendant la capture (`label_of`) : contraire à la règle « le journal ne dit jamais ce qui est tapé » | `keys::loggable_label` : seules les touches de la liste sont nommées, les autres deviennent « une touche hors liste » ; le message de refus n'est recopié que si toutes les touches sont de la liste ; l'écran garde les noms (`web/mod.rs`) | `the_journal_names_listed_keys_only` |
+| I4 | `windows_clipboard.rs` écrasait le presse-papiers de l'auteur à chaque `cargo test --workspace` sans le remettre, pouvait finir vert en se sautant (session absente), avec une marque « absente » faute d'avoir pu ouvrir le presse-papiers, ou sans conclure sur Win+V (historique désactivé, témoin absent) | `#[ignore]` (lancé à la demande, `docs/TESTS.md`) ; texte d'avant remis par une garde `Drop`, même en cas d'échec ; `mark()` panique si le presse-papiers ne s'ouvre pas ; session absente, historique désactivé ou témoin absent : le test **échoue** (« RESULTAT WIN+V : NON VERIFIE ») au lieu de passer ; la preuve est la ligne « RESULTAT WIN+V : VERIFIE » | Le test lui-même (Windows seulement) |
+
+### Vérifié sans défaut
+
+Verrous (`page_held` puis `state` : jamais l'inverse, pas d'interblocage) ; `GetAsyncKeyState` appelé sans verrou ni attente dans le crochet ; `cfg(windows)` (rien n'atteint Mac et Linux) ; lignes du journal « écoute longue » et « annulation » (durées, nombres, nom de l'exécutable : rien de dicté ni de tapé) ; aucune chaîne d'interface sans traduction ; ni nom ni courriel de l'auteur dans le diff. Les tests du pipeline échouent sans les correctifs de la tâche 1.
+
+### Mineurs restants (non corrigés)
+
+- **M1** `ui/src/lib/keyrefusal.ts` : en anglais, pour une combinaison, le nom est traduit partie par partie alors que le message l'est en bloc : le préfixe n'est pas retiré et le nom est écrit deux fois, à moitié en français. Cosmétique.
+- **M2** Rattrapage Windows : `CommandMenuMask` (Alt gauche, Windows) n'est pas informé du relâchement rattrapé ; le masquage du menu peut suivre l'ancien drapeau « utilisée » (une touche sans effet en trop ou en moins).
+- **M3** Couverture du repli de `handle_page_key` : le second volet de `a_release_seen_only_by_the_page_is_ignored_without_a_dictation` (touche inconnue) ne teste pas la garde du contrôleur ; manquent le relâchement de Maj (traduction) pendant la dictée et une dictée à combinaison (Ctrl + F9) dont une seule touche est relâchée.
+- **M4** Linux GNOME Wayland : la page relaie maintenant tout relâchement, même sans appui vu, vers `wayland_release_hint` ; par exemple le relâchement d'Alt après Alt+Tab vers Scriibe pendant qu'un raccourci est tenu le coupe. Voulu pour l'essentiel (dictée tenue 5 min), non documenté, à regarder à l'essai Linux (tâche 3).
+- **Limite de I2** : un nouvel appui sur la touche de dictée **moins de 1,2 s** après son dernier événement, quand son relâchement a été manqué, est encore pris pour une répétition (un appui perdu) ; ce délai court ne laisse de toute façon pas de dictée utile.
+- **Note** : `announce_page_keys` journalise « la page relaie les touches » aussi quand le relâchement vient du repli de la fenêtre d'écho (une fois par lancement).
+
+### Tests
+
+- **Mac** : `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace` sans erreur après les corrections.
+- **PC Windows** (code envoyé par `git bundle` sur une branche `essai-c7`, supprimée ensuite, PC remis sur `main` `276f4d6`, bundle effacé) : `cargo clippy --workspace --all-targets -- -D warnings` sans avertissement ; `cargo test --workspace` sans échec (le test Win+V est ignoré : 1 ignoré de plus). **Le test Win+V modifié et le rattrapage du crochet ne sont compilés que là ; le test n'a pas été relancé dans la session de l'auteur** (tâche 3 : `-- --ignored --nocapture`, attendre la ligne `RESULTAT WIN+V : VERIFIE`).
+
 ## Relais
 
 *(Fin de la tâche 1, 19/11/2026, contexte à 30 % : relais décidé par la règle du `CLAUDE.md` (25 % ou plus en fin de tâche : la tâche suivante part d'une nouvelle session). Ne change ni l'ordre ni les consignes.)*
@@ -111,3 +142,5 @@ Test automatisé `crates/platform/tests/windows_clipboard.rs` (un seul test, Win
 - **Prochain pas** : tâche 2 du découpage (relecture par un sous-agent Sonnet · Élevé qui n'a pas écrit le code, sur `16b595d` et `e0716b7` ; corriger bloquants et importants ; § Relecture ; commit local ; rapport du sous-agent de 5 lignes au plus, détail en fichier du dossier temporaire). Points à lui faire regarder : le rattrapage du crochet par `GetAsyncKeyState` à l'appui (`crates/platform/src/windows/keyboard.rs`), `Controller::handle_page_key` (verrous `page_held` puis `state`), le journal qui n'écrit rien de dicté ni de tapé (captures refusées, écoute longue, annulation), le test `windows_clipboard.rs`.
 - **Pièges** : `cd ui` change le dossier courant du shell (chemins absolus) ; PowerShell 5 écrit un BOM avec `Set-Content -Encoding UTF8` (Scriibe juge alors `settings.json` illisible) ; par SSH le presse-papiers et l'historique Win+V ne sont pas joignables (le test se saute), il faut une tâche planifiée `/IT` dans la session de l'auteur (compte `DESKTOP-A0OFLLO\HP`, `-AllowStartIfOnBatteries`) ; code non poussé envoyé au PC par `git bundle` (`git fetch <bundle> HEAD:essai-c7`) ; `pilote compiler --mode tests` n'imprime pas le détail d'un échec : relancer `cargo test` par SSH ; pas de `x86_64-w64-mingw32-gcc` sur le Mac (pas de clippy Windows local).
 - **Mineurs restants** : tolérance au BOM de `settings.json` (non traité) ; échec ponctuel non identifié de `scriibe-platform --lib` sous Windows ; fenêtre administrateur au premier plan non essayée ; `CLAUDE.md` à 8 400 signes (seuil R03 : 8 000).
+
+*(Fin de la tâche 2, 19/11/2026 : relecture faite, importants corrigés, commit local « tâche 2 » (cinq commits locaux non poussés : 0f7b325, 16b595d, e0716b7, 8ad156e et celui-ci). Prochain pas : tâche 3, nouvelle session B. Piège : le test Win+V est maintenant `#[ignore]`.)*

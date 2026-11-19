@@ -3,7 +3,8 @@
 //! (notre propre Ctrl+V). Windows retire un crochet trop lent : le rappel ne fait que poster l'événement.
 
 use crate::keys::{
-    current_hook_rules, key_of, translate_vk, CommandMenuMask, KeyEvent, KeyListener, Subscription, VK_LMENU, VK_LWIN, VK_RWIN,
+    current_hook_rules, key_of, release_was_missed, translate_vk, CommandMenuMask, KeyEvent, KeyListener, Subscription, VK_LMENU, VK_LWIN,
+    VK_RWIN,
 };
 use scriibe_core::hotkey::Key;
 use std::cell::RefCell;
@@ -30,6 +31,8 @@ thread_local! {
     static SWALLOWED: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
     /// Les touches de commande de menu (Windows, Alt gauche) tenues pendant la dictée : leur relâchement est masqué, pas un appui seul.
     static COMMAND_MENU: RefCell<CommandMenuMask> = RefCell::new(CommandMenuMask::default());
+    /// Pour chaque touche tenue, l'heure (système, en ms) de son dernier événement : un appui qui suit de près est une répétition automatique.
+    static LAST_EVENT: RefCell<Vec<(u32, u32)>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Glisse une touche sans effet (code 0xE8, non attribué) entre l'appui et le relâchement d'Alt ou de Windows : sans autre touche entre les
@@ -76,15 +79,29 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                     // jamais été vu (enquête C7, docs/ENQUETE_WINDOWS.md). On le rattrape avant de traiter cet appui comme un appui neuf ;
                     // sans cela l'appui serait pris pour une répétition et la dictée ne partirait qu'au deuxième essai. Les touches retenues
                     // par ce crochet ne sont jamais enfoncées pour le système : elles sont exclues.
+                    // Et seulement si le dernier événement de la touche est plus ancien qu'une répétition automatique : une touche retenue par
+                    // un autre crochet paraît relâchée au système tout en étant tenue (relecture C7, I2).
+                    let last_event = LAST_EVENT.with(|last| last.borrow().iter().find(|(c, _)| *c == code).map(|(_, at)| *at));
                     let stale_release = if down
                         && held.contains(&key_of(code))
                         && !SWALLOWED.with(|taken| taken.borrow().contains(&code))
-                        && key_is_up(code)
+                        && release_was_missed(last_event, info.time, key_is_up(code))
                     {
                         translate_vk(&mut held, code, false)
                     } else {
                         None
                     };
+                    LAST_EVENT.with(|last| {
+                        let mut last = last.borrow_mut();
+                        last.retain(|(c, _)| *c != code);
+                        if down {
+                            last.push((code, info.time));
+                            // Une touche dont le relâchement n'est jamais vu ne s'accumule pas.
+                            if last.len() > 32 {
+                                last.remove(0);
+                            }
+                        }
+                    });
                     // Un appui qui n'est qu'une répétition automatique (touche déjà tenue avant la dictée) n'est jamais retenu : sinon
                     // le relâchement le serait aussi et Windows garderait la touche « enfoncée ».
                     let first_press = !held.contains(&key_of(code));
