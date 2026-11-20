@@ -308,7 +308,7 @@ Compatibilité seule ; le Magasin de modèles reste hors périmètre.
 
 ### 7. Choix qui reviennent à l'auteur (pour la tâche 3)
 
-La note suit déjà la recommandation de chacun.
+La note suit déjà la recommandation de chacun ; toutes ont été retenues par l'auteur le 20/11/2026 (§ Décisions).
 
 - **D1 · Sécurité : où vivent les clés privées de signature.** Recommandé : clé courante sur le Mac de l'auteur seulement (fichier minisign protégé par mot de passe), clé de secours hors ligne et ailleurs (par exemple une clé USB rangée), jamais au même endroit ; la signature se fait par `tools/signer_manifeste.sh` avant la publication du brouillon. Autre option : secret GitHub (publication entièrement automatique, mais un dépôt ou une CI compromis peut alors signer). Conséquence de la perte des deux clés : plus de mise à jour intégrée jusqu'à une installation à la main.
 - **D2 · Usage : moteurs gérés par Scriibe sur le Mac** (au lieu de Homebrew), Homebrew restant possible par un réglage avancé. Recommandé : oui (un seul mécanisme, moteurs essayés). Sinon : le Mac reste à part, Scriibe prévient seulement d'un écart de version.
@@ -373,3 +373,15 @@ Relecture de la § Note (20/11/2026), par un relecteur qui ne l'a pas écrite. P
 - **Bloquants R1 à R3 et importants R4 à R16 : corrigés dans la § Note** (§ 0, 1, 2.2, 3, 4.1 à 4.5, 5, 7 et lots du § 8).
 - Mineurs corrigés en passant, parce qu'ils tenaient en une phrase : R17 à R24, R27, R28.
 - **Mineurs restants**, pour le découpage de l'implémentation : **R25** (autorisations macOS perdues si le certificat de signature change : empreinte du certificat dans le manifeste et contrôle `codesign -R` avant d'installer ; à traiter au lot 1 ou 2) ; **R26** (SHA-256 des modèles proposés par l'onglet Installation, analysés par du C++ ; hors périmètre de ce chantier, à proposer avec le Magasin de modèles).
+
+## Décisions
+
+Réponses de l'auteur du 20/11/2026 aux choix du § 7 de la Note. Toutes suivent la recommandation : la Note n'a pas eu à changer.
+
+| Choix | Décision | Conséquence pour l'implémentation |
+|---|---|---|
+| D1 · Sécurité : où vivent les clés privées | Clé courante sur le Mac de l'auteur (fichier minisign protégé par mot de passe), clé de secours sur une clé USB rangée ailleurs ; jamais de secret GitHub | `tools/signer_manifeste.sh` lancé par l'auteur avant la publication du brouillon ; deux clés publiques compilées dès 0.13.0 |
+| D2 · Usage : moteurs du Mac | Gérés par Scriibe, comme sous Windows et Linux ; Homebrew possible par le réglage avancé « moteurs du système » | Lot 3 : CI macOS (zip llama `macos-arm64`, `whisper-server` compilé avec Metal embarqué), `ditto` sans aplatissement ; l'installation de l'auteur sur son Mac change |
+| D3 · Sécurité : retour vers une version d'avant 0.13.0 | Non proposé dans la liste ; guide d'installation à la main dans l'aide | Lot 2 : la liste ne montre que les Releases au manifeste valide |
+| D4 · Données : réglages au retour | Selon le schéma : réglages actuels gardés si la version visée sait les lire, sinon ceux de l'instantané de cette version ; l'autre choix reste proposé ; état courant sauvegardé d'abord ; historique, dictionnaire et utilisateurs jamais touchés | Lot 2 : choix par défaut calculé d'après `settingsSchema` du manifeste visé |
+| D5 · Usage : versions gardées sur le disque | 1 version précédente de l'application, 2 versions de chaque moteur, 5 instantanés de réglages (et au moins le dernier de chaque version d'origine) | Lots 1 et 3 : nettoyage après bascule réussie |
