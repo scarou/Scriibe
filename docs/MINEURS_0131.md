@@ -19,3 +19,22 @@ Sortie commune du découpage `decoupage-2026-11-23-mineurs-essais-pc` (carnet du
 | Rattrapage Windows : `CommandMenuMask` non informé | **Corrigé** : `forget(code)` appelé quand le crochet rattrape un relâchement manqué | `a_caught_up_release_forgets_the_command_key_so_the_next_press_starts_clean` (la partie crochet, `windows/keyboard.rs`, ne compile pas sur Mac : essai sur le PC à la tâche 4) |
 
 À savoir : d'autres chemins de menu des guides sont aussi périmés (« Réglages → Mise à jour », « Réglages → Apparence », « Réglages → Mesures et essais », « Réglages → Dictée » : devenus des pages du menu) ; hors de la liste de la tâche, non touchés.
+
+## Robustesse (tâche 1, 23/11)
+
+Choix et raisons : le trousseau reste `secret-tool` (pas de module Rust). Une clé trouvée est gardée **10 minutes** en mémoire puis relue : c'est le prix pour qu'une clé effacée ailleurs cesse d'être servie sans redémarrage ; un trousseau fermé à ce moment-là rend « pas de clé » jusqu'à la prochaine tentative (5 min), jamais une clé périmée. Pour les états de la fenêtre, M3 évince le pli d'Historique le plus ancien plutôt que d'abandonner de retenir les plis : on garde la fonction.
+
+| Point | État | Test |
+|---|---|---|
+| `secret-tool` par chemin absolu (`/usr/bin`, `/bin`, `/usr/local/bin`), `PATH` en repli | **Corrigé** | `the_program_is_looked_for_by_absolute_path_first_and_by_name_otherwise` |
+| Clé effacée de la mémoire dès qu'elle n'est plus utile (écrasée à la chute, périmée après 10 min, relue) | **Corrigé** (au mieux : une copie faite plus tôt par le système n'est pas atteinte ; la copie rendue aux moteurs n'est pas écrasée) | `a_found_key_is_forgotten_after_its_delay_…`, `secrets_are_overwritten_when_dropped` |
+| Désinstallation sur trousseau fermé : une seule attente, message « déverrouille-le » | **Corrigé** (`delete_all`) | `a_locked_keyring_stops_the_uninstall_after_the_first_wait_…` |
+| Échec d'écriture sur l'entrée de `secret-tool` : message avec le code de sortie | **Corrigé** (`ToolError::Refused`) | `a_tool_that_closes_its_input_without_reading_gives_a_message_with_its_exit_code_and_no_key` |
+| Fenêtre de déverrouillage fermée après le délai | **Processus tué et récupéré, mais fermeture de la fenêtre non vérifiée** : elle appartient au trousseau, qui doit la retirer quand l'outil quitte le bus ; **à regarder à l'essai Linux** (tâche 5) | — |
+| Clé jamais dans un journal ni en argument | **Inchangé, toujours testé** | `the_key_goes_through_standard_input_never_through_the_arguments` ; les messages d'erreur testés sans la clé |
+| Pastille sur fond sombre : liseré clair (indigo, violet, noir) | **Corrigé** (`--edge`, 1 px) ; rendu non vu à l'écran (essai Mac, tâche 6) | `appearance.test.ts` |
+| Carte « Mes commandes » inerte | **Corrigé** : export/import demandés depuis Données avec les commandes décochées → boîte qui dit quoi cocher, plus de carte inerte | `commandsTransfer.test.ts` |
+| M2 : changement en attente perdu à la fermeture | **Corrigé** : `pagehide` → `uiState.leave()`, requête `keepalive` | `uiState.test.ts` (deux cas), `apiKeepalive.test.ts` |
+| M3 : plafond de 300 cartes sans purge | **Corrigé** : le pli d'Historique le plus ancien cède sa place | `a_full_list_gives_way_to_a_new_card_by_dropping_the_oldest_history_fold` |
+| Test de contrat faux serveur de la page ↔ `merge` de Rust | **Fait** : `crates/platform/tests/data/ui_state_contract.json`, joué des deux côtés | `merge_follows_the_contract_shared_with_the_page`, `uiState.contract.test.ts` |
+| Tests des routes `api/ui-state` | **Fait** : la route est extraite (`ui_state::route`) et testée | `the_route_reads_merges_and_reports_a_file_it_must_not_touch` |

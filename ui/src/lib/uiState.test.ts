@@ -135,4 +135,37 @@ describe('états d’affichage', () => {
     expect(calls.length).toBe(2);
     expect(calls[1]).toBe('{"benchCompare":false}');
   });
+
+  it('à la fermeture de la page, un changement différé part tout de suite par l’envoi de dernière chance', async () => {
+    const server = fakeServer();
+    const leaving: unknown[] = [];
+    const cache = new UiStateCache(server.send, async (path, body) => {
+      leaving.push(body);
+      return server.send(path, body);
+    });
+    await cache.load();
+    cache.save({ dictionaryHeight: 500 }, 300);
+    expect(server.sent).toEqual([]);
+    cache.leave();
+    expect(leaving).toEqual([{ dictionaryHeight: 500 }]);
+    await vi.runAllTimersAsync();
+    expect(server.sent).toEqual([{ dictionaryHeight: 500 }]);
+    expect(server.kept().dictionaryHeight).toBe(500);
+    cache.leave();
+    expect(leaving).toHaveLength(1);
+  });
+
+  it('la fermeture n’attend pas un envoi en cours qui ne répond pas, et ne lève rien', async () => {
+    const leaving: unknown[] = [];
+    const cache = new UiStateCache(
+      () => new Promise(() => undefined),
+      () => {
+        throw new Error('page fermée');
+      },
+    );
+    cache.save({ benchCompare: true });
+    cache.save({ benchCompare: false }, 300);
+    expect(() => cache.leave()).not.toThrow();
+    expect(leaving).toEqual([]);
+  });
 });

@@ -66,7 +66,11 @@ export class UiStateCache {
   /** Les envois partent l'un après l'autre, dans l'ordre. */
   private chain: Promise<unknown> = Promise.resolve();
 
-  constructor(private send: Send) {}
+  /** `sendLeaving` : l'envoi de la dernière chance, qui survit à la fermeture de la page (par défaut le même que les autres). */
+  constructor(
+    private send: Send,
+    private sendLeaving: Send = send,
+  ) {}
 
   /** Lit l'état gardé par le programme. Sans réponse, réponse illisible ou réponse qui tarde plus de `timeoutMs` : états par défaut,
    * sans erreur (la page ne doit jamais attendre ce confort pour s'afficher) ; une réponse tardive est ignorée. */
@@ -106,6 +110,21 @@ export class UiStateCache {
     if (!patch) return;
     this.chain = this.chain.then(() => this.send('ui-state', patch)).catch(() => undefined);
   }
+
+  /** La page se ferme ou se recharge : ce qui attend encore (un changement différé, une hauteur glissée) part tout de suite, sans attendre
+   * les envois en cours, par une requête qui survit à la fermeture (M2 de la relecture). Sans rien en attente : aucun envoi. */
+  leave(): void {
+    if (this.timer !== undefined) clearTimeout(this.timer);
+    this.timer = undefined;
+    const patch = this.pending;
+    this.pending = null;
+    if (!patch) return;
+    try {
+      void Promise.resolve(this.sendLeaving('ui-state', patch)).catch(() => undefined);
+    } catch {
+      /* la page se ferme : rien à afficher */
+    }
+  }
 }
 
-export const uiState = new UiStateCache(api);
+export const uiState = new UiStateCache(api, (path, body) => api(path, body, { keepalive: true }));

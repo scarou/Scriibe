@@ -17,7 +17,7 @@
 </script>
 
 <script lang="ts">
-  import { caption, gradient, listeningOpacity, listeningText } from '../lib/appearance';
+  import { caption, gradient, listeningOpacity, listeningText, rimStyle } from '../lib/appearance';
   import { t } from '../lib/i18n.svelte';
   import { api } from '../lib/api';
 
@@ -26,6 +26,7 @@
 
   let v = $derived(view);
   let fill = $derived(gradient(v.appearance.color));
+  let rim = $derived(rimStyle(v.appearance.color));
   let note = $derived(caption(v.mic, v.translation, t));
   let align = $derived(v.appearance.position === 'left' ? 'flex-start' : v.appearance.position === 'right' ? 'flex-end' : 'center');
   let opacity = $derived(v.state === 'listening' ? listeningOpacity(v.mic, v.appearance.opacity) : v.state === 'message' ? 1 : v.appearance.opacity);
@@ -64,7 +65,7 @@
   <div class="stage" class:inline class:failing={!!err && !inline} style="align-items: {align}">
     <div class="wrap" style="align-items: {align}; opacity: {opacity}">
       {#if err}
-        <div class="capsule message failure" style="background: {fill}" use:measure>
+        <div class="capsule message failure" style="background: {fill}; {rim}" use:measure>
           <span class="icon">{err.kind === 'not_recognised' ? '?' : '!'}</span>
           <span class="body">
             {#if headline}<span class="text">{headline}</span>{/if}
@@ -73,11 +74,11 @@
           <button class="close" type="button" aria-label={t('Fermer')} onclick={dismiss}>✕</button>
         </div>
       {:else if v.state === 'message'}
-        <div class="capsule message" style="background: {fill}">
+        <div class="capsule message" style="background: {fill}; {rim}">
           <span class="icon">!</span><span class="text">{v.message ? t(v.message) : ''}</span>
         </div>
       {:else if v.appearance.style === 'pill'}
-        <div class="capsule" style="background: {fill}">
+        <div class="capsule" style="background: {fill}; {rim}">
           {#if v.state === 'listening'}
             <span class="bars">{#each bars as b, i (i)}<i style="height: {5 + 15 * b * Math.max(0.15, v.level)}px"></i>{/each}</span>
             <span class="text">{listeningText(v.mic, t)}</span>
@@ -89,15 +90,15 @@
           {/if}
         </div>
       {:else if v.appearance.style === 'dot'}
-        {#if v.state === 'listening' && note}<div class="capsule compact above" style="background: {fill}"><span class="text">{note}</span></div>{/if}
+        {#if v.state === 'listening' && note}<div class="capsule compact above" style="background: {fill}; {rim}"><span class="text">{note}</span></div>{/if}
         {#if v.state === 'listening'}
-          <div class="dotbox"><div class="dot" style="background: {fill}; width: {14 + 12 * v.level}px; height: {14 + 12 * v.level}px"></div></div>
+          <div class="dotbox"><div class="dot" style="background: {fill}; {rim}; width: {14 + 12 * v.level}px; height: {14 + 12 * v.level}px"></div></div>
         {:else}
-          <div class="dotbox"><div class="dot fixed" style="background: {fill}">{#if v.state === 'working'}<span class="spinner small"></span>{:else}<span class="icon small">✓</span>{/if}</div></div>
+          <div class="dotbox"><div class="dot fixed" style="background: {fill}; {rim}">{#if v.state === 'working'}<span class="spinner small"></span>{:else}<span class="icon small">✓</span>{/if}</div></div>
         {/if}
       {:else}
-        {#if v.state === 'listening' && note}<div class="capsule compact above" style="background: {fill}"><span class="text">{note}</span></div>{/if}
-        <div class="capsule" style="background: {fill}">
+        {#if v.state === 'listening' && note}<div class="capsule compact above" style="background: {fill}; {rim}"><span class="text">{note}</span></div>{/if}
+        <div class="capsule" style="background: {fill}; {rim}">
           {#if v.state === 'listening'}
             <span class="curve">{#each levels as l, i (i)}<i style="height: {Math.max(2, 24 * l)}px; opacity: {0.45 + (0.55 * i) / Math.max(1, levels.length)}"></i>{/each}</span>
           {:else if v.state === 'working'}
@@ -117,7 +118,7 @@
   .stage.failing { padding: 0; }
   .stage.inline { position: static; padding: 8px; font-size: 13px; }
   .wrap { display: flex; flex-direction: column; gap: 6px; transition: opacity 0.15s ease-out; }
-  .capsule { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px; border-radius: 999px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18); white-space: nowrap; max-width: 100%; }
+  .capsule { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px; border-radius: 999px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--edge, transparent); white-space: nowrap; max-width: 100%; }
   .capsule.compact { height: 28px; padding: 0 12px; }
   /* Un message est une phrase entière (« Reformulation impossible : moteur hors de cet ordinateur, sans accord… ») : elle passe à la ligne au lieu d'être coupée. */
   .capsule.message { height: auto; min-height: 40px; padding: 9px 18px; border-radius: 22px; white-space: normal; line-height: 1.3; }
@@ -133,7 +134,7 @@
   .curve { display: inline-flex; align-items: center; gap: 1px; width: 140px; height: 24px; }
   .curve i { display: block; flex: 1; min-width: 1.5px; max-width: 3px; border-radius: 1px; background: #fff; }
   .dotbox { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
-  .dot { border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.9); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25); transition: width 0.08s, height 0.08s; }
+  .dot { border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.9); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--edge, transparent); transition: width 0.08s, height 0.08s; }
   .dot.fixed { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 0; }
   .spinner { width: 13px; height: 13px; border-radius: 50%; border: 2px solid #fff; border-right-color: transparent; animation: turn 0.8s linear infinite; }
   .spinner.small { width: 12px; height: 12px; }

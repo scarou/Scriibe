@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caption, colors, gradient, listeningOpacity, listeningText } from './appearance';
+import { caption, colors, gradient, listeningOpacity, listeningText, rimStyle } from './appearance';
 
 /** Rapport de contraste WCAG d'une teinte `#RRGGBB` avec le blanc. */
 function contrastWithWhite(hex: string): number {
@@ -30,5 +30,12 @@ describe('apparence de l’indicateur', () => {
   it('garde l’avertissement de micro lisible malgré la transparence', () => {
     expect(listeningOpacity('ok', 0.4)).toBe(0.4);
     expect(listeningOpacity('silent', 0.4)).toBe(1);
+  });
+});
+
+describe('le liseré de la pastille sur fond sombre', () => {
+  it('est posé sur indigo, violet et noir, et sur aucune autre couleur', () => {
+    for (const id of ['indigo', 'purple', 'black'] as const) expect(rimStyle(id)).toContain('--edge: rgba(255, 255, 255');
+    for (const c of colors.filter((c) => !['indigo', 'purple', 'black'].includes(c.id))) expect(rimStyle(c.id)).toBe('');
   });
 });

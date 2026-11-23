@@ -731,7 +731,7 @@ pub fn delete_credentials() -> Vec<(String, Result<bool, String>)> {
     }
     #[cfg(target_os = "linux")]
     {
-        KEY_ACCOUNTS.iter().map(|account| ((*account).to_string(), crate::secret_service::shared().delete(account))).collect()
+        crate::secret_service::shared().delete_all(&KEY_ACCOUNTS)
     }
     #[cfg(not(any(target_os = "macos", windows, target_os = "linux")))]
     {

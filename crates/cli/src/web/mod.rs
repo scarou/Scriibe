@@ -220,11 +220,12 @@ fn handle(ctx: &Context, mut request: Request) {
     match (request.method().clone(), path.as_str()) {
         (Method::Get, "api/status") => ok(request, status(ctx)),
         // Les états d'affichage gardés (lus une fois avant d'afficher la page) et leur mise à jour par fragment. Jamais d'erreur côté page : sans réponse, elle garde ses états en mémoire.
-        (Method::Get, "api/ui-state") => ok(request, ctx.ui_state.read()),
-        (Method::Post, "api/ui-state") => match ctx.ui_state.patch(&input) {
-            Ok(state) => ok(request, state),
-            Err(message) => fail(request, 500, &message),
-        },
+        (method @ (Method::Get | Method::Post), "api/ui-state") => {
+            match scriibe_platform::ui_state::route(&ctx.ui_state, method == Method::Post, &input) {
+                Ok(state) => ok(request, state),
+                Err(message) => fail(request, 500, &message),
+            }
+        }
         // L'état de la dictée seul, léger : la ligne d'état de la barre latérale le relit chaque seconde.
         (Method::Get, "api/activity") => ok(
             request,

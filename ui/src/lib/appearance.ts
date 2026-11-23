@@ -40,6 +40,14 @@ export function gradient(color: CaptureColor): string {
   return `linear-gradient(to right, ${light}, ${dark})`;
 }
 
+/** Les couleurs qui se perdent sur un fond sombre (ombre quasi invisible, « Noir » sur noir) : la pastille y porte un fin liseré clair. */
+export const needsRim: CaptureColor[] = ['indigo', 'purple', 'black'];
+
+/** Variable CSS du liseré (`--edge`) à poser sur la pastille ; vide pour les autres couleurs. */
+export function rimStyle(color: CaptureColor): string {
+  return needsRim.includes(color) ? '--edge: rgba(255, 255, 255, 0.55)' : '';
+}
+
 /** Le texte de la pastille pendant l'écoute : l'alerte de micro d'abord, sinon « J'écoute… ». */
 export function listeningText(mic: 'ok' | 'weak' | 'silent', tr: (text: string) => string = (text) => text): string {
   return tr(mic === 'silent' ? tx('Je n’entends rien…') : mic === 'weak' ? tx('Je t’entends à peine…') : tx('J’écoute…'));

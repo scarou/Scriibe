@@ -31,10 +31,12 @@ export function withProfile(body: unknown, profile: string | null | undefined): 
   return { ...body, profile };
 }
 
-export async function api<T = any>(path: string, body?: unknown): Promise<T> {
+/** `keepalive` : la requête part même si la page se ferme ou se recharge pendant l'envoi (corps de 64 Ko au plus). */
+export async function api<T = any>(path: string, body?: unknown, options: { keepalive?: boolean } = {}): Promise<T> {
   const payload = withProfile(body, knownProfile);
   const init: RequestInit =
     payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) };
+  if (options.keepalive) init.keepalive = true;
   const response = await fetch('api/' + path, init);
   const out = await response.json();
   if (response.status === 409 && out?.stale) {

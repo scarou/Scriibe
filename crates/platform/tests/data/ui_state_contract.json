@@ -1,0 +1,140 @@
+{
+  "_note": "Contrat entre la page (ui/src/lib/uiState.ts, applyPatch) et le programme (crates/platform/src/ui_state.rs, merge) : pour des fragments valides, le même état. Joué des deux côtés.",
+  "cases": [
+    {
+      "name": "carte repliée ajoutée",
+      "state": {},
+      "patch": {
+        "folds": {
+          "modes-mes-modes": true
+        }
+      },
+      "expected": {
+        "folds": {
+          "modes-mes-modes": true
+        }
+      }
+    },
+    {
+      "name": "carte dépliée à côté d'une autre",
+      "state": {
+        "folds": {
+          "a": true
+        }
+      },
+      "patch": {
+        "folds": {
+          "b": false
+        }
+      },
+      "expected": {
+        "folds": {
+          "a": true,
+          "b": false
+        }
+      }
+    },
+    {
+      "name": "null retire une carte",
+      "state": {
+        "folds": {
+          "a": true,
+          "b": false
+        }
+      },
+      "patch": {
+        "folds": {
+          "a": null
+        }
+      },
+      "expected": {
+        "folds": {
+          "b": false
+        }
+      }
+    },
+    {
+      "name": "retirer la dernière carte vide la clé folds",
+      "state": {
+        "folds": {
+          "a": true
+        }
+      },
+      "patch": {
+        "folds": {
+          "a": null
+        }
+      },
+      "expected": {}
+    },
+    {
+      "name": "case du banc",
+      "state": {},
+      "patch": {
+        "benchCompare": false
+      },
+      "expected": {
+        "benchCompare": false
+      }
+    },
+    {
+      "name": "hauteur du Dictionnaire",
+      "state": {},
+      "patch": {
+        "dictionaryHeight": 420
+      },
+      "expected": {
+        "dictionaryHeight": 420
+      }
+    },
+    {
+      "name": "null retire la hauteur",
+      "state": {
+        "dictionaryHeight": 420
+      },
+      "patch": {
+        "dictionaryHeight": null
+      },
+      "expected": {}
+    },
+    {
+      "name": "langue",
+      "state": {
+        "benchCompare": true
+      },
+      "patch": {
+        "uiLanguage": "en"
+      },
+      "expected": {
+        "benchCompare": true,
+        "uiLanguage": "en"
+      }
+    },
+    {
+      "name": "fragment composé",
+      "state": {
+        "folds": {
+          "a": true
+        },
+        "uiLanguage": "fr"
+      },
+      "patch": {
+        "folds": {
+          "a": false,
+          "c": true
+        },
+        "dictionaryHeight": 300,
+        "benchCompare": true
+      },
+      "expected": {
+        "folds": {
+          "a": false,
+          "c": true
+        },
+        "dictionaryHeight": 300,
+        "benchCompare": true,
+        "uiLanguage": "fr"
+      }
+    }
+  ]
+}

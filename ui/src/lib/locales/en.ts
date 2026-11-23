@@ -371,6 +371,8 @@ export const en: Record<string, string> = {
   'Plusieurs modes personnels : exporte celui que tu veux avec son bouton « Exporter », dans « Mes modes ».': 'Several custom modes: export the one you want with its “Export” button, in “My modes”.',
   'Le dictionnaire est vide : rien à exporter.': 'The dictionary is empty: nothing to export.',
   'Aucune commande vocale personnelle à exporter.': 'No custom voice command to export.',
+  'Les commandes vocales sont décochées : coche « Activer les commandes vocales » en haut de la page Commandes vocales, puis recommence.':
+    'Voice commands are switched off: tick “Enable voice commands” at the top of the Voice commands page, then try again.',
   'Aucun utilisateur à exporter : les utilisateurs ne sont pas disponibles.': 'No user to export: users are not available.',
   'Créer un mode': 'Create a mode',
   'Modifier le mode': 'Edit the mode',

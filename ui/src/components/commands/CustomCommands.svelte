@@ -4,6 +4,7 @@
   import { exportWhere } from '../../lib/exportwhere';
   import { api } from '../../lib/api';
   import { settings } from '../../lib/settings.svelte';
+  import { commandsTransferBlock } from '../../lib/commandsTransfer';
   import { nav } from '../../lib/nav.svelte';
   import { i18n, t } from '../../lib/i18n.svelte';
   import '../commands/commands.css';
@@ -154,9 +155,9 @@
     if (kind !== 'commands-export' && kind !== 'commands-import') return;
     if (!v) return;
     nav.transferRequest = null;
-    if (kind === 'commands-import') void openTransfer('import');
-    else if (customs.length > 0) void openTransfer('export');
-    else nav.transferNothing(t('Aucune commande vocale personnelle à exporter.'));
+    const blocked = commandsTransferBlock(kind, v.voiceCommandsEnabled, customs.length);
+    if (blocked) nav.transferNothing(t(blocked));
+    else void openTransfer(kind === 'commands-import' ? 'import' : 'export');
   });
 </script>
 

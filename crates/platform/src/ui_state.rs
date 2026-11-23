@@ -16,6 +16,9 @@ pub const FILE: &str = "ui-state.json";
 const VERSION: u64 = 1;
 /// Nombre de cartes retenues au plus (il y en a une soixantaine) et longueur d'un identifiant : un fichier qui ne grossit pas.
 const MAX_FOLDS: usize = 300;
+/// Les cartes de l'Historique (une par jour : `historique-AAAA-MM-JJ`) sont les seules qui s'accumulent : liste pleine, la plus ancienne
+/// cède sa place à une carte neuve (l'ordre des identifiants est l'ordre des jours).
+const HISTORY_PREFIX: &str = "historique-";
 const MAX_ID_LEN: usize = 80;
 /// Hauteur permise des cartes du Dictionnaire (px), comme la poignée de la page.
 const HEIGHT: std::ops::RangeInclusive<i64> = 180..=1400;
@@ -59,7 +62,16 @@ fn merge(state: &mut Map<String, Value>, fragment: &Value) {
                 Value::Null => {
                     kept.remove(id);
                 }
-                Value::Bool(_) if kept.contains_key(id) || kept.len() < MAX_FOLDS => {
+                Value::Bool(_) => {
+                    if !kept.contains_key(id) && kept.len() >= MAX_FOLDS {
+                        let oldest = kept.keys().filter(|k| k.starts_with(HISTORY_PREFIX) && *k != id).min().cloned();
+                        match oldest {
+                            Some(oldest) => {
+                                kept.remove(&oldest);
+                            }
+                            None => continue,
+                        }
+                    }
                     kept.insert(id.clone(), value.clone());
                 }
                 _ => {}
@@ -87,6 +99,16 @@ fn merge(state: &mut Map<String, Value>, fragment: &Value) {
     }
     if let Some(lang) = fragment.get("uiLanguage").and_then(Value::as_str).filter(|l| matches!(*l, "fr" | "en" | "auto")) {
         state.insert("uiLanguage".into(), json!(lang));
+    }
+}
+
+/// Ce que répond la page locale à `api/ui-state` : `Get` rend l'état gardé, `Post` fusionne le fragment et rend l'état obtenu. L'erreur est
+/// rendue en texte (la page la garde pour elle, sans rien afficher).
+pub fn route(store: &UiStateStore, post: bool, input: &Value) -> Result<Value, String> {
+    if post {
+        store.patch(input)
+    } else {
+        Ok(store.read())
     }
 }
 
@@ -328,5 +350,57 @@ mod tests {
         }
         let names: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
         assert_eq!(names, vec![FILE.to_string()]);
+    }
+
+    #[test]
+    fn a_full_list_gives_way_to_a_new_card_by_dropping_the_oldest_history_fold() {
+        let dir = temp("history-folds");
+        let store = UiStateStore::new(&dir);
+        let days: Map<String, Value> = (0..MAX_FOLDS).map(|i| (format!("historique-2026-01-{:03}", i), json!(true))).collect();
+        store.patch(&json!({"folds": days})).unwrap();
+        store.patch(&json!({"folds": {"historique-2026-12-31": false}})).unwrap();
+        let folds = store.read()["folds"].clone();
+        assert_eq!(folds.as_object().unwrap().len(), MAX_FOLDS, "le plafond tient");
+        assert!(folds.get("historique-2026-01-000").is_none(), "la plus ancienne a cédé");
+        assert_eq!(folds["historique-2026-12-31"], json!(false), "la neuve est retenue");
+        // Une carte autre que de l'Historique prend aussi la place de la plus ancienne ; une liste sans pli d'Historique refuse toujours.
+        store.patch(&json!({"folds": {"modes-mes-modes": true}})).unwrap();
+        assert_eq!(store.read()["folds"]["modes-mes-modes"], json!(true));
+        let dir = temp("no-history-folds");
+        let store = UiStateStore::new(&dir);
+        let others: Map<String, Value> = (0..MAX_FOLDS).map(|i| (format!("c{i}"), json!(true))).collect();
+        store.patch(&json!({"folds": others})).unwrap();
+        store.patch(&json!({"folds": {"historique-2026-12-31": true}})).unwrap();
+        assert!(store.read()["folds"].get("historique-2026-12-31").is_none(), "rien à évincer : refusée");
+    }
+
+    /// Le contrat avec la page : les mêmes cas sont joués par `ui/src/lib/uiState.contract.test.ts` sur `applyPatch`.
+    #[test]
+    fn merge_follows_the_contract_shared_with_the_page() {
+        let contract: Value = serde_json::from_str(include_str!("../tests/data/ui_state_contract.json")).unwrap();
+        for case in contract["cases"].as_array().unwrap() {
+            let mut state = case["state"].as_object().unwrap().clone();
+            merge(&mut state, &case["patch"]);
+            assert_eq!(Value::Object(state), case["expected"], "{}", case["name"]);
+        }
+    }
+
+    #[test]
+    fn the_route_reads_merges_and_reports_a_file_it_must_not_touch() {
+        let dir = temp("route");
+        let store = UiStateStore::new(&dir);
+        assert_eq!(route(&store, false, &Value::Null), Ok(json!({})));
+        assert_eq!(route(&store, true, &json!({"benchCompare": true, "profile": "AAAA"})), Ok(json!({"benchCompare": true})));
+        assert_eq!(
+            route(&store, false, &Value::Null),
+            Ok(json!({"benchCompare": true})),
+            "la lecture rend ce que la précédente écriture a gardé"
+        );
+        assert_eq!(route(&store, true, &Value::Null), Ok(json!({"benchCompare": true})), "corps illisible : rien ne change");
+        let dir = temp("route-newer");
+        std::fs::write(dir.join(FILE), r#"{"version": 9}"#).unwrap();
+        let store = UiStateStore::new(&dir);
+        assert_eq!(route(&store, false, &Value::Null), Ok(json!({})));
+        assert!(route(&store, true, &json!({"benchCompare": true})).unwrap_err().contains("plus récente"));
     }
 }

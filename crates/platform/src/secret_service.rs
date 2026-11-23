@@ -24,6 +24,14 @@ const TOOL: &str = "secret-tool";
 /// Une lecture qui n'a rien donné (clé absente, trousseau fermé ou absent) n'est pas refaite avant ce délai : une demande de
 /// déverrouillage ne doit pas revenir à chaque rafraîchissement de la page.
 const ABSENT_FOR: Duration = Duration::from_secs(30);
+/// Une clé trouvée n'est gardée en mémoire que ce temps : ensuite elle est effacée et relue (une clé supprimée ailleurs cesse d'être
+/// servie, et la clé ne dort pas en mémoire jusqu'à la fermeture de Scriibe).
+const FOUND_FOR: Duration = Duration::from_secs(600);
+/// Où chercher `secret-tool` avant de se fier au `PATH` du processus (un `PATH` modifié ferait lancer un autre programme avec la clé).
+const TOOL_DIRS: [&str; 3] = ["/usr/bin", "/bin", "/usr/local/bin"];
+/// Message d'un trousseau qui n'a pas répondu à la désinstallation ; il dit quoi faire.
+const LOCKED_MESSAGE: &str =
+    "le trousseau du bureau n'a pas répondu : déverrouille-le (Mots de passe et clés) puis recommence, ou supprime à la main les entrées « Scriibe »";
 /// Un trousseau qui n'a pas répondu (fermé, outil absent) n'est pas redemandé avant ce délai : pas de fenêtre de déverrouillage en pleine
 /// dictée, toutes les 30 s. Une clé enregistrée par la page, elle, apparaît tout de suite.
 const UNREACHABLE_FOR: Duration = Duration::from_secs(300);
@@ -33,10 +41,41 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 /// Une clé d'API fait quelques dizaines de signes.
 const MAX_KEY_LEN: usize = 4096;
 
+/// Écrase un texte secret avant de le rendre (`black_box` : l'optimiseur ne retire pas l'écriture). Au mieux : une copie faite plus tôt
+/// par une bibliothèque n'est pas atteinte.
+fn wipe(text: &mut String) {
+    let mut bytes = std::mem::take(text).into_bytes();
+    bytes.iter_mut().for_each(|b| *b = 0);
+    std::hint::black_box(&bytes);
+}
+
+/// Une clé gardée en mémoire : écrasée dès qu'elle est lâchée (remplacée, périmée, effacée).
+#[derive(Clone)]
+struct Secret(String);
+
+impl Secret {
+    fn new(text: &str) -> Self {
+        Secret(text.to_string())
+    }
+}
+
+impl Drop for Secret {
+    fn drop(&mut self) {
+        wipe(&mut self.0);
+    }
+}
+
 /// Ce que renvoie l'outil : le code de sortie et ce qu'il a écrit en sortie standard (la clé, pour une lecture). Jamais sa sortie d'erreur.
+/// La sortie est écrasée quand le résultat est lâché.
 pub struct ToolOutput {
     pub code: Option<i32>,
     pub stdout: String,
+}
+
+impl Drop for ToolOutput {
+    fn drop(&mut self) {
+        wipe(&mut self.stdout);
+    }
 }
 
 pub enum ToolError {
@@ -46,6 +85,8 @@ pub enum ToolError {
     TimedOut,
     /// Lancement ou échange impossible.
     Io,
+    /// L'outil a fermé son entrée avant d'avoir lu la clé : il a refusé l'écriture (avec son code de sortie, s'il l'a donné).
+    Refused(Option<i32>),
 }
 
 /// L'outil `secret-tool`, ou son remplaçant dans les tests.
@@ -60,8 +101,16 @@ pub struct CommandTool {
 
 impl CommandTool {
     pub fn new() -> Self {
-        Self { program: TOOL.to_string() }
+        Self { program: resolve_program(&TOOL_DIRS) }
     }
+}
+
+/// `secret-tool` par chemin absolu dans les dossiers système ; à défaut, son nom seul (le `PATH` en repli).
+fn resolve_program(dirs: &[&str]) -> String {
+    dirs.iter()
+        .map(|dir| std::path::Path::new(dir).join(TOOL))
+        .find(|path| path.is_file())
+        .map_or_else(|| TOOL.to_string(), |path| path.to_string_lossy().into_owned())
 }
 
 impl Default for CommandTool {
@@ -82,9 +131,22 @@ impl SecretTool for CommandTool {
         if let (Some(text), Some(mut pipe)) = (stdin, child.stdin.take()) {
             // `secret-tool store` lit jusqu'à la fin de l'entrée : pas de retour à la ligne ajouté, il serait gardé avec la clé.
             if pipe.write_all(text.as_bytes()).is_err() {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(ToolError::Io);
+                // L'outil a fermé son entrée sans lire la clé : on lui laisse un instant pour dire pourquoi (son code de sortie), puis on
+                // le coupe. Un processus tué se retire du bus : le trousseau retire sa demande de déverrouillage.
+                drop(pipe);
+                let began = Instant::now();
+                let code = loop {
+                    match child.try_wait() {
+                        Ok(Some(status)) => break status.code(),
+                        Ok(None) if began.elapsed() < Duration::from_secs(2) => std::thread::sleep(Duration::from_millis(20)),
+                        _ => {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                            break None;
+                        }
+                    }
+                };
+                return Err(ToolError::Refused(code));
             }
         }
         let began = Instant::now();
@@ -109,7 +171,7 @@ impl SecretTool for CommandTool {
 }
 
 enum Known {
-    Found(String),
+    Found(Secret, Instant),
     /// Le trousseau a répondu : pas de clé.
     Absent(Instant),
     /// Le trousseau n'a pas répondu (fermé, outil absent).
@@ -128,6 +190,7 @@ pub struct ServiceSecrets<T: SecretTool> {
     tool: T,
     absent_for: Duration,
     unreachable_for: Duration,
+    found_for: Duration,
     state: Mutex<State>,
 }
 
@@ -137,7 +200,13 @@ impl<T: SecretTool> ServiceSecrets<T> {
     }
 
     pub fn with_delays(tool: T, absent_for: Duration, unreachable_for: Duration) -> Self {
-        Self { tool, absent_for, unreachable_for, state: Mutex::new(State::default()) }
+        Self { tool, absent_for, unreachable_for, found_for: FOUND_FOR, state: Mutex::new(State::default()) }
+    }
+
+    /// Change le temps pendant lequel une clé trouvée reste en mémoire (les essais).
+    pub fn with_found_for(mut self, found_for: Duration) -> Self {
+        self.found_for = found_for;
+        self
     }
 
     fn state(&self) -> MutexGuard<'_, State> {
@@ -154,10 +223,10 @@ impl<T: SecretTool> ServiceSecrets<T> {
         };
     }
 
-    fn lookup(&self, account: &str) -> Result<Option<String>, ToolError> {
+    fn lookup(&self, account: &str) -> Result<Option<Secret>, ToolError> {
         let out = self.tool.run(&["lookup", "service", SERVICE, "account", account], None, READ_TIMEOUT)?;
-        let value = out.stdout.trim().to_string();
-        Ok((out.code == Some(0) && !value.is_empty()).then_some(value))
+        let value = out.stdout.trim();
+        Ok((out.code == Some(0) && !value.is_empty()).then(|| Secret::new(value)))
     }
 
     /// Enregistre la clé dans le trousseau. Rien n'est écrit ailleurs, quoi qu'il arrive ; l'erreur ne contient jamais la clé.
@@ -175,7 +244,7 @@ impl<T: SecretTool> ServiceSecrets<T> {
         let env = env_name(kind);
         match self.tool.run(&args, Some(value), WRITE_TIMEOUT) {
             Ok(out) if out.code == Some(0) => {
-                self.changed(account, Some(Known::Found(value.to_string())));
+                self.changed(account, Some(Known::Found(Secret::new(value), Instant::now())));
                 Ok(())
             }
             Ok(out) => Err(format!(
@@ -187,6 +256,10 @@ impl<T: SecretTool> ServiceSecrets<T> {
             )),
             Err(ToolError::TimedOut) => Err(format!(
                 "le trousseau du bureau n'a pas répondu à temps (est-il verrouillé ?) : déverrouille-le et recommence, ou garde la variable d'environnement {env}. Rien n'a été enregistré."
+            )),
+            Err(ToolError::Refused(code)) => Err(format!(
+                "secret-tool a refusé la clé (code {}) : déverrouille le trousseau et recommence, ou garde la variable d'environnement {env}. Rien n'a été enregistré.",
+                code.map_or("?".to_string(), |c| c.to_string())
             )),
             Err(ToolError::Io) => Err(format!(
                 "le trousseau du bureau n'a pas pu être utilisé : garde la variable d'environnement {env}. Rien n'a été enregistré."
@@ -200,12 +273,31 @@ impl<T: SecretTool> ServiceSecrets<T> {
         match self.lookup(account) {
             Ok(None) | Err(ToolError::Missing) => return Ok(false),
             Ok(Some(_)) => {}
-            Err(_) => return Err("le trousseau du bureau n'a pas répondu".into()),
+            Err(_) => return Err(LOCKED_MESSAGE.into()),
         }
         match self.tool.run(&["clear", "service", SERVICE, "account", account], None, WRITE_TIMEOUT) {
             Ok(out) if out.code == Some(0) => Ok(true),
             _ => Err("le trousseau du bureau a refusé d'effacer la clé".into()),
         }
+    }
+
+    /// Efface plusieurs clés. Dès que le trousseau n'a pas répondu, les suivantes ne sont pas tentées (une attente de 8 s chacune, trois
+    /// fois, devant une fenêtre de déverrouillage) : elles reçoivent le même message.
+    pub fn delete_all(&self, accounts: &[&'static str]) -> Vec<(String, Result<bool, String>)> {
+        let mut locked = false;
+        accounts
+            .iter()
+            .map(|account| {
+                let result = if locked {
+                    self.changed(account, None);
+                    Err(LOCKED_MESSAGE.to_string())
+                } else {
+                    self.delete(account)
+                };
+                locked |= result.as_ref().is_err_and(|e| e == LOCKED_MESSAGE);
+                ((*account).to_string(), result)
+            })
+            .collect()
     }
 }
 
@@ -215,7 +307,7 @@ impl<T: SecretTool> Secrets for ServiceSecrets<T> {
         let generation = {
             let state = self.state();
             match state.known.get(account) {
-                Some(Known::Found(value)) => return Some(value.clone()),
+                Some(Known::Found(value, since)) if since.elapsed() < self.found_for => return Some(value.0.clone()),
                 Some(Known::Absent(since)) if since.elapsed() < self.absent_for => return None,
                 Some(Known::Unreachable(since)) if since.elapsed() < self.unreachable_for => return None,
                 _ => {}
@@ -224,7 +316,7 @@ impl<T: SecretTool> Secrets for ServiceSecrets<T> {
         };
         // Le verrou n'est pas tenu pendant l'appel : une demande de déverrouillage ne bloque pas les autres lectures.
         let (found, known) = match self.lookup(account) {
-            Ok(Some(value)) => (Some(value.clone()), Known::Found(value)),
+            Ok(Some(value)) => (Some(value.0.clone()), Known::Found(value, Instant::now())),
             Ok(None) => (None, Known::Absent(Instant::now())),
             Err(_) => (None, Known::Unreachable(Instant::now())),
         };
@@ -494,5 +586,87 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
         let absent = CommandTool { program: "/nonexistent/scriibe-secret-tool".into() };
         assert!(matches!(absent.run(&["lookup"], None, Duration::from_secs(1)), Err(ToolError::Missing)));
+    }
+
+    #[test]
+    fn a_found_key_is_forgotten_after_its_delay_so_a_key_erased_elsewhere_stops_being_served() {
+        let tool = FakeTool::default();
+        ServiceSecrets::new(tool.clone()).store(KeyKind::OpenRouter, KEY).unwrap();
+        let keyring = ServiceSecrets::new(tool.clone()).with_found_for(Duration::from_secs(600));
+        assert_eq!(keyring.get(KeyKind::OpenRouter).as_deref(), Some(KEY));
+        tool.items.lock().unwrap().clear();
+        assert_eq!(keyring.get(KeyKind::OpenRouter).as_deref(), Some(KEY), "dans le délai : servie depuis la mémoire, sans appel");
+        assert_eq!(tool.count("lookup"), 1);
+        let keyring = ServiceSecrets::new(tool.clone()).with_found_for(Duration::ZERO);
+        tool.items.lock().unwrap().insert("openrouter".into(), KEY.into());
+        assert_eq!(keyring.get(KeyKind::OpenRouter).as_deref(), Some(KEY));
+        tool.items.lock().unwrap().clear();
+        assert_eq!(keyring.get(KeyKind::OpenRouter), None, "délai passé : relue, et la clé effacée ailleurs n'est plus servie");
+    }
+
+    #[test]
+    fn secrets_are_overwritten_when_dropped() {
+        let mut text = String::from(KEY);
+        wipe(&mut text);
+        assert!(text.is_empty(), "le texte est vidé");
+        // Les types qui portent une clé se vident à la chute (vérifié sur le tampon avant la libération).
+        let mut secret = Secret::new(KEY);
+        wipe(&mut secret.0);
+        assert!(secret.0.is_empty());
+        let out = ToolOutput { code: Some(0), stdout: KEY.into() };
+        drop(out);
+    }
+
+    #[test]
+    fn the_program_is_looked_for_by_absolute_path_first_and_by_name_otherwise() {
+        let dir = std::env::temp_dir().join(format!("scriibe-tool-dir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let none = dir.join("vide");
+        std::fs::create_dir_all(&none).unwrap();
+        let (none_s, dir_s) = (none.to_string_lossy().into_owned(), dir.to_string_lossy().into_owned());
+        assert_eq!(resolve_program(&[none_s.as_str()]), TOOL, "introuvable : le nom seul, cherché dans le PATH");
+        std::fs::write(dir.join(TOOL), "").unwrap();
+        assert_eq!(resolve_program(&[none_s.as_str(), dir_s.as_str()]), dir.join(TOOL).to_string_lossy(), "chemin absolu dès qu'il existe");
+        assert!(TOOL_DIRS.iter().all(|d| d.starts_with('/')));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_locked_keyring_stops_the_uninstall_after_the_first_wait_and_says_how_to_unlock() {
+        let tool = FakeTool::default();
+        tool.set(Mode::Locked);
+        let keyring = ServiceSecrets::new(tool.clone());
+        let results = keyring.delete_all(&["deepgram", "openrouter", "github"]);
+        assert_eq!(tool.count("lookup"), 1, "une seule attente, pas trois");
+        assert_eq!(results.len(), 3);
+        for (_, result) in &results {
+            let err = result.as_ref().unwrap_err();
+            assert!(err.contains("déverrouille-le"), "{err}");
+        }
+        tool.set(Mode::Working);
+        tool.items.lock().unwrap().insert("openrouter".into(), KEY.into());
+        let results = ServiceSecrets::new(tool.clone()).delete_all(&["deepgram", "openrouter", "github"]);
+        assert_eq!(
+            results.into_iter().map(|(a, r)| (a, r.unwrap())).collect::<Vec<_>>(),
+            vec![("deepgram".into(), false), ("openrouter".into(), true), ("github".into(), false)]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_tool_that_closes_its_input_without_reading_gives_a_message_with_its_exit_code_and_no_key() {
+        let (dir, tool) = fake_program("refuse", "exec <&-; sleep 0.2; exit 4");
+        let big = "a".repeat(1 << 20);
+        match tool.run(&["store"], Some(&big), Duration::from_secs(10)) {
+            Err(ToolError::Refused(code)) => assert_eq!(code, Some(4)),
+            other => panic!("attendu : refus avec code 4, obtenu {}", if other.is_ok() { "un résultat" } else { "une autre erreur" }),
+        }
+        let keyring = ServiceSecrets::new(tool);
+        // La clé d'API tient dans le tube : ce cas passe par le code de sortie ordinaire.
+        let err = keyring.store(KeyKind::OpenRouter, KEY).unwrap_err();
+        assert!(err.contains("code 4"), "{err}");
+        assert!(err.contains("OPENROUTER_API_KEY") && err.contains("Rien n'a été enregistré") && !err.contains(KEY), "{err}");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
