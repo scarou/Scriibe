@@ -120,6 +120,24 @@ PC Linux (GNOME 50, Wayland) : `main` du PC (`2034c90`) intact ; branche `essai-
 
 **Ajouts** : aucun. Retours d'erreur : aucun mineur apparu.
 
+## Essai Mac (tâche 6, 23/11)
+
+Mac de l'auteur : `main` au commit `8bf7e51`, interface et `cargo build --release` sans avertissement, `Scriibe.app` refaite par `tools/faire_app_macos.sh` (signée « Scribe Dev », autorisations gardées) et lancée par `open`. Vérifications faites sans geste par l'API et l'interface sur l'instance en cours (captures d'écran du Mac par `screencapture`) ; réglages de l'auteur touchés puis **rétablis** (couleur de la pastille, « Activer les commandes vocales », touches de dictée : `dictationKeys` vide, Option droite, Maj droite).
+
+| Ligne | Verdict |
+|---|---|
+| Combinaison de touches (ROADMAP n°4) | **Vue** : Option gauche + Commande gauche tenues 1 s → deux dictées collées dans TextEdit (journal : appui, relâchement, collage de 37 et 43 signes par ⌘V) |
+| Touche Fn (ROADMAP n°4) | **Pas de réaction** : aucun appui dans le journal, et le mode « capture » n'a vu aucune touche (hors les lettres tapées ensuite). Sur le clavier de l'auteur (Fn entre Cmd droite et Option droite, pas de Fn en bas à gauche) la touche ne semble pas envoyée à macOS (gérée par le clavier) ; le code (`apple.rs`, code 63) est testé. **Limite du matériel, pas du code**, non confirmée sur un clavier Apple. |
+| Traduction personnalisée (ROADMAP n°4) | **Non reprise** : l'auteur la sait déjà essayée de longue date (Maj droite, anglais). |
+| Pastille sur fond sombre (indigo, violet, « Noir ») | **Vue** (fenêtre sombre derrière, aperçu de Réglages → Apparence) : liseré clair visible dans les trois couleurs |
+| Cas « rien à exporter » | **Vu** : export d'utilisateur, toutes les cases décochées → « Rien à exporter avec ces cases… », « Enregistrer… » grisé. (L'export des commandes seules n'a pas été vidé : l'auteur a une commande à lui, on ne la supprime pas.) |
+| Carte « Mes commandes », commandes vocales décochées | **Vu** : « Exporter » (Données) → boîte « Les commandes vocales sont décochées : coche « Activer les commandes vocales »… », plus de carte inerte ; case recochée, même geste ouvre la carte |
+| Captures de l'interface (`tools/captures_interface.js`) | **Faites** (13 pages en clair et 13 en sombre, dans le dossier temporaire de la session, pas dans le dépôt) **sans télécharger** : Playwright n'était pas installé, mais `playwright-core` était en cache npm et Chrome est installé (`NODE_PATH` + `channel: 'chrome'`, copie du script hors dépôt). Les « sombres » restent claires car le réglage de l'auteur est « Claire ». Seul message : un 404 de `favicon.ico` (sans conséquence). |
+
+**Ajouts** : aucun. Retours d'erreur : aucun mineur apparu.
+
+À savoir : le script `captures_interface.js` suppose `require('playwright')` et `chromium.launch()` ; sur un Mac sans Playwright, passer par `playwright-core` + Chrome comme ci-dessus (à noter dans `docs/TESTS.md` si l'auteur le veut).
+
 ## Relais
 
 *(Fin de la tâche 4, 23/11.)*
@@ -134,3 +152,9 @@ PC Linux (GNOME 50, Wayland) : `main` du PC (`2034c90`) intact ; branche `essai-
 - **Fait** : tâche 5 (§ Essai Linux) ; commits locaux, rien de poussé. PC Linux : `main` et Scriibe habituel intacts, instance d'essai et branche retirées.
 - **Prochain pas** : tâche 6 (essai Mac) en nouvelle session Sonnet · Moyen.
 - **Pièges** : voir § Essai Linux (variables d'affichage lues sur le Scriibe en cours, pas sur `gnome-shell`) ; la session refuse un `pgrep | kill` ou un `rm -rf` groupé sur le PC : tuer par numéro de processus, supprimer chemin par chemin.
+
+*(Fin de la tâche 6, 23/11.)*
+
+- **Fait** : tâche 6 (§ Essai Mac) ; aucun code modifié ; commit local, rien de poussé. Mac : Scriibe.app à jour sur `main` (`8bf7e51`), réglages de l'auteur rétablis.
+- **Prochain pas** : tâche 7 (clôture et publication 0.13.1, Sonnet · Élevé), dans cette session D : /carnet (carnets Scriibe, Windows, Linux), `/livrer-git` en mode version avec aperçu et accord, journal du vault, retrait du découpage du CLAUDE.md, ROADMAP. Statut d'essai pour les notes : Windows et Linux vus (§ Essai Windows, § Essai Linux), Mac vu (Fn non reproduit : clavier tiers).
+- **Pièges** : une capture de touches (`api/keys/capture`) reste active tant qu'on ne l'arrête pas : taper dans la fenêtre de l'assistant la pollue (arrêter par `capture/stop`) ; l'aperçu de la pastille ne dure que 3,5 s : lancer l'appel et `screencapture` dans la **même** commande.
