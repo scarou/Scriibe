@@ -329,22 +329,103 @@ fn a_short_phrase_said_three_times_is_redone() {
     assert_eq!(transcribe_short("Non non non"), ("Non.".to_string(), 2, 2));
 }
 
+/// Comme `transcribe_short`, mais le serveur normal confirme ce que le court a dit (la personne l'a bien dit trois fois) : le texte
+/// dicté revient intact, après deux transcriptions.
+fn transcribe_short_and_confirmed(said: &'static str) -> (String, usize) {
+    let world = FakeWorld::new();
+    for route in [":8177/inference", ":8178/inference"] {
+        world.route(route, move |_| Ok(HttpResponse { status: 200, body: json!({"text": said}).to_string().into_bytes() }));
+    }
+    let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+    let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+    let got = t.transcribe(&wav_of(1.5), &settings, &[]).unwrap();
+    (got, world.requests().iter().filter(|r| r.url.ends_with("/inference")).count())
+}
+
+/// M4 : « très très très bien », « ha ha ha » dits exprès sont refaits (trois fois de suite) mais reviennent tels quels quand le
+/// serveur normal les entend de même : le texte dicté n'est jamais altéré à tort.
+#[test]
+fn a_wanted_triple_comes_back_intact_when_the_normal_server_confirms_it() {
+    for said in ["Très très très bien.", "Ha ha ha.", "Non non non."] {
+        assert_eq!(transcribe_short_and_confirmed(said), (said.to_string(), 2), "« {said} » doit revenir intact");
+    }
+}
+
+/// Journal : une ligne quand la prise est refaite, sans un mot du texte dicté ; rien quand la réponse est propre.
+#[test]
+fn a_redone_take_leaves_one_log_line_without_the_dictated_text() {
+    let run = |said: &'static str, seconds: f64| {
+        let world = FakeWorld::new();
+        world.route(":8177/inference", move |_| Ok(HttpResponse { status: 200, body: json!({"text": said}).to_string().into_bytes() }));
+        world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Bonjour."}).to_string().into_bytes() }));
+        let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+        let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+        t.transcribe(&wav_of(seconds), &settings, &[]).unwrap();
+        world.log.lines().into_iter().filter(|l| l.starts_with("whisper: boucle") || l.starts_with("whisper: suite")).collect::<Vec<_>>()
+    };
+    let looped = run("Secret secret secret secret", 1.5);
+    assert_eq!(looped.len(), 1, "{looped:?}");
+    assert!(looped[0].contains("boucle vue") && !looped[0].to_lowercase().contains("secret"), "{}", looped[0]);
+    let digits = run("3, 2, 3, 4, 5, 6, 7, 8 et 10.", 1.1);
+    assert_eq!(digits.len(), 1, "{digits:?}");
+    assert!(digits[0].contains("suite de chiffres"), "{}", digits[0]);
+    assert!(run("Une phrase tout à fait normale.", 1.5).is_empty());
+}
+
+/// Ajout 1 de l'essai du 18/11 : sur une prise de 1 s, Whisper a sorti « 3, 2, 3, 4, 5, 6, 7, 8 et 10. ». La prise est refaite sur le
+/// serveur normal ; une suite de chiffres sur une prise plus longue, ou un texte où les nombres ne sont qu'une partie, reste intacte.
+#[test]
+fn a_run_of_numbers_on_a_very_short_take_is_redone_but_not_on_a_longer_one() {
+    const NUMBERS: &str = "3, 2, 3, 4, 5, 6, 7, 8 et 10.";
+    let on_take = |said: &'static str, seconds: f64| {
+        let world = FakeWorld::new();
+        world.route(":8177/inference", move |_| Ok(HttpResponse { status: 200, body: json!({"text": said}).to_string().into_bytes() }));
+        world.route(":8178/inference", |_| Ok(HttpResponse { status: 200, body: json!({"text": "Fait."}).to_string().into_bytes() }));
+        let t = transcriber(&world, no_keys(), &["/m/ggml-small.bin"]);
+        let settings = AppSettings { transcription_engine: TranscriptionEngine::Whisper, ..AppSettings::default() };
+        let got = t.transcribe(&wav_of(seconds), &settings, &[]).unwrap();
+        (got, world.requests().iter().filter(|r| r.url.ends_with("/inference")).count())
+    };
+    assert_eq!(on_take(NUMBERS, 1.1), ("Fait.".to_string(), 2));
+    assert_eq!(on_take(NUMBERS, 4.0), (NUMBERS.to_string(), 1), "une prise de 4 s peut vraiment compter");
+    assert_eq!(on_take("1, 2, 3.", 1.1), ("1, 2, 3.".to_string(), 1), "trois nombres : un vrai comptage");
+    assert_eq!(on_take("J'ai 3 chats, 2 chiens, 4 poules et 10 lapins.", 1.1).1, 1);
+    assert!(whisper::is_number_run(NUMBERS) && !whisper::is_number_run("1, 2, 3") && !whisper::is_number_run("Il y en a 1 2 3 4 5 6"));
+}
+
 /// Bornes de `repeats_itself` : 2 ou 3 exemplaires, 3 ou 4 mots, apostrophes, traits d'union, boucle encadrée, sauts de ligne.
 #[test]
 fn the_edges_of_the_loop_rule() {
     for not_a_loop in [
         "Fé. Fé.",
         "C'est fait. C'est fait.",
-        "C'est fait. C'est fait. C'est",
         "Fé. Fait. Fé. Fait.",
+        "ありがとうありがとう",
+        "はいはい",
+        "の\nの",
         "C’est-à-dire, c’est-à-dire",
         "L’un l’autre, l’un l’autre",
     ] {
         assert!(!whisper::repeats_itself(not_a_loop), "« {not_a_loop} » n'est pas une boucle");
     }
-    for a_loop in
-        ["Alors fé fé fé merci", "の\nの\nの", "C’est fait. C’est fait. C’est fait.", "Fé - Fé - Fé", "Une page en HTML. Une page en HTML."]
-    {
+    for a_loop in [
+        "Alors fé fé fé merci",
+        "の\nの\nの",
+        "C’est fait. C’est fait. C’est fait.",
+        "Fé - Fé - Fé",
+        "Une page en HTML. Une page en HTML.",
+        // Boucle coupée en son milieu par la limite de Whisper : deux passages complets puis le début d'un troisième.
+        "C'est fait. C'est fait. C'est",
+        "Fé. Fait. Fé. Fait. Fé",
+        "C'est bien fait. C'est bien fait. C'est bien",
+        // Motif alterné : trois fois, c'est une boucle.
+        "Fé. Fait. Fé. Fait. Fé. Fait.",
+        // Écritures sans espace : un caractère par mot, deux caractères valant un mot (chantier 4, M1).
+        "ありがとうありがとうありがとう",
+        "正正正正正正",
+        "ありがとうございますありがとうございます",
+        "は い はい はい はい",
+    ] {
         assert!(whisper::repeats_itself(a_loop), "« {a_loop} » est une boucle");
     }
 }

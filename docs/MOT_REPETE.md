@@ -89,3 +89,7 @@ Essai réel du 18/11/2026, build `22d746b` (release) sur les trois systèmes. D�
 2. **Hypothèse « parler trop tôt au moment de l'appui »** : non concluante (voir Essai). À reprendre seulement si une boucle réelle revient, avec le journal de l'appui à la première parole (délai entre l'appui et le début du son, aujourd'hui non journalisé).
 3. **« Très très bien » devient « Très bien »** à la mise au propre sur Linux (modèle `qwen2.5-1.5b`) : probablement le retrait de répétitions voulu par la mise au propre ; à confirmer avec le comportement de Scribe avant d'en faire un écart. À ranger au carnet.
 4. **Journal du garde-fou** : rien n'est écrit quand `repeats_itself` refait une transcription ; l'essai ne peut donc pas compter les déclenchements. Une ligne de journal (« whisper: boucle vue, seconde transcription ») ferait ce travail, quelques minutes de code ; non faite ici (hors consigne de la tâche 3).
+
+## Suite (0.13.1, tâche 2 du découpage mineurs)
+
+Détail et tests : `docs/MINEURS_0131.md` § Mot répété. Mineurs M1 (boucle CJK), M3 (boucle coupée au milieu) et ajouts 1 (suite de chiffres) et 4 (journal) traités ; M4 : les triples voulus reviennent intacts (le serveur normal les confirme) ; ajout 3 et motif alterné deux fois : notes (limite assumée). Une seconde transcription laisse maintenant une ligne au journal (`whisper: boucle vue` ou `suite de chiffres sur une prise courte`), sans le texte dicté.

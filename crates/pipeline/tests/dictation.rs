@@ -1006,6 +1006,62 @@ fn a_release_seen_only_by_the_page_is_ignored_without_a_dictation() {
     assert!(r.controller.is_recording());
 }
 
+/// Relecture C7, M3 : le repli de `handle_page_key` quand la page relaie le relâchement de Maj (touche de traduction) alors que la dictée
+/// a commencé par le crochet. Maj n'est pas la touche de dictée : ni dans la fenêtre d'écho ni après, ce relâchement ne finit rien et ne
+/// traduit rien ; la dictée finit au relâchement de sa propre touche.
+#[test]
+fn a_shift_released_in_the_page_during_a_dictation_neither_ends_it_nor_translates() {
+    for silent_for in [300, 1100] {
+        let r = rig("bonjour", "bonjour");
+        r.key_down();
+        r.clock.advance(Duration::from_millis(silent_for));
+        r.controller.handle_page_key(Key::LeftShift, false);
+        r.controller.handle_page_key(Key::RightShift, false);
+        assert!(r.controller.is_recording(), "Maj relâchée à {silent_for} ms : la dictée continue");
+        assert!(r.indicator.translations().is_empty(), "un relâchement ne traduit pas");
+        r.controller.handle_page_key(RIGHT_CONTROL_VK, false);
+        assert!(!r.controller.is_recording(), "le relâchement de la touche de dictée finit la dictée ({silent_for} ms)");
+    }
+}
+
+/// Maj enfoncée **dans** la page pendant une dictée commencée par le crochet : la traduction démarre (la page relaie l'appui, hors fenêtre
+/// d'écho) ; son relâchement ne l'annule pas ; la dictée finit au relâchement de sa touche et reste traduite.
+#[test]
+fn a_shift_pressed_and_released_in_the_page_translates_the_dictation_the_hook_started() {
+    let r = rig("bonjour tout le monde on commence", "Hello everyone, let's get started.");
+    r.key_down();
+    r.clock.advance(Duration::from_millis(1100));
+    assert!(r.controller.handle_page_key(Key::LeftShift, true));
+    assert_eq!(r.indicator.translations(), vec![Some("anglais".to_string())]);
+    r.controller.handle_page_key(Key::LeftShift, false);
+    assert!(r.controller.is_recording(), "relâcher Maj ne finit pas la dictée");
+    assert_eq!(r.indicator.translations().len(), 1, "ni ne défait la traduction");
+    r.controller.handle_page_key(RIGHT_CONTROL_VK, false);
+    assert!(!r.controller.is_recording());
+    assert_eq!(r.history.items()[0].translation, Some(TranslationLanguage::En));
+}
+
+/// M3 : dictée à combinaison (Ctrl gauche + F9, tenue par le crochet) dont **une seule** touche est relâchée dans la page : n'importe
+/// laquelle finit la dictée, dans la fenêtre d'écho comme après ; une autre touche relâchée ne la touche pas. Sous Windows et sur Mac
+/// seulement (les identifiants du réglage sont ceux de leurs codes de touche).
+#[cfg(any(windows, target_os = "macos"))]
+#[test]
+fn releasing_one_key_of_a_combination_in_the_page_ends_the_dictation() {
+    let (control, f9) = (Key::LeftControl, Key::Vk(0x78));
+    for (released, silent_for) in [(f9, 300), (control, 300), (f9, 1100), (control, 1100)] {
+        let r = rig("x", "x");
+        r.config.change(|s| s.dictation_keys = vec!["left_control".into(), "f9".into()]);
+        r.controller.handle_key(KeyEvent::Changed { changed: control, down: true, held: vec![control] });
+        r.controller.handle_key(KeyEvent::Changed { changed: f9, down: true, held: vec![control, f9] });
+        assert!(r.controller.is_recording(), "la combinaison est tenue");
+        r.clock.advance(Duration::from_millis(silent_for));
+        r.controller.handle_page_key(Key::Vk(0x41), false);
+        assert!(r.controller.is_recording(), "une touche étrangère relâchée ne finit rien ({silent_for} ms)");
+        r.controller.handle_page_key(released, false);
+        assert!(!r.controller.is_recording(), "{released:?} relâchée à {silent_for} ms : la dictée est finie");
+    }
+}
+
 /// Journal ajouté par l'enquête C7 : une écoute de plus de 15 s laisse **une** ligne (état du crochet et de la page, appli au premier plan),
 /// sans rien de ce qui est dit ni des touches tapées.
 #[test]

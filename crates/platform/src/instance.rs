@@ -132,7 +132,18 @@ mod tests {
         let Instance::First(first) = acquire(&dir) else { panic!("la première instance doit démarrer") };
         assert!(matches!(acquire(&dir), Instance::Running));
         drop(first);
-        assert!(matches!(acquire(&dir), Instance::First(_)));
+        // Le verrou tombe à la fermeture du dernier descripteur. Un autre test du même processus (`open`, `installed_apps`…) qui lance un
+        // programme au même instant en garde une copie entre `fork` et `exec` : quelques millisecondes pendant lesquelles le verrou
+        // reste pris (échec une fois sur six au lancement de tout le crate, jamais en production : la vraie Scriibe n'a pas ce voisin).
+        // On attend donc que le verrou tombe, avec une borne large, au lieu de supposer qu'il tombe tout de suite.
+        let start = Instant::now();
+        loop {
+            if matches!(acquire(&dir), Instance::First(_)) {
+                break;
+            }
+            assert!(start.elapsed() < Duration::from_secs(5), "le verrou n'est jamais retombé après la fin de la première instance");
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[test]

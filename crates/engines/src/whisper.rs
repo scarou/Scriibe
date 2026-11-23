@@ -226,31 +226,91 @@ impl Launcher for WhisperLauncher {
 }
 
 /// Vrai si le texte contient une boucle (majuscules et ponctuation ignorées) : un passage d'au moins `MIN_LOOP_WORDS` mots répété tel
-/// quel deux fois de suite, ou un passage plus court (un à trois mots) répété `SHORT_LOOP_REPEATS` fois de suite. C'est la boucle de
+/// quel deux fois de suite ; un passage plus court (un à trois mots) répété trois fois de suite (chantier 4, `docs/MOT_REPETE.md` : « Fé. » ×4, « C'est fait. » ×3), ou deux fois puis
+/// repris sans être fini (boucle coupée au milieu par la limite de Whisper : « C'est fait. C'est fait. C'est »). C'est la boucle de
 /// Whisper sur une prise courte. Une vraie répétition de la personne qui dicte y répond aussi ; le seul effet est alors une seconde
-/// transcription, sur le serveur normal.
+/// transcription, sur le serveur normal, dont la réponse remplace l'autre (le texte dicté n'est donc jamais retouché ici).
+///
+/// Les écritures sans espace (chinois, japonais) comptent un caractère par mot, deux caractères valant un mot : « ありがとう » trois
+/// fois de suite est une boucle, « はいはい » (deux fois « はい ») non, comme « oui, oui ».
+///
+/// Limite voulue : deux passages courts de suite sans reprise (« Fé. Fait. Fé. Fait. », « Lance yogurt. Lance yogurt. ») restent du
+/// texte ordinaire, indiscernable d'une répétition dite exprès.
 pub fn repeats_itself(text: &str) -> bool {
     // L'apostrophe typographique vaut l'apostrophe droite ; apostrophe et trait d'union restent dans le mot (« c'est-à-dire »).
     let text = text.replace('\u{2019}', "'");
-    let words: Vec<String> = text
+    // Chaque mot avec son poids en demi-mots (un mot : 2, un caractère d'une écriture sans espace : 1).
+    let mut words: Vec<String> = Vec::new();
+    let mut halves: Vec<usize> = vec![0];
+    let mut push = |word: String, weight: usize| {
+        halves.push(halves[halves.len() - 1] + weight);
+        words.push(word);
+    };
+    for piece in text
         .split(|c: char| !c.is_alphanumeric() && c != '\'' && c != '-')
         .map(|w| w.trim_matches(|c| c == '\'' || c == '-'))
         .filter(|w| !w.is_empty())
-        .map(|w| w.to_lowercase())
-        .collect();
-    let repeated = |len: usize, times: usize| {
-        words.len() >= len * times
-            && (0..=words.len() - len * times).any(|at| (1..times).all(|k| words[at..at + len] == words[at + k * len..at + (k + 1) * len]))
-    };
-    (MIN_LOOP_WORDS..=words.len() / 2).any(|len| repeated(len, 2)) || (1..MIN_LOOP_WORDS).any(|len| repeated(len, SHORT_LOOP_REPEATS))
+    {
+        let mut spaced = String::new();
+        for c in piece.chars() {
+            if is_unspaced_script(c) {
+                if !spaced.is_empty() {
+                    push(spaced.to_lowercase(), 2);
+                    spaced.clear();
+                }
+                push(c.to_string(), 1);
+            } else {
+                spaced.push(c);
+            }
+        }
+        if !spaced.is_empty() {
+            push(spaced.to_lowercase(), 2);
+        }
+    }
+    let n = words.len();
+    (1..=n / 2).any(|len| {
+        (0..=n - 2 * len).any(|at| {
+            if words[at..at + len] != words[at + len..at + 2 * len] {
+                return false;
+            }
+            if halves[at + len] - halves[at] >= 2 * MIN_LOOP_WORDS {
+                return true;
+            }
+            let third_copy = at + 3 * len <= n && words[at..at + len] == words[at + 2 * len..at + 3 * len];
+            let third_cut_short = len >= 2 && at + 2 * len < n && words[at + 2 * len] == words[at];
+            third_copy || third_cut_short
+        })
+    })
 }
+
+/// Caractère d'une écriture qui ne sépare pas ses mots par des espaces (han, hiragana, katakana).
+fn is_unspaced_script(c: char) -> bool {
+    matches!(c, '\u{3040}'..='\u{30FF}' | '\u{3400}'..='\u{4DBF}' | '\u{4E00}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}')
+}
+
+/// Vrai si le texte n'est qu'une suite de six nombres ou plus (« 3, 2, 3, 4, 5, 6, 7, 8 et 10. ») : l'hallucination de Whisper sur une
+/// prise très courte (essai du 18/11, `docs/MOT_REPETE.md`, ajout 1). Personne ne compte à cette vitesse sur 2 secondes ; une prise
+/// plus longue n'est pas concernée (voir `NUMBER_RUN_MAX_SECONDS`).
+pub fn is_number_run(text: &str) -> bool {
+    let mut numbers = 0;
+    for token in text.split(|c: char| !c.is_alphanumeric()).filter(|t| !t.is_empty()) {
+        if token.chars().all(|c| c.is_ascii_digit()) {
+            numbers += 1;
+        } else if !matches!(token.to_lowercase().as_str(), "et" | "and") {
+            return false;
+        }
+    }
+    numbers >= NUMBER_RUN_MIN
+}
+
+/// Nombre de nombres à partir duquel un texte fait de nombres seuls est pris pour une hallucination.
+const NUMBER_RUN_MIN: usize = 6;
+
+/// Durée de prise (secondes) en dessous de laquelle une suite de nombres est refaite sur le serveur normal.
+pub const NUMBER_RUN_MAX_SECONDS: f64 = 2.0;
 
 /// Longueur minimale (en mots) d'un passage répété deux fois pour être pris pour une boucle : « oui, oui » ou « très très bien » n'en sont pas.
 const MIN_LOOP_WORDS: usize = 4;
-
-/// Nombre de répétitions de suite à partir duquel un passage de moins de `MIN_LOOP_WORDS` mots est pris pour une boucle (chantier 4,
-/// `docs/MOT_REPETE.md` : « Fé. » ×4, « C'est fait. » ×3). Deux fois reste une répétition possible de la personne qui dicte.
-const SHORT_LOOP_REPEATS: usize = 3;
 
 /// Whisper sur cet ordinateur : les serveurs et la transcription.
 ///
@@ -305,7 +365,7 @@ impl Whisper {
     /// suivre un changement.
     ///
     /// Le contexte audio réduit du serveur court fait parfois boucler Whisper : la phrase revient deux à quatre fois dans le texte
-    /// (S13, 7 dictées sur 74 le 01/11/2026, aucune sur le serveur normal). Si la réponse du serveur court se répète (`repeats_itself` : 4 mots ou plus deux fois, 1 à 3 mots trois fois), la prise est
+    /// (S13, 7 dictées sur 74 le 01/11/2026, aucune sur le serveur normal). Si la réponse du serveur court se répète (`repeats_itself` : 4 mots ou plus deux fois, 1 à 3 mots trois fois ou deux fois et un début de troisième) ou si elle n'est qu'une suite de chiffres sur une prise de 2 s ou moins, la prise est
     /// refaite sur le serveur normal ; si celui-ci échoue, on garde la première réponse.
     pub fn transcribe(
         &self,
@@ -317,7 +377,20 @@ impl Whisper {
     ) -> Result<String, ServiceError> {
         let server = self.server_for(wav);
         let text = self.transcribe_on(server, wav, model_path, language, vocabulary, idle_minutes)?;
-        if std::ptr::eq(server, &self.short) && repeats_itself(&text) {
+        let reason = if !std::ptr::eq(server, &self.short) {
+            None
+        } else if repeats_itself(&text) {
+            Some("boucle vue")
+        } else if is_number_run(&text) && wav_seconds(wav).is_some_and(|s| s <= NUMBER_RUN_MAX_SECONDS) {
+            Some("suite de chiffres sur une prise courte")
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            // Rien du texte dicté dans le journal : seulement la raison et sa taille.
+            self.rt
+                .log
+                .write(&format!("whisper: {reason} ({} caractères), seconde transcription sur le serveur normal", text.chars().count()));
             if let Ok(again) = self.transcribe_on(&self.server, wav, model_path, language, vocabulary, idle_minutes) {
                 return Ok(again);
             }

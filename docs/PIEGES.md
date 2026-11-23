@@ -12,6 +12,7 @@
 - Pas de `pkill` (sysinfo), pas de `pkill -f` ni de `pgrep -f` avec un motif présent dans la commande (le shell se tue) : `pgrep -x nom | xargs -r kill` ; `pkill -x` refuse un nom de plus de 15 caractères.
 - Un `sleep` long en avant-plan est refusé : lancer en arrière-plan ou attendre avec un moniteur. `cmd &` dans un sous-shell détaché fait notifier la fin du lanceur, pas du travail.
 - Les tests avec des délais courts attendent large. Les tests de moteurs passent par `FakeWorld` (le temps ne passe que quand on dort).
+- Un verrou `flock` (ou un descripteur de fichier) tenu par un test est copié par tout programme que **un autre test du même processus** lance au même instant, entre `fork` et `exec` : le verrou reste pris quelques millisecondes après `drop`. Un test qui attend la chute d'un verrou doit réessayer avec une borne (`instance::tests::a_second_instance_is_refused_until_the_first_ends`, 23/11, 0.13.1), pas supposer qu'elle est immédiate.
 - `AppSettings::default()` change d'identifiants à chaque appel : ne pas comparer deux défauts.
 - `fancy-regex` : pas d'assertions arrière de longueur variable.
 - `windows-sys` 0.59 : les poignées sont des pointeurs ; crate `windows` 0.57 pour COM (HRESULT brut : `IsSystemSoundsSession().is_ok()` vaut vrai pour S_OK **et** S_FALSE, comparer à 0).

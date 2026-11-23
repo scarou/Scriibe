@@ -39,6 +39,24 @@ Choix et raisons : le trousseau reste `secret-tool` (pas de module Rust). Une cl
 | Test de contrat faux serveur de la page ↔ `merge` de Rust | **Fait** : `crates/platform/tests/data/ui_state_contract.json`, joué des deux côtés | `merge_follows_the_contract_shared_with_the_page`, `uiState.contract.test.ts` |
 | Tests des routes `api/ui-state` | **Fait** : la route est extraite (`ui_state::route`) et testée | `the_route_reads_merges_and_reports_a_file_it_must_not_touch` |
 
+## Mot répété (tâche 2, 23/11)
+
+Choix et raisons : la règle de `repeats_itself` reste « refaire sur le serveur normal, dont la réponse remplace l'autre » ; elle ne touche jamais au texte elle-même. Une fausse alerte coûte une seconde transcription, pas une altération : les trois exemplaires dits exprès reviennent intacts quand le serveur normal les entend de même.
+
+| Point | État | Test |
+|---|---|---|
+| Ligne de journal quand la prise est refaite | **Fait** : `whisper: boucle vue (N caractères), seconde transcription sur le serveur normal` ; la raison et la taille seulement, jamais le texte | `a_redone_take_leaves_one_log_line_without_the_dictated_text` (le mot dit ne se retrouve pas dans la ligne ; rien quand la réponse est propre) |
+| M1 : boucle CJK sans séparateur | **Corrigé** : chaque caractère han, hiragana ou katakana compte pour un demi-mot (deux caractères = un mot) ; « ありがとう » ×3, « 正 » ×6, « ありがとうございます » ×2 sont des boucles ; « はいはい », « ありがとうありがとう » (deux fois seulement) restent du texte | `the_edges_of_the_loop_rule` |
+| M3 : boucle coupée en son milieu | **Corrigé** : un passage court (2 ou 3 mots) dit deux fois puis repris sans être fini (« C'est fait. C'est fait. C'est ») est une boucle | `the_edges_of_the_loop_rule` |
+| M3 : motif alterné deux fois | **Limite assumée, testée** : « Fé. Fait. Fé. Fait. » reste du texte (indiscernable d'une répétition voulue, comme « Lance yogurt. Lance yogurt. ») ; trois fois, ou deux fois puis « Fé » : boucle | `the_edges_of_the_loop_rule` |
+| Ajout 1 : suite de chiffres sur une prise courte | **Corrigé** : un texte fait de 6 nombres ou plus (avec « et ») sur une prise de 2 s ou moins est refait sur le serveur normal ; pas au-delà de 2 s, pas pour 3 nombres, pas dans une phrase | `a_run_of_numbers_on_a_very_short_take_is_redone_but_not_on_a_longer_one` |
+| M4 : triples voulus (« très très très bien », « ha ha ha ») | **Intacts** : refaits, mais le serveur normal rend le même texte | `a_wanted_triple_comes_back_intact_when_the_normal_server_confirms_it` |
+| Ajout 3 : « Très très bien » → « Très bien » à la mise au propre (Linux, `qwen2.5-1.5b`) | **Note seulement** : l'essai Linux (tâche 5) le reverra, à comparer avec Scribe avant d'en faire un écart | — |
+| `instance::tests::a_second_instance_is_refused_until_the_first_ends` | **Stabilisé** (il est dans le crate `platform`, non `cli`) : cause trouvée, un test voisin qui lance un programme (`open`, `installed_apps`) garde le verrou `flock` quelques millisecondes entre `fork` et `exec` ; échec 23 fois sur 25 avec le filtre `instance:: open`, 4 sur 25 avec `installed_apps`, 0 sur 25 après. Le test attend maintenant que le verrou tombe (5 s au plus) ; le code de production n'est pas modifié | 25 lancements avec les voisins fautifs, puis 20 lancements du crate entier : 0 échec |
+| M3 de l'enquête Windows : repli de `handle_page_key` | **Couvert** : Maj relâchée dans la page pendant une dictée du crochet (fenêtre d'écho ou après) ne finit ni ne traduit rien ; Maj enfoncée puis relâchée dans la page traduit une fois ; dictée à combinaison (Ctrl gauche + F9) : relâcher l'une ou l'autre finit la dictée, une touche étrangère non. Le garde de `controller.rs` retiré : les 3 tests échouent | `a_shift_released_in_the_page_during_a_dictation_neither_ends_it_nor_translates`, `a_shift_pressed_and_released_in_the_page_translates_the_dictation_the_hook_started`, `releasing_one_key_of_a_combination_in_the_page_ends_the_dictation` (celui-ci Mac et Windows seulement ; sa version Windows ne compile que sur le PC, tâche 4) |
+
+À savoir : la règle « deux fois puis un début de troisième » fait refaire aussi « Je veux, je veux, je » dit sans y penser ; coût : une seconde, texte inchangé. Mesure sur les 2 287 textes des cas de référence : 0 texte signalé à tort. L'historique de la machine (19 entrées) est trop petit pour mesurer un taux réel.
+
 ## Relais
 
 *(Fin de la tâche 1, 23/11 : contexte à 24 %, relais préparé avant la tâche 2 par la règle du CLAUDE.md.)*
