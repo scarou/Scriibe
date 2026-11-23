@@ -16,16 +16,16 @@ Utile entre deux Releases, ou si le zip n'est pas encore attaché à la dernièr
 
 ## Les deux moteurs locaux
 
-Scriibe appelle deux programmes externes en HTTP, comme Scribe : `whisper-server` (transcription) et `llama-server` (mise au propre). La carte **Les programmes** de **Réglages → Moteurs** les télécharge un à un, avec taille et source avant l'accord :
+Scriibe appelle deux programmes externes en HTTP, comme Scribe : `whisper-server` (transcription) et `llama-server` (mise au propre). La carte **Les programmes** de **Moteurs et modèles** les télécharge un à un, avec taille et source avant l'accord :
 
 - `whisper-server` : whisper.cpp avec ses DLL ;
 - `llama-server (processeur)` ou `llama-server (carte graphique Vulkan)`. La version Vulkan remplace la version processeur : la mise au propre tourne sur la carte graphique (à comparer aux temps du processeur ; pour revenir en arrière, retélécharger la version processeur). L'assistant du **Tableau de bord** mesure la machine et propose la chaîne adaptée avec des temps mesurés.
 
-Les modèles se téléchargent depuis les cartes **Modèles recommandés** et **Ajouter un modèle depuis Hugging Face**, ou se déposent à la main dans le dossier des modèles de Scriibe. Les fichiers au format GGUF servent à la mise au propre, ceux au format `ggml-….bin` à Whisper (**Réglages → Moteurs → Choisir un fichier…** pour pointer un fichier ailleurs). La mise au propre peut aussi passer par LM Studio ou Ollama (liste des modèles du serveur, adresse réglable).
+Les modèles se téléchargent depuis les cartes **Modèles recommandés** et **Ajouter un modèle depuis Hugging Face**, ou se déposent à la main dans le dossier des modèles de Scriibe. Les fichiers au format GGUF servent à la mise au propre, ceux au format `ggml-….bin` à Whisper (**Moteurs et modèles → Choisir un fichier…** pour pointer un fichier ailleurs). La mise au propre peut aussi passer par LM Studio ou Ollama (liste des modèles du serveur, adresse réglable).
 
 ## Moteurs en ligne (dépannage)
 
-Plus rapides à mettre en place, ou utiles sur une machine modeste, mais payants à l'usage (quelques centimes la dictée) : la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun : collez chaque clé dans **Réglages → Moteurs → Clés du cloud (dépannage)**. Les clés sont rangées dans le Gestionnaire d'identifiants de Windows et jamais affichées.
+Plus rapides à mettre en place, ou utiles sur une machine modeste, mais payants à l'usage (quelques centimes la dictée) : la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun : collez chaque clé dans **Moteurs et modèles → Clés du cloud (dépannage)**. Les clés sont rangées dans le Gestionnaire d'identifiants de Windows et jamais affichées.
 
 ## Mise à jour à la main
 

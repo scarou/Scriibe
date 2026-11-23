@@ -61,7 +61,7 @@ Closing the Scriibe window does not quit the program: to really quit, right-clic
 
 Scriibe needs two small programs: one transcribes your voice, the other cleans up the text. Scriibe downloads them for you and **downloads nothing without your approval**: before each download it shows the name, the size and the source. There is nothing to install separately.
 
-1. In the Scriibe window, click **Settings**, then the **Engines** tab. The **Installation status** card says what is missing.
+1. In the Scriibe window, click **Engines and models** in the menu. The **Installation status** card says what is missing.
 2. Further down, in the **Programs** card, find **whisper-server** (transcription). Click **See the size and source**, read, then click **Download**. Wait for the progress bar to finish: **✔ installed** appears.
 3. Do the same for **llama-server (CPU)** (cleanup). Choose the “CPU” version: it is the simplest and suits every PC.
 
@@ -71,10 +71,10 @@ Scriibe needs two small programs: one transcribes your voice, the other cleans u
 
 “Models” are the files that hold the intelligence for transcription and cleanup. Same principle: nothing is downloaded without your approval.
 
-1. Still in **Settings → Engines**, scroll down to the **Recommended models** card.
+1. Still in **Engines and models**, scroll down to the **Recommended models** card.
 2. Find the **Whisper “base” model**. Click **See the size and source**, read, then click **Download**. Wait for the progress bar to finish.
 3. In the same card, do the same for a cleanup model: **“Qwen 2.5 1.5 B”** (about 1 GB) is fine to start with.
-4. Higher up in the same **Engines** tab, choose **Whisper** for transcription and **llama.cpp** for cleanup.
+4. Higher up in the same **Engines and models** page, choose **Whisper** for transcription and **llama.cpp** for cleanup.
 
 **It worked when** the **Installation status** card no longer reports anything missing (only ✔).
 

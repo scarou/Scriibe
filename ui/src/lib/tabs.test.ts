@@ -212,3 +212,10 @@ describe('finitions de mise en page (chantier 2, tâche 1)', () => {
     expect(commandsPage).toMatch(/<div class:off=\{settings\.value\?\.voiceCommandsEnabled === false\} inert=\{settings\.value\?\.voiceCommandsEnabled === false\}>/);
   });
 });
+
+describe('l’écart entre bandeaux d’erreur', () => {
+  it('reste de 14 px entre deux bandeaux, 20 px seulement après le dernier', () => {
+    expect(app).toMatch(/main > :global\(\.card\.bad\) \{ margin-bottom: 20px; \}/);
+    expect(app).toMatch(/main > :global\(\.card\.bad:has\(\+ \.card\.bad\)\) \{ margin-bottom: 14px; \}/);
+  });
+});

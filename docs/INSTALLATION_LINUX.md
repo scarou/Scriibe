@@ -87,7 +87,7 @@ Sous Ubuntu, il n'y a normalement rien à autoriser. Vérifiez seulement que vot
 
 Scriibe a besoin de deux petits programmes : l'un transcrit votre voix, l'autre met le texte au propre. Scriibe les télécharge pour vous et **ne télécharge rien sans votre accord** : avant chaque téléchargement, il montre le nom, la taille et la source. Ils se rangent dans `~/.local/share/Scriibe/engines/`.
 
-1. Dans la fenêtre de Scriibe, cliquez sur **Réglages**, puis sur l'onglet **Moteurs**. La carte **État de l'installation** dit ce qui manque.
+1. Dans la fenêtre de Scriibe, cliquez sur **Moteurs et modèles** dans le menu. La carte **État de l'installation** dit ce qui manque.
 2. Plus bas, dans la carte **Les programmes**, repérez **whisper-server (Linux)** (la transcription). Cliquez sur **Voir la taille et la source**, lisez, puis cliquez sur **Télécharger**. Attendez la fin de la barre de progression : le mot **✔ installé** apparaît.
 3. Faites de même pour **llama-server (Linux, processeur)** (la mise au propre).
 
@@ -97,10 +97,10 @@ Scriibe a besoin de deux petits programmes : l'un transcrit votre voix, l'autre 
 
 Les « modèles » sont les fichiers qui contiennent l'intelligence de la transcription et de la mise au propre. Même principe : rien n'est téléchargé sans votre accord.
 
-1. Toujours dans **Réglages → Moteurs**, descendez à la carte **Modèles recommandés**.
+1. Toujours dans **Moteurs et modèles**, descendez à la carte **Modèles recommandés**.
 2. Repérez le **Modèle Whisper « base »**. Cliquez sur **Voir la taille et la source**, lisez, puis cliquez sur **Télécharger**. Attendez la fin de la barre de progression.
 3. Dans la même carte, faites de même pour un modèle de mise au propre : **« Qwen 2.5 1,5 B »** (environ 1 Go) convient pour commencer.
-4. Plus haut dans le même onglet **Moteurs**, choisissez **Whisper** pour la transcription et **llama.cpp** pour la mise au propre.
+4. Plus haut dans le même page **Moteurs et modèles**, choisissez **Whisper** pour la transcription et **llama.cpp** pour la mise au propre.
 
 **C'est réussi quand** la carte **État de l'installation** ne signale plus rien qui manque (que des ✔).
 

@@ -15,4 +15,11 @@ describe('la ligne de refus d’une touche', () => {
   it('sans touche vue, le refus seul', () => {
     expect(refusalLine('', 'trois touches au plus')).toBe('trois touches au plus');
   });
+
+  it('en anglais, le nom n’est pas écrit deux fois : le test se fait sur le français', () => {
+    const nameOf = (n: string) => n.replaceAll('gauche', 'left');
+    const textOf = (m: string) => m.replace('choisie deux fois', 'chosen twice').replace('Ctrl gauche', 'Ctrl left');
+    expect(refusalLine('Ctrl gauche', 'Ctrl gauche choisie deux fois', nameOf, textOf)).toBe('Ctrl left chosen twice');
+    expect(refusalLine('Ctrl gauche + Maj gauche', 'trois touches au plus', nameOf, (m) => 'three keys at most')).toBe('Ctrl left + Maj left — three keys at most');
+  });
 });

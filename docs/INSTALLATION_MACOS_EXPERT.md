@@ -15,11 +15,11 @@ brew install whisper-cpp
 brew install llama.cpp
 ```
 
-Scriibe les cherche dans le `PATH` de Homebrew (`/opt/homebrew/bin` sur puce Apple). La carte **Les programmes** de **Réglages → Moteurs** ne télécharge rien sur Mac (elle affiche les commandes Homebrew) : sur Mac, les programmes viennent de Homebrew. Les modèles se téléchargent depuis les cartes **Modèles recommandés** et **Ajouter un modèle depuis Hugging Face**, ou se déposent à la main dans `~/Library/Application Support/Scriibe/models/`. Les fichiers au format GGUF servent à la mise au propre, au format `ggml-….bin` à Whisper.
+Scriibe les cherche dans le `PATH` de Homebrew (`/opt/homebrew/bin` sur puce Apple). La carte **Les programmes** de **Moteurs et modèles** ne télécharge rien sur Mac (elle affiche les commandes Homebrew) : sur Mac, les programmes viennent de Homebrew. Les modèles se téléchargent depuis les cartes **Modèles recommandés** et **Ajouter un modèle depuis Hugging Face**, ou se déposent à la main dans `~/Library/Application Support/Scriibe/models/`. Les fichiers au format GGUF servent à la mise au propre, au format `ggml-….bin` à Whisper.
 
 ## Moteurs en ligne (dépannage)
 
-Plus rapides à mettre en place, ou utiles sur une machine modeste, mais payants à l'usage : la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun : collez chaque clé dans **Réglages → Moteurs → Clés du cloud (dépannage)**. Les clés sont rangées dans le trousseau du Mac et jamais affichées.
+Plus rapides à mettre en place, ou utiles sur une machine modeste, mais payants à l'usage : la voix part chez Deepgram, le texte chez OpenRouter pour être mis au propre. Il faut un compte et une clé pour chacun : collez chaque clé dans **Moteurs et modèles → Clés du cloud (dépannage)**. Les clés sont rangées dans le trousseau du Mac et jamais affichées.
 
 ## Mise à jour à la main
 

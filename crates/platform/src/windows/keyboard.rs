@@ -91,6 +91,9 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                     } else {
                         None
                     };
+                    if stale_release.is_some() {
+                        COMMAND_MENU.with(|mask| mask.borrow_mut().forget(code));
+                    }
                     LAST_EVENT.with(|last| {
                         let mut last = last.borrow_mut();
                         last.retain(|(c, _)| *c != code);

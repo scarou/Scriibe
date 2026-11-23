@@ -104,9 +104,22 @@ pub fn machine_json(machine: &MachineInfo) -> Value {
     })
 }
 
+/// Titre et détail montrés. Sous Linux, aucun llama.cpp pour carte graphique n'est proposé (version processeur seulement) : la chaîne
+/// « gpu » ne doit pas promettre une carte graphique qui ne servira pas.
+fn texts(chain: &Chain, linux: bool) -> (&'static str, &'static str) {
+    if linux && chain.id == "gpu" {
+        return (LINUX_GPU_TITLE, LINUX_GPU_DETAIL);
+    }
+    (chain.title, chain.detail)
+}
+
+const LINUX_GPU_TITLE: &str = "Tout sur cet ordinateur, avec un modèle de mise au propre plus gros";
+const LINUX_GPU_DETAIL: &str = "Whisper « small » + Qwen 2.5 3 B sur le processeur (llama.cpp : sous Linux, la carte graphique n'est pas utilisée). Sans doute plus juste que le petit modèle, mais plus lent.";
+
 pub fn chain_json(chain: &Chain) -> Value {
+    let (title, detail) = texts(chain, cfg!(target_os = "linux"));
     json!({
-        "id": chain.id, "title": chain.title, "detail": chain.detail, "timing": chain.timing, "measured": chain.measured,
+        "id": chain.id, "title": title, "detail": detail, "timing": chain.timing, "measured": chain.measured,
         "needs": chain.needs.iter().map(|n| for_this_system(n)).collect::<Vec<_>>(), "needs_key": chain.needs_key,
     })
 }
@@ -168,6 +181,16 @@ mod tests {
         assert_eq!(offered(&desktop).last().map(|c| c.id), Some("cloud-cleanup"));
         assert_eq!(offered(&desktop).len(), 4);
         assert!(!chain("gpu").unwrap().measured);
+    }
+
+    #[test]
+    fn on_linux_the_gpu_chain_does_not_promise_a_graphics_card() {
+        let gpu_chain = chain("gpu").unwrap();
+        let (title, detail) = texts(gpu_chain, true);
+        assert!(!title.contains("carte graphique") || title.contains("pas"), "{title}");
+        assert!(detail.contains("processeur") && detail.contains("pas utilisée"), "{detail}");
+        assert_eq!(texts(gpu_chain, false), (gpu_chain.title, gpu_chain.detail), "ailleurs : texte d'origine");
+        assert_eq!(texts(chain("local-raw").unwrap(), true).0, chain("local-raw").unwrap().title);
     }
 
     #[test]

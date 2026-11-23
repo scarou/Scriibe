@@ -30,7 +30,7 @@ Sur un GNOME sans l'extension AppIndicator (Fedora), l'icône n'apparaît pas : 
 
 ## Les deux moteurs locaux
 
-Scriibe appelle deux programmes externes en HTTP : `whisper-server` (transcription) et `llama-server` (mise au propre). Les cartes **Les programmes** et **Modèles recommandés** de **Réglages → Moteurs** les proposent (`whisper-server (Linux)` : whisper.cpp statique, AVX2 ; `llama-server (Linux, processeur)` : version officielle remballée par la CI), avec taille et source avant l'accord. Ils se rangent dans `~/.local/share/Scriibe/engines/`, avec leurs droits d'exécution et `LD_LIBRARY_PATH` posés par Scriibe. Le processeur doit connaître AVX2 (tout PC depuis 2015 environ). Les modèles GGUF servent à la mise au propre, les `ggml-….bin` à Whisper.
+Scriibe appelle deux programmes externes en HTTP : `whisper-server` (transcription) et `llama-server` (mise au propre). Les cartes **Les programmes** et **Modèles recommandés** de **Moteurs et modèles** les proposent (`whisper-server (Linux)` : whisper.cpp statique, AVX2 ; `llama-server (Linux, processeur)` : version officielle remballée par la CI), avec taille et source avant l'accord. Ils se rangent dans `~/.local/share/Scriibe/engines/`, avec leurs droits d'exécution et `LD_LIBRARY_PATH` posés par Scriibe. Le processeur doit connaître AVX2 (tout PC depuis 2015 environ). Les modèles GGUF servent à la mise au propre, les `ggml-….bin` à Whisper.
 
 ### Compiler `whisper-server` soi-même
 

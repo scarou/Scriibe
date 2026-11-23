@@ -16,16 +16,16 @@ Useful between two releases, or if the zip is not yet attached to the latest one
 
 ## The two local engines
 
-Scriibe calls two external programs over HTTP, like Scribe: `whisper-server` (transcription) and `llama-server` (cleanup). The **Programs** card in **Settings → Engines** downloads them one by one, with size and source shown before you agree:
+Scriibe calls two external programs over HTTP, like Scribe: `whisper-server` (transcription) and `llama-server` (cleanup). The **Programs** card in **Engines and models** downloads them one by one, with size and source shown before you agree:
 
 - `whisper-server`: whisper.cpp with its DLLs;
 - `llama-server (CPU)` or `llama-server (Vulkan graphics card)`. The Vulkan version replaces the CPU version: cleanup runs on the graphics card (compare with the CPU timings; to go back, download the CPU version again). The **Dashboard** wizard measures the machine and suggests the matching chain with measured timings.
 
-Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into Scriibe's models folder. GGUF files are for cleanup, `ggml-….bin` files for Whisper (**Settings → Engines → Choose a file…** to point at a file elsewhere). Cleanup can also go through LM Studio or Ollama (list of the server's models, adjustable address).
+Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into Scriibe's models folder. GGUF files are for cleanup, `ggml-….bin` files for Whisper (**Engines and models → Choose a file…** to point at a file elsewhere). Cleanup can also go through LM Studio or Ollama (list of the server's models, adjustable address).
 
 ## Online engines (fallback)
 
-Quicker to set up, or useful on a modest machine, but paid by use (a few cents per dictation): the voice goes to Deepgram, the text to OpenRouter to be cleaned up. You need an account and a key for each: paste each key in **Settings → Engines → Cloud keys (fallback)**. Keys are stored in the Windows Credential Manager and never displayed.
+Quicker to set up, or useful on a modest machine, but paid by use (a few cents per dictation): the voice goes to Deepgram, the text to OpenRouter to be cleaned up. You need an account and a key for each: paste each key in **Engines and models → Cloud keys (fallback)**. Keys are stored in the Windows Credential Manager and never displayed.
 
 ## Manual update
 

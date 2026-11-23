@@ -237,7 +237,8 @@ impl<T: Clone> Watched<T> {
 
 /// `settings.json` lu comme un objet JSON (la valeur brute : la vue des réglages se compose ensuite, voir `FileConfig::view`).
 fn read_settings_object(text: &str) -> Parsed<Value> {
-    match serde_json::from_str::<Value>(text) {
+    // Un éditeur de Windows (Bloc-notes ancien, PowerShell 5) écrit une marque d'ordre des octets : le fichier reste lisible.
+    match serde_json::from_str::<Value>(text.trim_start_matches('\u{feff}')) {
         Ok(value) if value.is_object() => {
             let version = value.get("schemaVersion").and_then(Value::as_u64).unwrap_or(1);
             if version > SETTINGS_SCHEMA {
@@ -253,7 +254,7 @@ fn read_settings_object(text: &str) -> Parsed<Value> {
 /// `profile.json` lu comme un objet JSON. Pas de numéro de version propre (étape 4b) : ses clés sont celles de `settings.json`, dont le
 /// numéro fait foi pour tout le dossier ; un `profile.json` n'est donc jamais « trop récent », seulement lisible ou non.
 fn read_profile_object(text: &str) -> Parsed<Value> {
-    match serde_json::from_str::<Value>(text) {
+    match serde_json::from_str::<Value>(text.trim_start_matches('\u{feff}')) {
         Ok(value) if value.is_object() => Parsed::Ok(value),
         _ => Parsed::Unreadable,
     }
@@ -789,6 +790,19 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn a_settings_file_with_a_byte_order_mark_is_still_read() {
+        let dir = temp("bom");
+        std::fs::write(dir.join("settings.json"), "\u{feff}{\"soundVolume\": 0.25}").unwrap();
+        let config = FileConfig::new(dir.clone());
+        assert!(config.problems().is_empty(), "un BOM n'est pas un fichier illisible : {:?}", config.problems());
+        assert!((config.settings().sound_volume - 0.25).abs() < 1e-9);
+        assert!(matches!(read_settings_object("\u{feff}{}"), Parsed::Ok(_)));
+        assert!(matches!(read_profile_object("\u{feff}{}"), Parsed::Ok(_)));
+        assert!(matches!(read_settings_object("\u{feff}[]"), Parsed::Unreadable));
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]

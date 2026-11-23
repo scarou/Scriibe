@@ -164,6 +164,8 @@
   main.stopped { padding: 40px; }
   /* L'en-tête de page remonte de 20 px sur le bandeau : sans cette marge il en mordrait 6 (20 − 14 de la carte). */
   main > :global(.card.bad) { margin-bottom: 20px; }
+  /* Entre deux bandeaux, l'écart reste celui des cartes (14 px) : seul le dernier compense l'en-tête (enquête M9). */
+  main > :global(.card.bad:has(+ .card.bad)) { margin-bottom: 14px; }
   @media (max-width: 640px) {
     .shell { flex-direction: column; }
     /* Une seule bande qui défile de côté, au lieu de treize boutons sur plusieurs lignes. */

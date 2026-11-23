@@ -150,6 +150,9 @@ export const enServer: Record<string, string> = {
     'Whisper + Qwen 2.5 1.5 B (llama.cpp). Your voice and text stay on the computer, but a small model sometimes keeps the “uh”s and may change a word.',
   '4 à 6 s (mesuré sur un portable à 4 cœurs sans carte graphique) ; 15 à 45 s pour la première dictée après une libération du modèle':
     '4 to 6 s (measured on a 4-core laptop with no graphics card); 15 to 45 s for the first dictation after the model has been released',
+  'Tout sur cet ordinateur, avec un modèle de mise au propre plus gros': 'Everything on this computer, with a larger cleanup model',
+  "Whisper « small » + Qwen 2.5 3 B sur le processeur (llama.cpp : sous Linux, la carte graphique n'est pas utilisée). Sans doute plus juste que le petit modèle, mais plus lent.":
+    'Whisper "small" + Qwen 2.5 3 B on the processor (llama.cpp: on Linux, the graphics card is not used). Probably more accurate than the small model, but slower.',
   'Tout sur cet ordinateur, avec sa carte graphique': 'Everything on this computer, using its graphics card',
   'Whisper « small » + Qwen 2.5 3 B sur la carte graphique (llama.cpp). Sans doute plus rapide et plus juste que sur le processeur.':
     'Whisper “small” + Qwen 2.5 3 B on the graphics card (llama.cpp). Probably faster and more accurate than on the CPU.',

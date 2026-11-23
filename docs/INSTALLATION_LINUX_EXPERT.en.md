@@ -30,7 +30,7 @@ On a GNOME without the AppIndicator extension (Fedora), the icon does not appear
 
 ## The two local engines
 
-Scriibe calls two external programs over HTTP: `whisper-server` (transcription) and `llama-server` (cleanup). The **Programs** and **Recommended models** cards in **Settings → Engines** offer them (`whisper-server (Linux)`: static whisper.cpp, AVX2; `llama-server (Linux, CPU)`: the official build repackaged by the CI), with size and source shown before you agree. They are stored in `~/.local/share/Scriibe/engines/`, with execute permission and `LD_LIBRARY_PATH` set by Scriibe. The processor must support AVX2 (any PC since about 2015). GGUF models are for cleanup, `ggml-….bin` files for Whisper.
+Scriibe calls two external programs over HTTP: `whisper-server` (transcription) and `llama-server` (cleanup). The **Programs** and **Recommended models** cards in **Engines and models** offer them (`whisper-server (Linux)`: static whisper.cpp, AVX2; `llama-server (Linux, CPU)`: the official build repackaged by the CI), with size and source shown before you agree. They are stored in `~/.local/share/Scriibe/engines/`, with execute permission and `LD_LIBRARY_PATH` set by Scriibe. The processor must support AVX2 (any PC since about 2015). GGUF models are for cleanup, `ggml-….bin` files for Whisper.
 
 ### Building `whisper-server` yourself
 

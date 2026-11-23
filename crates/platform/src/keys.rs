@@ -660,6 +660,13 @@ impl CommandMenuMask {
         }
         false
     }
+
+    /// Le relâchement de `code` a été manqué puis rattrapé (crochet Windows) : on oublie son suivi, sinon l'appui suivant garderait l'ancien
+    /// drapeau « dictée tenue » et le masquage du menu serait en trop ou en moins (enquête Windows, M2). Le menu s'est déjà ouvert ou non :
+    /// rien à glisser maintenant.
+    pub fn forget(&mut self, code: u32) {
+        self.held.retain(|(c, _)| *c != code);
+    }
 }
 
 static RULES: std::sync::Mutex<Option<HookRules>> = std::sync::Mutex::new(None);
@@ -1300,6 +1307,22 @@ mod tests {
         assert!(!hook_rules(&binding).mask_menu);
         assert!(hook_rules(&binding).command_menu.is_empty());
         assert!(hook_rules(&binding).binding.is_some_and(|b| b.command == vec![Key::LeftControl]));
+    }
+
+    #[test]
+    fn a_caught_up_release_forgets_the_command_key_so_the_next_press_starts_clean() {
+        let binding = Binding { command: vec![Key::Vk(VK_RWIN)], ..Binding::from_hotkey(Hotkey::RightControl) };
+        let rules = hook_rules(&binding);
+        let (win, dictation) = (Key::Vk(VK_RWIN), Key::RightControl);
+        let mut mask = CommandMenuMask::default();
+        // Commande donnée, mais le relâchement de Windows est manqué puis rattrapé.
+        assert!(!mask.event(&rules, &[dictation, win], VK_RWIN, true));
+        mask.forget(VK_RWIN);
+        // Appui seul suivant : sans l'oubli, il hériterait du drapeau « utilisée » et serait masqué à tort.
+        assert!(!mask.event(&rules, &[win], VK_RWIN, true));
+        assert!(!mask.event(&rules, &[], VK_RWIN, false), "un appui seul sur Windows doit rester libre");
+        // Oublier une touche non suivie ne change rien.
+        mask.forget(VK_RWIN);
     }
 
     #[test]

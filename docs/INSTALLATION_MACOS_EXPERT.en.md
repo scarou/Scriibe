@@ -15,11 +15,11 @@ brew install whisper-cpp
 brew install llama.cpp
 ```
 
-Scriibe looks for them in Homebrew's `PATH` (`/opt/homebrew/bin` on Apple silicon). The **Programs** card in **Settings → Engines** downloads nothing on a Mac (it shows the Homebrew commands): on a Mac the programs come from Homebrew. Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into `~/Library/Application Support/Scriibe/models/`. GGUF files are for cleanup, `ggml-….bin` files for Whisper.
+Scriibe looks for them in Homebrew's `PATH` (`/opt/homebrew/bin` on Apple silicon). The **Programs** card in **Engines and models** downloads nothing on a Mac (it shows the Homebrew commands): on a Mac the programs come from Homebrew. Models are downloaded from the **Recommended models** and **Add a model from Hugging Face** cards, or dropped by hand into `~/Library/Application Support/Scriibe/models/`. GGUF files are for cleanup, `ggml-….bin` files for Whisper.
 
 ## Online engines (fallback)
 
-Quicker to set up, or useful on a modest machine, but pay-as-you-go: your voice goes to Deepgram and the text to OpenRouter to be cleaned up. You need an account and a key for each: paste each key under **Settings → Engines → Cloud keys (fallback)**. Keys are stored in the Mac's keychain and are never displayed.
+Quicker to set up, or useful on a modest machine, but pay-as-you-go: your voice goes to Deepgram and the text to OpenRouter to be cleaned up. You need an account and a key for each: paste each key under **Engines and models → Cloud keys (fallback)**. Keys are stored in the Mac's keychain and are never displayed.
 
 ## Manual update
 

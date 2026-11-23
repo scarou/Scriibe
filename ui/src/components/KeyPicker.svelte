@@ -174,7 +174,7 @@
         {/if}
         <div class="row"><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else if capture.error}
-        <div class="bad">{refusalLine(capture.labels?.map(keyName).join(' + ') ?? '', t(capture.error))}</div>
+        <div class="bad">{refusalLine(capture.labels?.join(' + ') ?? '', capture.error, keyName, t)}</div>
         <div class="row"><button onclick={() => begin(kind!)}>{t('Réessayer')}</button><button onclick={() => stop()}>{t('Annuler')}</button></div>
       {:else}
         <div>{t('Nouvelle touche :')} <b>{capture.labels?.map(keyName).join(' + ')}</b></div>
