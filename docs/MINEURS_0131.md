@@ -38,3 +38,13 @@ Choix et raisons : le trousseau reste `secret-tool` (pas de module Rust). Une cl
 | M3 : plafond de 300 cartes sans purge | **Corrigé** : le pli d'Historique le plus ancien cède sa place | `a_full_list_gives_way_to_a_new_card_by_dropping_the_oldest_history_fold` |
 | Test de contrat faux serveur de la page ↔ `merge` de Rust | **Fait** : `crates/platform/tests/data/ui_state_contract.json`, joué des deux côtés | `merge_follows_the_contract_shared_with_the_page`, `uiState.contract.test.ts` |
 | Tests des routes `api/ui-state` | **Fait** : la route est extraite (`ui_state::route`) et testée | `the_route_reads_merges_and_reports_a_file_it_must_not_touch` |
+
+## Relais
+
+*(Fin de la tâche 1, 23/11 : contexte à 24 %, relais préparé avant la tâche 2 par la règle du CLAUDE.md.)*
+
+- **Fait** : tâches 0 et 1 (sections ci-dessus), commits locaux `99851ef`, `ec10aa5`, `dba0820` ; rien de poussé. 916 tests Rust et 196 tests UI verts à `dba0820`.
+- **En cours** : rien d'entamé de la tâche 2.
+- **Prochain pas** : tâche 2 du découpage (`decoupage-2026-11-23-mineurs-essais-pc.md`, vault, `decoupages/`) : ligne de journal de `repeats_itself`, cas CJK / boucle tronquée / motif alterné / suite de chiffres (`docs/MOT_REPETE.md`), stabiliser `instance::tests::a_second_instance_is_refused_until_the_first_ends` (vert 20 fois de suite), couvrir le repli de `handle_page_key` (`docs/ENQUETE_WINDOWS.md` M3). Résultat dans § Mot répété de ce fichier. Puis tâche 3 (relecture par un sous-agent Sonnet qui n'a pas écrit le code, tâches 0 à 2 ; écrire § Relecture).
+- **Pièges** : `cd` dans `ui/` change le dossier de travail de la session (revenir au dépôt avec un chemin absolu). Tests de l'interface : `cd ui && npx vitest run` ; Rust : `cargo test --workspace`. Le correctif `CommandMenuMask` (`windows/keyboard.rs`) ne compile pas sur Mac : à vérifier sur le PC (tâche 4). Pour la relecture (tâche 3), signaler au relecteur : fenêtre de déverrouillage du trousseau non vérifiée, rendu du liseré non vu, clé rendue aux moteurs non écrasée (voulu, au mieux).
+- **Commits à relire en tâche 3** : `99851ef`, `ec10aa5`, `dba0820` + ceux de la tâche 2.
