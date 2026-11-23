@@ -57,12 +57,32 @@ Choix et raisons : la règle de `repeats_itself` reste « refaire sur le serveur
 
 À savoir : la règle « deux fois puis un début de troisième » fait refaire aussi « Je veux, je veux, je » dit sans y penser ; coût : une seconde, texte inchangé. Mesure sur les 2 287 textes des cas de référence : 0 texte signalé à tort. L'historique de la machine (19 entrées) est trop petit pour mesurer un taux réel.
 
+## Relecture (tâche 3, 23/11)
+
+Sous-agent relecteur Sonnet (effort élevé, n'a pas écrit le code) sur `99851ef`, `ec10aa5`, `dba0820`, `20a1571`, `d8531aa` : **0 bloquant, 2 importants, 9 mineurs**. Aucune fuite de clé (messages d'erreur, arguments, journal), aucune panique de `repeats_itself` (fuzz de 300 000 textes), `CommandMenuMask::forget` relu à la main sans défaut. Détail du relecteur : dossier temporaire de la session (`relecture-0131.md`), repris ici.
+
+**Importants, corrigés (un test chacun)**
+- I1 `secret_service.rs` : à l'expiration des 10 min, un trousseau reverrouillé ou lent faisait oublier une clé valide (« pas de clé » 5 min, fenêtre de déverrouillage au début d'une dictée). Maintenant seule une réponse « absente » la fait oublier ; un trousseau muet la laisse servie et repousse la relecture du délai des trousseaux muets. Test : `a_keyring_that_does_not_answer_after_the_delay_keeps_the_key_it_knew`.
+- I2 `secrets_are_overwritten_when_dropped` ne prouvait rien (`mem::take` vidait déjà la chaîne). `wipe_bytes` met les octets à zéro par écriture volatile, `wipe` écrase le tampon **sur place** ; le test relit le tampon par son pointeur et un compteur par fil vérifie que `Secret` et `ToolOutput` appellent `wipe` en tombant.
+
+**Mineurs corrigés**
+- M1 `ui_state.rs` : un jour d'Historique plus ancien que tous ceux qu'on garde évinçait un jour plus récent (« Tout replier » les envoie du plus récent au plus ancien, au-delà de 300 cartes) ; il est maintenant refusé. Test ajouté à `a_full_list_gives_way_to_a_new_card_by_dropping_the_oldest_history_fold`.
+- M8 `whisper.rs` : le début de troisième copie ne compte plus qu'en fin de texte (« Il y a il y a il pleut » n'est plus refait). Cas ajouté à `the_edges_of_the_loop_rule`.
+- M10 : « dans le même page » → « la même page » (3 guides), phrase fausse de `ROADMAP.md` n° 23 (la note porte déjà les nouveaux numéros).
+
+**Mineurs restants (non corrigés, notés)**
+- M2 : le contrat page ↔ programme ne couvre ni le plafond ni l'éviction (la page ne plafonne pas : elle garde les cartes évincées jusqu'au rechargement ; voulu).
+- M3 `uiState.ts` : `leave()` ne reprend pas un changement déjà parti dans la file derrière un envoi lent ; un pli enregistré sans délai n'est pas en `keepalive`. Risque faible en local.
+- M4 : `uiState.test.ts` (« la fermeture n'attend pas un envoi en cours ») a une assertion toujours vraie ; `apiKeepalive.test.ts` lit le source de `main.ts` au lieu du comportement.
+- M5 : `CommandTool::new()` (branchement de `resolve_program`) et le message « a refusé la clé » de `store` (`ToolError::Refused`) ne sont pas exercés par un test.
+- M6 : si `secret-tool` n'est dans aucun des trois dossiers (NixOS, Guix, `~/.local`), le nom seul passe par le `PATH` : la protection annoncée ne joue pas ; un fichier non exécutable dans `/usr/bin` n'est pas écarté (`is_file`).
+- M9 : `is_number_run` compte « 2,5 » comme deux nombres ; effet : une seconde transcription de plus sur une prise de 2 s ou moins.
+- Test CSS des bandeaux (`tabs.test.ts`) : une regex sur le source ; `:has()` demande WebKitGTK ≥ 2.40.
+
 ## Relais
 
-*(Fin de la tâche 1, 23/11 : contexte à 24 %, relais préparé avant la tâche 2 par la règle du CLAUDE.md.)*
+*(Fin de la tâche 3, 23/11 : contexte à environ 20 %, la tâche 4 se fait dans une nouvelle session.)*
 
-- **Fait** : tâches 0 et 1 (sections ci-dessus), commits locaux `99851ef`, `ec10aa5`, `dba0820` ; rien de poussé. 916 tests Rust et 196 tests UI verts à `dba0820`.
-- **En cours** : rien d'entamé de la tâche 2.
-- **Prochain pas** : tâche 2 du découpage (`decoupage-2026-11-23-mineurs-essais-pc.md`, vault, `decoupages/`) : ligne de journal de `repeats_itself`, cas CJK / boucle tronquée / motif alterné / suite de chiffres (`docs/MOT_REPETE.md`), stabiliser `instance::tests::a_second_instance_is_refused_until_the_first_ends` (vert 20 fois de suite), couvrir le repli de `handle_page_key` (`docs/ENQUETE_WINDOWS.md` M3). Résultat dans § Mot répété de ce fichier. Puis tâche 3 (relecture par un sous-agent Sonnet qui n'a pas écrit le code, tâches 0 à 2 ; écrire § Relecture).
-- **Pièges** : `cd` dans `ui/` change le dossier de travail de la session (revenir au dépôt avec un chemin absolu). Tests de l'interface : `cd ui && npx vitest run` ; Rust : `cargo test --workspace`. Le correctif `CommandMenuMask` (`windows/keyboard.rs`) ne compile pas sur Mac : à vérifier sur le PC (tâche 4). Pour la relecture (tâche 3), signaler au relecteur : fenêtre de déverrouillage du trousseau non vérifiée, rendu du liseré non vu, clé rendue aux moteurs non écrasée (voulu, au mieux).
-- **Commits à relire en tâche 3** : `99851ef`, `ec10aa5`, `dba0820` + ceux de la tâche 2.
+- **Fait** : tâches 0 à 3 (sections ci-dessus), commits locaux `99851ef`, `ec10aa5`, `dba0820`, `20a1571`, `d8531aa` et celui de la relecture ; rien de poussé. 923 tests Rust verts, clippy sans avertissement ; tests de l'interface non relancés (aucun changement de l'interface depuis la tâche 1, 196 verts).
+- **Prochain pas** : tâche 4 (essai Windows, branche `essai-mineurs` envoyée par `git bundle` avec `pilote`), nouvelle session Sonnet · Élevé.
+- **Pièges** : `instance::tests::a_second_instance…` est maintenant tolérant à la fenêtre `fork`/`exec` (voir `docs/PIEGES.md`) ; le test `releasing_one_key_of_a_combination_in_the_page_ends_the_dictation` et `CommandMenuMask::forget` ne compilent ou ne tournent sous Windows que sur le PC ; la fenêtre de déverrouillage du trousseau, le liseré de la pastille et le rendu des bandeaux sont à voir à l'écran (tâches 5 et 6).

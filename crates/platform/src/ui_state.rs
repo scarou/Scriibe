@@ -64,8 +64,11 @@ fn merge(state: &mut Map<String, Value>, fragment: &Value) {
                 }
                 Value::Bool(_) => {
                     if !kept.contains_key(id) && kept.len() >= MAX_FOLDS {
-                        let oldest = kept.keys().filter(|k| k.starts_with(HISTORY_PREFIX) && *k != id).min().cloned();
+                        let oldest = kept.keys().filter(|k| k.starts_with(HISTORY_PREFIX)).min().cloned();
                         match oldest {
+                            // Un jour d'Historique plus ancien que tous ceux que l'on garde ne prend la place d'aucun plus récent
+                            // (« Tout replier » les envoie du plus récent au plus ancien).
+                            Some(oldest) if id.starts_with(HISTORY_PREFIX) && *id < oldest => continue,
                             Some(oldest) => {
                                 kept.remove(&oldest);
                             }
@@ -363,6 +366,11 @@ mod tests {
         assert_eq!(folds.as_object().unwrap().len(), MAX_FOLDS, "le plafond tient");
         assert!(folds.get("historique-2026-01-000").is_none(), "la plus ancienne a cédé");
         assert_eq!(folds["historique-2026-12-31"], json!(false), "la neuve est retenue");
+        // Un jour plus ancien que tous ceux que l'on garde n'évince aucun jour plus récent (« Tout replier » les envoie du plus récent
+        // au plus ancien) : il est refusé, la liste ne change pas.
+        let before = store.read()["folds"].clone();
+        store.patch(&json!({"folds": {"historique-2025-01-01": true}})).unwrap();
+        assert_eq!(store.read()["folds"], before, "plus ancien que tous : refusé, rien n'est évincé");
         // Une carte autre que de l'Historique prend aussi la place de la plus ancienne ; une liste sans pli d'Historique refuse toujours.
         store.patch(&json!({"folds": {"modes-mes-modes": true}})).unwrap();
         assert_eq!(store.read()["folds"]["modes-mes-modes"], json!(true));

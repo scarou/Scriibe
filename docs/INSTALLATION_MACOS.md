@@ -135,7 +135,7 @@ Les « modèles » sont les fichiers qui contiennent l'intelligence de la transc
 3. Plus bas, dans la carte **Modèles recommandés**, repérez le **Modèle Whisper « base »**. Cliquez sur **Voir la taille et la source**, lisez, puis cliquez sur **Télécharger**. Attendez la fin de la barre de progression.
 4. Dans la même carte, faites de même pour un modèle de mise au propre : **« Qwen 2.5 1,5 B »** (environ 1 Go) convient pour commencer.
 5. **La carte « Les programmes »** montre les deux commandes Homebrew de l'étape 5 : rien ne s'y télécharge.
-6. Plus haut dans le même page **Moteurs et modèles**, choisissez **Whisper** pour la transcription et **llama.cpp** pour la mise au propre.
+6. Plus haut dans la même page **Moteurs et modèles**, choisissez **Whisper** pour la transcription et **llama.cpp** pour la mise au propre.
 
 **C'est réussi quand** la carte **État de l'installation** ne signale plus rien qui manque.
 

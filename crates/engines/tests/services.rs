@@ -400,6 +400,8 @@ fn the_edges_of_the_loop_rule() {
         "Fé. Fé.",
         "C'est fait. C'est fait.",
         "Fé. Fait. Fé. Fait.",
+        // Le début d'une troisième copie compte seulement s'il va jusqu'à la fin du texte (boucle coupée), pas au milieu d'une phrase.
+        "Il y a il y a il pleut",
         "ありがとうありがとう",
         "はいはい",
         "の\nの",

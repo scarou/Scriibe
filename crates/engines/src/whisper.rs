@@ -227,7 +227,7 @@ impl Launcher for WhisperLauncher {
 
 /// Vrai si le texte contient une boucle (majuscules et ponctuation ignorées) : un passage d'au moins `MIN_LOOP_WORDS` mots répété tel
 /// quel deux fois de suite ; un passage plus court (un à trois mots) répété trois fois de suite (chantier 4, `docs/MOT_REPETE.md` : « Fé. » ×4, « C'est fait. » ×3), ou deux fois puis
-/// repris sans être fini (boucle coupée au milieu par la limite de Whisper : « C'est fait. C'est fait. C'est »). C'est la boucle de
+/// repris sans être fini **jusqu'à la fin du texte** (boucle coupée par la limite de Whisper : « C'est fait. C'est fait. C'est »). C'est la boucle de
 /// Whisper sur une prise courte. Une vraie répétition de la personne qui dicte y répond aussi ; le seul effet est alors une seconde
 /// transcription, sur le serveur normal, dont la réponse remplace l'autre (le texte dicté n'est donc jamais retouché ici).
 ///
@@ -277,7 +277,8 @@ pub fn repeats_itself(text: &str) -> bool {
                 return true;
             }
             let third_copy = at + 3 * len <= n && words[at..at + len] == words[at + 2 * len..at + 3 * len];
-            let third_cut_short = len >= 2 && at + 2 * len < n && words[at + 2 * len] == words[at];
+            let third_cut_short =
+                len >= 2 && at + 2 * len < n && n - (at + 2 * len) < len && words[at + 2 * len..] == words[at..at + n - (at + 2 * len)];
             third_copy || third_cut_short
         })
     })

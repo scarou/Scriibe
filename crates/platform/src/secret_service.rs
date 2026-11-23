@@ -41,12 +41,29 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 /// Une clé d'API fait quelques dizaines de signes.
 const MAX_KEY_LEN: usize = 4096;
 
-/// Écrase un texte secret avant de le rendre (`black_box` : l'optimiseur ne retire pas l'écriture). Au mieux : une copie faite plus tôt
-/// par une bibliothèque n'est pas atteinte.
+/// Met à zéro les octets d'un tampon (écriture volatile : l'optimiseur ne la retire pas, même si le tampon est libéré juste après).
+fn wipe_bytes(bytes: &mut [u8]) {
+    for b in bytes.iter_mut() {
+        // SAFETY : `b` est une référence valide et alignée vers un octet du tampon.
+        unsafe { std::ptr::write_volatile(b, 0) };
+    }
+    std::sync::atomic::compiler_fence(std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Écrase un texte secret **sur place** (le tampon que la chaîne possède), puis la vide. Au mieux : une copie faite plus tôt par une
+/// bibliothèque n'est pas atteinte.
 fn wipe(text: &mut String) {
-    let mut bytes = std::mem::take(text).into_bytes();
-    bytes.iter_mut().for_each(|b| *b = 0);
-    std::hint::black_box(&bytes);
+    #[cfg(test)]
+    WIPES.with(|w| w.set(w.get() + 1));
+    // SAFETY : des octets à zéro sont de l'UTF-8 valide (U+0000) ; la chaîne est vidée tout de suite après.
+    wipe_bytes(unsafe { text.as_bytes_mut() });
+    text.clear();
+}
+
+// Nombre d'écrasements faits par ce fil (les tests s'en servent pour vérifier que les types qui portent une clé les appellent).
+#[cfg(test)]
+thread_local! {
+    static WIPES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 /// Une clé gardée en mémoire : écrasée dès qu'elle est lâchée (remplacée, périmée, effacée).
@@ -304,7 +321,7 @@ impl<T: SecretTool> ServiceSecrets<T> {
 impl<T: SecretTool> Secrets for ServiceSecrets<T> {
     fn get(&self, kind: KeyKind) -> Option<String> {
         let account = account_name(kind);
-        let generation = {
+        let (generation, stale) = {
             let state = self.state();
             match state.known.get(account) {
                 Some(Known::Found(value, since)) if since.elapsed() < self.found_for => return Some(value.0.clone()),
@@ -312,13 +329,27 @@ impl<T: SecretTool> Secrets for ServiceSecrets<T> {
                 Some(Known::Unreachable(since)) if since.elapsed() < self.unreachable_for => return None,
                 _ => {}
             }
-            state.generation.get(account).copied().unwrap_or(0)
+            // La clé que l'on connaissait, périmée : si le trousseau ne répond pas à la relecture, il ne l'a pas démentie.
+            let stale = match state.known.get(account) {
+                Some(Known::Found(value, _)) => Some(value.clone()),
+                _ => None,
+            };
+            (state.generation.get(account).copied().unwrap_or(0), stale)
         };
         // Le verrou n'est pas tenu pendant l'appel : une demande de déverrouillage ne bloque pas les autres lectures.
         let (found, known) = match self.lookup(account) {
             Ok(Some(value)) => (Some(value.0.clone()), Known::Found(value, Instant::now())),
             Ok(None) => (None, Known::Absent(Instant::now())),
-            Err(_) => (None, Known::Unreachable(Instant::now())),
+            // Un trousseau qui ne répond pas (reverrouillé, lent) ne dit rien de la clé : seule une réponse « absente » la fait oublier.
+            // La clé reste servie et la prochaine relecture attend le délai des trousseaux muets (pas de fenêtre en pleine dictée).
+            Err(_) => match stale {
+                Some(value) => {
+                    let since =
+                        Instant::now().checked_sub(self.found_for.saturating_sub(self.unreachable_for)).unwrap_or_else(Instant::now);
+                    (Some(value.0.clone()), Known::Found(value, since))
+                }
+                None => (None, Known::Unreachable(Instant::now())),
+            },
         };
         let mut state = self.state();
         // Une clé enregistrée ou effacée pendant la lecture : son résultat est périmé, il ne remplace rien.
@@ -606,15 +637,39 @@ mod tests {
 
     #[test]
     fn secrets_are_overwritten_when_dropped() {
+        // Le tampon lui-même est mis à zéro (et non seulement la chaîne vidée) : testé sur un tableau d'octets.
+        let mut bytes = *b"cle-secrete";
+        wipe_bytes(&mut bytes);
+        assert_eq!(bytes, [0u8; 11]);
+        // `wipe` écrase le tampon de la chaîne, qu'on relit par son pointeur avant de la lâcher.
         let mut text = String::from(KEY);
+        let (ptr, len) = (text.as_ptr(), text.len());
         wipe(&mut text);
-        assert!(text.is_empty(), "le texte est vidé");
-        // Les types qui portent une clé se vident à la chute (vérifié sur le tampon avant la libération).
-        let mut secret = Secret::new(KEY);
-        wipe(&mut secret.0);
-        assert!(secret.0.is_empty());
-        let out = ToolOutput { code: Some(0), stdout: KEY.into() };
-        drop(out);
+        assert!(text.is_empty());
+        // SAFETY : la chaîne n'a pas été libérée ni agrandie, son tampon est toujours alloué (`capacity` inchangée).
+        let after = unsafe { std::slice::from_raw_parts(ptr, len) };
+        assert!(after.iter().all(|b| *b == 0), "le tampon est à zéro, pas seulement la chaîne vide");
+        // Les types qui portent une clé appellent `wipe` en tombant (remplacée, périmée, effacée, sortie de l'outil).
+        let before = WIPES.with(|w| w.get());
+        drop(Secret::new(KEY));
+        assert_eq!(WIPES.with(|w| w.get()), before + 1, "Secret écrase à la chute");
+        drop(ToolOutput { code: Some(0), stdout: KEY.into() });
+        assert_eq!(WIPES.with(|w| w.get()), before + 2, "ToolOutput écrase à la chute");
+    }
+
+    #[test]
+    fn a_keyring_that_does_not_answer_after_the_delay_keeps_the_key_it_knew() {
+        let tool = FakeTool::default();
+        tool.items.lock().unwrap().insert("openrouter".into(), KEY.into());
+        let keyring = ServiceSecrets::new(tool.clone()).with_found_for(Duration::ZERO);
+        assert_eq!(keyring.get(KeyKind::OpenRouter).as_deref(), Some(KEY));
+        // Délai passé, trousseau reverrouillé : une clé que le trousseau n'a pas démentie reste servie.
+        tool.set(Mode::Locked);
+        assert_eq!(keyring.get(KeyKind::OpenRouter).as_deref(), Some(KEY), "un trousseau muet ne fait pas perdre la clé");
+        // Il répond de nouveau et la clé a été effacée ailleurs : elle n'est plus servie.
+        tool.set(Mode::Working);
+        tool.items.lock().unwrap().clear();
+        assert_eq!(keyring.get(KeyKind::OpenRouter), None);
     }
 
     #[test]
