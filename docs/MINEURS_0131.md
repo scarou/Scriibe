@@ -102,11 +102,23 @@ PC Windows (`C:\scriibe-dev`) : branche `essai-mineurs` au commit `3e39efa` envo
 
 À savoir : restes d'anciens essais sur le PC (`C:\essai-c6`, `essai-c7`, `essai-enq`, `essai-lot2`, `essai-lot3`, `essai-refonte-lot2`, `scriibe-essai`), non touchés, à ranger si l'auteur le veut.
 
-## Essai Linux (tâche 5, 23/11) — en cours
+## Essai Linux (tâche 5, 23/11)
 
-PC Linux : `main` du PC (`2034c90`) intact ; branche `essai-mineurs` au commit `e55a805` envoyée par `git bundle` (`2034c90..main`), worktree `~/essai-mineurs`, cible de compilation séparée `~/Scriibe/target-essai`. Prérequis vérifiés (lecture seule) : `secret-tool`, Whisper (`ggml-base`, `small`, `large-v3-turbo-q8_0`), `qwen2.5-1.5b-instruct-q4_k_m`. **Compilation release réussie (4 min 25, 0 avertissement) ; `cargo test --workspace` : 34 suites, 919 réussis, 0 échec, 3 ignorés.**
+PC Linux (GNOME 50, Wayland) : `main` du PC (`2034c90`) intact ; branche `essai-mineurs` (`e55a805`) envoyée par `git bundle` (`2034c90..main`), compilée dans un worktree à cible séparée. Prérequis vérifiés en lecture seule : `secret-tool`, Whisper (`base`, `small`, `large-v3-turbo-q8_0`), `qwen2.5-1.5b`. **Compilation release : 4 min 25, 0 avertissement ; `cargo test --workspace` : 34 suites, 919 réussis, 0 échec, 3 ignorés.** Essai par l'API d'une **instance isolée** (accord de l'auteur) lancée par SSH avec les variables Wayland du Scriibe en cours, données copiées (`models` en lien), sans touches ; Scriibe habituel jamais touché. Piège : `DISPLAY`/`XAUTHORITY` ne se lisent **pas** sur `gnome-shell` (vides) mais sur le Scriibe déjà lancé, sinon GTK échoue (panique `tao`) alors que le serveur démarre quand même. Tout est retiré à la fin (instance, copie, worktree, branche, cible, fichier exporté).
 
-**Bloqué** : le lancement d'une instance d'essai par SSH (données copiées dans `/tmp/essai-donnees`, variables Wayland relevées sur `gnome-shell`) a été refusé par le contrôle d'autorisation de la session ; rien n'a été lancé. Lignes du carnet pas encore essayées.
+| Ligne | Verdict |
+|---|---|
+| Modes, export sous Linux (ROADMAP n°21, 12/11) | **Vu** : pas de boîte, fichier écrit dans `~/Documents/scriibe-mode-essai-l-2026-11-23.scriibe.json`, réponse avec le chemin |
+| Modes, import (champ de chemin) | **Vu** : nom pris → « Essai L 2 », appliqué avec le jeton de l'aperçu ; fichier abîmé et fichier absent refusés ; sans chemin → `ask_path` ; mode masqué gardé dans `hiddenModes`, groupes du menu inchangés |
+| Modes, coche du menu de l'icône (barre du haut GNOME) | **Non vu à l'écran** : seul l'état (réglage) est vérifié ; même code qu'à l'essai Windows |
+| Chaîne « gpu » de l'assistant | **Vu** : texte honnête (portable sans carte graphique, mesures 2,3 à 3,1 s) |
+| « Très très bien » à la mise au propre (`qwen2.5-1.5b`, Simple) | « Très très bien. » et « euh c'est très très bien merci » : **reformulation écartée** par le garde-fou, donc texte gardé tel quel ; « Oui, oui… » → « Oui, » ; « Ha ha ha, très très très bien » → « …très bien » (1,5 s). Le modèle supprime donc une répétition sur les phrases longues, le garde-fou protège les courtes. **Note seulement**, non comparé à Scribe (même consigne, même modèle). |
+| Trousseau, enregistrer puis relire une clé | **Non refait** : fait le 18/11 et couvert par tests ; les deux clés existantes présentes (lecture seule, aucune écrasée) |
+| Trousseau fermé : fenêtre de déverrouillage retirée après le délai | **Non vérifié** : demanderait de verrouiller le trousseau de l'auteur puis qu'il le déverrouille (mot de passe) ; couvert par `a_locked_keyring_stops_the_uninstall_…` côté processus ; à n'essayer qu'avec son accord |
+| Alt+Tab pendant un raccourci tenu (Wayland) | **Vu** (geste de l'auteur, une fois) : Ctrl+← tenu 18,9 s avec Alt+Tab au milieu ; le relâchement a été reçu (« relâchement — 18.9 s de son »), transcription 5,6 s, mise au propre 2,0 s, collage de 18 signes, aucune dictée bloquée. Le message « écoute depuis plus de 15 s » du journal est l'avertissement normal d'une prise longue. Détail : c'est le Scriibe habituel (code `2034c90`) qui a répondu, pas l'instance d'essai (aucune touche) ; le code des portails n'a pas changé depuis. Pastille non vérifiée à l'écran. |
+| Lignes 12–17/11 non reprises (anglais à l'écran, imports et exports d'autres parties, surlignage de l'Aide dans WebKitGTK ; reformulation sur sélection ; restauration sans sélecteur de fichier ; démarrage X11 ; autres) | **Non essayées** : vues sous Windows (Aide, anglais) ou chantiers de code (lecture de la sélection, wl-clipboard, sélecteur), pas des vérifications ; restent au carnet |
+
+**Ajouts** : aucun. Retours d'erreur : aucun mineur apparu.
 
 ## Relais
 
@@ -116,3 +128,9 @@ PC Linux : `main` du PC (`2034c90`) intact ; branche `essai-mineurs` au commit `
 - **Prochain pas** : tâche 5 (essai Linux, branche `essai-mineurs` par `git bundle`, nouvelle session Sonnet · Moyen). Le bundle de la tâche 4 était `276f4d6..main` ; pour le PC Linux vérifier son commit avec `pilote etat linux` avant.
 - **Pièges** : `pilote` n'a pas de commande d'envoi de bundle (scp + `git fetch <bundle> main:essai-mineurs`) ; `robocopy` sans `/R:0 /W:0` reste bloqué sur un fichier verrouillé (`instance.lock`) ; une copie de données par jonction `models` se supprime par `rmdir` de la jonction d'abord.
 - **Consigne de l'auteur (23/11, pour la tâche 5)** : ne rien lui demander de ce que tu peux faire toi-même (API par tunnel SSH, journaux, captures `pilote`, tests) et ne tester que ce qui est critique ; un geste physique seulement pour ce qui n'a jamais été vu et ne peut pas se faire à distance, regroupé en une étape ; pas de témoin évident.
+
+*(Fin de la tâche 5, 23/11.)*
+
+- **Fait** : tâche 5 (§ Essai Linux) ; commits locaux, rien de poussé. PC Linux : `main` et Scriibe habituel intacts, instance d'essai et branche retirées.
+- **Prochain pas** : tâche 6 (essai Mac) en nouvelle session Sonnet · Moyen.
+- **Pièges** : voir § Essai Linux (variables d'affichage lues sur le Scriibe en cours, pas sur `gnome-shell`) ; la session refuse un `pgrep | kill` ou un `rm -rf` groupé sur le PC : tuer par numéro de processus, supprimer chemin par chemin.
