@@ -79,10 +79,33 @@ Sous-agent relecteur Sonnet (effort élevé, n'a pas écrit le code) sur `99851e
 - M9 : `is_number_run` compte « 2,5 » comme deux nombres ; effet : une seconde transcription de plus sur une prise de 2 s ou moins.
 - Test CSS des bandeaux (`tabs.test.ts`) : une regex sur le source ; `:has()` demande WebKitGTK ≥ 2.40.
 
+## Essai Windows (tâche 4, 23/11)
+
+PC Windows (`C:\scriibe-dev`) : branche `essai-mineurs` au commit `3e39efa` envoyée par `git bundle` (`276f4d6..main`, 130 Ko), `main` du PC intact et remise en place à la fin. Compilation release réussie (2 min 07, aucun avertissement Rust). Essai à l'écran sur une **copie** des données (`SCRIIBE_DATA=C:\essai-mineurs\donnees`, modèles par jonction), lancée dans la session de l'auteur par tâche planifiée ; Scriibe habituel (`C:\scriibe`) arrêté puis relancé ; copie, tâche et bundle supprimés. Prérequis vérifiés avant : Whisper (`ggml-small`, `large-v3-turbo`, `base`), Qwen 0,5 et 1,5 Md, Rust, Node, Git ; 267 Go libres.
+
+| Ligne du carnet | Verdict |
+|---|---|
+| Bug « nécessaires pour écrire » (16/11), geste ×10 | **Absent**. L'auteur : 11 refus d'AltGr dans l'interface, message identique (« AltGr (Alt droit) ne peut pas lancer la dictée : elle sert à taper », nom écrit **une fois**) ; 10 captures de plus par l'API (AltGr, Ctrl gauche + AltGr, lettre A, deux Maj pour traduire) ; une ligne de journal par refus. La phrase n'existe dans aucun code. À classer **non reproduit (21 essais)**. |
+| Avertissement « le type généré ne définit aucune méthode ou propriété publique » (23/11) | **Source trouvée, rien à corriger dans Scriibe** : `pilote-pc/pilote/relais/fenetre.ps1` ligne 97, `Add-Type -TypeDefinition` de la classe `PiloteForm` (n'a que des membres protégés et un constructeur). Reproduit à l'identique sur le PC avec ce seul fragment. Sans danger. Correctif possible côté pilote-pc : `-WarningAction SilentlyContinue` ou un membre public. |
+| Gestion des modes (S25, ROADMAP n°21), 12/11 | **Vu à l'écran sous Windows** : décocher « Afficher dans le menu de l'icône » (mode actif compris) les retire du menu, rétabli en recochant ; choix page → coche du menu et menu → page sans recharger ; export (« Enregistrer sous », nom `scriibe-mode-essai-a-2026-11-23.scriibe.json`) ; import : fichier abîmé refusé, nom pris → « Essai A 2 » ; mode gardé après 2 redémarrages. Une seule réserve : après un choix de mode par le menu (étape 3), l'API a répondu « Soutenu » alors que l'auteur voyait « Littéral » ; **non reproduit** à l'essai suivant (profil et API d'accord, mode gardé au redémarrage). À surveiller. |
+| Aide (S23), 12/11, et lot 2 du 17/11 | **Vus** : sommaire fixe, remontée au clic, recherche surlignée, bande sous 860 px, interface en anglais (aucun texte resté en français), export de la partie utilisateur (fichier créé, deux modes dedans). Import utilisateur et commandes non repris : même mécanique que l'import du dictionnaire essayé le 17/11, couverte par les tests ; **aucune commande vocale personnalisée à exporter** sur ce PC. |
+| Fenêtre administrateur au premier plan (19/11) | **Vue** : Gestionnaire des tâches élevé devant, Ctrl droit tenu 3 s : ni pastille ni ligne de dictée dans le journal, le crochet est sourd (comportement documenté de Windows pour un niveau d'intégrité inférieur). Même touche avec le Bloc-notes devant : dictée normale, collage de 6 signes. Pas de correction possible sans lancer Scriibe en administrateur ; à noter dans l'Aide ou `PIEGES.md` si l'auteur le souhaite. |
+| Échec ponctuel de `scriibe-platform --lib` (19/11) | **1 échec sur 49 passages** (226/227), au tout premier passage après compilation ; le nom du test n'a pas été relevé (sortie filtrée). 0 échec sur les 48 suivants, dont 18 passages simultanés sous charge. `cargo test --workspace` : 34 suites, 905 réussis, 0 échec, 2 ignorés. **Non identifié** : à relever (sortie complète) s'il revient. |
+| Correctifs Windows de la 0.13.1 | **Vérifiés** : `releasing_one_key_of_a_combination_in_the_page_ends_the_dictation` et les tests de `CommandMenuMask` (`keys::tests`) verts sur le PC ; BOM de `settings.json` toléré (`scriibe verifier` lit les réglages, touche relue) ; nom de touche non répété dans le refus (français ; l'anglais n'a pas été refait à l'écran, couvert par un test). |
+| Reformulation copiée seule et Win+V, accord lié (16/11) | **Non essayés** : pas de clé OpenRouter sur ce PC ; reste ouvert. |
+| Désinstallation sans garder les modèles, pastille en démarrage discret, démarrage depuis `C:\scriibe`, clés effacées (13/11) | **Non essayés** : destructifs (5,8 Go à la Corbeille, clés du Gestionnaire d'identifiants), à n'essayer qu'avec l'accord explicite de l'auteur ; restent ouverts. |
+| Pastille bloquée sur « j'écoute » (16/11) | **Non revu** : aucune pastille bloquée pendant cet essai. |
+
+**Ajouts** : aucun. Retours d'erreur (`RETOURS_ERREUR.md`) : aucun mineur apparu.
+
+**Retour de l'auteur** : plusieurs de ces essais lui ont paru répétés (essayés ailleurs, ou évidents : « la pastille s'est évidemment affichée avec Ctrl droit »). Pour la tâche 5 (Linux) : relire d'abord le carnet Linux et `docs/` pour ne garder que ce qui n'a **jamais** été vu sur ce PC, et ne pas demander de témoin évident.
+
+À savoir : restes d'anciens essais sur le PC (`C:\essai-c6`, `essai-c7`, `essai-enq`, `essai-lot2`, `essai-lot3`, `essai-refonte-lot2`, `scriibe-essai`), non touchés, à ranger si l'auteur le veut.
+
 ## Relais
 
-*(Fin de la tâche 3, 23/11 : contexte à environ 20 %, la tâche 4 se fait dans une nouvelle session.)*
+*(Fin de la tâche 4, 23/11.)*
 
-- **Fait** : tâches 0 à 3 (sections ci-dessus), commits locaux `99851ef`, `ec10aa5`, `dba0820`, `20a1571`, `d8531aa` et celui de la relecture ; rien de poussé. 923 tests Rust verts, clippy sans avertissement ; tests de l'interface non relancés (aucun changement de l'interface depuis la tâche 1, 196 verts).
-- **Prochain pas** : tâche 4 (essai Windows, branche `essai-mineurs` envoyée par `git bundle` avec `pilote`), nouvelle session Sonnet · Élevé.
-- **Pièges** : `instance::tests::a_second_instance…` est maintenant tolérant à la fenêtre `fork`/`exec` (voir `docs/PIEGES.md`) ; le test `releasing_one_key_of_a_combination_in_the_page_ends_the_dictation` et `CommandMenuMask::forget` ne compilent ou ne tournent sous Windows que sur le PC ; la fenêtre de déverrouillage du trousseau, le liseré de la pastille et le rendu des bandeaux sont à voir à l'écran (tâches 5 et 6).
+- **Fait** : tâche 4 (§ Essai Windows) ; rien d'autre n'a changé dans le code ; commits locaux de la tâche 3 et celui de cette note ; rien de poussé. PC Windows : `main` en place, Scriibe habituel relancé, copie d'essai supprimée.
+- **Prochain pas** : tâche 5 (essai Linux, branche `essai-mineurs` par `git bundle`, nouvelle session Sonnet · Moyen). Le bundle de la tâche 4 était `276f4d6..main` ; pour le PC Linux vérifier son commit avec `pilote etat linux` avant.
+- **Pièges** : `pilote` n'a pas de commande d'envoi de bundle (scp + `git fetch <bundle> main:essai-mineurs`) ; `robocopy` sans `/R:0 /W:0` reste bloqué sur un fichier verrouillé (`instance.lock`) ; une copie de données par jonction `models` se supprime par `rmdir` de la jonction d'abord.
