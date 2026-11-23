@@ -203,7 +203,18 @@ fn type_text(text: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Les lettres suivent la disposition active (sur AZERTY, ⌘Z est à la place QWERTY du W : sans cela, « retour arrière » fermait la fenêtre) ;
+/// la table QWERTY ci-dessous sert aux chiffres et de secours.
 fn key_code(key: char) -> Option<u16> {
+    if key.is_ascii_lowercase() {
+        if let Some(code) = ffi::key_code_for_letter(key) {
+            return Some(code);
+        }
+    }
+    qwerty_key_code(key)
+}
+
+fn qwerty_key_code(key: char) -> Option<u16> {
     Some(match key {
         'a' => 0,
         's' => 1,
@@ -590,6 +601,18 @@ impl MacPaster {
 
 #[cfg(test)]
 mod tests {
+    /// 23/11 : ⌘Z envoyait ⌘W sur un clavier AZERTY. Quelle que soit la disposition, chaque lettre a un code et deux lettres n'en partagent pas.
+    #[test]
+    #[ignore = "dépend de la disposition de la machine et de TIS hors fil principal : à lancer à la main avec --ignored"]
+    fn letters_follow_the_active_layout_without_collisions() {
+        let codes: Vec<u16> = ('a'..='z').filter_map(ffi::key_code_for_letter_here).collect();
+        assert_eq!(codes.len(), 26);
+        let mut unique = codes.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(unique.len(), 26);
+    }
+
     use super::*;
 
     #[test]

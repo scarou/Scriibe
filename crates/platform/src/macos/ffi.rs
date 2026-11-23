@@ -105,6 +105,83 @@ extern "C" {
     pub fn AXUIElementPerformAction(element: Ref, action: Ref) -> i32;
 }
 
+#[link(name = "Carbon", kind = "framework")]
+extern "C" {
+    /// La disposition de clavier ASCII active (AZERTY, QWERTY…) ; à relâcher.
+    pub fn TISCopyCurrentASCIICapableKeyboardLayoutInputSource() -> Ref;
+    pub fn TISGetInputSourceProperty(source: Ref, key: Ref) -> Ref;
+    pub static kTISPropertyUnicodeKeyLayoutData: Ref;
+    pub fn LMGetKbdType() -> u8;
+    pub fn CFDataGetBytePtr(data: Ref) -> *const u8;
+    /// Traduit un code de touche en caractère selon la disposition. Rend 0 si tout va bien.
+    pub fn UCKeyTranslate(
+        layout: *const u8,
+        key_code: u16,
+        action: u16,
+        modifiers: u32,
+        kbd_type: u32,
+        options: u32,
+        dead_state: *mut u32,
+        max_len: usize,
+        actual_len: *mut usize,
+        out: *mut u16,
+    ) -> i32;
+}
+
+/// Code de touche qui produit `letter` (a-z, sans modificateur) avec la disposition de clavier active ; `None` si introuvable.
+pub fn key_code_for_letter(letter: char) -> Option<u16> {
+    // Les fonctions de disposition (TIS) vérifient qu'elles tournent sur le fil principal (sinon le programme plante) : on s'y fait porter.
+    extern "C" fn run(context: *mut c_void) {
+        // SAFETY : `context` vient de `Box::into_raw` ci-dessous, repris ici une seule fois.
+        let (letter, tx) = *unsafe { Box::from_raw(context as *mut (char, std::sync::mpsc::Sender<Option<u16>>)) };
+        let _ = tx.send(key_code_for_letter_here(letter));
+    }
+    // SAFETY : fonction sans paramètre.
+    if unsafe { pthread_main_np() } != 0 {
+        return key_code_for_letter_here(letter);
+    }
+    // Envoi asynchrone et attente bornée : sans boucle d'événements sur le fil principal (ou s'il est occupé), on rend `None` et l'appelant
+    // retombe sur la table QWERTY au lieu d'attendre sans fin.
+    let (tx, rx) = std::sync::mpsc::channel();
+    let context = Box::into_raw(Box::new((letter, tx))) as *mut c_void;
+    // SAFETY : `context` est repris par `run` (une fois), même si personne n'attend plus la réponse.
+    unsafe { dispatch_async_f(&_dispatch_main_q as *const Opaque, context, run) };
+    rx.recv_timeout(std::time::Duration::from_millis(500)).ok().flatten()
+}
+
+extern "C" {
+    fn pthread_main_np() -> i32;
+    static _dispatch_main_q: Opaque;
+    fn dispatch_async_f(queue: *const Opaque, context: *mut c_void, work: extern "C" fn(*mut c_void));
+}
+
+pub fn key_code_for_letter_here(letter: char) -> Option<u16> {
+    // SAFETY : appels de Carbon sur des objets créés ici ; `layout` reste valide tant que `source` n'est pas relâchée, qui l'est en dernier.
+    unsafe {
+        let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource();
+        if source.is_null() {
+            return None;
+        }
+        let mut found = None;
+        let data = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData);
+        if !data.is_null() {
+            let layout = CFDataGetBytePtr(data);
+            let kbd = LMGetKbdType() as u32;
+            for code in 0u16..50 {
+                let (mut dead, mut len, mut out) = (0u32, 0usize, [0u16; 4]);
+                // kUCKeyActionDown = 0 ; kUCKeyTranslateNoDeadKeysBit = 1.
+                let status = UCKeyTranslate(layout, code, 0, 0, kbd, 1, &mut dead, 4, &mut len, out.as_mut_ptr());
+                if status == 0 && len == 1 && out[0] == letter as u16 {
+                    found = Some(code);
+                    break;
+                }
+            }
+        }
+        CFRelease(source);
+        found
+    }
+}
+
 /// `kCFStringEncodingUTF8`.
 const UTF8: u32 = 0x0800_0100;
 

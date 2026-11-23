@@ -2,12 +2,18 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
-## Non publié — 2026-11-23 · Dictées courtes fidèles, commande sur la dernière dictée, dictionnaire éditable
+## 0.13.0 — 2026-11-23 · Dictées courtes fidèles, commande sur la dernière dictée, dictionnaire éditable, enquête Windows
+
+- Version publiée : réunit le chantier 7 (enquête Windows, commits `0f7b325` à `bae015b`, déjà sur GitHub ; détail `docs/ENQUETE_WINDOWS.md`) et les nouveautés du 23/11 (`710a508`) avec leurs deux correctifs d'essai. Remplace la 0.12.1, jamais publiée.
+- **Chantier 7, enquête Windows** : pastille bloquée corrigée (le relâchement d'une touche appuyée avant la prise de focus de la fenêtre est maintenant vu, et un relâchement jamais vu par le crochet est rattrapé) ; journal ciblé (captures de touches refusées, écoute longue, annulation, sans jamais les lettres tapées) ; essai Win+V (test ignoré par défaut) ; « Lancer à l'ouverture de session » vérifié ; message « nécessaires pour écrire » : non reproduit.
+- **Essayé sur le Mac le 23/11** (clavier AZERTY, TextEdit) : dictée courte « Haïku est-il adapté ? » complète ; « entre guillemets » sans sélection entoure la dernière dictée et un ⌘Z la retire d'un coup ; Dictionnaire : modification sur place, filtre, tri A → Z, export CSV ouvert dans LibreOffice, relecture avec aperçu (retiré, modifié, ajouté) puis remplacement : tout juste. Pas essayé sur Windows ni Linux.
+- **Corrigé à l'essai (bloquants)** : (1) sur clavier AZERTY, le ⌘Z envoyé par Scriibe partait en ⌘W (la touche était cherchée à sa place QWERTY) : la fenêtre se fermait, et dans TextEdit la boîte « Enregistrer sous » recevait le texte. Les lettres des raccourcis (⌘Z, gras, italique…) suivent maintenant la disposition active (`ffi::key_code_for_letter`, appelée sur le fil principal, sinon macOS fait planter le programme) ; la table QWERTY reste pour les chiffres et en secours. (2) Premier essai de ce correctif : plantage `dispatch_assert_queue` hors fil principal, corrigé de même. Test `letters_follow_the_active_layout_without_collisions`.
 
 - **Garde-fou des dictées courtes** (`cleaner.rs`) : 6 mots ou moins, la mise au propre ne doit plus en perdre un (cas « Aïku est-il adapté ? » → « Haïku adapté ? », causé par le modèle local de 3 milliards de paramètres, puis figé par deux corrections du dictionnaire). Hésitations, mots de commande dictés et nombres écrits en chiffres exemptés. Sortie refusée : le texte brut est collé. Tests : `crates/core/tests/short_dictation_guard.rs`.
 - **« Entre guillemets » (et parenthèses, crochets, accolades) sans sélection lisible** : la commande porte sur la dernière dictée collée (moins de 2 min, même appli) ; un ⌘Z la retire, puis le texte entouré est collé. Tests `commands_211` et `commands_212`. Limite : si la personne a annulé ou tapé avant, le ⌘Z porte sur autre chose. La cause du « sélection : aucune » après un ⌘Z dans l'appli Claude n'est pas élucidée.
 - **Dictionnaire** : mots et corrections modifiables sur place, filtre et tri A → Z, × toujours visible ; carte « Modifier dans un tableur » : export CSV (`Catégorie;Entendu;Écrit`, UTF-8 avec marque, `;`), relecture du CSV modifié avec aperçu (retiré, modifié, ajouté) puis remplacement après accord (`dictionary_sheet.rs`, `/api/dictionary/sheet/*`).
-- Aide française et anglaise, traductions : à jour. Non essayé à la main sur Mac (page non regardée à l'écran).
+- Aide française et anglaise, traductions : à jour.
+- **Tests** (mesurés sur le Mac, 23/11/2026) : 906 tests Rust passés (3 ignorés, 0 échec) ; 176 tests de l'interface ; `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `npm run check` sans erreur.
 
 ## 0.12.0 — 2026-11-19 · Retours d'erreur et commandes vocales, réglages fins
 
