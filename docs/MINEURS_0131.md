@@ -102,6 +102,12 @@ PC Windows (`C:\scriibe-dev`) : branche `essai-mineurs` au commit `3e39efa` envo
 
 À savoir : restes d'anciens essais sur le PC (`C:\essai-c6`, `essai-c7`, `essai-enq`, `essai-lot2`, `essai-lot3`, `essai-refonte-lot2`, `scriibe-essai`), non touchés, à ranger si l'auteur le veut.
 
+## Essai Linux (tâche 5, 23/11) — en cours
+
+PC Linux : `main` du PC (`2034c90`) intact ; branche `essai-mineurs` au commit `e55a805` envoyée par `git bundle` (`2034c90..main`), worktree `~/essai-mineurs`, cible de compilation séparée `~/Scriibe/target-essai`. Prérequis vérifiés (lecture seule) : `secret-tool`, Whisper (`ggml-base`, `small`, `large-v3-turbo-q8_0`), `qwen2.5-1.5b-instruct-q4_k_m`. **Compilation release réussie (4 min 25, 0 avertissement) ; `cargo test --workspace` : 34 suites, 919 réussis, 0 échec, 3 ignorés.**
+
+**Bloqué** : le lancement d'une instance d'essai par SSH (données copiées dans `/tmp/essai-donnees`, variables Wayland relevées sur `gnome-shell`) a été refusé par le contrôle d'autorisation de la session ; rien n'a été lancé. Lignes du carnet pas encore essayées.
+
 ## Relais
 
 *(Fin de la tâche 4, 23/11.)*
