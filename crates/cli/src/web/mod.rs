@@ -465,6 +465,21 @@ fn handle(ctx: &Context, mut request: Request) {
             })(),
         ),
         (Method::Post, "api/dictionary/import/cancel") => ok(request, dictionary_io::cancel()),
+        // Tableur : le dictionnaire en CSV (filtrer, trier, regrouper dans Excel, Numbers, LibreOffice), puis le CSV modifié le **remplace**
+        // (aperçu de ce qui change d'abord, rien d'écrit avant l'accord).
+        (Method::Post, "api/dictionary/sheet/export") => ok(request, dictionary_io::sheet_export(&ctx.app.config.dictionary())),
+        (Method::Post, "api/dictionary/sheet/read") => ok(request, dictionary_io::sheet_read(&ctx.app.config.dictionary(), &input)),
+        (Method::Post, "api/dictionary/sheet/apply") => guarded(
+            request,
+            (|| {
+                let _guard = guard(&ctx.app.config, given(&input))?;
+                let dictionary = dictionary_io::sheet_pending(&input).map_err(Failure::Refused)?;
+                ctx.app.config.save_dictionary(&dictionary).map_err(|e| Failure::Failed(e.to_string()))?;
+                dictionary_io::sheet_consume();
+                Ok(dictionary_view(&dictionary))
+            })(),
+        ),
+        (Method::Post, "api/dictionary/sheet/cancel") => ok(request, dictionary_io::sheet_cancel()),
         (Method::Get, "api/dictionary") => ok(request, dictionary_view(&ctx.app.config.dictionary())),
         (Method::Post, "api/dictionary") => guarded(request, save_dictionary(ctx, &input)),
         // Les utilisateurs : la liste, créer (vide ou copié de l'actif), renommer, supprimer (mis de côté), changer d'utilisateur.

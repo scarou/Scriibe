@@ -2,6 +2,13 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## Non publié — 2026-11-23 · Dictées courtes fidèles, commande sur la dernière dictée, dictionnaire éditable
+
+- **Garde-fou des dictées courtes** (`cleaner.rs`) : 6 mots ou moins, la mise au propre ne doit plus en perdre un (cas « Aïku est-il adapté ? » → « Haïku adapté ? », causé par le modèle local de 3 milliards de paramètres, puis figé par deux corrections du dictionnaire). Hésitations, mots de commande dictés et nombres écrits en chiffres exemptés. Sortie refusée : le texte brut est collé. Tests : `crates/core/tests/short_dictation_guard.rs`.
+- **« Entre guillemets » (et parenthèses, crochets, accolades) sans sélection lisible** : la commande porte sur la dernière dictée collée (moins de 2 min, même appli) ; un ⌘Z la retire, puis le texte entouré est collé. Tests `commands_211` et `commands_212`. Limite : si la personne a annulé ou tapé avant, le ⌘Z porte sur autre chose. La cause du « sélection : aucune » après un ⌘Z dans l'appli Claude n'est pas élucidée.
+- **Dictionnaire** : mots et corrections modifiables sur place, filtre et tri A → Z, × toujours visible ; carte « Modifier dans un tableur » : export CSV (`Catégorie;Entendu;Écrit`, UTF-8 avec marque, `;`), relecture du CSV modifié avec aperçu (retiré, modifié, ajouté) puis remplacement après accord (`dictionary_sheet.rs`, `/api/dictionary/sheet/*`).
+- Aide française et anglaise, traductions : à jour. Non essayé à la main sur Mac (page non regardée à l'écran).
+
 ## 0.12.0 — 2026-11-19 · Retours d'erreur et commandes vocales, réglages fins
 
 - Version publiée : réunit les chantiers 5 et 6 (12 commits depuis la 0.11.0, dont ceux de suivi du `CLAUDE.md`). Détail : `docs/RETOURS_ERREUR.md`, `docs/REGLAGES_FINS.md`.

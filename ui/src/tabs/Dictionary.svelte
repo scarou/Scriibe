@@ -24,6 +24,37 @@
   /** Seuls les signes de la langue de l'interface (et les symboles communs) s'affichent ; les autres restent actifs en dictée dans leur langue. */
   let signs = $derived(allSigns.filter((s) => s.langs === 'both' || s.langs === i18n.lang));
   let weekCorrections = $state(0);
+  /** Filtres de recherche des deux listes (ne touchent pas au dictionnaire enregistré). */
+  let filterWords = $state('');
+  let filterCorrections = $state('');
+  const norm = (x: string) => x.toLowerCase();
+  let shownWords = $derived(words.map((w, i) => ({ w, i })).filter(({ w }) => norm(w).includes(norm(filterWords.trim()))));
+  let shownCorrections = $derived(
+    corrections.map((c, i) => ({ c, i })).filter(({ c }) => `${norm(c.heard)} ${norm(c.written)}`.includes(norm(filterCorrections.trim()))),
+  );
+
+  /** Tri alphabétique des mots (A → Z, majuscules et accents ignorés), enregistré comme le reste. */
+  function sortWords() {
+    words = [...words].sort((a, b) => a.localeCompare(b, i18n.lang, { sensitivity: 'base' }));
+    changed();
+  }
+  function sortCorrections(by: 'heard' | 'written') {
+    corrections = [...corrections].sort((a, b) => a[by].localeCompare(b[by], i18n.lang, { sensitivity: 'base' }));
+    changed();
+  }
+  /** Un mot modifié sur place ; vidé, il est retiré. */
+  function editWord(i: number, value: string) {
+    const v = value.trim();
+    words = v ? words.map((w, j) => (j === i ? v : w)) : words.filter((_, j) => j !== i);
+    changed();
+  }
+  /** Une correction modifiée sur place ; si l'un des deux côtés est vidé, elle est retirée. */
+  function editCorrection(i: number, side: 'heard' | 'written', value: string) {
+    const v = value.trim();
+    const next = { ...corrections[i], [side]: v };
+    corrections = next.heard && next.written ? corrections.map((c, j) => (j === i ? next : c)) : corrections.filter((_, j) => j !== i);
+    changed();
+  }
   let v = $derived(settings.value);
 
   // Commande vocale « ajouter au dictionnaire » : le texte sélectionné arrive dans « Entendu », le curseur va dans « Écrit ».
@@ -228,6 +259,74 @@
     importing = null;
   }
 
+  /** Tableur : le dictionnaire en CSV pour filtrer, trier et regrouper ; le CSV modifié le remplace après aperçu de ce qui change. */
+  type SheetPreview = {
+    token: string;
+    words_total: number;
+    corrections_total: number;
+    words_added: string[];
+    words_removed: string[];
+    corrections_added: { heard: string; written: string }[];
+    corrections_removed: { heard: string; written: string }[];
+    corrections_changed: { heard: string; before: string; after: string }[];
+  };
+  let sheet = $state<{ preview: SheetPreview | null; askPath: boolean; path: string; busy: boolean; message: string; done: boolean } | null>(null);
+  const sheetChanges = (p: SheetPreview) =>
+    p.words_added.length + p.words_removed.length + p.corrections_added.length + p.corrections_removed.length + p.corrections_changed.length;
+
+  async function sheetExport() {
+    await flush();
+    sheet = { preview: null, askPath: false, path: '', busy: true, message: '', done: false };
+    const out = await api<{ ok: boolean; saved?: boolean; path?: string; error?: string }>('dictionary/sheet/export', {});
+    if (!sheet) return;
+    sheet.busy = false;
+    sheet.message = !out.ok
+      ? t(out.error ?? 'enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture')
+      : out.saved
+        ? t('Enregistré : {path}', { path: out.path ?? '' }) + ' ' + t('Ouvre-le dans ton tableur, modifie-le, enregistre-le en CSV, puis reprends-le avec « Reprendre le CSV modifié… ».')
+        : t('Export annulé : rien n’a été enregistré.');
+    sheet.done = true;
+  }
+
+  async function sheetRead(path?: string) {
+    exporting = null;
+    await closeImport();
+    await flush();
+    sheet = { preview: null, askPath: false, path: path ?? '', busy: true, message: '', done: false };
+    const out = await api<{ ok: boolean; cancelled?: boolean; ask_path?: boolean; error?: string } & Partial<SheetPreview>>('dictionary/sheet/read', path ? { path } : {});
+    if (!sheet) return;
+    sheet.busy = false;
+    if (out.ok && out.cancelled) sheet = null;
+    else if (out.ok && out.token) sheet.preview = out as SheetPreview;
+    else if (out.ask_path) sheet.askPath = true;
+    else sheet.message = t(out.error ?? "le fichier n'a pas pu être lu");
+  }
+
+  async function sheetApply() {
+    if (!sheet?.preview) return;
+    sheet.busy = true;
+    await flush();
+    const out = await api<SaveResult & { token?: string }>('dictionary/sheet/apply', { token: sheet.preview.token });
+    const stored = storedDictionary(out);
+    if (!sheet) return;
+    sheet.busy = false;
+    if (!stored) {
+      sheet.message = t(saveError(out) ?? "le fichier n'a pas pu être lu");
+      return;
+    }
+    clearTimeout(timer);
+    dirty = false;
+    apply(stored);
+    sheet.preview = null;
+    sheet.done = true;
+    sheet.message = t('Dictionnaire remplacé : {words} mot(s) et {corrections} correction(s).', { words: stored.words.length, corrections: stored.corrections.length });
+  }
+
+  async function sheetClose() {
+    if (sheet && !sheet.done) await api('dictionary/sheet/cancel', {});
+    sheet = null;
+  }
+
   function addWord() {
     const w = newWord.trim();
     if (!w) return;
@@ -281,11 +380,20 @@
     <input type="text" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Ajouter un mot ou une expression')} bind:value={newWord} disabled={!!importing?.busy} onkeydown={(e) => e.key === 'Enter' && addWord()} />
     <button onclick={addWord} disabled={!newWord.trim() || !!importing?.busy}>{t('Ajouter')}</button>
   </div>
-  <div class="chips scroll">
-    {#each words as w, i (w + i)}
-      <span class="chip">{w}<button class="x" title={t('Retirer')} onclick={() => { words = words.filter((_, j) => j !== i); changed(); }}>×</button></span>
+  {#if words.length > 1}
+    <div class="row">
+      <input type="search" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Filtrer les mots')} bind:value={filterWords} />
+      <button onclick={sortWords} title={t('Trier de A à Z')}>{t('Trier A → Z')}</button>
+    </div>
+  {/if}
+  <div class="scroll">
+    {#each shownWords as { w, i } (i)}
+      <div class="edit-row">
+        <input type="text" class="grow cell" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label={t('Mot')} value={w} onchange={(e) => editWord(i, e.currentTarget.value)} />
+        <button class="x" title={t('Retirer')} aria-label={t('Retirer')} onclick={() => { words = words.filter((_, j) => j !== i); changed(); }}>×</button>
+      </div>
     {:else}
-      <span class="muted">{t('Aucun mot pour l’instant.')}</span>
+      <span class="muted">{words.length ? t('Aucun mot ne correspond au filtre.') : t('Aucun mot pour l’instant.')}</span>
     {/each}
   </div>
 </Card>
@@ -298,16 +406,25 @@
     <button onclick={addCorrection} disabled={!heard.trim() || !written.trim() || !!importing?.busy}>{t('Ajouter')}</button>
   </div>
   {#if corrections.length}
-    <div class="scroll"><table>
-      <tbody>
-        {#each corrections as c, i (c.heard + '→' + c.written + i)}
-          <tr>
-            <td>{c.heard}</td><td>→</td><td><b>{c.written}</b></td>
-            <td style="text-align: right"><button class="x" title={t('Retirer')} onclick={() => { corrections = corrections.filter((_, j) => j !== i); changed(); }}>×</button></td>
-          </tr>
-        {/each}
-      </tbody>
-    </table></div>
+    {#if corrections.length > 1}
+      <div class="row">
+        <input type="search" class="grow" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder={t('Filtrer les corrections')} bind:value={filterCorrections} />
+        <button onclick={() => sortCorrections('heard')} title={t('Trier de A à Z')}>{t('Trier par « Entendu »')}</button>
+        <button onclick={() => sortCorrections('written')} title={t('Trier de A à Z')}>{t('Trier par « Écrit »')}</button>
+      </div>
+    {/if}
+    <div class="scroll">
+      {#each shownCorrections as { c, i } (i)}
+        <div class="edit-row">
+          <input type="text" class="grow cell" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label={t('Entendu')} value={c.heard} onchange={(e) => editCorrection(i, 'heard', e.currentTarget.value)} />
+          <span>→</span>
+          <input type="text" class="grow cell" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" aria-label={t('Écrit')} value={c.written} onchange={(e) => editCorrection(i, 'written', e.currentTarget.value)} />
+          <button class="x" title={t('Retirer')} aria-label={t('Retirer')} onclick={() => { corrections = corrections.filter((_, j) => j !== i); changed(); }}>×</button>
+        </div>
+      {:else}
+        <span class="muted">{t('Aucune correction ne correspond au filtre.')}</span>
+      {/each}
+    </div>
   {:else}
     <span class="muted">{t('Aucune correction pour l’instant.')}</span>
   {/if}
@@ -339,6 +456,59 @@
     <button onclick={() => readImport()} disabled={importing !== null}>{t('Importer…')}</button>
   </div>
 </Card>
+
+<Card id="dictionary-tableur" title={t('Modifier dans un tableur')} help="dictionary" intro={t('Pour filtrer, trier, regrouper ou corriger beaucoup d’entrées d’un coup : le dictionnaire s’exporte en CSV (Excel, Numbers, LibreOffice), puis le fichier modifié le remplace.')}>
+  <div class="row">
+    <button onclick={sheetExport} disabled={sheet !== null || (words.length === 0 && corrections.length === 0)}>{t('Exporter en CSV…')}</button>
+    <button onclick={() => sheetRead()} disabled={sheet !== null}>{t('Reprendre le CSV modifié…')}</button>
+  </div>
+</Card>
+
+{#if sheet}
+  <Card id="dictionary-tableur-suite" accent title={t('Dictionnaire et tableur')} help="dictionary">
+    {#if sheet.askPath}
+      <p>{t('Sur ce système, indique le chemin du fichier .csv à reprendre :')}</p>
+      <div class="row"><input type="text" class="grow" bind:value={sheet.path} placeholder="/home/…/scriibe-dictionnaire.csv" disabled={sheet.busy} />
+        <button class="primary" disabled={sheet.busy || !sheet.path.trim()} onclick={() => sheetRead(sheet!.path)}>{t('Lire le fichier')}</button>
+        <button onclick={sheetClose}>{t('Annuler')}</button></div>
+    {:else if sheet.preview}
+      {@const p = sheet.preview}
+      <p>{t('Ce fichier contient {words} mot(s) et {corrections} correction(s). Il va remplacer ton dictionnaire : ce qui n’y figure plus sera retiré. Rien n’est modifié tant que tu n’as pas cliqué sur « Remplacer le dictionnaire ».', { words: p.words_total, corrections: p.corrections_total })}</p>
+      {#if sheetChanges(p) === 0}
+        <p class="muted">{t('Aucune différence avec ton dictionnaire actuel.')}</p>
+      {:else}
+        {#if p.words_removed.length + p.corrections_removed.length > 0}
+          <details open><summary class="warn">{t('{n} élément(s) retiré(s)', { n: p.words_removed.length + p.corrections_removed.length })}</summary>
+            <div class="scroll">
+              {#each p.words_removed as w, i (i)}<div>− {w}</div>{/each}
+              {#each p.corrections_removed as c, i (i)}<div>− {c.heard} → <b>{c.written}</b></div>{/each}
+            </div></details>
+        {/if}
+        {#if p.corrections_changed.length > 0}
+          <details open><summary>{t('{n} correction(s) modifiée(s)', { n: p.corrections_changed.length })}</summary>
+            <div class="scroll">{#each p.corrections_changed as c, i (i)}<div>{c.heard} : {c.before} → <b>{c.after}</b></div>{/each}</div></details>
+        {/if}
+        {#if p.words_added.length + p.corrections_added.length > 0}
+          <details><summary>{t('{n} élément(s) ajouté(s)', { n: p.words_added.length + p.corrections_added.length })}</summary>
+            <div class="scroll">
+              {#each p.words_added as w, i (i)}<div>+ {w}</div>{/each}
+              {#each p.corrections_added as c, i (i)}<div>+ {c.heard} → <b>{c.written}</b></div>{/each}
+            </div></details>
+        {/if}
+      {/if}
+    {:else if sheet.busy}
+      <p class="muted">{t('Chargement…')}</p>
+    {/if}
+    {#if sheet.message}<p role="status" class:warn={!sheet.done}><b>{sheet.message}</b></p>{/if}
+    <div class="row">
+      <span class="grow"></span>
+      <button onclick={sheetClose}>{sheet.done ? t('Fermer') : t('Annuler')}</button>
+      {#if sheet.preview}
+        <button class="primary" disabled={sheet.busy || sheetChanges(sheet.preview) === 0} onclick={sheetApply}>{t('Remplacer le dictionnaire')}</button>
+      {/if}
+    </div>
+  </Card>
+{/if}
 
 {#if exporting}
   <Card id="dictionary-export" accent title={t('Exporter le dictionnaire')} help="dictionary">
@@ -454,7 +624,8 @@
   .sign { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 12px; }
   h3 { margin: 14px 0 4px; font-size: 1rem; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 12px; }
-  .x { border: 0; background: transparent; padding: 0 8px; font-size: 1.1rem; color: var(--muted); }
+  .edit-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .cell { min-width: 0; }
+  .x { flex: none; border: 0; background: transparent; padding: 0 8px; font-size: 1.1rem; color: var(--muted); }
   .x:hover { color: var(--bad); }
 </style>

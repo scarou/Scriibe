@@ -83,6 +83,26 @@ const DICTATED_SIGN_WORDS: &[&str] = &[
     "bullet",
 ];
 
+/// Une dictée courte (6 mots ou moins, hors hésitations) ne doit perdre aucun mot : sur 4 mots, « Aïku est-il adapté ? » → « Haïku adapté ? »
+/// garde 75 % des mots et passerait la part minimale. Les mots de commande dictés (« ouvrez les guillemets ») et les chiffres écrits en
+/// nombre (« vingt et un » → « 21 ») font légitimement baisser le compte : la règle ne s'applique pas alors.
+const SHORT_DICTATION_WORDS: usize = 6;
+const FILLERS: [&str; 5] = ["euh", "heu", "hum", "bah", "ben"];
+
+fn loses_words_in_short(input: &str, output: &str) -> bool {
+    fn words(text: &str) -> Vec<String> {
+        text.to_lowercase().split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_string).collect()
+    }
+    let heard: Vec<String> = words(input).into_iter().filter(|w| !FILLERS.contains(&w.as_str())).collect();
+    if heard.len() > SHORT_DICTATION_WORDS
+        || heard.iter().any(|w| DICTATED_SIGN_WORDS.contains(&w.as_str()))
+        || output.chars().any(|c| c.is_ascii_digit())
+    {
+        return false;
+    }
+    words(output).len() < heard.len()
+}
+
 /// Garde-fou : une réécriture reprend les mots de la dictée. Une sortie vide, démesurée, ou faite surtout de mots nouveaux
 /// veut dire que le modèle a répondu (ou résumé) au lieu de réécrire : on colle alors le texte brut.
 /// Les modes de style (soutenu, pro) reformulent : la sortie peut être plus longue et partager moins de mots.
@@ -121,6 +141,9 @@ pub fn accepts(input: &str, output: &str, fidelity: Fidelity) -> bool {
     // elle, est faite surtout de mots nouveaux : sans « ? », la sortie doit venir en bonne partie de la dictée.
     if !rewrites {
         if !(o.kept >= 0.4 && o.own >= 0.5) {
+            return false;
+        }
+        if loses_words_in_short(input, output) {
             return false;
         }
         // Dictée longue : le modèle doit garder l'essentiel des mots (S19, rejeu de l'historique : un 0,75 pris tel quel

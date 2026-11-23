@@ -173,7 +173,19 @@ struct Inner {
     page_held: Mutex<Vec<Key>>,
     /// Le journal dit une fois que la page relaie les touches.
     page_announced: std::sync::atomic::AtomicBool,
+    /// Le dernier texte collé par une dictée : « entre guillemets » le reprend quand aucune sélection n'est lisible.
+    last_paste: Mutex<Option<LastPaste>>,
 }
+
+/// Le dernier collage d'une dictée, gardé en mémoire seulement (jamais au journal) et écrasé quand il est remplacé.
+struct LastPaste {
+    text: SelectedText,
+    app_id: Option<String>,
+    at: Duration,
+}
+
+/// Au-delà, le dernier collage est trop ancien pour que « entre guillemets » le reprenne sans sélection.
+const LAST_PASTE_VALID: Duration = Duration::from_secs(120);
 
 /// Un événement du crochet vu depuis moins de ce temps : une touche relayée par la page serait un doublon.
 const HOOK_ECHO_WINDOW: Duration = Duration::from_millis(1000);
@@ -233,6 +245,7 @@ impl Controller {
                 last_hook_event: Mutex::new(None),
                 page_held: Mutex::new(Vec::new()),
                 page_announced: std::sync::atomic::AtomicBool::new(false),
+                last_paste: Mutex::new(None),
             }),
         }
     }
@@ -1014,6 +1027,48 @@ impl Controller {
         }
     }
 
+    /// « Entre guillemets », « entre parenthèses »… sans sélection lisible (l'appli ne la rend pas, ou elle a disparu après un ⌘Z) : la commande
+    /// porte sur la dernière dictée collée, si elle date de moins de 2 minutes et que la même appli est au premier plan. Un seul ⌘Z
+    /// retire ce collage, puis le texte entouré est collé à sa place. `None` : pas une commande « autour », ou rien à reprendre.
+    fn surround_last_paste(&self, command: &scriibe_core::commands::Recognized, settings: &AppSettings) -> Option<CommandOutcome> {
+        let deps = &self.inner.deps;
+        if !command.id.starts_with(scriibe_core::commands::SURROUND_PREFIX) {
+            return None;
+        }
+        let now = deps.clock.now();
+        let last = lock(&self.inner.last_paste).take()?;
+        let current = deps.apps.current();
+        if now.saturating_sub(last.at) > LAST_PASTE_VALID || last.app_id.is_none() || current.id != last.app_id {
+            return None;
+        }
+        let wrapped = scriibe_core::commands::surround(&command.id, command.lang, last.text.expose())?;
+        let wrapped = SelectedText::new(wrapped);
+        deps.log.write(&format!(
+            "commande: {} sur la dernière dictée collée ({} signes) — ⌘Z puis collage",
+            command.id,
+            last.text.char_count()
+        ));
+        let undo = scriibe_core::shortcut::Shortcut::parse("Mod+Z")?;
+        if let Err(reason) = deps.paster.press_shortcut(&undo) {
+            deps.log.write(&format!("commande: {} — ⌘Z non envoyé ({reason})", command.id));
+            self.fail_command(FailureKind::NotDone, format!("Retour arrière non envoyé — {reason}"));
+            return Some(CommandOutcome::Handled);
+        }
+        deps.clock.sleep(Duration::from_millis(120));
+        match deps.paster.paste(wrapped.expose(), settings.restore_clipboard) {
+            PasteOutcome::Pasted => {
+                deps.indicator.flash(IndicatorState::Done, 0.9);
+                // Le texte entouré devient le dernier collage : une seconde commande (« entre parenthèses ») peut l'entourer encore.
+                *lock(&self.inner.last_paste) = Some(LastPaste { text: wrapped, app_id: last.app_id.clone(), at: deps.clock.now() });
+            }
+            PasteOutcome::CopiedOnly(reason) => {
+                deps.log.write(&format!("commande: {} — copié seulement ({reason})", command.id));
+                deps.indicator.flash(IndicatorState::Message(format!("Copié, à coller avec {PASTE_SHORTCUT} — {reason}")), 4.0);
+            }
+        }
+        Some(CommandOutcome::Handled)
+    }
+
     /// Exécute la commande reconnue. Le journal ne reçoit que l'identifiant de la commande et la longueur de la sélection.
     fn run_command(
         &self,
@@ -1027,6 +1082,9 @@ impl Controller {
             match deps.paster.selected_text() {
                 SelectedRead::Text(text) => Some(text),
                 SelectedRead::NoSelection => {
+                    if let Some(done) = self.surround_last_paste(&command, settings) {
+                        return done;
+                    }
                     if under_key {
                         deps.log.write(&format!("commande: {} ignorée (aucune sélection) — rien n'est collé", command.id));
                         return self.refuse(FailureKind::NotDone, "Aucune sélection");
@@ -1035,6 +1093,11 @@ impl Controller {
                     return CommandOutcome::Text(None);
                 }
                 SelectedRead::Unreadable(why) => {
+                    if !matches!(why, Unreadable::NotTrusted) {
+                        if let Some(done) = self.surround_last_paste(&command, settings) {
+                            return done;
+                        }
+                    }
                     if under_key {
                         deps.log.write(&format!("commande: {} ignorée ({}) — rien n'est collé", command.id, why.reason()));
                         return self.refuse(FailureKind::NotDone, "Sélection illisible");
@@ -1350,6 +1413,12 @@ impl Controller {
         // L'espace qui suit la dictée n'est ajoutée qu'à ce qui part au collage : l'historique et « copier la dernière » gardent `text`.
         let to_paste = scriibe_core::spacing::for_paste(&text, replaces_selection);
         let pasted = paste_text(deps.paster.as_ref(), &to_paste, settings.restore_clipboard, focus_at_paste.id.as_deref());
+        *lock(&self.inner.last_paste) = match pasted {
+            PasteOutcome::Pasted => {
+                Some(LastPaste { text: SelectedText::new(to_paste.clone()), app_id: focus_at_paste.id.clone(), at: deps.clock.now() })
+            }
+            PasteOutcome::CopiedOnly(_) => None,
+        };
         deps.log.write(&format!(
             "collage: {} signes envoyés à {} (à l'appui : {}) en {}{}{}{}",
             to_paste.chars().count(),

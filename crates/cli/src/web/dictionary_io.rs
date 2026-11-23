@@ -3,8 +3,8 @@
 //! Linux). L'import lit le fichier **par son chemin** (jamais envoyé par la page), le contrôle, garde le résultat en attente et montre un
 //! aperçu ; rien n'est écrit dans le dictionnaire avant l'accord, et la fusion ne fait qu'ajouter (`scriibe_core::import_dictionary`).
 
-use super::export::{choose_target, write_without_overwriting, Target};
-use super::import::{choose_file, read_file, typed_path, Picked};
+use super::export::{choose_target, choose_target_of, write_without_overwriting, Target};
+use super::import::{choose_file, choose_file_of, read_file, typed_path, Picked};
 use scriibe_core::dictionary::UserDictionary;
 use scriibe_core::export as file_format;
 use scriibe_core::import_dictionary::{self as importing, Incoming, Outcome, Preview, Status};
@@ -116,6 +116,102 @@ pub(crate) fn read(dictionary: &UserDictionary, input: &Value) -> Value {
         },
     };
     read_path(dictionary, &path)
+}
+
+// MARK: Tableur (CSV)
+
+const CSV_FILTER: (&str, &str) = ("Tableur (*.csv)", "*.csv");
+
+/// Le dictionnaire relu depuis un CSV, en attente de l'accord de l'utilisateur : il **remplacera** le dictionnaire en place.
+static SHEET: Mutex<Option<(String, UserDictionary)>> = Mutex::new(None);
+
+fn sheet() -> std::sync::MutexGuard<'static, Option<(String, UserDictionary)>> {
+    SHEET.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// `POST api/dictionary/sheet/export` : le CSV du dictionnaire, à l'endroit que l'utilisateur choisit.
+pub(crate) fn sheet_export(dictionary: &UserDictionary) -> Value {
+    if dictionary.words.is_empty() && dictionary.corrections.is_empty() {
+        return json!({"ok": false, "error": "rien à exporter : le dictionnaire est vide"});
+    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
+    let name = format!("scriibe-dictionnaire-{}.csv", file_format::day_of(now));
+    let text = scriibe_core::dictionary_sheet::to_csv(dictionary);
+    let written = match choose_target_of("Enregistrer le dictionnaire (CSV)", &name, CSV_FILTER) {
+        Ok(Some(Target::File(path))) => std::fs::write(&path, text).map(|()| path),
+        Ok(Some(Target::Folder(dir))) => write_without_overwriting(&dir, &name, &text),
+        Ok(None) => return json!({"ok": true, "saved": false}),
+        Err(e) => return json!({"ok": false, "error": e}),
+    };
+    match written {
+        Ok(path) => json!({"ok": true, "saved": true, "path": path.to_string_lossy()}),
+        Err(_) => json!({"ok": false, "error": "enregistrement impossible : l’emplacement choisi n’est pas accessible en écriture"}),
+    }
+}
+
+fn diff_json(d: &scriibe_core::dictionary_sheet::Diff) -> Value {
+    json!({
+        "words_added": d.words_added,
+        "words_removed": d.words_removed,
+        "corrections_added": d.corrections_added.iter().map(|c| json!({"heard": c.heard, "written": c.written})).collect::<Vec<_>>(),
+        "corrections_removed": d.corrections_removed.iter().map(|c| json!({"heard": c.heard, "written": c.written})).collect::<Vec<_>>(),
+        "corrections_changed": d.corrections_changed.iter().map(|(h, a, b)| json!({"heard": h, "before": a, "after": b})).collect::<Vec<_>>(),
+    })
+}
+
+/// Lit le CSV `path`, le contrôle, le met en attente et rend ce qu'il changerait. Un fichier refusé ne change rien.
+pub(crate) fn sheet_read_path(dictionary: &UserDictionary, path: &Path) -> Value {
+    let incoming = match read_file(path).and_then(|text| scriibe_core::dictionary_sheet::from_csv(&text)) {
+        Ok(incoming) => incoming,
+        Err(e) => {
+            *sheet() = None;
+            return json!({"ok": false, "error": e});
+        }
+    };
+    let mut out = diff_json(&scriibe_core::dictionary_sheet::diff(dictionary, &incoming));
+    out["words_total"] = json!(incoming.words.len());
+    out["corrections_total"] = json!(incoming.corrections.len());
+    let token = scriibe_core::modes::new_id();
+    *sheet() = Some((token.clone(), scriibe_core::dictionary_sheet::into_dictionary(incoming)));
+    out["ok"] = json!(true);
+    out["token"] = json!(token);
+    out
+}
+
+/// `POST api/dictionary/sheet/read` : `{"path"?}`, comme `read` (boîte du système, ou chemin tapé là où il n'y en a pas).
+pub(crate) fn sheet_read(dictionary: &UserDictionary, input: &Value) -> Value {
+    let typed = input["path"].as_str().filter(|p| !p.trim().is_empty());
+    let path = match (cfg!(not(any(windows, target_os = "macos"))), typed) {
+        (true, Some(typed)) => typed_path(typed),
+        _ => match choose_file_of("Reprendre un dictionnaire modifié (CSV)", CSV_FILTER) {
+            Picked::File(path) => path,
+            Picked::Cancelled => return json!({"ok": true, "cancelled": true}),
+            Picked::Failed(e) => return json!({"ok": false, "error": e}),
+            Picked::NoDialog => {
+                return json!({"ok": false, "ask_path": true, "error": "le choix d'un fichier n'est pas encore pris en charge sur ce système"})
+            }
+        },
+    };
+    sheet_read_path(dictionary, &path)
+}
+
+/// Le dictionnaire du fichier en attente, si `token` est celui de l'aperçu montré. L'appelant l'enregistre, puis appelle `sheet_consume`.
+pub(crate) fn sheet_pending(input: &Value) -> Result<UserDictionary, String> {
+    let guard = sheet();
+    let (token, dictionary) = guard.as_ref().ok_or("aucun fichier en attente : recommence")?;
+    if input["token"].as_str() != Some(token.as_str()) {
+        return Err("l'aperçu n'est plus à jour : recommence".into());
+    }
+    Ok(UserDictionary { words: dictionary.words.clone(), corrections: dictionary.corrections.clone() })
+}
+
+pub(crate) fn sheet_consume() {
+    *sheet() = None;
+}
+
+pub(crate) fn sheet_cancel() -> Value {
+    sheet_consume();
+    json!({"ok": true})
 }
 
 /// Les cases cochées : une liste de booléens, un par élément du fichier ; `None` si la clé est absente.
@@ -293,5 +389,22 @@ mod tests {
         assert_eq!(empty, UserDictionary::default());
         assert!(apply_pending(&mut empty, &json!({"token": token})).is_ok(), "l'attente est gardée : on peut recommencer");
         consume();
+    }
+
+    #[test]
+    fn a_sheet_file_is_previewed_then_replaces_only_with_the_right_token() {
+        let _one = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = TestDir::new("sheet");
+        let csv = scriibe_core::dictionary_sheet::to_csv(&dictionary()).replace("correction;cri be;Scriibe\r\n", "");
+        let path = dir.file("d.csv", &csv);
+        let preview = sheet_read_path(&dictionary(), &path);
+        assert_eq!(preview["ok"], true);
+        assert_eq!(preview["corrections_removed"][0]["heard"], "cri be");
+        assert!(sheet_pending(&json!({"token": "autre"})).is_err());
+        let replaced = sheet_pending(&json!({"token": preview["token"]})).unwrap();
+        assert!(replaced.corrections.is_empty() && replaced.words.len() == 2);
+        sheet_consume();
+        assert!(sheet_pending(&json!({"token": preview["token"]})).is_err());
+        assert_eq!(sheet_read_path(&dictionary(), &dir.file("e.csv", "n'importe quoi"))["ok"], false);
     }
 }

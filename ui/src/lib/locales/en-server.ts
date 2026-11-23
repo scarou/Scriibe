@@ -455,4 +455,14 @@ export const enServer: Record<string, string> = {
     'nothing to import: tick at least one category',
   'tape un nom de dépôt (propriétaire/nom), une adresse Hugging Face ou des mots à chercher':
     'type a repository name (owner/name), a Hugging Face address or words to search for',
+  'rien à exporter : le dictionnaire est vide': 'nothing to export: the dictionary is empty',
+  'aucun fichier en attente : recommence': 'no file waiting: start again',
+  'l\'aperçu n\'est plus à jour : recommence': 'the preview is out of date: start again',
+  'ce fichier n\'est pas un CSV du dictionnaire (colonnes : Catégorie, Entendu, Écrit)':
+    'this file is not a dictionary CSV (columns: Category, Heard, Written)',
+  'l\'en-tête doit contenir les colonnes Catégorie, Entendu et Écrit': 'the header must contain the columns Category (Catégorie), Heard (Entendu) and Written (Écrit)',
+  'le fichier est vide': 'the file is empty',
+  'ligne {n} : un mot sans texte': 'line {n}: a word with no text',
+  'ligne {n} : une correction a besoin d\'un « Entendu » et d\'un « Écrit »': 'line {n}: a correction needs a “Heard” and a “Written”',
+  'ligne {n} : la catégorie doit être « mot » ou « correction »': 'line {n}: the category must be “mot” (word) or “correction”',
 };

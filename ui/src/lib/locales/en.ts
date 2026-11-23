@@ -1083,4 +1083,30 @@ export const en: Record<string, string> = {
     'Set the user “{name}” aside? Their dictionary, modes, history and statistics will no longer be used. Scriibe does not erase them: the folder is moved to “utilisateurs-supprimes”, inside the data folder, where you can take it back by hand. To keep a portable copy (without the history), cancel and first click “Export…” on their row.',
   'Importer un utilisateur…':
     'Import a user…',
+  'Filtrer les mots': 'Filter words',
+  'Filtrer les corrections': 'Filter corrections',
+  'Trier de A à Z': 'Sort from A to Z',
+  'Trier A → Z': 'Sort A → Z',
+  'Trier par « Entendu »': 'Sort by “Heard”',
+  'Trier par « Écrit »': 'Sort by “Written”',
+  'Mot': 'Word',
+  'Aucun mot ne correspond au filtre.': 'No word matches the filter.',
+  'Aucune correction ne correspond au filtre.': 'No correction matches the filter.',
+  'Modifier dans un tableur': 'Edit in a spreadsheet',
+  'Pour filtrer, trier, regrouper ou corriger beaucoup d’entrées d’un coup : le dictionnaire s’exporte en CSV (Excel, Numbers, LibreOffice), puis le fichier modifié le remplace.':
+    'To filter, sort, group or fix many entries at once: the dictionary is exported as CSV (Excel, Numbers, LibreOffice), then the edited file replaces it.',
+  'Exporter en CSV…': 'Export as CSV…',
+  'Reprendre le CSV modifié…': 'Load the edited CSV…',
+  'Dictionnaire et tableur': 'Dictionary and spreadsheet',
+  'Ouvre-le dans ton tableur, modifie-le, enregistre-le en CSV, puis reprends-le avec « Reprendre le CSV modifié… ».':
+    'Open it in your spreadsheet, edit it, save it as CSV, then load it with “Load the edited CSV…”.',
+  'Sur ce système, indique le chemin du fichier .csv à reprendre :': 'On this system, give the path of the .csv file to load:',
+  'Ce fichier contient {words} mot(s) et {corrections} correction(s). Il va remplacer ton dictionnaire : ce qui n’y figure plus sera retiré. Rien n’est modifié tant que tu n’as pas cliqué sur « Remplacer le dictionnaire ».':
+    'This file contains {words} word(s) and {corrections} correction(s). It will replace your dictionary: whatever is no longer in it will be removed. Nothing changes until you click “Replace the dictionary”.',
+  'Aucune différence avec ton dictionnaire actuel.': 'No difference with your current dictionary.',
+  '{n} élément(s) retiré(s)': '{n} item(s) removed',
+  '{n} correction(s) modifiée(s)': '{n} correction(s) changed',
+  '{n} élément(s) ajouté(s)': '{n} item(s) added',
+  'Remplacer le dictionnaire': 'Replace the dictionary',
+  'Dictionnaire remplacé : {words} mot(s) et {corrections} correction(s).': 'Dictionary replaced: {words} word(s) and {corrections} correction(s).',
 };

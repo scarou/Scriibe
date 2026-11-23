@@ -87,10 +87,15 @@ pub(crate) enum Picked {
 }
 
 pub(crate) fn choose_file(title: &str) -> Picked {
-    let _ = title;
+    choose_file_of(title, ("Fichiers Scriibe (*.scriibe.json)", "*.json"))
+}
+
+/// Comme `choose_file`, pour un autre type de fichier (`filter` : libellé et motif, « Tableur (*.csv) », « *.csv »).
+pub(crate) fn choose_file_of(title: &str, filter: (&str, &str)) -> Picked {
+    let _ = (title, filter);
     #[cfg(windows)]
     {
-        let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
+        let filter = [filter];
         match scriibe_platform::windows::file_dialog::pick_file(title, &filter) {
             Some(path) => Picked::File(PathBuf::from(path)),
             None => Picked::Cancelled,
@@ -98,7 +103,7 @@ pub(crate) fn choose_file(title: &str) -> Picked {
     }
     #[cfg(target_os = "macos")]
     {
-        let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
+        let filter = [filter];
         match scriibe_platform::macos::file_dialog::try_pick_file(title, &filter) {
             Ok(Some(path)) => Picked::File(PathBuf::from(path)),
             Ok(None) => Picked::Cancelled,

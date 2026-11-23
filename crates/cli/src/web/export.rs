@@ -54,10 +54,15 @@ pub(crate) enum Target {
 
 /// L'endroit choisi par l'utilisateur pour `name` : `None` s'il annule.
 pub(crate) fn choose_target(title: &str, name: &str) -> Result<Option<Target>, String> {
-    let _ = (title, name);
+    choose_target_of(title, name, ("Fichiers Scriibe (*.scriibe.json)", "*.json"))
+}
+
+/// Comme `choose_target`, pour un autre type de fichier (le filtre ne sert que sous Windows ; sur Mac l'extension de `name` suffit).
+pub(crate) fn choose_target_of(title: &str, name: &str, filter: (&str, &str)) -> Result<Option<Target>, String> {
+    let _ = (title, name, filter);
     #[cfg(windows)]
     {
-        let filter = [("Fichiers Scriibe (*.scriibe.json)", "*.json")];
+        let filter = [filter];
         Ok(scriibe_platform::windows::file_dialog::pick_save(title, name, &filter).map(|p| Target::File(PathBuf::from(p))))
     }
     #[cfg(target_os = "macos")]

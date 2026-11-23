@@ -1352,6 +1352,36 @@ fn commands_207_an_unreadable_selection_pastes_the_phrase_and_says_why() {
         .contains(&message("Commande non faite : autorisation Accessibilité manquante — phrase collée comme du texte")));
 }
 
+/// 23/11 : sans sélection lisible (l'appli ne la rend pas, ou elle a disparu après un ⌘Z), la commande porte sur la dernière dictée collée :
+/// un ⌘Z retire ce collage, puis le texte entouré est collé à sa place. (La phrase « Entre guillemets » sert ici de première dictée.)
+#[test]
+fn commands_211_without_a_selection_the_last_pasted_dictation_is_wrapped() {
+    let r = rig("Entre guillemets", "Entre guillemets.");
+    r.dictate(); // aucune sélection, rien à reprendre : la phrase est collée comme du texte
+    assert_eq!(r.paster.pasted().len(), 1);
+    r.dictate(); // aucune sélection, mais un collage récent dans la même appli
+    let pasted: Vec<String> = r.paster.pasted().into_iter().map(|(t, _)| t).collect();
+    assert_eq!(pasted.last().map(String::as_str), Some("«\u{a0}Entre guillemets\u{a0}» "), "{pasted:?}");
+    assert_eq!(r.paster.shortcuts().len(), 1, "un seul ⌘Z : {:?}", r.paster.shortcuts());
+    let log = r.world.log.lines().join("\n");
+    assert!(log.contains("commande: entourer.guillemets sur la dernière dictée collée (17 signes)"), "{log}");
+    assert!(!log.contains("Entre guillemets "), "le texte ne va pas au journal");
+}
+
+#[test]
+fn commands_212_the_last_paste_is_not_taken_in_another_app_or_when_too_old() {
+    let r = rig("Entre guillemets", "Entre guillemets.");
+    r.dictate();
+    r.apps.set(AppInfo { name: "autre".into(), id: Some("autre.exe".into()) });
+    r.dictate();
+    assert!(r.paster.shortcuts().is_empty(), "pas de ⌘Z dans une autre appli");
+    let r = rig("Entre guillemets", "Entre guillemets.");
+    r.dictate();
+    r.clock.advance(Duration::from_secs(300));
+    r.dictate();
+    assert!(r.paster.shortcuts().is_empty(), "pas de ⌘Z sur un collage vieux de 5 minutes");
+}
+
 #[test]
 fn commands_208_a_paste_that_only_copied_says_so() {
     let r = rig_with(local_settings(), "Entre parenthèses", "x", true);
