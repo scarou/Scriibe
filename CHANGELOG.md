@@ -2,6 +2,16 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## 0.13.1 — 2026-11-23 · Mineurs de relecture, trousseau Linux durci, essais Windows, Linux et Mac
+
+- **Ce que tu vois** : la pastille garde un liseré clair sur fond sombre (indigo, violet, noir) ; « Exporter » ou « Importer » les commandes avec les commandes vocales décochées ouvre une boîte qui dit quoi cocher (plus de carte inerte) ; l'assistant Linux ne promet plus une carte graphique ; 14 px (et non 20) entre deux bandeaux d'alerte ; ce que la fenêtre garde (cartes repliées, hauteur…) n'est plus perdu à la fermeture.
+- **Mot répété** : une ligne de journal quand la transcription est refaite (sans le texte dicté) ; boucle sans séparateur (chinois, japonais), boucle coupée au milieu, suite de chiffres inventée sur une prise courte reconnues ; « très très très bien » et « ha ha ha » restent intacts.
+- **Trousseau Linux** : `secret-tool` cherché par chemin absolu avant le `PATH` ; clé effacée de la mémoire à la chute et relue après 10 minutes ; désinstallation sur trousseau fermé : une seule attente et un message qui dit de le déverrouiller ; échec d'écriture avec le code de sortie. Rien ne passe par un journal ni par les arguments.
+- **Windows** : un `settings.json` avec BOM est lu ; le rattrapage d'un relâchement manqué informe `CommandMenuMask` ; le nom de la touche n'est plus écrit deux fois dans le refus d'une combinaison (anglais compris).
+- **États de la fenêtre** : le pli d'Historique le plus ancien cède sa place au-delà de 300 cartes ; test de contrat commun à la page et à Rust.
+- **Essais** : Windows (modes, Aide, fenêtre administrateur, 21 essais sans le message « nécessaires pour écrire »), Linux (modes, assistant, mise au propre avec qwen2.5-1.5b, Alt+Tab sous Wayland pendant un raccourci tenu) et Mac (combinaison de touches, pastille, cas « rien à exporter ») : détail dans `docs/MINEURS_0131.md`. Non repris : Fn (sans réaction sur le clavier de l'auteur), fenêtre de déverrouillage du trousseau Linux, essais Windows destructifs.
+- **Documentation** : guides d'installation à jour (« Moteurs et modèles »), plus de numéro de version en dur dans les README.
+
 ## 0.13.0 — 2026-11-23 · Dictées courtes fidèles, commande sur la dernière dictée, dictionnaire éditable, enquête Windows
 
 - Version publiée : réunit le chantier 7 (enquête Windows, commits `0f7b325` à `bae015b`, déjà sur GitHub ; détail `docs/ENQUETE_WINDOWS.md`) et les nouveautés du 23/11 (`710a508`) avec leurs deux correctifs d'essai. Remplace la 0.12.1, jamais publiée.
