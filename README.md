@@ -11,6 +11,11 @@
 
 Dictée vocale pour Windows, macOS et Linux. Maintenir une touche, parler, relâcher : le texte est transcrit, mis au propre et collé dans l'appli ouverte.
 
+<p align="center">
+  <a href="docs/media/scriibe-film-a.mp4"><img src="docs/media/scriibe-film-a.gif" alt="Scriibe en une minute : tu parles, c'est écrit" width="100%"></a><br>
+  <sub>Le film complet (65 s, avec le son) : <a href="docs/media/scriibe-film-a.mp4">scriibe-film-a.mp4</a> · Made with <a href="https://github.com/alchaincyf/huashu-motion">huashu-motion</a></sub>
+</p>
+
 Scriibe est la suite multiplateforme de [Scribe](https://github.com/scarou/scribe) (macOS, Swift), qui reste la **version de référence** du comportement. Le but est la même expérience sur les trois systèmes, avec un code unique (Rust + Tauri).
 
 > **État : dernière version sur les [Releases](https://github.com/scarou/Scriibe/releases).** Détail des versions : [CHANGELOG.md](CHANGELOG.md) ; plan : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ; étapes : [ROADMAP.md](ROADMAP.md) ; essais par système : [docs/ESSAI_WINDOWS.md](docs/ESSAI_WINDOWS.md), [docs/ESSAI_MACOS.md](docs/ESSAI_MACOS.md), [docs/ESSAI_LINUX.md](docs/ESSAI_LINUX.md).

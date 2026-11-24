@@ -11,6 +11,11 @@
 
 **Voice dictation for Windows, macOS and Linux.** Hold a key, speak, release: your speech is transcribed, cleaned up and pasted into whatever application is open — an email, a chat, a document, a search box.
 
+<p align="center">
+  <a href="docs/media/scriibe-film-a.mp4"><img src="docs/media/scriibe-film-a.gif" alt="Scriibe in one minute: you speak, it's written" width="100%"></a><br>
+  <sub>Full film (65 s, with sound, in French): <a href="docs/media/scriibe-film-a.mp4">scriibe-film-a.mp4</a> · Made with <a href="https://github.com/alchaincyf/huashu-motion">huashu-motion</a></sub>
+</p>
+
 Scriibe is the cross-platform successor of [Scribe](https://github.com/scarou/scribe) (macOS, Swift), which remains the **reference for behaviour**. The goal is the same experience on all three systems, from a single code base (Rust + Tauri, with a Svelte interface).
 
 > Most of the project's documentation (architecture, changelog, roadmap, notes on pitfalls) is written in French. The user interface, the in-app Help and the installation guides are available in both French and English.
