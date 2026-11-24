@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="docs/media/scriibe-film-a.mp4"><img src="docs/media/scriibe-film-a.gif" alt="Scriibe in one minute: you speak, it's written" width="100%"></a><br>
-  <sub>Full film (65 s, with sound, in French): <a href="docs/media/scriibe-film-a.mp4">scriibe-film-a.mp4</a> · Made with <a href="https://github.com/alchaincyf/huashu-motion">huashu-motion</a></sub>
+  <sub>Full film (68 s, with sound, in French): <a href="docs/media/scriibe-film-a.mp4">scriibe-film-a.mp4</a> · Made with <a href="https://github.com/alchaincyf/huashu-motion">huashu-motion</a></sub>
 </p>
 
 Scriibe is the cross-platform successor of [Scribe](https://github.com/scarou/scribe) (macOS, Swift), which remains the **reference for behaviour**. The goal is the same experience on all three systems, from a single code base (Rust + Tauri, with a Svelte interface).
