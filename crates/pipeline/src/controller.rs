@@ -1469,6 +1469,9 @@ impl Controller {
         dictation.translation = translated;
         dictation.timing = Some(timing);
         dictation.mode = settings.rewriting_on().then(|| settings.active_mode_label());
+        // Le modèle n'est cité que si on l'a appelé (une dictée courte, sautée ou sans mise au propre n'en a pas eu).
+        dictation.model = matches!(outcome, Cleanup::Model | Cleanup::Translated | Cleanup::Fallback | Cleanup::Rejected | Cleanup::Failed)
+            .then(|| deps.cleaner.model_label(settings));
         deps.history.record(dictation);
 
         if let PasteOutcome::CopiedOnly(reason) = pasted {

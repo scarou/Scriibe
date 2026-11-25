@@ -52,6 +52,7 @@ fn dictation(d: &Dictation) -> Value {
         "translation": d.translation.map(|t| t.name()),
         "timing": d.timing,
         "mode": d.mode,
+        "model": d.model,
     })
 }
 

@@ -352,6 +352,8 @@ export interface HistoryItem {
   timing: { transcription: number; cleanup: number; total: number; outcome: string } | null;
   /** Le mode de reformulation en cours à la dictée (absent : reformulation coupée ou ancienne dictée). */
   mode?: string | null;
+  /** Le modèle qui a servi à la mise au propre ou à la traduction (absent : aucun appel, ou ancienne dictée). */
+  model?: string | null;
 }
 
 export interface Stats {

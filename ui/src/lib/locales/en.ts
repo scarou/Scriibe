@@ -163,6 +163,7 @@ export const en: Record<string, string> = {
   'Ce que Whisper a entendu': 'What Whisper heard',
   'Texte non gardé (réglage « Garder le texte des dictées »).': 'Text not kept (“Keep the text of dictations” setting).',
   'Mode : {mode}': 'Mode: {mode}',
+  'Modèle utilisé : {model}': 'Model used: {model}',
   'transcription {a} s · mise au propre {b} s · total {c} s': 'transcription {a} s · cleanup {b} s · total {c} s',
   'Aucune dictée ne correspond.': 'No dictation matches.',
   'Aucune dictée pour l’instant.': 'No dictation yet.',

@@ -219,10 +219,11 @@
             {:else}
               <div class="muted">{t('Texte non gardé (réglage « Garder le texte des dictées »).')}</div>
             {/if}
-            {#if d.mode || d.timing}
+            {#if d.mode || d.timing || d.model}
               <div class="muted">
                 {#if d.mode}{t('Mode : {mode}', { mode: t(d.mode) })}{#if d.timing}{' — ' + t(outcomeLabels[d.timing.outcome] ?? d.timing.outcome)}{/if}{/if}
-                {#if d.timing}{d.mode ? ' · ' : ''}{t('transcription {a} s · mise au propre {b} s · total {c} s', { a: fmt(d.timing.transcription), b: fmt(d.timing.cleanup), c: fmt(d.timing.total) })}{/if}
+                {#if d.model}{d.mode ? ' · ' : ''}{t('Modèle utilisé : {model}', { model: d.model })}{/if}
+                {#if d.timing}{d.mode || d.model ? ' · ' : ''}{t('transcription {a} s · mise au propre {b} s · total {c} s', { a: fmt(d.timing.transcription), b: fmt(d.timing.cleanup), c: fmt(d.timing.total) })}{/if}
               </div>
             {/if}
           </div>

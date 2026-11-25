@@ -2573,3 +2573,22 @@ fn under_the_key_a_disabled_command_says_so_stays_on_screen_and_does_nothing() {
     assert!(r.indicator.failures().is_empty());
     assert_eq!(r.paster.shortcuts().len(), 1);
 }
+
+/// Carnet du 25/11 : l'historique dit quel modèle a servi à la mise au propre, et rien quand le modèle n'a pas été appelé.
+#[test]
+fn the_history_names_the_model_only_when_it_was_called() {
+    let r = rig("bonjour tout le monde on commence", "Hello everyone, let's get started.");
+    r.key_down();
+    r.shift_down();
+    r.key_up();
+    let d = &r.history.items()[0];
+    assert_eq!(d.timing.as_ref().unwrap().outcome, Cleanup::Translated);
+    assert!(d.model.as_deref().is_some_and(|m| !m.is_empty()), "{:?}", d.model);
+
+    let r = rig("bonjour", "Bonjour.");
+    r.key_down();
+    r.key_up();
+    let d = &r.history.items()[0];
+    assert_eq!(d.timing.as_ref().unwrap().outcome, Cleanup::Short);
+    assert_eq!(d.model, None);
+}

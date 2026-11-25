@@ -78,6 +78,9 @@ pub struct Dictation {
     /// Nom du mode de reformulation en cours à la dictée (absent : mise au propre coupée, ou ancienne dictée ; Scriibe seulement).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
+    /// Le modèle qui a servi à la mise au propre ou à la traduction (absent : aucun appel, ou ancienne dictée ; Scriibe seulement).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 impl Dictation {
@@ -95,6 +98,7 @@ impl Dictation {
             translation: None,
             timing: None,
             mode: None,
+            model: None,
         }
     }
 
@@ -131,6 +135,7 @@ impl Dictation {
             translation: o.get("translation").and_then(|v| serde_json::from_value(v.clone()).ok()),
             timing: o.get("timing").and_then(|v| serde_json::from_value(v.clone()).ok()),
             mode: s("mode"),
+            model: s("model"),
         })
     }
 }
