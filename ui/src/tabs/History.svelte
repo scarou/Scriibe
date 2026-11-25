@@ -8,7 +8,8 @@
   import { i18n, t } from '../lib/i18n.svelte';
   import { outcomeLabels } from '../lib/timings';
   import { settings } from '../lib/settings.svelte';
-  import { dayKey, groupByDay, isRewritten, matchesHistory, type Period } from '../lib/historyfilter';
+  import { dayKey, groupByDay, isRewritten, matchesHistory, timeSaved, type Period } from '../lib/historyfilter';
+  import { spoken } from '../lib/format';
 
   let items = $state<HistoryItem[]>([]);
   let apps = $state<string[]>([]);
@@ -201,7 +202,7 @@
 </div>
 
 {#each groups as g (g.day)}
-  <Card id={'historique-' + g.day} title={dayTitle(g.day) + ' · ' + t('{n} dictée(s) · {words} mots', { n: g.items.length, words: g.items.reduce((sum, d) => sum + d.words, 0) })}>
+  <Card id={'historique-' + g.day} title={dayTitle(g.day) + ' · ' + t('{n} dictée(s) · {words} mots · {saved} gagnés', { n: g.items.length, words: g.items.reduce((sum, d) => sum + d.words, 0), saved: spoken(timeSaved(g.items, settings.value?.typingWPM ?? 40)) })}>
       <div class="day-bar">
         <label><input type="checkbox" checked={g.items.every((d) => isOn(d.id))} indeterminate={g.items.some((d) => isOn(d.id)) && !g.items.every((d) => isOn(d.id))} onchange={(e) => setSelected(g.items.map((d) => d.id), e.currentTarget.checked)} /> {t('Cocher ce jour')}</label>
         <button class="danger" onclick={() => removeMany(g.items.map((d) => d.id), t('les {n} dictée(s) de ce jour', { n: g.items.length }))}>🗑 {t('Effacer ce jour')}</button>

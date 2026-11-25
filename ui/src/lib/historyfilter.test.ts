@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupByDay, isRewritten, matchesHistory, type HistoryFilter } from './historyfilter';
+import { groupByDay, isRewritten, matchesHistory, timeSaved, type HistoryFilter } from './historyfilter';
 
 const now = new Date(2026, 9, 22, 15, 0);
 const item = (day: number, app = 'Mail', text = 'Bonjour Marie') => ({ date: new Date(2026, 9, day, 9, 30).toISOString(), app, text, raw: text.toLowerCase() });
@@ -64,5 +64,20 @@ describe('filtres de l’historique', () => {
     expect(matchesHistory(rewritten, { ...only, period: 'today', app: 'Notes' }, now)).toBe(false);
     expect(matchesHistory({ ...rewritten, date: new Date(2026, 9, 3).toISOString() }, { ...only, period: 'today' }, now)).toBe(false);
     expect(matchesHistory(rewritten, { ...only, search: 'pierre' }, now)).toBe(false);
+  });
+});
+
+describe('timeSaved', () => {
+  it('compte les mots à la vitesse de frappe, moins le temps de parole, dictée par dictée', () => {
+    // 40 mots à 40 mots/min = 60 s au clavier ; 10 s de parole → 50 s gagnées.
+    expect(timeSaved([{ words: 40, duration: 10 }], 40)).toBe(50);
+    expect(timeSaved([{ words: 40, duration: 10 }, { words: 20, duration: 10 }], 40)).toBe(50 + 20);
+  });
+  it('ne descend jamais sous zéro pour une dictée plus lente que la frappe', () => {
+    expect(timeSaved([{ words: 2, duration: 30 }, { words: 40, duration: 10 }], 40)).toBe(50);
+  });
+  it('vaut zéro sans dictée, et une vitesse nulle ne divise pas par zéro', () => {
+    expect(timeSaved([], 40)).toBe(0);
+    expect(Number.isFinite(timeSaved([{ words: 5, duration: 1 }], 0))).toBe(true);
   });
 });

@@ -19,7 +19,7 @@ export const en: Record<string, string> = {
   'Claire': 'Light',
   'Sombre': 'Dark',
   'Hier': 'Yesterday',
-  '{n} dictée(s) · {words} mots': '{n} dictation(s) · {words} words',
+  '{n} dictée(s) · {words} mots · {saved} gagnés': '{n} dictation(s) · {words} words · {saved} saved',
   '{n} mots · {s} s': '{n} words · {s} s',
   'Déplier': 'Expand',
   'Replier': 'Collapse',

@@ -60,3 +60,9 @@ export function groupByDay<T extends { date: string }>(items: T[]): { day: strin
   }
   return [...groups].map(([day, list]) => ({ day, items: list }));
 }
+
+/** Le temps gagné par une série de dictées, en secondes : celui qu'il aurait fallu pour taper les mots (`typingWpm` mots par minute), moins le temps passé à parler, dictée par dictée, jamais négatif. Même calcul que le « Temps gagné » de l'Accueil (`History::time_saved`). */
+export function timeSaved(items: { words: number; duration: number }[], typingWpm: number): number {
+  const typing = Math.max(1, typingWpm);
+  return items.reduce((sum, d) => sum + Math.max(0, (d.words / typing) * 60 - d.duration), 0);
+}
