@@ -7,7 +7,7 @@ résultats (texte personnel) restent hors du dépôt, dans `~/Library/Applicatio
 
   préparer                 construit le corpus (écarts + échantillon sans écart) depuis les historiques
   lancer MODELE.gguf NOM   lance un llama-server (port 8099), rejoue le corpus, écrit résultats-NOM.json, arrête le serveur
-  rapport                  chiffres de tous les résultats-*.json (sans texte personnel)
+  rapport [controle]       chiffres (avec « controle » : après le contrôle mot à mot)  de tous les résultats-*.json (sans texte personnel)
 """
 import difflib, glob, json, os, random, re, subprocess, sys, time, unicodedata, urllib.request
 
@@ -136,10 +136,21 @@ def run(model, name):
         server.wait(timeout=30)
 
 
-def report():
+def controlled(res):
+    """Les sorties après le contrôle mot à mot de Scriibe (`scriibe controler-mot-a-mot`)."""
+    tmp = os.path.join(BANCS, "paires-banc.json")
+    json.dump([[r["raw"], r["out"]] for r in res], open(tmp, "w"), ensure_ascii=False)
+    done = json.loads(subprocess.run([BIN, "controler-mot-a-mot", tmp, os.path.join(BANCS, "dictionnaire-banc.json")], capture_output=True, text=True, check=True).stdout)
+    dictionary = json.load(open(os.path.join(BANCS, "dictionnaire-banc.json")))["words"]
+    return [dict(r, out=o, diffs=diffs(r["raw"], o, dictionary)) for r, o in zip(res, done)]
+
+
+def report(with_control=False):
     rows = []
     for p in sorted(glob.glob(os.path.join(BANCS, "resultats-*.json"))):
         res = json.load(open(p))
+        if with_control:
+            res = controlled(res)
         row = {"modele": os.path.basename(p)[10:-5]}
         for g in ("ecart", "sans-ecart"):
             sub = [r for r in res if r["groupe"] == g]
@@ -163,6 +174,6 @@ if __name__ == "__main__":
     elif cmd == "lancer" and len(sys.argv) == 4:
         run(sys.argv[2], sys.argv[3])
     elif cmd == "rapport":
-        report()
+        report(len(sys.argv) > 2 and sys.argv[2] == "controle")
     else:
         sys.exit(__doc__)

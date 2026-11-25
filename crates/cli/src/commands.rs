@@ -430,6 +430,24 @@ pub fn cleanup_messages(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// Banc : passe le contrôle mot à mot sur des paires `[dictée, sortie du modèle]` (fichier JSON) et écrit les sorties contrôlées.
+pub fn word_guard_batch(args: &[String]) -> Result<(), String> {
+    let read = |path: &str| std::fs::read_to_string(path).map_err(|e| format!("impossible de lire {path} ({e})"));
+    let path = args.first().ok_or("usage : controler-mot-a-mot <paires.json> [dictionnaire.json]")?;
+    let pairs: Vec<(String, String)> =
+        serde_json::from_str(&read(path)?).map_err(|e| format!("{path} : liste de paires attendue ({e})"))?;
+    let vocabulary: Vec<String> = match args.get(1) {
+        Some(p) => serde_json::from_str::<serde_json::Value>(&read(p)?).map_err(|e| e.to_string())?["words"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|w| w.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        None => Vec::new(),
+    };
+    let out: Vec<String> = pairs.iter().map(|(d, o)| scriibe_core::word_guard::restore_dictated_words(d, o, &vocabulary)).collect();
+    println!("{}", serde_json::to_string(&out).map_err(|e| e.to_string())?);
+    Ok(())
+}
+
 pub fn trial(args: &[String]) -> Result<(), String> {
     let translate = args.iter().any(|a| a == "--traduire");
     let file: PathBuf = args

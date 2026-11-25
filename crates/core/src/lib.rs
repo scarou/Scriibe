@@ -37,5 +37,6 @@ pub mod translation;
 pub mod typography;
 pub mod voice_app;
 pub mod web_search;
+pub mod word_guard;
 
 mod re;

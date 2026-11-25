@@ -22,3 +22,19 @@ Outil : `scriibe messages-mise-au-propre` (le vrai prompt, mode Simple, cran Lé
 
 1. Modèle : **gemma-4-E4B** (déjà le modèle LM Studio des réglages ; déjà dans le dossier des modèles de Scriibe).
 2. Contrôle déterministe après le modèle : aligner dictée et sortie mot à mot, n'accepter que ponctuation, casse, accents, nombres, accords de genre et de nombre (même racine, terminaison différente), dictionnaire, signes dictés, hésitations ; rétablir le mot dicté pour tout autre remplacement, suppression ou ajout. À mesurer ensuite sur ce même corpus.
+
+## Contrôle mot à mot (écrit le 25/11/2026, `crates/core/src/word_guard.rs`)
+
+`restore_dictated_words(dictée, sortie, dictionnaire)` : alignement mot à mot (plus longue sous-suite commune). Passent la ponctuation, la casse, les accents, les traits d'union, les nombres (chiffres et lettres), les accords (terminaisons de genre et de nombre, verbes être, avoir, aller, pouvoir, déterminants), les mots du dictionnaire, les signes dictés (au moins un vrai mot de commande) et les hésitations. Tout autre remplacement, suppression ou ajout est défait : le mot dicté revient. Pas encore branché dans la chaîne de dictée ; essayé sur le banc par `scriibe controler-mot-a-mot` et `banc_mise_au_propre.py rapport controle`.
+
+Même corpus, après contrôle. Les restes sont des changements permis (accords, nombres, dictionnaire, signes dictés) ; liste relue à la main pour gemma-4-E4B : aucun changement de mot non permis.
+
+| Modèle | Dictées à changement permis (sur 192) | Sur 60 saines | Accords corrigés (12) |
+|---|---|---|---|
+| chocolatine-3b | 17 | 1 | 10 |
+| **gemma-4-E4B** | 28 | 3 | **12** |
+| Ministral-3-3B | 35 | 3 | 12 |
+
+Les chiffres des deux gros modèles ne valent rien (requêtes expirées rétablies en dictée brute).
+
+Lecture : avec le contrôle, aucun modèle ne trahit plus les mots ; ce qui les distingue est ce qu'ils corrigent. gemma-4-E4B corrige tous les accords témoins, chocolatine en laisse deux. Limites : un accord faux mais plausible passe (la liste des formes irrégulières est courte et s'étend au besoin) ; le contrôle n'est qu'un filtre, il ne corrige rien lui-même.

@@ -59,6 +59,7 @@ fn main() -> ExitCode {
             };
         }
         Some("messages-mise-au-propre") => commands::cleanup_messages(&args[1..]),
+        Some("controler-mot-a-mot") => commands::word_guard_batch(&args[1..]),
         Some("cle") => commands::key(args.get(1).map(String::as_str)),
         Some("aide" | "--aide" | "-h" | "--help" | "help") => {
             print!("{HELP}");
