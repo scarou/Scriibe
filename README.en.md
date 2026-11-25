@@ -7,7 +7,7 @@
 
 # Scriibe
 
-🇫🇷 [Version française](README.md)
+🇫🇷 [Version française](README.md) · 💬 [Support page](https://scarou.github.io/scriibe-site/)
 
 **Voice dictation for Windows, macOS and Linux.** Hold a key, speak, release: your speech is transcribed, cleaned up and pasted into whatever application is open — an email, a chat, a document, a search box.
 

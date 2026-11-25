@@ -7,7 +7,7 @@
 
 # Scriibe
 
-🇬🇧 [English version](README.en.md)
+🇬🇧 [English version](README.en.md) · 💬 [Page de soutien](https://scarou.github.io/scriibe-site/)
 
 Dictée vocale pour Windows, macOS et Linux. Maintenir une touche, parler, relâcher : le texte est transcrit, mis au propre et collé dans l'appli ouverte.
 

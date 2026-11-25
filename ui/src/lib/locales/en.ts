@@ -163,6 +163,7 @@ export const en: Record<string, string> = {
   'Ce que Whisper a entendu': 'What Whisper heard',
   'Texte non gardé (réglage « Garder le texte des dictées »).': 'Text not kept (“Keep the text of dictations” setting).',
   'Mode : {mode}': 'Mode: {mode}',
+  'Page de soutien': 'Support page',
   'Couleur en commande :': 'Command colour:',
   'Couleur en traduction :': 'Translation colour:',
   'Pendant une dictée de commande (« ›_ ») ou une traduction (« A→ »), la pastille prend ces couleurs et montre ce signe.': 'During a command dictation (“›_”) or a translation (“A→”), the indicator takes these colours and shows this sign.',
