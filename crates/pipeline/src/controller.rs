@@ -1334,11 +1334,16 @@ impl Controller {
         let mut translation_failure: Option<&str> = None;
         if let Some(language) = translate_to {
             let start = deps.clock.now();
-            match deps.cleaner.translate(&text, language, settings, &dictionary.words) {
+            // Les sauts de ligne de tête et de fin (« retour à la ligne » dicté en premier) sont mis de côté : le modèle les
+            // supprime, et le garde-fou « les signes restent » écartait alors toute la traduction (ROADMAP n°25).
+            let body = text.trim_matches('\n');
+            let head = text[..text.len() - text.trim_start_matches('\n').len()].to_string();
+            let tail = text[text.trim_end_matches('\n').len()..].to_string();
+            match deps.cleaner.translate(body, language, settings, &dictionary.words) {
                 Ok(out) => {
                     let fixed =
                         dictionary::apply_for(&dictionary, &out, settings.list_bullet, false, scriibe_core::spoken_signs::Active::NEUTRAL);
-                    text = fixed.text;
+                    text = format!("{head}{}{tail}", fixed.text);
                     corrections += fixed.count as i64;
                     translated = Some(language);
                     outcome = Cleanup::Translated;

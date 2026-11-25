@@ -676,6 +676,20 @@ fn shift_held_before_the_key_also_translates() {
     assert_eq!(r.history.items()[0].translation, Some(TranslationLanguage::En));
 }
 
+/// Carnet du 24/11 (ROADMAP n°25) : le modèle ne rend pas le saut de ligne de tête ; le garde-fou « les signes restent » écartait
+/// alors la traduction et le texte partait en français.
+#[test]
+fn a_translation_keeps_a_leading_line_break_the_model_drops() {
+    let r = rig("retour à la ligne et il parle aussi anglais", "And he also speaks English.");
+    r.key_down();
+    r.shift_down();
+    r.key_up();
+    assert_eq!(r.paster.pasted()[0].0, "\nAnd he also speaks English. ");
+    let d = &r.history.items()[0];
+    assert_eq!(d.translation, Some(TranslationLanguage::En));
+    assert_eq!(d.timing.as_ref().unwrap().outcome, Cleanup::Translated);
+}
+
 /// Un détecteur de langue qui voit du français partout : la « traduction » est restée en français.
 struct AlwaysFrench;
 
