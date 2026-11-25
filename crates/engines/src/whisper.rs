@@ -420,7 +420,7 @@ impl Whisper {
         let data = send(self.rt.http.as_ref(), request, "Whisper", true)?;
         let json: serde_json::Value = serde_json::from_slice(&data).map_err(|_| ServiceError::new("Réponse Whisper illisible"))?;
         let text = json["text"].as_str().ok_or_else(|| ServiceError::new("Réponse Whisper illisible"))?;
-        Ok(clean(text))
+        Ok(strip_prompt_echo(&clean(text), vocabulary))
     }
 }
 
@@ -446,6 +446,33 @@ pub fn multipart_body(boundary: &str, wav: &[u8], language: DictationLanguage, v
     }
     body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
     body
+}
+
+/// Whisper recopie parfois l'amorce (les mots du dictionnaire, séparés par des virgules) dans la dictée, surtout sur une prise
+/// courte ou hésitante (carnet du 24/11, ROADMAP n°26). Une suite d'au moins trois mots de l'amorce, dans son ordre et séparés par
+/// des virgules, ne se dicte pas par hasard : elle est retirée, avec la virgule ou le point qui l'entoure.
+pub fn strip_prompt_echo(text: &str, vocabulary: &[String]) -> String {
+    const MIN_RUN: usize = 3;
+    let words: Vec<&str> = vocabulary.iter().map(String::as_str).filter(|w| !w.is_empty()).collect();
+    let mut result = text.to_string();
+    for len in (MIN_RUN..=words.len()).rev() {
+        for start in 0..=words.len() - len {
+            let run = words[start..start + len].join(", ").to_lowercase();
+            let lower = result.to_lowercase();
+            // Une casse qui change la longueur (rare) décalerait les positions : on laisse alors le texte tel quel.
+            if lower.len() != result.len() {
+                continue;
+            }
+            if let Some(at) = lower.find(&run) {
+                let end = at + run.len();
+                let head = result[..at].trim_end().trim_end_matches(',').trim_end();
+                let tail = result[end..].trim_start().trim_start_matches(['.', ',']).trim_start();
+                let sep = if head.is_empty() || tail.is_empty() { "" } else { " " };
+                result = format!("{head}{sep}{tail}");
+            }
+        }
+    }
+    result
 }
 
 /// Retire les annotations de Whisper ([Musique], [BLANK_AUDIO]…) et les espaces superflus.

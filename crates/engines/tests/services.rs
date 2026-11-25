@@ -889,3 +889,20 @@ fn a_forgotten_debug_print_shows_neither_the_body_nor_the_key() {
     let shown = format!("{response:?}");
     assert!(!shown.contains("SECRET") && shown.contains("200"), "{shown}");
 }
+
+/// Carnet du 24/11 (ROADMAP n°26) : Whisper recopie l'amorce (les mots du dictionnaire) dans la dictée.
+#[test]
+fn a_run_of_dictionary_words_echoed_from_the_prompt_is_removed() {
+    let words: Vec<String> = ["Claude Code.md", "commité", "Commissaire", "Timon", "Vault"].iter().map(|w| w.to_string()).collect();
+    let strip = |text: &str| whisper::strip_prompt_echo(text, &words);
+    assert_eq!(
+        strip("Il connaît tes mots, par exemple, Claude Code.md, commité, Commissaire, Timon, Vault"),
+        "Il connaît tes mots, par exemple"
+    );
+    assert_eq!(strip("claude code.md, commité, commissaire, timon, vault"), "");
+    assert_eq!(strip("Salut. Commité, Commissaire, Timon. Bonne journée."), "Salut. Bonne journée.");
+    // Deux mots de suite, ou hors de l'ordre de l'amorce : une vraie dictée.
+    assert_eq!(strip("Le commissaire, Timon et le vault"), "Le commissaire, Timon et le vault");
+    assert_eq!(strip("Timon, commité, Vault"), "Timon, commité, Vault");
+    assert_eq!(strip("Rien à retirer ici."), "Rien à retirer ici.");
+}
