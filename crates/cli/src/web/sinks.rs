@@ -184,6 +184,10 @@ impl Indicator for TeeIndicator {
         self.0.indicator.set_translation(language);
     }
 
+    fn set_command(&self, on: bool) {
+        self.0.indicator.set_command(on);
+    }
+
     fn set_level(&self, level: f32) {
         self.0.level.store(level.to_bits(), Ordering::SeqCst);
         self.0.indicator.set_level(level);

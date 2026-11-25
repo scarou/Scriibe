@@ -1033,6 +1033,8 @@ fn overlay_view(ctx: &Context) -> Value {
         "style": settings.capture_style,
         "position": settings.capture_position,
         "color": settings.capture_color,
+        "commandColor": settings.capture_command_color,
+        "translationColor": settings.capture_translation_color,
         "opacity": settings.capture_opacity,
     });
     view

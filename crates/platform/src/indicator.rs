@@ -54,6 +54,8 @@ pub trait Indicator: Send + Sync {
     fn show(&self, state: IndicatorState);
     /// Pendant l'écoute : la langue de traduction annoncée (None : pas de traduction).
     fn set_translation(&self, language: Option<String>);
+    /// Pendant l'écoute : la dictée est une commande (touche de commande), la pastille change de signe. Sans effet par défaut (icône, console).
+    fn set_command(&self, _on: bool) {}
     /// Pendant l'écoute : niveau du micro de 0 à 1.
     fn set_level(&self, level: f32);
     /// Pendant l'écoute : le micro semble muet ou faible (« Je n'entends rien… », « Je t'entends à peine… »).

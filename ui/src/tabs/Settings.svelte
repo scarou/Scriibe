@@ -345,6 +345,19 @@
       </label>
     </div>
     <div class="row">
+      <label>{t('Couleur en commande :')}
+        <select value={v.captureCommandColor ?? 'pink'} onchange={(e) => settings.change({ captureCommandColor: e.currentTarget.value as never })}>
+          {#each colors as o (o.id)}<option value={o.id}>{t(o.label)}</option>{/each}
+        </select>
+      </label>
+      <label>{t('Couleur en traduction :')}
+        <select value={v.captureTranslationColor ?? 'orange'} onchange={(e) => settings.change({ captureTranslationColor: e.currentTarget.value as never })}>
+          {#each colors as o (o.id)}<option value={o.id}>{t(o.label)}</option>{/each}
+        </select>
+      </label>
+    </div>
+    <p class="muted">{t('Pendant une dictée de commande (« ›_ ») ou une traduction (« A→ »), la pastille prend ces couleurs et montre ce signe.')}</p>
+    <div class="row">
       <label>{t('Transparence :')}
         <input type="range" min="0.3" max="1" step="0.05" value={v.captureOpacity} onchange={(e) => settings.change({ captureOpacity: Number(e.currentTarget.value) })} />
         {Math.round(v.captureOpacity * 100)} %

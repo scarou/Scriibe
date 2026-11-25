@@ -64,3 +64,22 @@ export function caption(mic: 'ok' | 'weak' | 'silent', translation: string | nul
 export function listeningOpacity(mic: 'ok' | 'weak' | 'silent', opacity: number): number {
   return mic === 'ok' ? opacity : 1;
 }
+
+/** La couleur de la pastille : celle de la commande ou de la traduction quand l'une est en cours (la commande l'emporte, comme à la dictée), sinon celle du réglage « Couleur ». */
+export function modeColor(view: {
+  command?: boolean;
+  translation: string | null;
+  appearance: { color: CaptureColor; commandColor?: CaptureColor; translationColor?: CaptureColor };
+}): CaptureColor {
+  const a = view.appearance;
+  if (view.command) return a.commandColor ?? a.color;
+  if (view.translation) return a.translationColor ?? a.color;
+  return a.color;
+}
+
+/** Le signe qui double la couleur : « ›_ » pour une commande, « A→ » pour une traduction ; `null` pour une dictée ordinaire. */
+export function modeSign(view: { command?: boolean; translation: string | null }): { glyph: string; title: () => string } | null {
+  if (view.command) return { glyph: '›_', title: () => tx('Dictée de commande') };
+  if (view.translation) return { glyph: 'A→', title: () => tx('Traduction') };
+  return null;
+}

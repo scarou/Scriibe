@@ -6,18 +6,29 @@
     state: 'hidden' | 'listening' | 'working' | 'done' | 'message';
     message: string | null;
     translation: string | null;
+    /** Dictée de commande en cours (absent dans les illustrations de l'Aide). */
+    command?: boolean;
     mic: 'ok' | 'weak' | 'silent';
     level: number;
     /** Une erreur qui reste affichée jusqu'à la croix ou la dictée suivante (le genre choisit le titre) ; `null` sinon. */
     error?: { kind: 'not_recognised' | 'not_done' | 'dictation'; message: string } | null;
     /** « windows », « macos » ou « linux » : la couleur de la marque (absent dans les illustrations de l'Aide). */
     os?: string;
-    appearance: { enabled: boolean; style: CaptureStyle; position: CapturePosition; color: CaptureColor; opacity: number };
+    appearance: {
+      enabled: boolean;
+      style: CaptureStyle;
+      position: CapturePosition;
+      color: CaptureColor;
+      /** Couleurs propres à la commande et à la traduction (absentes : celle de la pastille). */
+      commandColor?: CaptureColor;
+      translationColor?: CaptureColor;
+      opacity: number;
+    };
   }
 </script>
 
 <script lang="ts">
-  import { caption, gradient, listeningOpacity, listeningText, rimStyle } from '../lib/appearance';
+  import { caption, gradient, listeningOpacity, listeningText, modeColor, modeSign, rimStyle } from '../lib/appearance';
   import { t } from '../lib/i18n.svelte';
   import { api } from '../lib/api';
 
@@ -25,8 +36,10 @@
   let { view, levels = [], inline = false }: { view: View; levels?: number[]; inline?: boolean } = $props();
 
   let v = $derived(view);
-  let fill = $derived(gradient(v.appearance.color));
-  let rim = $derived(rimStyle(v.appearance.color));
+  let color = $derived(modeColor(v));
+  let sign = $derived(modeSign(v));
+  let fill = $derived(gradient(color));
+  let rim = $derived(rimStyle(color));
   let note = $derived(caption(v.mic, v.translation, t));
   let align = $derived(v.appearance.position === 'left' ? 'flex-start' : v.appearance.position === 'right' ? 'flex-end' : 'center');
   let opacity = $derived(v.state === 'listening' ? listeningOpacity(v.mic, v.appearance.opacity) : v.state === 'message' ? 1 : v.appearance.opacity);
@@ -79,6 +92,7 @@
         </div>
       {:else if v.appearance.style === 'pill'}
         <div class="capsule" style="background: {fill}; {rim}">
+          {#if sign}<span class="sign" title={sign.title()}>{sign.glyph}</span>{/if}
           {#if v.state === 'listening'}
             <span class="bars">{#each bars as b, i (i)}<i style="height: {5 + 15 * b * Math.max(0.15, v.level)}px"></i>{/each}</span>
             <span class="text">{listeningText(v.mic, t)}</span>
@@ -99,6 +113,7 @@
       {:else}
         {#if v.state === 'listening' && note}<div class="capsule compact above" style="background: {fill}; {rim}"><span class="text">{note}</span></div>{/if}
         <div class="capsule" style="background: {fill}; {rim}">
+          {#if sign}<span class="sign" title={sign.title()}>{sign.glyph}</span>{/if}
           {#if v.state === 'listening'}
             <span class="curve">{#each levels as l, i (i)}<i style="height: {Math.max(2, 24 * l)}px; opacity: {0.45 + (0.55 * i) / Math.max(1, levels.length)}"></i>{/each}</span>
           {:else if v.state === 'working'}
@@ -129,6 +144,8 @@
   .close { flex: none; width: 24px; height: 24px; margin: -4px -8px -4px 2px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font: inherit; font-size: 12px; line-height: 1; cursor: pointer; }
   .close:hover, .close:focus-visible { background: rgba(255, 255, 255, 0.25); outline: none; }
   .icon { font-weight: 800; }
+  /* Le signe du mode (commande, traduction) : double la couleur, pour ne pas dépendre d'elle seule. */
+  .sign { font: 800 12px/1 ui-monospace, 'Cascadia Mono', Menlo, monospace; padding: 3px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.28); letter-spacing: 0.02em; }
   .bars { display: inline-flex; align-items: center; gap: 3px; height: 20px; }
   .bars i { display: block; width: 3px; border-radius: 2px; background: #fff; transition: height 0.08s ease-out; }
   .curve { display: inline-flex; align-items: center; gap: 1px; width: 140px; height: 24px; }

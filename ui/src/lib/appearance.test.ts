@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caption, colors, gradient, listeningOpacity, listeningText, rimStyle } from './appearance';
+import { caption, colors, gradient, listeningOpacity, listeningText, modeColor, modeSign, rimStyle } from './appearance';
 
 /** Rapport de contraste WCAG d'une teinte `#RRGGBB` avec le blanc. */
 function contrastWithWhite(hex: string): number {
@@ -37,5 +37,24 @@ describe('le liseré de la pastille sur fond sombre', () => {
   it('est posé sur indigo, violet et noir, et sur aucune autre couleur', () => {
     for (const id of ['indigo', 'purple', 'black'] as const) expect(rimStyle(id)).toContain('--edge: rgba(255, 255, 255');
     for (const c of colors.filter((c) => !['indigo', 'purple', 'black'].includes(c.id))) expect(rimStyle(c.id)).toBe('');
+  });
+});
+
+describe('modeColor et modeSign', () => {
+  const appearance = { color: 'scribe' as const, commandColor: 'pink' as const, translationColor: 'orange' as const };
+  it('une dictée ordinaire garde la couleur du réglage et n\'a pas de signe', () => {
+    expect(modeColor({ translation: null, appearance })).toBe('scribe');
+    expect(modeSign({ translation: null })).toBeNull();
+  });
+  it('une traduction prend sa couleur et son signe', () => {
+    expect(modeColor({ translation: 'anglais', appearance })).toBe('orange');
+    expect(modeSign({ translation: 'anglais' })?.glyph).toBe('A→');
+  });
+  it('la commande l\'emporte sur la traduction, comme à la dictée', () => {
+    expect(modeColor({ command: true, translation: 'anglais', appearance })).toBe('pink');
+    expect(modeSign({ command: true, translation: 'anglais' })?.glyph).toBe('›_');
+  });
+  it('sans couleur propre (illustration de l\'Aide), celle de la pastille reste', () => {
+    expect(modeColor({ command: true, translation: null, appearance: { color: 'blue' } })).toBe('blue');
   });
 });

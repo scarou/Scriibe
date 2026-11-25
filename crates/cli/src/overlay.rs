@@ -34,6 +34,8 @@ pub fn origin_x(position: CapturePosition, area_x: f64, area_width: f64, width: 
 struct Inner {
     state: IndicatorState,
     translation: Option<String>,
+    /// Dictée de commande en cours (touche de commande tenue).
+    command: bool,
     mic: MicLevel,
     level: f32,
     /// Affichage temporaire (`flash`) : l'état redevient caché à cet instant.
@@ -49,6 +51,7 @@ struct Inner {
 pub struct Snapshot {
     pub state: IndicatorState,
     pub translation: Option<String>,
+    pub command: bool,
     pub mic: MicLevel,
     pub level: f32,
     pub failure: Option<Failure>,
@@ -75,7 +78,7 @@ impl Snapshot {
             MicLevel::Silent => "silent",
         };
         let error = self.failure.as_ref().map(|f| json!({"kind": f.kind.id(), "message": f.message}));
-        json!({"visible": self.visible(), "state": state, "message": message, "translation": self.translation, "mic": mic, "level": self.level, "error": error})
+        json!({"visible": self.visible(), "state": state, "message": message, "translation": self.translation, "command": self.command, "mic": mic, "level": self.level, "error": error})
     }
 }
 
@@ -91,6 +94,7 @@ impl Default for OverlayModel {
             inner: Mutex::new(Inner {
                 state: IndicatorState::Hidden,
                 translation: None,
+                command: false,
                 mic: MicLevel::Ok,
                 level: 0.0,
                 until: None,
@@ -115,6 +119,7 @@ impl OverlayModel {
             inner.level = 0.0;
             inner.mic = MicLevel::Ok;
             inner.translation = None;
+            inner.command = false;
         }
         inner.state = state;
         inner.until = None;
@@ -164,6 +169,10 @@ impl OverlayModel {
         self.lock().translation = language;
     }
 
+    pub fn set_command(&self, on: bool) {
+        self.lock().command = on;
+    }
+
     pub fn set_level(&self, level: f32) {
         self.lock().level = level.clamp(0.0, 1.0);
     }
@@ -185,6 +194,7 @@ impl OverlayModel {
         Snapshot {
             state: inner.state.clone(),
             translation: inner.translation.clone(),
+            command: inner.command,
             mic: inner.mic,
             level: inner.level,
             failure: inner.failure.clone(),
@@ -230,6 +240,11 @@ impl Indicator for OverlayIndicator {
     fn set_translation(&self, language: Option<String>) {
         self.model.set_translation(language.clone());
         self.inner.set_translation(language);
+    }
+
+    fn set_command(&self, on: bool) {
+        self.model.set_command(on);
+        self.inner.set_command(on);
     }
 
     fn set_level(&self, level: f32) {
@@ -292,6 +307,18 @@ mod tests {
         model.show(IndicatorState::Listening);
         let s = model.snapshot();
         assert_eq!((s.level, s.mic, s.translation), (0.0, MicLevel::Ok, None), "l'écoute suivante repart de zéro");
+    }
+
+    #[test]
+    fn a_command_dictation_is_shown_until_the_next_listening() {
+        let model = OverlayModel::default();
+        model.show(IndicatorState::Listening);
+        assert_eq!(model.snapshot().json()["command"], false);
+        model.set_command(true);
+        model.show(IndicatorState::Working);
+        assert_eq!(model.snapshot().json()["command"], true, "le traitement garde le signe");
+        model.show(IndicatorState::Listening);
+        assert_eq!(model.snapshot().json()["command"], false, "l'écoute suivante repart de zéro");
     }
 
     #[test]

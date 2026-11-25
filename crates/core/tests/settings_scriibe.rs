@@ -171,3 +171,16 @@ fn old_and_new_indicator_colors_are_read() {
     let s = AppSettings::from_json(r#"{"captureColor": "fuchsia"}"#).unwrap();
     assert_eq!(s.capture_color, CaptureColor::Scribe, "une couleur inconnue (pas de couleur libre) : celle de Scriibe");
 }
+
+#[test]
+fn the_indicator_has_its_own_colours_for_command_and_translation() {
+    let d = AppSettings::default();
+    assert_eq!((d.capture_command_color, d.capture_translation_color), (CaptureColor::Pink, CaptureColor::Orange));
+    assert_ne!(d.capture_command_color, d.capture_color);
+    assert_ne!(d.capture_translation_color, d.capture_color);
+    let s = AppSettings::from_json(r#"{"captureCommandColor": "green", "captureTranslationColor": "fuchsia"}"#).unwrap();
+    assert_eq!(s.capture_command_color, CaptureColor::Green);
+    assert_eq!(s.capture_translation_color, CaptureColor::Orange, "une couleur inconnue : celle par défaut");
+    let back = AppSettings::from_json(&serde_json::to_string(&s).unwrap()).unwrap();
+    assert_eq!(back.capture_command_color, CaptureColor::Green);
+}

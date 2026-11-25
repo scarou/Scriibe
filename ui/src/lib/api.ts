@@ -170,6 +170,8 @@ export interface Settings {
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
   captureColor: CaptureColor;
+  captureCommandColor?: CaptureColor;
+  captureTranslationColor?: CaptureColor;
   captureOpacity: number;
   historyKeepDays?: number | null;
   [key: string]: unknown;

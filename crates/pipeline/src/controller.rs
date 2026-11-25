@@ -753,6 +753,7 @@ impl Controller {
             state.translation_warm_up_due = None;
             std::mem::take(&mut state.translating)
         };
+        deps.indicator.set_command(true);
         if was_translating {
             deps.indicator.set_translation(None);
         }

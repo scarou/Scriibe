@@ -331,6 +331,12 @@ pub struct AppSettings {
     pub capture_position: CapturePosition,
     #[serde(rename = "captureColor")]
     pub capture_color: CaptureColor,
+    /// Couleur de la pastille pendant une dictée de commande (carnet du 23/11). Propre à Scriibe.
+    #[serde(rename = "captureCommandColor")]
+    pub capture_command_color: CaptureColor,
+    /// Couleur de la pastille pendant une traduction (carnet du 23/11). Propre à Scriibe.
+    #[serde(rename = "captureTranslationColor")]
+    pub capture_translation_color: CaptureColor,
     /// De 0,3 à 1.
     #[serde(rename = "captureOpacity")]
     pub capture_opacity: f64,
@@ -477,6 +483,8 @@ impl Default for AppSettings {
             capture_style: CaptureStyle::default(),
             capture_position: CapturePosition::default(),
             capture_color: CaptureColor::default(),
+            capture_command_color: CaptureColor::Pink,
+            capture_translation_color: CaptureColor::Orange,
             capture_opacity: 1.0,
             cleanup_engine: CleanupEngine::OpenRouter,
             cleanup_model: "anthropic/claude-haiku-4.5".into(),
@@ -586,6 +594,8 @@ pub const COMPUTER_KEYS: &[&str] = &[
     "captureStyle",
     "capturePosition",
     "captureColor",
+    "captureCommandColor",
+    "captureTranslationColor",
     "captureOpacity",
     "animatedLogo",
     "animatedWave",
@@ -705,6 +715,8 @@ impl AppSettings {
                 capture_style: get(o, "captureStyle").unwrap_or(d.capture_style),
                 capture_position: get(o, "capturePosition").unwrap_or(d.capture_position),
                 capture_color: get(o, "captureColor").unwrap_or(d.capture_color),
+                capture_command_color: get(o, "captureCommandColor").unwrap_or(d.capture_command_color),
+                capture_translation_color: get(o, "captureTranslationColor").unwrap_or(d.capture_translation_color),
                 capture_opacity: get::<f64>(o, "captureOpacity").unwrap_or(d.capture_opacity).clamp(0.3, 1.0),
                 cleanup_engine: get(o, "cleanupEngine").unwrap_or(d.cleanup_engine),
                 cleanup_model: get(o, "cleanupModel").unwrap_or(d.cleanup_model),
