@@ -433,6 +433,9 @@ pub struct AppSettings {
     /// Logo de la barre latérale : le curseur clignote lentement (vrai, par défaut) ou reste fixe (chantier 8). Propre à Scriibe.
     #[serde(rename = "animatedLogo")]
     pub animated_logo: bool,
+    /// Onde du bandeau de l'Accueil : elle ondule doucement (vrai, par défaut) ou reste fixe. Réglage à part du logo. Propre à Scriibe.
+    #[serde(rename = "animatedWave")]
+    pub animated_wave: bool,
     /// Identifiant de l'utilisateur actif (dossier `utilisateurs/<id>/`), écrit par la migration et, plus tard, par la route de
     /// changement d'utilisateur ; jamais par la page (`merge_settings`). Propre à l'ordinateur. `None` : ancien rangement.
     #[serde(rename = "activeProfile", skip_serializing_if = "Option::is_none")]
@@ -507,6 +510,7 @@ impl Default for AppSettings {
             theme: Theme::default(),
             check_updates: false,
             animated_logo: true,
+            animated_wave: true,
             active_profile: None,
         }
     }
@@ -584,6 +588,7 @@ pub const COMPUTER_KEYS: &[&str] = &[
     "captureColor",
     "captureOpacity",
     "animatedLogo",
+    "animatedWave",
     "trialCandidates",
     "trialText",
     "checkUpdates",
@@ -754,6 +759,7 @@ impl AppSettings {
                 theme: get(o, "theme").unwrap_or(d.theme),
                 check_updates: get(o, "checkUpdates").unwrap_or(d.check_updates),
                 animated_logo: get(o, "animatedLogo").unwrap_or(d.animated_logo),
+                animated_wave: get(o, "animatedWave").unwrap_or(d.animated_wave),
                 active_profile: get::<String>(o, "activeProfile").filter(|id| is_profile_id(id)),
                 rewrite_consent: get(o, "rewriteConsent"),
             };

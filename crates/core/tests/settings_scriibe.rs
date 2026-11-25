@@ -51,6 +51,16 @@ fn the_window_theme_defaults_to_the_system_one_and_survives_a_round_trip() {
 }
 
 #[test]
+fn the_animated_wave_is_on_by_default_apart_from_the_logo_and_is_kept() {
+    assert!(AppSettings::default().animated_wave);
+    assert!(AppSettings::from_json("{}").unwrap().animated_wave);
+    let off = AppSettings::from_json(r#"{"animatedWave": false}"#).unwrap();
+    assert!(!off.animated_wave && off.animated_logo, "les deux réglages sont indépendants");
+    let back = AppSettings::from_json(&serde_json::to_string(&off).unwrap()).unwrap();
+    assert!(!back.animated_wave);
+}
+
+#[test]
 fn the_animated_logo_is_on_by_default_and_is_kept() {
     assert!(AppSettings::default().animated_logo);
     assert!(AppSettings::from_json("{}").unwrap().animated_logo);

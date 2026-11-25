@@ -9,9 +9,12 @@
   import { i18n, keyName, t } from '../lib/i18n.svelte';
   import Assistant from '../components/Assistant.svelte';
   import type { TabId } from '../lib/tabs';
+  import { shouldAnimate } from '../lib/logotype';
 
   let { goto }: { goto: (tab: TabId, anchor?: string) => void } = $props();
   let showAssistant = $state(false);
+  // Réglage propre à l'onde (carte « Animations ») ; même respect de « réduire les animations » que le logo.
+  let waving = $derived(shouldAnimate(settings.value?.animatedWave, !!settings.value, status.value?.reduced_motion));
 
   let s = $state<Stats | null>(null);
   let recent = $state<HistoryItem[]>([]);
@@ -59,8 +62,8 @@
       <span>{t('maintenir pour dicter')}</span>
     </div>
   </div>
-  <div class="wave" aria-hidden="true">
-    {#each wave as h, i (i)}<span style="height: {Math.round(h * 100)}%; opacity: {0.35 + 0.6 * h}"></span>{/each}
+  <div class="wave" class:still={!waving} aria-hidden="true">
+    {#each wave as h, i (i)}<span style="height: {Math.round(h * 100)}%; opacity: {0.35 + 0.6 * h}; animation-delay: {(-i * 0.37).toFixed(2)}s"></span>{/each}
   </div>
 </div>
 
@@ -129,6 +132,11 @@
   .key { background: #fff; color: var(--brand-deep); font-weight: 700; padding: 3px 10px; border-radius: 7px; }
   .wave { display: flex; align-items: center; gap: 6px; height: 90px; flex: none; }
   .wave span { display: block; width: 6px; border-radius: 3px; background: #fff; }
+  /* L'onde ondule doucement (hauteur × 0,75 à 1, décalée d'une barre à l'autre, comme dans le film A v13) ; immobile si l'on préfère moins d'animation. */
+  .wave span { animation: wave 2.6s ease-in-out infinite; transform-origin: center; }
+  @keyframes wave { 0%, 100% { transform: scaleY(0.75); } 50% { transform: scaleY(1); } }
+  .wave.still span { animation: none; }
+  @media (prefers-reduced-motion: reduce) { .wave span { animation: none; } }
   .head { justify-content: space-between; margin: 0 0 6px; }
   .recent { display: flex; gap: 14px; padding: 8px 0; border-top: 1px solid var(--line); }
   .recent:first-of-type { border-top: 0; }

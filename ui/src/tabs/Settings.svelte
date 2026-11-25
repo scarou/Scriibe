@@ -123,9 +123,11 @@
     </label>
   </Card>
 
-  <Card help="indicator" id="logo-anime" title={t('Logo animé')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement. Décoche pour le garder fixe. Il reste fixe aussi quand le système demande de réduire les animations.')}>
+  <Card help="indicator" id="logo-anime" title={t('Animations')} intro={t('Le curseur du logo, en haut de la barre latérale, clignote lentement, et l’onde du bandeau de l’Accueil ondule doucement. Décoche pour les garder fixes. Ils restent fixes aussi quand le système demande de réduire les animations.')}>
     <label><input type="checkbox" checked={v.animatedLogo !== false} onchange={(e) => settings.change({ animatedLogo: e.currentTarget.checked })} />
       {t('Logo animé')}</label>
+    <label><input type="checkbox" checked={v.animatedWave !== false} onchange={(e) => settings.change({ animatedWave: e.currentTarget.checked })} />
+      {t('Onde animée de l’Accueil')}</label>
   </Card>
 
   <Card help="dictate" id="langue" title={t('Langue de l’interface')} intro={t('Celle des menus et des textes de Scriibe. Elle ne change ni la langue que tu dictes ni la langue de traduction.')}>

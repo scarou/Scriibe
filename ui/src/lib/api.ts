@@ -166,6 +166,7 @@ export interface Settings {
   checkUpdates: boolean;
   /** Le curseur du logo de la barre latérale clignote (vrai par défaut) ou reste fixe. */
   animatedLogo?: boolean;
+  animatedWave?: boolean;
   captureStyle: 'pill' | 'dot' | 'meter';
   capturePosition: 'left' | 'center' | 'right';
   captureColor: CaptureColor;
