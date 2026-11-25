@@ -7,7 +7,7 @@ Prompt à coller dans une nouvelle session lancée depuis `~/Documents/Mes proje
 
 Projet Scriibe (dictée vocale multiplateforme, Rust + Tauri 2 + Svelte 5), session sur le MAC de l'auteur. Lis CLAUDE.md, REPRISE.md, la dernière section de CHANGELOG.md, docs/DIVERGENCES_MISE_AU_PROPRE.md et la mémoire (projet-scriibe.md), puis résume l'état en 5 lignes avant d'agir.
 
-ÉTAT : dépôt public scarou/Scriibe, branche main. Dernier commit : d6c1a4b (analyse des divergences), poussé à la clôture. Dernière version publiée : 0.13.1 ; la section « Non publié — 2026-11-23 » du CHANGELOG (commit 710a508) n'est pas encore dans une version.
+ÉTAT : dépôt public scarou/Scriibe, branche main. Dernier commit : d6c1a4b (analyse des divergences), poussé à la clôture. Dernière version publiée : 0.13.1 (la 0.13.0 contient déjà le garde-fou, la commande sur la dernière dictée et le dictionnaire éditable, commit 710a508). Rien de non publié, hors l'analyse (docs/DIVERGENCES_MISE_AU_PROPRE.md).
 
 FAIT À LA SESSION PRÉCÉDENTE :
 - Garde-fou des dictées courtes (6 mots ou moins : aucun mot perdu), commande « entre guillemets » sur la dernière dictée collée (⌘Z puis collage), dictionnaire éditable sur place (filtre, tri, × visible) avec export et reprise en CSV (aperçu avant remplacement). 905 tests Rust et 176 tests d'interface passés, clippy propre.

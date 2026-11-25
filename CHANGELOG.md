@@ -2,6 +2,10 @@
 
 Une section par session de travail, la plus récente en haut. Versions publiées : voir les Releases de `scarou/Scriibe`.
 
+## Non publié — 2026-11-25 · Analyse des écarts de mise au propre
+
+- **Analyse** : 22 % des dictées Simple de l'auteur (192 sur 867) ont un écart réel avec la dictée (remplacements de mots courts, suppressions de mots de liaison, ajouts) ; chiffres et familles dans `docs/DIVERGENCES_MISE_AU_PROPRE.md`. Suite : banc comparatif des modèles locaux pour un réglage qui corrige le genre et le nombre sans trahir les mots dictés, puis contrôle mot à mot.
+
 ## 0.13.1 — 2026-11-23 · Mineurs de relecture, trousseau Linux durci, essais Windows, Linux et Mac
 
 - **Ce que tu vois** : la pastille garde un liseré clair sur fond sombre (indigo, violet, noir) ; « Exporter » ou « Importer » les commandes avec les commandes vocales décochées ouvre une boîte qui dit quoi cocher (plus de carte inerte) ; l'assistant Linux ne promet plus une carte graphique ; 14 px (et non 20) entre deux bandeaux d'alerte ; ce que la fenêtre garde (cartes repliées, hauteur…) n'est plus perdu à la fermeture.
