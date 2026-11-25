@@ -6,6 +6,12 @@ export function fmt(n: number, lang: Lang = 'fr'): string {
   return lang === 'en' ? text : text.replace('.', ',');
 }
 
+/** Un entier avec le séparateur des milliers : « 47 848 » (espace fine insécable), en anglais « 47,848 ». */
+export function milliers(n: number, lang: Lang = 'fr'): string {
+  const digits = String(Math.abs(Math.round(n))).replace(/\B(?=(\d{3})+$)/g, lang === 'en' ? ',' : '\u202f');
+  return (n < 0 ? '-' : '') + digits;
+}
+
 /** Une taille en mégaoctets entiers. */
 export function mo(bytes: number, lang: Lang = 'fr'): string {
   return Math.round(bytes / 1048576) + (lang === 'en' ? ' MB' : ' Mo');

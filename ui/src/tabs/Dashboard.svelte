@@ -4,7 +4,7 @@
   import { nav } from '../lib/nav.svelte';
   import { api, type HistoryItem, type Stats } from '../lib/api';
   import { status } from '../lib/status.svelte';
-  import { spoken } from '../lib/format';
+  import { milliers, spoken } from '../lib/format';
   import { settings } from '../lib/settings.svelte';
   import { i18n, keyName, t } from '../lib/i18n.svelte';
   import Assistant from '../components/Assistant.svelte';
@@ -75,8 +75,8 @@
 
 {#if s}
   <div class="grid">
-    <div class="card tile"><div class="muted">{t('Mots dictés')}</div><div class="n">{s.total_words}</div><div class="muted">{t('{n} dictée(s)', { n: s.dictations })}</div></div>
-    <div class="card tile"><div class="muted">{t('Aujourd’hui')}</div><div class="n">{s.today_words}</div>
+    <div class="card tile"><div class="muted">{t('Mots dictés')}</div><div class="n">{milliers(s.total_words, i18n.lang)}</div><div class="muted">{t('{n} dictée(s)', { n: s.dictations })}</div></div>
+    <div class="card tile"><div class="muted">{t('Aujourd’hui')}</div><div class="n">{milliers(s.today_words, i18n.lang)}</div>
       <div class="muted" class:bad={s.today_change !== null && s.today_change < 0}>{s.today_change !== null ? t('{change} % par rapport à hier à la même heure', { change: (s.today_change >= 0 ? '+' : '') + s.today_change }) : t('rien hier à cette heure')}</div></div>
     <div class="card tile"><div class="muted">{t('Vitesse')}</div><div class="n">{s.average_wpm} <small>{t('mots/min')}</small></div><div class="muted">{t('en moyenne (au clavier : {n})', { n: s.typing_wpm })}</div></div>
     <div class="card tile"><div class="muted">{t('Temps gagné')}</div><div class="n">{spoken(s.time_saved)}</div><div class="muted">{t('par rapport à la frappe')}</div></div>
@@ -88,7 +88,7 @@
       <p class="muted">{t('14 derniers jours. Les chiffres restent justes même si l’historique est limité dans le temps.')}</p>
       <div class="chart">
         {#each s.last_days as d, i (d.day)}
-          <div class="col" title={t('{n} mots', { n: d.words })}>
+          <div class="col" title={t('{n} mots', { n: milliers(d.words, i18n.lang) })}>
             <div class="bar-v" style="height: {Math.round((d.words / tallest) * 100)}%"></div>
             <div class="muted day">{i % 2 === 0 ? shortDay(d.day) : ''}</div>
           </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { base, compte, fmt, mo, percent, spoken, taille, when } from './format';
+import { base, compte, fmt, milliers, mo, percent, spoken, taille, when } from './format';
 
 describe('format', () => {
   it('dit les durées', () => {
@@ -58,5 +58,13 @@ describe('formats en anglais', () => {
   });
   it('écrit les dates avec « at »', () => {
     expect(when('2026-10-27T14:05:00', 'en')).toBe('27/10/2026 at 14:05');
+  });
+});
+
+describe('milliers', () => {
+  it('sépare les milliers par une espace fine insécable, une virgule en anglais', () => {
+    expect([0, 950, 1000, 47848, 1234567].map((n) => milliers(n))).toEqual(['0', '950', '1\u202f000', '47\u202f848', '1\u202f234\u202f567']);
+    expect(milliers(47848, 'en')).toBe('47,848');
+    expect(milliers(-1500)).toBe('-1\u202f500');
   });
 });
