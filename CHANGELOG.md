@@ -605,3 +605,7 @@ Session cloud (Linux). Le dépôt `scarou/scribe` (Swift) n'a pas été modifié
 - **Résultat** : 342 des 365 cas de référence rejoués par `cargo test` (303 dans le cœur, 39 dans les moteurs) ; 14 cas d'interface et 9 du mode Amusant attendent. 72 fonctions de test au total. CI verte sur les trois systèmes au commit `c603001`.
 - **Corrections en route** : un test de chemins mélangeait `/` et `\` sous Windows (le code était juste) ; deux messages de commit annonçaient des chiffres non mesurés (183 et 295 cas) — les vrais étaient 146 et 234, corrigés dans le message suivant.
 - **Rien d'essayé sur une vraie machine** : la touche globale, le micro, le collage, l'icône et les vrais `whisper-server` / `llama-server` ne sont pas testés (conteneur Linux sans écran ni son).
+
+## Non publié — 2026-11-25 · Contrôle mot à mot après le modèle
+
+- **Mode Simple tel quel** : après le modèle, un contrôle mot à mot (`crates/core/src/word_guard.rs`) ne laisse passer que la ponctuation, la casse, les accents, les nombres, les accords de genre et de nombre, les mots du dictionnaire, les signes dictés et les hésitations ; tout autre mot remplacé, supprimé ou ajouté par le modèle est rétabli tel que dicté. Mesures et choix du modèle (gemma-4-E4B) : `docs/BANC_MISE_AU_PROPRE.md`. Outil du banc : `scriibe messages-mise-au-propre`, `scriibe controler-mot-a-mot`, `tools/banc_mise_au_propre.py`.

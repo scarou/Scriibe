@@ -417,6 +417,11 @@ impl Cleaner {
         let profile = settings.active_profile();
         let rewrites = profile.rewrites;
         if cleaner::accepts(text, &cleaned, profile.fidelity) {
+            // Simple tel quel : le modèle ne change que ce qui est permis (ponctuation, accords, nombres…), les mots dictés reviennent
+            // sinon (banc du 25/11/2026, `docs/BANC_MISE_AU_PROPRE.md`). Un mode à consigne en plus ou qui reformule garde sa sortie.
+            if profile.is_plain_simple() {
+                return Ok(scriibe_core::word_guard::restore_dictated_words(text, &cleaned, vocabulary));
+            }
             return Ok(cleaned);
         }
         if rewrites {

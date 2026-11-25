@@ -527,6 +527,15 @@ fn lm_studio_request_has_the_expected_shape() {
 }
 
 #[test]
+fn simple_mode_gets_dictated_words_back_but_keeps_agreements() {
+    let world = FakeWorld::new();
+    world.route_fixed("/v1/chat/completions", 200, &reply("Cela marche, les fiches sont prêtes."));
+    let c = cleaner(&world, no_keys());
+    let out = c.cleanup("ça marche les fiches est prêt", &lm_studio(), &[]).unwrap();
+    assert_eq!(out, "Ça marche, les fiches sont prêtes.");
+}
+
+#[test]
 fn max_tokens_follows_a_long_dictation() {
     let world = FakeWorld::new();
     let long = "mot ".repeat(400);

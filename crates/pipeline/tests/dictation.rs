@@ -526,7 +526,8 @@ fn the_dictionary_is_applied_before_and_after_the_model() {
     });
     r.dictate();
     assert_eq!(r.paster.pasted()[0].0, "On parle de Scriibe ce matin avec lui. ");
-    assert_eq!(r.history.items()[0].corrections, 2);
+    // Le modèle rend « scribe » : le contrôle mot à mot rétablit déjà « Scriibe » (dicté, corrigé avant le modèle), reste une seule correction.
+    assert_eq!(r.history.items()[0].corrections, 1);
 }
 
 #[test]
