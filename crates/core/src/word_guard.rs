@@ -379,3 +379,26 @@ mod tests {
         assert_eq!(fix("", ""), "");
     }
 }
+
+#[cfg(test)]
+mod carnet_24_11 {
+    use super::restore_dictated_words;
+
+    #[test]
+    fn the_three_dictations_of_the_24_11_keep_their_words() {
+        // 15:02 : tutoiement supprimé, « Maintenis » inventé.
+        let a =
+            restore_dictated_words("Tu maintiens une touche, tu parles et tu relâches.", "Maintenis une touche, parles et relâches.", &[]);
+        assert_eq!(a, "Tu maintiens une touche, tu parles et tu relâches.");
+        // 18:09 : contresens clair → sombre.
+        let b = restore_dictated_words(
+            "celui qui est utilisé est celui du mode sombre, or nous sommes sur le mode clair.",
+            "celui qui est utilisé est celui du mode sombre, alors que nous sommes sur le mode sombre.",
+            &[],
+        );
+        assert_eq!(b, "celui qui est utilisé est celui du mode sombre, or nous sommes sur le mode clair.");
+        // 17:59 : synonymes non demandés.
+        let c = restore_dictated_words("Les mots open source sont plus parlants.", "Les termes open source sont plus accessibles.", &[]);
+        assert_eq!(c, "Les mots open source sont plus parlants.");
+    }
+}
