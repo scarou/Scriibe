@@ -33,6 +33,8 @@ Usage : scriibe [commande]\n\n\
   micro [secondes]           enregistre le micro (3 s par défaut) et mesure le niveau\n\
   essai [fichier.wav] [--traduire]\n\
                              transcrit un fichier WAV (ou la dernière prise) avec la vraie chaîne, sans coller\n\
+  messages-mise-au-propre <dictees.json> [dictionnaire.json]
+                             banc : écrit sur la sortie les messages exacts (mode Simple, cran Léger) envoyés au modèle pour chaque dictée (liste de textes)\n\
   cle deepgram|openrouter|github
                              enregistre une clé d'API (lue sur l'entrée standard, jamais affichée ensuite)\n\
   desinstaller [--liste] [--garder-les-modeles]
@@ -56,6 +58,7 @@ fn main() -> ExitCode {
                 None => ExitCode::from(2),
             };
         }
+        Some("messages-mise-au-propre") => commands::cleanup_messages(&args[1..]),
         Some("cle") => commands::key(args.get(1).map(String::as_str)),
         Some("aide" | "--aide" | "-h" | "--help" | "help") => {
             print!("{HELP}");

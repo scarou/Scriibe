@@ -402,6 +402,34 @@ pub fn microphone(seconds: f64) -> Result<(), String> {
     Ok(())
 }
 
+/// Banc de la mise au propre : pour chaque dictée du fichier (liste de textes JSON), les messages exacts que Scriibe enverrait au modèle
+/// en mode Simple (cran Léger). Rien n'est envoyé nulle part ; le banc (`tools/banc_mise_au_propre.py`) les rejoue sur un serveur local.
+pub fn cleanup_messages(args: &[String]) -> Result<(), String> {
+    let texts_path = args.first().ok_or("usage : messages-mise-au-propre <dictees.json> [dictionnaire.json]")?;
+    let read = |path: &str| std::fs::read_to_string(path).map_err(|e| format!("impossible de lire {path} ({e})"));
+    let texts: Vec<String> =
+        serde_json::from_str(&read(texts_path)?).map_err(|e| format!("{texts_path} : liste de textes attendue ({e})"))?;
+    let vocabulary: Vec<String> = match args.get(1) {
+        Some(path) => {
+            let value: serde_json::Value = serde_json::from_str(&read(path)?).map_err(|e| format!("{path} illisible ({e})"))?;
+            value["words"].as_array().map(|a| a.iter().filter_map(|w| w.as_str().map(String::from)).collect()).unwrap_or_default()
+        }
+        None => Vec::new(),
+    };
+    let profile = scriibe_core::modes::RewriteMode::Simple.profile();
+    let out: Vec<Vec<serde_json::Value>> = texts
+        .iter()
+        .map(|t| {
+            scriibe_core::cleaner::messages(t, &vocabulary, &profile)
+                .iter()
+                .map(|m| serde_json::json!({"role": m.role, "content": m.content}))
+                .collect()
+        })
+        .collect();
+    println!("{}", serde_json::to_string(&out).map_err(|e| e.to_string())?);
+    Ok(())
+}
+
 pub fn trial(args: &[String]) -> Result<(), String> {
     let translate = args.iter().any(|a| a == "--traduire");
     let file: PathBuf = args
